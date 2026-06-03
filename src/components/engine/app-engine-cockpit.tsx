@@ -207,6 +207,30 @@ type EngineAutopilotResult = {
   readiness: EngineReadinessReport;
 };
 
+type EngineSetupVariable = {
+  name: string;
+  label: string;
+  kind: "required" | "either" | "optional";
+  present: boolean;
+};
+
+type EngineSetupPhase = {
+  id: string;
+  title: string;
+  status: "ready" | "partial" | "missing";
+  details: string;
+  nextAction: string;
+  variables: EngineSetupVariable[];
+};
+
+type EngineSetupProfile = {
+  status: "ready" | "partial" | "missing";
+  nextAction: string;
+  phases: EngineSetupPhase[];
+  requiredMissing: string[];
+  generatedAt: string;
+};
+
 const starterIdea =
   "A multi-agent app-building engine that takes an idea, improves it for the target customer, creates customer/admin auth, builds the app, runs QA, fixes issues, and deploys to Vercel with Neon.";
 
@@ -225,6 +249,7 @@ export function AppEngineCockpit() {
   const [databaseSetups, setDatabaseSetups] = useState<EngineDatabaseSetup[]>([]);
   const [readinessReport, setReadinessReport] = useState<EngineReadinessReport | null>(null);
   const [autopilotResult, setAutopilotResult] = useState<EngineAutopilotResult | null>(null);
+  const [setupProfile, setSetupProfile] = useState<EngineSetupProfile | null>(null);
   const [health, setHealth] = useState<EngineHealth | null>(null);
   const [storage, setStorage] = useState("local");
   const [status, setStatus] = useState("Ready");
@@ -232,6 +257,7 @@ export function AppEngineCockpit() {
 
   useEffect(() => {
     void loadHealth();
+    void loadSetupProfile();
     void refreshProjects();
   }, []);
 
@@ -245,6 +271,7 @@ export function AppEngineCockpit() {
   const latestDatabaseSetup = databaseSetups[0] || null;
   const readinessItems = readinessReport?.items || [];
   const readinessBlockers = readinessReport?.blockers || [];
+  const setupPhases = setupProfile?.phases || [];
   const latestRunQaChecks = getRunQaChecks(latestRun);
   const latestRunAgents = getRunAgents(latestRun);
   const healthReady =
@@ -325,7 +352,8 @@ export function AppEngineCockpit() {
         refreshDeployments(payload.project.id),
         refreshExports(payload.project.id),
         refreshDatabaseSetups(payload.project.id),
-        refreshReadiness(payload.project.id)
+        refreshReadiness(payload.project.id),
+        loadSetupProfile()
       ]);
       setStatus("Saved");
     } catch (caught) {
@@ -361,6 +389,7 @@ export function AppEngineCockpit() {
         refreshDeployments(currentProjectId),
         refreshExports(currentProjectId),
         refreshDatabaseSetups(currentProjectId),
+        loadSetupProfile(),
         loadHealth()
       ]);
       setStatus(payload.status === "completed" ? "Autopilot complete" : "Autopilot blocked");
@@ -390,7 +419,7 @@ export function AppEngineCockpit() {
       }
 
       await refreshProjects();
-      await Promise.all([refreshRuns(currentProjectId), refreshReadiness(currentProjectId), loadHealth()]);
+      await Promise.all([refreshRuns(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
       setStatus(payload.run.status === "qa_passed" ? "QA passed" : "QA needs attention");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Automation run failed");
@@ -418,7 +447,7 @@ export function AppEngineCockpit() {
       }
 
       await refreshProjects();
-      await Promise.all([refreshRuns(currentProjectId), refreshReadiness(currentProjectId), loadHealth()]);
+      await Promise.all([refreshRuns(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
       setStatus(payload.run.status === "agents_completed" ? "Agents complete" : "Agents need attention");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Agent build run failed");
@@ -446,7 +475,7 @@ export function AppEngineCockpit() {
       }
 
       await refreshProjects();
-      await Promise.all([refreshDeployments(currentProjectId), refreshReadiness(currentProjectId), loadHealth()]);
+      await Promise.all([refreshDeployments(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
       setStatus(payload.deployment.status === "deployment_ready" ? "Deploy ready" : "Deploy blocked");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Deployment preparation failed");
@@ -474,7 +503,7 @@ export function AppEngineCockpit() {
       }
 
       await refreshProjects();
-      await Promise.all([refreshDatabaseSetups(currentProjectId), refreshReadiness(currentProjectId), loadHealth()]);
+      await Promise.all([refreshDatabaseSetups(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
       setStatus(payload.setup.status === "database_ready" ? "Database ready" : formatStatus(payload.setup.status));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Database setup failed");
@@ -506,6 +535,7 @@ export function AppEngineCockpit() {
         refreshExports(currentProjectId),
         refreshDatabaseSetups(currentProjectId),
         refreshReadiness(currentProjectId),
+        loadSetupProfile(),
         loadHealth()
       ]);
       setStatus("App exported");
@@ -535,6 +565,15 @@ export function AppEngineCockpit() {
     if (response.ok) {
       setHealth(payload);
       setStorage(payload.storage || "local");
+    }
+  }
+
+  async function loadSetupProfile() {
+    const response = await fetch("/api/engine/setup-profile");
+    const payload = await response.json();
+
+    if (response.ok) {
+      setSetupProfile(payload);
     }
   }
 
@@ -714,6 +753,44 @@ export function AppEngineCockpit() {
           </div>
         ) : null}
       </section>
+
+      {setupProfile ? (
+        <section className="panel setup-panel">
+          <div className="setup-summary">
+            <div>
+              <p className="eyebrow">Setup Profile</p>
+              <h2>{formatStatus(setupProfile.status)}</h2>
+              <p>
+                {setupProfile.status === "ready"
+                  ? "All major setup phases are configured for automated runs."
+                  : `${setupProfile.requiredMissing.length} required value${setupProfile.requiredMissing.length === 1 ? "" : "s"} still need setup.`}
+              </p>
+            </div>
+            <div className="setup-next">
+              <span>Next setup action</span>
+              <strong>{setupProfile.nextAction}</strong>
+            </div>
+          </div>
+          <div className="setup-phase-list">
+            {setupPhases.map((phase) => (
+              <article className={`setup-phase ${phase.status}`} key={phase.id}>
+                <div>
+                  <span>{formatStatus(phase.status)}</span>
+                  <strong>{phase.title}</strong>
+                </div>
+                <p>{phase.details}</p>
+                <div className="setup-variable-list">
+                  {phase.variables.map((variable) => (
+                    <span className={variable.present ? "present" : ""} key={variable.name} title={variable.label}>
+                      {variable.name}
+                    </span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {readinessReport ? (
         <section className="panel readiness-panel">

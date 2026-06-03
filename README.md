@@ -79,6 +79,16 @@ GENERATED_APP_DATABASE_URL
 
 Use this only when you want all generated app setup to target a specific database or branch.
 
+## Setup Profile
+
+The cockpit reads:
+
+```text
+GET /api/engine/setup-profile
+```
+
+This route reports setup phases, missing variable names, and the next setup action without exposing secret values. Use it in local or Codex web runs to understand what is actually configured.
+
 ## Worker Providers
 
 The engine chooses workers automatically:

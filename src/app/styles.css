@@ -295,6 +295,102 @@ label {
   font-weight: 800;
 }
 
+.setup-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.setup-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.35fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.setup-next {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff8ef;
+}
+
+.setup-next span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.setup-next strong {
+  text-transform: capitalize;
+}
+
+.setup-phase-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.setup-phase {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-wrap: anywhere;
+  background: #ffffff;
+}
+
+.setup-phase.ready {
+  background: var(--green-soft);
+}
+
+.setup-phase.partial {
+  background: #f7efd8;
+}
+
+.setup-phase.missing {
+  background: #f8e9e5;
+}
+
+.setup-phase > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.setup-phase span,
+.setup-variable-list span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.setup-phase strong {
+  display: block;
+}
+
+.setup-variable-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.setup-variable-list span {
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: var(--coral);
+  background: #ffffff;
+}
+
+.setup-variable-list span.present {
+  color: var(--teal);
+  background: #ffffff;
+}
+
 .readiness-panel {
   display: grid;
   gap: 14px;
@@ -574,6 +670,8 @@ label {
   .metric-grid,
   .health-panel,
   .health-grid,
+  .setup-summary,
+  .setup-phase-list,
   .readiness-summary,
   .readiness-list,
   .autopilot-steps,
