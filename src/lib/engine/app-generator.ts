@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getDatabase } from "@/lib/db/client";
 import type { AgentStructuredArtifact } from "./agent-artifacts";
-import { buildGeneratedAppHandoff } from "./app-output";
+import { buildGeneratedAppHandoff, type GeneratedAppHandoff } from "./app-output";
 import { createLocalExport, getLocalProject, listLocalExports, listLocalRuns } from "./development-store";
 import { isLocalMode } from "./local-mode";
 import { analyzeIdea } from "./planner";
@@ -198,13 +198,19 @@ function extractAgentOutputs(source: unknown): GeneratorAgentOutput[] {
     }));
 }
 
-function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: ReturnType<typeof buildGeneratedAppHandoff>): GeneratedFile[] {
+function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff): GeneratedFile[] {
   const projectName = escapeText(project.name || plan.title || "Generated App");
   const customer = escapeText(plan.customer);
   const problem = escapeText(plan.problem);
-  const templates = plan.templates.map((template) => template.name);
-  const roles = plan.auth.roles;
-  const appData = buildAppSeedData(plan);
+  const roleMatrix = normalizeRoleMatrix(handoff, plan.auth.roles);
+  const roles = roleMatrix.map((role) => role.role);
+  const protectedRoutes = normalizeProtectedRoutes(handoff);
+  const apiRoutes = normalizeApiRoutes(handoff);
+  const databaseModel = normalizeDatabaseModel(handoff);
+  const qaChecks = normalizeQaChecks(handoff);
+  const requiredEnvironment = extractRequiredEnvironment(handoff);
+  const deploymentCommands = extractDeploymentCommands(handoff);
+  const appData = buildAppSeedData(plan, handoff);
   const blueprint = {
     project: {
       id: project.id,
@@ -295,7 +301,15 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
         "- Admin customer management",
         "- Admin project queue",
         "- API stubs for customer/admin workflows",
-        "- Machine-usable blueprint generated from agent artifacts"
+        "- Machine-usable blueprint generated from agent artifacts",
+        "",
+        "## Generated Contracts",
+        "",
+        "- `src/lib/auth/permissions.ts` - role permissions and protected route gates",
+        "- `src/lib/generated-api-contract.ts` - API route contracts from the backend agent",
+        "- `src/lib/db/generated-model.ts` - database entities from the data agent",
+        "- `src/lib/qa/acceptance-checks.ts` - launch checks from the QA agent",
+        "- `src/lib/deployment/deployment-plan.ts` - env, commands, and release gates from the deployment agent"
       ].join("\n")
     },
     {
@@ -449,7 +463,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/lib/auth/roles.ts",
-      content: `export const roles = ${JSON.stringify(roles, null, 2)} as const;\nexport const defaultRoles = ["owner", "admin", "customer"] as const;\n\nexport type GeneratedRole = (typeof roles)[number];\nexport type DefaultRole = (typeof defaultRoles)[number];\nexport type Role = GeneratedRole | DefaultRole;\n\nexport function roleForEmail(email?: string | null): Role {\n  const normalizedEmail = email?.trim().toLowerCase();\n  const ownerEmail = process.env.APP_ENGINE_OWNER_EMAIL?.trim().toLowerCase();\n\n  if (normalizedEmail && ownerEmail && normalizedEmail === ownerEmail) {\n    return "owner";\n  }\n\n  return "customer";\n}\n\nexport function canAccessAdmin(role?: string | null) {\n  return role === "owner" || role === "admin";\n}\n\nexport function canAccessCustomerArea(role?: string | null) {\n  return Boolean(role);\n}\n`
+      content: `import { rolePermissions } from "./permissions";\n\nexport const roles = ${JSON.stringify(roles, null, 2)} as const;\nexport const defaultRoles = ["owner", "admin", "customer"] as const;\n\nexport type GeneratedRole = (typeof roles)[number];\nexport type DefaultRole = (typeof defaultRoles)[number];\nexport type Role = GeneratedRole | DefaultRole;\n\nexport function roleForEmail(email?: string | null): Role {\n  const normalizedEmail = email?.trim().toLowerCase();\n  const ownerEmail = process.env.APP_ENGINE_OWNER_EMAIL?.trim().toLowerCase();\n\n  if (normalizedEmail && ownerEmail && normalizedEmail === ownerEmail) {\n    return "owner";\n  }\n\n  return "customer";\n}\n\nexport function canAccessAdmin(role?: string | null) {\n  return role === "owner" || role === "admin";\n}\n\nexport function canAccessCustomerArea(role?: string | null) {\n  return Boolean(role && (roles as readonly string[]).includes(role));\n}\n\nexport function permissionsForRole(role?: string | null) {\n  return rolePermissions.find((entry) => entry.role === role)?.can || [];\n}\n`
+    },
+    {
+      path: "src/lib/auth/permissions.ts",
+      content: `export const rolePermissions = ${JSON.stringify(roleMatrix, null, 2)} as const;\n\nexport const protectedRoutes = ${JSON.stringify(protectedRoutes, null, 2)} as const;\n\nexport type ProtectedRoute = (typeof protectedRoutes)[number];\n\nfunction pathMatches(pattern: string, path: string) {\n  if (pattern.endsWith("/*")) {\n    const basePath = pattern.slice(0, -1);\n    return path.startsWith(basePath);\n  }\n\n  return path === pattern || path.startsWith(pattern + "/");\n}\n\nexport function allowedRolesForPath(path: string) {\n  const route = protectedRoutes.find((candidate) => pathMatches(candidate.path, path));\n\n  return route ? [...(route.access as readonly string[])] : [];\n}\n\nexport function canAccessRoute(role?: string | null, path = "/") {\n  const allowedRoles = allowedRolesForPath(path);\n\n  return allowedRoles.length === 0 || Boolean(role && allowedRoles.includes(role));\n}\n`
     },
     {
       path: "src/lib/auth/session.ts",
@@ -470,6 +488,22 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     {
       path: "src/lib/generated-blueprint.ts",
       content: `export const generatedBlueprint = ${blueprintJson} as const;\n`
+    },
+    {
+      path: "src/lib/generated-api-contract.ts",
+      content: `export const generatedApiRoutes = ${JSON.stringify(apiRoutes, null, 2)} as const;\n\nexport type GeneratedApiRoute = (typeof generatedApiRoutes)[number];\n\nexport function getApiRoute(path: string, method?: string) {\n  const normalizedMethod = method?.toUpperCase();\n\n  return generatedApiRoutes.find((route) => route.path === path && (!normalizedMethod || route.method === normalizedMethod));\n}\n\nexport function apiRoutesForAuth(auth: string) {\n  return generatedApiRoutes.filter((route) => route.auth === auth);\n}\n`
+    },
+    {
+      path: "src/lib/db/generated-model.ts",
+      content: `export const generatedDatabaseModel = ${JSON.stringify(databaseModel, null, 2)} as const;\n\nexport type GeneratedEntity = (typeof generatedDatabaseModel)[number];\nexport type GeneratedEntityName = GeneratedEntity["name"];\n\nexport function fieldsForEntity(entityName: string) {\n  const entity = generatedDatabaseModel.find((candidate) => candidate.name === entityName);\n\n  return entity ? [...(entity.fields as readonly string[])] : [];\n}\n\nexport function indexesForEntity(entityName: string) {\n  const entity = generatedDatabaseModel.find((candidate) => candidate.name === entityName);\n\n  return entity ? [...(entity.indexes as readonly string[])] : [];\n}\n`
+    },
+    {
+      path: "src/lib/qa/acceptance-checks.ts",
+      content: `export const acceptanceChecks = ${JSON.stringify(qaChecks, null, 2)} as const;\n\nexport const qaEvidence = ${JSON.stringify(extractQaEvidence(handoff), null, 2)} as const;\n\nexport type AcceptanceCheck = (typeof acceptanceChecks)[number];\n\nexport function launchBlockingChecks() {\n  return acceptanceChecks.filter((check) => check.severity === "high");\n}\n\nexport function commandsToRun() {\n  return acceptanceChecks.map((check) => check.command).filter(Boolean);\n}\n`
+    },
+    {
+      path: "src/lib/deployment/deployment-plan.ts",
+      content: `export const requiredEnvironment = ${JSON.stringify(requiredEnvironment, null, 2)} as const;\n\nexport const deploymentCommands = ${JSON.stringify(deploymentCommands, null, 2)} as const;\n\nexport const deploymentGates = ${JSON.stringify(handoff.deploymentGates, null, 2)} as const;\n\nexport function missingRequiredEnvironment(env: NodeJS.ProcessEnv = process.env) {\n  return requiredEnvironment.filter((key) => !env[key] || env[key]?.includes("replace"));\n}\n\nexport function isReadyForPreview(env: NodeJS.ProcessEnv = process.env) {\n  return missingRequiredEnvironment(env).length === 0;\n}\n`
     },
     {
       path: "src/lib/app-data.ts",
@@ -544,46 +578,55 @@ p, small { color: #344138; line-height: 1.55; }
 `;
 }
 
-function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>) {
+type RolePermission = {
+  role: string;
+  can: string[];
+};
+
+type ProtectedRouteGate = {
+  path: string;
+  access: string[];
+};
+
+type ApiRouteContract = {
+  method: string;
+  path: string;
+  purpose: string;
+  auth: string;
+};
+
+type DatabaseEntity = {
+  name: string;
+  purpose: string;
+  fields: string[];
+  indexes: string[];
+};
+
+type QaCheck = {
+  title: string;
+  severity: string;
+  command: string;
+};
+
+function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
   return {
-    selectedModules: plan.templates.map((template) => ({
-      name: template.name,
-      category: template.category,
-      description: template.description
-    })),
+    selectedModules: buildSelectedModules(plan, handoff),
     customerMetrics: [
       { label: "Open work", value: "8", detail: "Active customer-facing items needing action." },
       { label: "Time saved", value: "14h", detail: "Estimated monthly time recovered from automation." },
       { label: "Plan usage", value: "62%", detail: "Current usage against plan limits." },
       { label: "Health", value: "Good", detail: "Account has no critical blockers." }
     ],
-    customerWorkflows: [
-      { title: "First outcome workflow", status: "active", nextAction: `Move the customer through the ${plan.problem} workflow.` },
-      { title: "Recovery path", status: "ready", nextAction: "Show blocked items, support escalation, and next best action." },
-      { title: "Expansion signal", status: "watching", nextAction: "Track usage and trigger upgrade when limits are approached." }
-    ],
+    customerWorkflows: buildCustomerWorkflows(plan, handoff),
     accountSections: [
       { title: "Profile", state: "ready", description: "Customer name, email, role, avatar, and preferences." },
       { title: "Organization", state: "ready", description: "Company details, members, permissions, and ownership." },
       { title: "Billing", state: "ready", description: "Subscription, invoices, usage, plan limits, and upgrade path." },
       { title: "Notifications", state: "ready", description: "Email and in-app delivery preferences." }
     ],
-    onboardingSteps: [
-      { title: "Capture goal", status: "step 1", description: "Ask what success looks like and what has to happen first." },
-      { title: "Set up company", status: "step 2", description: "Collect company, team, role, and account context." },
-      { title: "Choose workflow", status: "step 3", description: "Select the first workflow that proves value fastest." },
-      { title: "Confirm success criteria", status: "step 4", description: "Turn the promise into measurable acceptance criteria." }
-    ],
-    pricingPlans: [
-      { name: "Starter", audience: "new customers", price: "$49/mo", includes: ["1 workspace", "basic automations", "email support"] },
-      { name: "Growth", audience: "scaling teams", price: "$149/mo", includes: ["5 workspaces", "AI runs", "priority support"] },
-      { name: "Scale", audience: "operators", price: "$399/mo", includes: ["unlimited workflows", "admin controls", "SLA support"] }
-    ],
-    customerRequests: [
-      { title: "Complete setup", status: "open", priority: "high", summary: "Customer needs onboarding steps finished before first value." },
-      { title: "Review workflow", status: "in progress", priority: "medium", summary: "Customer submitted a workflow for admin review." },
-      { title: "Upgrade limit", status: "waiting", priority: "medium", summary: "Usage is approaching the plan limit and needs a decision." }
-    ],
+    onboardingSteps: buildOnboardingSteps(handoff),
+    pricingPlans: buildPricingPlans(handoff),
+    customerRequests: buildCustomerRequests(plan, handoff),
     notifications: [
       { title: "Workflow completed", channel: "in-app", body: "Notify the customer when their primary workflow reaches success." },
       { title: "Action required", channel: "email", body: "Escalate blocked work with a direct recovery action." },
@@ -595,22 +638,315 @@ function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>) {
       { label: "MRR", value: "$8.2k", detail: "Monthly recurring revenue snapshot." },
       { label: "Deployments", value: "6", detail: "Preview or production releases this month." }
     ],
-    adminQueues: [
-      { title: "Customer onboarding", status: "attention", nextAction: "Review incomplete onboarding and send next action." },
-      { title: "QA findings", status: "active", nextAction: "Patch unresolved checks before production promotion." },
-      { title: "Deployment queue", status: "blocked", nextAction: "Resolve env and credential gates before release." }
-    ],
+    adminQueues: buildAdminQueues(handoff),
     adminCustomers: [
       { name: "Acme Services", health: "good", plan: "Growth", status: "active", nextAction: "Invite second admin user." },
       { name: "Northstar Ops", health: "watch", plan: "Starter", status: "setup incomplete", nextAction: "Finish onboarding checklist." },
       { name: "Atlas Field", health: "expansion", plan: "Growth", status: "near usage limit", nextAction: "Offer Scale upgrade." }
     ],
-    adminProjects: [
-      { name: plan.title || "Generated App", status: "qa", readiness: 86, summary: "Agent run complete and awaiting final deployment gates." },
-      { name: "Customer Portal", status: "planned", readiness: 42, summary: "Templates selected and data model ready for implementation." },
-      { name: "Workflow Automation", status: "deployed", readiness: 96, summary: "Preview verified and ready for promotion." }
-    ]
+    adminProjects: buildAdminProjects(plan, handoff)
   };
+}
+
+function buildSelectedModules(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
+  const templateData = artifactData(handoff, "template_plan");
+  const contracts = records(templateData.moduleContracts);
+  const selectedNames = uniqueStrings(strings(templateData.selectedTemplates, plan.templates.map((template) => template.name)));
+
+  return selectedNames.map((name) => {
+    const plannedTemplate = plan.templates.find((template) => template.name === name);
+    const contract = contracts.find((item) => text(item.name, "") === name);
+    const includes = strings(contract?.includes, []);
+
+    return {
+      name,
+      category: plannedTemplate?.category || "generated module",
+      description:
+        plannedTemplate?.description ||
+        (includes.length ? `Includes ${includes.join(", ")}.` : `Reusable ${name} module generated by the template agent.`)
+    };
+  });
+}
+
+function buildCustomerWorkflows(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
+  const workflows = normalizeWorkflows(handoff);
+  const statuses = ["active", "ready", "watching", "queued"];
+
+  if (!workflows.length) {
+    return [
+      { title: "First outcome workflow", status: "active", nextAction: `Move the customer through the ${plan.problem} workflow.` },
+      { title: "Recovery path", status: "ready", nextAction: "Show blocked items, support escalation, and next best action." },
+      { title: "Expansion signal", status: "watching", nextAction: "Track usage and trigger upgrade when limits are approached." }
+    ];
+  }
+
+  return workflows.slice(0, 4).map((workflow, index) => ({
+    title: workflow.name,
+    status: statuses[index] || "ready",
+    nextAction: workflow.steps.length
+      ? `Next step: ${workflow.steps[0]}. Path: ${workflow.steps.join(" -> ")}.`
+      : `Move the customer through the ${plan.problem} workflow.`
+  }));
+}
+
+function buildOnboardingSteps(handoff: GeneratedAppHandoff) {
+  const onboardingWorkflow = normalizeWorkflows(handoff).find((workflow) => workflow.name.toLowerCase().includes("onboarding"));
+  const steps = onboardingWorkflow?.steps.length
+    ? onboardingWorkflow.steps
+    : ["capture goal", "company setup", "first workflow", "success criteria"];
+
+  return steps.map((step, index) => ({
+    title: toTitle(step),
+    status: `step ${index + 1}`,
+    description: `Complete ${step} so the account reaches first value.`
+  }));
+}
+
+function buildPricingPlans(handoff: GeneratedAppHandoff) {
+  const tiers = records(artifactData(handoff, "business_model").pricingTiers);
+  const fallbackAudiences = ["new customers", "scaling teams", "operators"];
+
+  if (!tiers.length) {
+    return [
+      { name: "Starter", audience: "new customers", price: "$49/mo", includes: ["1 workspace", "basic automations", "email support"] },
+      { name: "Growth", audience: "scaling teams", price: "$149/mo", includes: ["5 workspaces", "AI runs", "priority support"] },
+      { name: "Scale", audience: "operators", price: "$399/mo", includes: ["unlimited workflows", "admin controls", "SLA support"] }
+    ];
+  }
+
+  return tiers.map((tier, index) => {
+    const includes = uniqueStrings([
+      ...strings(tier.includes, []),
+      text(tier.limit, ""),
+      text(tier.upgradeTrigger, "")
+    ]);
+
+    return {
+      name: text(tier.name, `Plan ${index + 1}`),
+      audience: text(tier.audience, fallbackAudiences[index] || "customers"),
+      price: text(tier.price, "Custom"),
+      includes: includes.length ? includes : ["core workflow", "account workspace", "support"]
+    };
+  });
+}
+
+function buildCustomerRequests(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
+  const workflows = normalizeWorkflows(handoff);
+  const statuses = ["open", "in progress", "waiting"];
+  const priorities = ["high", "medium", "medium"];
+
+  if (!workflows.length) {
+    return [
+      { title: "Complete setup", status: "open", priority: "high", summary: "Customer needs onboarding steps finished before first value." },
+      { title: "Review workflow", status: "in progress", priority: "medium", summary: "Customer submitted a workflow for admin review." },
+      { title: "Upgrade limit", status: "waiting", priority: "medium", summary: "Usage is approaching the plan limit and needs a decision." }
+    ];
+  }
+
+  return workflows.slice(0, 3).map((workflow, index) => ({
+    title: workflow.name,
+    status: statuses[index] || "open",
+    priority: priorities[index] || "medium",
+    summary: workflow.steps.length
+      ? `${plan.customer} is at ${workflow.steps[0]} and needs the next guided action.`
+      : `${plan.customer} needs help with ${plan.problem}.`
+  }));
+}
+
+function buildAdminQueues(handoff: GeneratedAppHandoff) {
+  const qaChecks = normalizeQaChecks(handoff);
+  const launchBlockingCheck = qaChecks.find((check) => check.severity === "high") || qaChecks[0];
+  const deploymentGate = handoff.deploymentGates[0] || "env configured";
+
+  return [
+    { title: "Customer onboarding", status: "attention", nextAction: "Review incomplete onboarding and send next action." },
+    {
+      title: launchBlockingCheck ? `QA: ${launchBlockingCheck.title}` : "QA findings",
+      status: launchBlockingCheck?.severity || "active",
+      nextAction: launchBlockingCheck?.command ? `Run ${launchBlockingCheck.command}.` : "Patch unresolved checks before production promotion."
+    },
+    {
+      title: "Deployment queue",
+      status: "blocked",
+      nextAction: `Clear gate: ${deploymentGate}.`
+    }
+  ];
+}
+
+function buildAdminProjects(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
+  const readiness = Math.min(96, 72 + Math.min(handoff.agentBlueprint.length, 12));
+
+  return [
+    {
+      name: plan.title || "Generated App",
+      status: "qa",
+      readiness,
+      summary: `Agent run produced ${handoff.agentBlueprint.length} usable artifacts and ${handoff.qaChecks.length} QA checks.`
+    },
+    {
+      name: "Data Model",
+      status: "ready",
+      readiness: handoff.databaseModel.length ? 82 : 42,
+      summary: `${handoff.databaseModel.length || 0} entities ready for Neon setup.`
+    },
+    {
+      name: "Preview Deployment",
+      status: handoff.deploymentGates.length ? "gated" : "ready",
+      readiness: handoff.deploymentGates.length ? 68 : 90,
+      summary: `${handoff.deploymentGates.length || 0} release gates must pass before promotion.`
+    }
+  ];
+}
+
+function normalizeRoleMatrix(handoff: GeneratedAppHandoff, fallbackRoles: string[]): RolePermission[] {
+  const source = handoff.roleMatrix.length
+    ? handoff.roleMatrix
+    : fallbackRoles.map((role) => ({ role, can: role === "customer" ? ["manage own account"] : ["manage app operations"] }));
+  const roleMap = new Map<string, RolePermission>();
+
+  for (const role of source) {
+    const roleName = text(role.role, "");
+
+    if (!roleName) {
+      continue;
+    }
+
+    roleMap.set(roleName, {
+      role: roleName,
+      can: strings(role.can, roleName === "customer" ? ["manage own account"] : ["manage app operations"])
+    });
+  }
+
+  for (const fallbackRole of ["owner", "admin", "customer"]) {
+    if (!roleMap.has(fallbackRole)) {
+      roleMap.set(fallbackRole, {
+        role: fallbackRole,
+        can: fallbackRole === "customer" ? ["manage own account"] : ["manage app operations"]
+      });
+    }
+  }
+
+  return Array.from(roleMap.values());
+}
+
+function normalizeProtectedRoutes(handoff: GeneratedAppHandoff): ProtectedRouteGate[] {
+  const source = records(artifactData(handoff, "auth_plan").protectedRoutes);
+  const fallback = [
+    { path: "/app", access: ["owner", "admin", "customer"] },
+    { path: "/account", access: ["owner", "admin", "customer"] },
+    { path: "/admin", access: ["owner", "admin"] },
+    { path: "/api/customer/*", access: ["owner", "admin", "customer"] },
+    { path: "/api/admin/*", access: ["owner", "admin"] }
+  ];
+  const routes = source.length ? source : fallback;
+  const routeMap = new Map<string, ProtectedRouteGate>();
+
+  for (const route of routes) {
+    const path = text(route.path, "");
+
+    if (!path) {
+      continue;
+    }
+
+    routeMap.set(path, {
+      path,
+      access: strings(route.access, ["owner", "admin", "customer"])
+    });
+  }
+
+  return Array.from(routeMap.values());
+}
+
+function normalizeApiRoutes(handoff: GeneratedAppHandoff): ApiRouteContract[] {
+  return (handoff.apiRoutes.length
+    ? handoff.apiRoutes
+    : [
+        { method: "GET", path: "/api/health", purpose: "public health check", auth: "public" },
+        { method: "GET", path: "/api/customer/requests", purpose: "list customer requests", auth: "customer" },
+        { method: "GET", path: "/api/admin/customers", purpose: "list admin customers", auth: "admin" },
+        { method: "GET", path: "/api/admin/projects", purpose: "list admin projects", auth: "admin" }
+      ]
+  ).map((route) => ({
+    method: text(route.method, "GET").toUpperCase(),
+    path: text(route.path, "/api/health"),
+    purpose: text(route.purpose, "generated API route"),
+    auth: text(route.auth, "public")
+  }));
+}
+
+function normalizeDatabaseModel(handoff: GeneratedAppHandoff): DatabaseEntity[] {
+  return (handoff.databaseModel.length ? handoff.databaseModel : [{ name: "organizations", purpose: "Customer organizations", fields: ["name"], indexes: ["slug"] }]).map(
+    (entity) => ({
+      name: text(entity.name, "generated_entity"),
+      purpose: text(entity.purpose, "Generated data entity"),
+      fields: strings(entity.fields, []),
+      indexes: strings(entity.indexes, [])
+    })
+  );
+}
+
+function normalizeQaChecks(handoff: GeneratedAppHandoff): QaCheck[] {
+  return (handoff.qaChecks.length
+    ? handoff.qaChecks
+    : [
+        { title: "typecheck", severity: "high", command: "npm run typecheck" },
+        { title: "production build", severity: "high", command: "npm run build" }
+      ]
+  ).map((check) => ({
+    title: text(check.title, "Generated QA check"),
+    severity: text(check.severity, "medium"),
+    command: text(check.command, "")
+  }));
+}
+
+function normalizeWorkflows(handoff: GeneratedAppHandoff) {
+  return handoff.workflows.map((workflow) => ({
+    name: text(workflow.name, "Generated workflow"),
+    steps: strings(workflow.steps, [])
+  }));
+}
+
+function extractRequiredEnvironment(handoff: GeneratedAppHandoff) {
+  const deploymentData = artifactData(handoff, "deployment_plan");
+  const fallbackEnvironment = handoff.environment.flatMap((item) => item.split(/\s+or\s+/i).map((name) => name.trim()));
+
+  return uniqueStrings(strings(deploymentData.requiredEnv, fallbackEnvironment)).filter((item) => /^[A-Z0-9_]+$/.test(item));
+}
+
+function extractDeploymentCommands(handoff: GeneratedAppHandoff) {
+  return uniqueStrings(strings(artifactData(handoff, "deployment_plan").commands, handoff.deployment));
+}
+
+function extractQaEvidence(handoff: GeneratedAppHandoff) {
+  return uniqueStrings(strings(artifactData(handoff, "qa_plan").evidence, ["build logs", "API responses", "browser screenshots"]));
+}
+
+function artifactData(handoff: GeneratedAppHandoff, kind: string) {
+  return handoff.agentBlueprint.find((artifact) => artifact.kind === kind)?.data || {};
+}
+
+function records(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item))) : [];
+}
+
+function strings(value: unknown, fallback: string[] = []) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string") ? (value as string[]) : fallback;
+}
+
+function text(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function uniqueStrings(items: string[]) {
+  return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
+}
+
+function toTitle(input: string) {
+  return input
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function buildSchemaSql() {

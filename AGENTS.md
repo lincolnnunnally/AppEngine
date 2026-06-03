@@ -45,3 +45,4 @@ Do not commit `.env.local`, generated `.app-engine` output, `.next`, `node_modul
 - Keep generated apps buildable with no database configured by using static fallback data where appropriate.
 - Keep agent behavior centralized in `src/lib/engine/agent-roles.ts`; task graph and worker prompts should derive from the shared role registry.
 - Keep machine-usable agent outputs centralized in `src/lib/engine/agent-artifacts.ts`; generated app exports should consume these artifacts instead of relying only on prose summaries.
+- Keep artifact-to-file compilation in `src/lib/engine/app-generator.ts` aligned with new artifact kinds so generated apps receive importable code, not just reports.

@@ -136,9 +136,14 @@ Agent runs now produce machine-usable artifacts in addition to human summaries. 
 ```text
 app-engine-blueprint.json
 src/lib/generated-blueprint.ts
+src/lib/auth/permissions.ts
+src/lib/generated-api-contract.ts
+src/lib/db/generated-model.ts
+src/lib/qa/acceptance-checks.ts
+src/lib/deployment/deployment-plan.ts
 ```
 
-Those files contain the agent-produced routes, API routes, role matrix, database model, workflows, QA checks, deployment gates, and raw agent blueprint artifacts.
+Those files contain the agent-produced routes, API routes, role matrix, protected route gates, database model, workflows, QA checks, deployment gates, and raw agent blueprint artifacts.
 
 ## Deployment Workflow
 

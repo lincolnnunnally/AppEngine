@@ -141,6 +141,10 @@ export function buildGeneratedAppHandoff(plan: Plan, agents: AgentOutputForHando
         purpose: `Role gates for ${plan.auth.roles.join(", ")}.`
       },
       {
+        path: "src/lib/auth/permissions.ts",
+        purpose: "Machine-usable role permissions and protected route access gates from the auth agent."
+      },
+      {
         path: "src/lib/db/schema.sql",
         purpose: "Neon schema for Auth.js, organizations, app records, tasks, artifacts, QA checks, deployments, customer requests, and audit events."
       },
@@ -167,6 +171,22 @@ export function buildGeneratedAppHandoff(plan: Plan, agents: AgentOutputForHando
       {
         path: "src/lib/generated-blueprint.ts",
         purpose: "Machine-usable build blueprint produced from agent artifacts."
+      },
+      {
+        path: "src/lib/generated-api-contract.ts",
+        purpose: "Typed API route contracts produced from the backend agent."
+      },
+      {
+        path: "src/lib/db/generated-model.ts",
+        purpose: "Typed database entity map produced from the data agent."
+      },
+      {
+        path: "src/lib/qa/acceptance-checks.ts",
+        purpose: "Launch checks and evidence expectations produced from the QA agent."
+      },
+      {
+        path: "src/lib/deployment/deployment-plan.ts",
+        purpose: "Required environment, deploy commands, and release gates produced from the deployment agent."
       },
       {
         path: "app-engine-blueprint.json",
