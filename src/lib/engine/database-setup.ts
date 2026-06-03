@@ -18,7 +18,29 @@ type GeneratedExportLocation = {
   exportId?: string;
 };
 
+type GeneratedDatabaseTarget = {
+  databaseUrl: string;
+  target: string;
+  source: "manual" | "neon_branch";
+  metadata: Record<string, unknown>;
+};
+
+type NeonProvisionMetadata = {
+  projectId: string;
+  branchId: string;
+  branchName: string;
+  endpointId?: string;
+  databaseName: string;
+  roleName: string;
+};
+
+type NeonOperation = {
+  id?: string;
+  status?: string;
+};
+
 const setupFiles = ["src/lib/db/schema.sql", "src/lib/db/seed.sql"];
+const neonApiBaseUrl = "https://console.neon.tech/api/v2";
 
 export async function listProjectDatabaseSetups(projectId: string) {
   if (isLocalMode()) {
@@ -52,7 +74,7 @@ export async function setupGeneratedAppDatabase(projectId: string) {
       throw new Error("Project not found");
     }
 
-    const payload = await buildDatabaseSetupPayload(projectId);
+    const payload = await buildDatabaseSetupPayload(projectId, project.name);
     const setup = await createLocalDatabaseSetup(projectId, payload);
 
     return {
@@ -63,7 +85,7 @@ export async function setupGeneratedAppDatabase(projectId: string) {
 
   const sql = getDatabase();
   const [project] = await sql`
-    select id, readiness_score
+    select id, name, readiness_score
     from app_projects
     where id = ${projectId}
     limit 1
@@ -73,7 +95,7 @@ export async function setupGeneratedAppDatabase(projectId: string) {
     throw new Error("Project not found");
   }
 
-  const payload = await buildDatabaseSetupPayload(projectId);
+  const payload = await buildDatabaseSetupPayload(projectId, typeof project.name === "string" ? project.name : undefined);
   const [artifact] = await sql`
     insert into artifacts (project_id, artifact_type, title, content, uri, metadata)
     values (
@@ -112,13 +134,14 @@ export async function setupGeneratedAppDatabase(projectId: string) {
   };
 }
 
-async function buildDatabaseSetupPayload(projectId: string): Promise<DatabaseSetupPayload> {
+async function buildDatabaseSetupPayload(projectId: string, projectName?: string): Promise<DatabaseSetupPayload> {
   const generatedExport = await getLatestGeneratedExport(projectId);
-  const targetDatabaseUrl = getTargetDatabaseUrl();
-  const target = targetDatabaseUrl ? describeDatabaseUrl(targetDatabaseUrl) : "Not configured";
+  const targetResult = await getGeneratedDatabaseTarget(projectId, projectName);
+  const targetDatabaseUrl = targetResult?.databaseUrl || "";
+  const target = targetResult?.target || "Not configured";
   const commands = [
     "Generate App",
-    "Set GENERATED_APP_DATABASE_URL to a Neon database or branch for this generated app",
+    "Configure NEON_API_KEY and NEON_PROJECT_ID for automatic generated app database branches",
     "Setup DB",
     "Run QA Loop",
     "Prepare Deploy"
@@ -141,13 +164,14 @@ async function buildDatabaseSetupPayload(projectId: string): Promise<DatabaseSet
     return createSetupPayload({
       status: "database_blocked",
       target,
-      details: "Set GENERATED_APP_DATABASE_URL to the Neon database that should receive the generated app schema and seed data.",
+      details:
+        "Configure NEON_API_KEY and NEON_PROJECT_ID so the engine can create a Neon branch for each generated app, or set GENERATED_APP_DATABASE_URL as a manual fallback.",
       appliedFiles: [],
       commands,
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
-        missing: ["GENERATED_APP_DATABASE_URL"]
+        missing: ["NEON_API_KEY", "NEON_PROJECT_ID"]
       }
     });
   }
@@ -163,6 +187,7 @@ async function buildDatabaseSetupPayload(projectId: string): Promise<DatabaseSet
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
+        ...targetResult?.metadata,
         missing: ["Separate generated app database target"]
       }
     });
@@ -187,7 +212,9 @@ async function buildDatabaseSetupPayload(projectId: string): Promise<DatabaseSet
       commands,
       metadata: {
         exportId: generatedExport.exportId,
-        outputDir: generatedExport.outputDir
+        outputDir: generatedExport.outputDir,
+        source: targetResult?.source,
+        ...targetResult?.metadata
       }
     });
   } catch (caught) {
@@ -200,6 +227,8 @@ async function buildDatabaseSetupPayload(projectId: string): Promise<DatabaseSet
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
+        source: targetResult?.source,
+        ...targetResult?.metadata,
         failedFiles: setupFiles.filter((file) => !appliedFiles.includes(file))
       }
     });
@@ -266,7 +295,28 @@ function createSetupPayload(input: {
   };
 }
 
-function getTargetDatabaseUrl() {
+async function getGeneratedDatabaseTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget | null> {
+  const manualTargetUrl = getManualTargetDatabaseUrl();
+
+  if (manualTargetUrl) {
+    return {
+      databaseUrl: manualTargetUrl,
+      target: describeDatabaseUrl(manualTargetUrl),
+      source: "manual",
+      metadata: {
+        targetSource: "GENERATED_APP_DATABASE_URL"
+      }
+    };
+  }
+
+  if (!process.env.NEON_API_KEY || !process.env.NEON_PROJECT_ID) {
+    return null;
+  }
+
+  return getOrCreateNeonBranchTarget(projectId, projectName);
+}
+
+function getManualTargetDatabaseUrl() {
   const targetUrl = process.env.GENERATED_APP_DATABASE_URL || process.env.APP_ENGINE_GENERATED_APP_DATABASE_URL;
 
   if (!targetUrl || targetUrl.includes("USER:PASSWORD@HOST")) {
@@ -274,6 +324,204 @@ function getTargetDatabaseUrl() {
   }
 
   return targetUrl;
+}
+
+async function getOrCreateNeonBranchTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget> {
+  const reusedTarget = await getReusableNeonProvision(projectId);
+  const provision = reusedTarget || (await createGeneratedAppNeonBranch(projectId, projectName));
+  const databaseUrl = await getNeonConnectionUri(provision);
+
+  return {
+    databaseUrl,
+    target: describeDatabaseUrl(databaseUrl),
+    source: "neon_branch",
+    metadata: {
+      targetSource: reusedTarget ? "existing_neon_branch" : "new_neon_branch",
+      neon: provision
+    }
+  };
+}
+
+async function getReusableNeonProvision(projectId: string): Promise<NeonProvisionMetadata | null> {
+  const { setups } = await listProjectDatabaseSetups(projectId);
+
+  for (const setup of setups) {
+    const metadata = isRecord(setup.metadata) ? setup.metadata : {};
+    const neonMetadata = isRecord(metadata.neon) ? metadata.neon : null;
+
+    if (
+      neonMetadata &&
+      typeof neonMetadata.projectId === "string" &&
+      typeof neonMetadata.branchId === "string" &&
+      typeof neonMetadata.branchName === "string" &&
+      typeof neonMetadata.databaseName === "string" &&
+      typeof neonMetadata.roleName === "string"
+    ) {
+      return {
+        projectId: neonMetadata.projectId,
+        branchId: neonMetadata.branchId,
+        branchName: neonMetadata.branchName,
+        endpointId: typeof neonMetadata.endpointId === "string" ? neonMetadata.endpointId : undefined,
+        databaseName: neonMetadata.databaseName,
+        roleName: neonMetadata.roleName
+      };
+    }
+  }
+
+  return null;
+}
+
+async function createGeneratedAppNeonBranch(projectId: string, projectName?: string): Promise<NeonProvisionMetadata> {
+  const neonProjectId = process.env.NEON_PROJECT_ID || "";
+  const databaseName = process.env.NEON_DATABASE_NAME || "neondb";
+  const roleName = process.env.NEON_ROLE_NAME || "neondb_owner";
+  const branchName = buildGeneratedBranchName(projectId, projectName);
+  const body: Record<string, unknown> = {
+    branch: {
+      name: branchName
+    },
+    endpoints: [
+      {
+        type: "read_write"
+      }
+    ]
+  };
+
+  if (process.env.NEON_PARENT_BRANCH_ID) {
+    body.branch = {
+      ...(body.branch as Record<string, unknown>),
+      parent_id: process.env.NEON_PARENT_BRANCH_ID
+    };
+  }
+
+  const result = await neonApiRequest<{
+    branch?: {
+      id?: string;
+      name?: string;
+    };
+    endpoints?: Array<{
+      id?: string;
+      type?: string;
+    }>;
+    operations?: NeonOperation[];
+  }>(`/projects/${encodeURIComponent(neonProjectId)}/branches`, {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+  const branchId = result.branch?.id;
+  const endpointId = result.endpoints?.find((endpoint) => endpoint.type === "read_write")?.id || result.endpoints?.[0]?.id;
+
+  if (!branchId) {
+    throw new Error("Neon branch creation did not return a branch id.");
+  }
+
+  await pollNeonOperations(neonProjectId, result.operations || []);
+
+  return {
+    projectId: neonProjectId,
+    branchId,
+    branchName: result.branch?.name || branchName,
+    endpointId,
+    databaseName,
+    roleName
+  };
+}
+
+async function getNeonConnectionUri(provision: NeonProvisionMetadata) {
+  const params = new URLSearchParams({
+    branch_id: provision.branchId,
+    database_name: provision.databaseName,
+    role_name: provision.roleName
+  });
+
+  if (provision.endpointId) {
+    params.set("endpoint_id", provision.endpointId);
+  }
+
+  if (process.env.NEON_USE_POOLED_CONNECTION === "true") {
+    params.set("pooled", "true");
+  }
+
+  const result = await neonApiRequest<{ uri?: string }>(
+    `/projects/${encodeURIComponent(provision.projectId)}/connection_uri?${params.toString()}`
+  );
+
+  if (!result.uri) {
+    throw new Error("Neon did not return a generated app database connection URI.");
+  }
+
+  return result.uri;
+}
+
+async function pollNeonOperations(projectId: string, operations: NeonOperation[]) {
+  const operationIds = operations.map((operation) => operation.id).filter((id): id is string => Boolean(id));
+
+  for (const operationId of operationIds) {
+    await waitForNeonOperation(projectId, operationId);
+  }
+}
+
+async function waitForNeonOperation(projectId: string, operationId: string) {
+  let lastStatus = "";
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const result = await neonApiRequest<{ operation?: NeonOperation }>(
+      `/projects/${encodeURIComponent(projectId)}/operations/${encodeURIComponent(operationId)}`
+    );
+    const status = result.operation?.status || "";
+    lastStatus = status;
+
+    if (status === "finished" || status === "skipped") {
+      return;
+    }
+
+    if (status === "cancelled" || status === "cancelling") {
+      throw new Error(`Neon operation ${operationId} ended with status ${status}.`);
+    }
+
+    await delay(1500);
+  }
+
+  throw new Error(`Timed out waiting for Neon operation ${operationId}${lastStatus ? ` (${lastStatus})` : ""}.`);
+}
+
+async function neonApiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${neonApiBaseUrl}${path}`, {
+    ...init,
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      authorization: `Bearer ${process.env.NEON_API_KEY}`,
+      ...(init.headers || {})
+    }
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+
+    throw new Error(`Neon API request failed (${response.status}): ${details || response.statusText}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+function buildGeneratedBranchName(projectId: string, projectName?: string) {
+  const prefix = process.env.NEON_GENERATED_APP_BRANCH_PREFIX || "app-engine-generated";
+  const projectSlug = slugify(projectName || projectId).slice(0, 36) || "app";
+  const shortId = projectId.replace(/[^a-zA-Z0-9]/g, "").slice(-8) || Date.now().toString(36);
+
+  return `${prefix}-${projectSlug}-${shortId}`.slice(0, 63);
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isSharedEngineDatabase(targetDatabaseUrl: string) {

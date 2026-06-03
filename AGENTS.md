@@ -21,7 +21,10 @@ Use `.env.example` as the source of truth for required environment variables.
 Important runtime values:
 
 - `DATABASE_URL`: Neon database for the app engine itself.
-- `GENERATED_APP_DATABASE_URL`: separate Neon database or branch for generated app schema and seed setup.
+- `NEON_API_KEY` and `NEON_PROJECT_ID`: preferred generated-app database strategy. The engine creates/reuses Neon branches and applies generated schemas there.
+- `NEON_PARENT_BRANCH_ID`: optional parent branch for generated-app database branches.
+- `NEON_DATABASE_NAME` and `NEON_ROLE_NAME`: generated app branch connection defaults, usually `neondb` and `neondb_owner`.
+- `GENERATED_APP_DATABASE_URL`: optional manual fallback for generated app schema and seed setup.
 - `APP_ENGINE_LOCAL_MODE`: keep `true` for local JSON fallback, set `false` when `DATABASE_URL` is ready.
 - `AUTH_SECRET`: Auth.js secret.
 - `AUTH_URL`: local or deployed app URL.

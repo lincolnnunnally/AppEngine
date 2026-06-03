@@ -56,6 +56,29 @@ Production completion still requires real service credentials, Neon migrations, 
 
 This keeps the production cockpit usable before real Neon credentials are connected. Once `DATABASE_URL` points to a real Neon database, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds.
 
+## Generated App Databases
+
+The engine can prepare databases for generated apps in two ways:
+
+1. Automatic Neon branch provisioning, preferred:
+
+```text
+NEON_API_KEY
+NEON_PROJECT_ID
+NEON_DATABASE_NAME="neondb"
+NEON_ROLE_NAME="neondb_owner"
+```
+
+When these are configured, `Setup DB` creates or reuses a Neon branch for the generated app, retrieves a connection URI, and applies the generated app schema and seed data.
+
+2. Manual fallback:
+
+```text
+GENERATED_APP_DATABASE_URL
+```
+
+Use this only when you want all generated app setup to target a specific database or branch.
+
 ## Worker Providers
 
 The engine chooses workers automatically:
@@ -86,7 +109,7 @@ The deployment gate checks:
 
 ```text
 DATABASE_URL
-GENERATED_APP_DATABASE_URL
+NEON_API_KEY and NEON_PROJECT_ID, or GENERATED_APP_DATABASE_URL
 AUTH_SECRET
 APP_ENGINE_OWNER_EMAIL
 VERCEL_TOKEN
