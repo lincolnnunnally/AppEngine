@@ -10,6 +10,7 @@ It is designed for:
 - customer and admin protected areas
 - page and API-level authorization guards
 - reusable app templates
+- shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
 - project planning API routes
 - local, OpenAI, and Anthropic worker adapters
 - persisted agent runs, QA reports, and artifacts
@@ -38,7 +39,7 @@ Current working flow:
 
 - Analyze an app idea
 - Save the project
-- Run the generated agent task graph
+- Inspect the automatic agent bench and run the generated agent task graph
 - Persist agent output as a run report
 - Run QA checks
 - Prepare deployment and record Vercel command gates/blockers
@@ -93,9 +94,16 @@ This route reports setup phases, missing variable names, and the next setup acti
 
 The engine chooses workers automatically:
 
+- `APP_ENGINE_LOCAL_MODE=true` -> deterministic local worker
 - `OPENAI_API_KEY` -> OpenAI Responses API worker
 - `ANTHROPIC_API_KEY` -> Anthropic Messages API worker
 - neither key -> deterministic local worker
+
+Optional provider override:
+
+```text
+APP_ENGINE_WORKER_PROVIDER="local" | "openai" | "anthropic"
+```
 
 Optional model overrides:
 
@@ -105,6 +113,22 @@ ANTHROPIC_MODEL="claude-sonnet-4-5"
 ```
 
 The local worker is intentionally kept available so the engine can be verified without external credentials.
+
+## Agent Bench
+
+Agent roles live in:
+
+```text
+src/lib/engine/agent-roles.ts
+```
+
+The task graph is generated from those roles, so each specialist owns its phase, mission, deliverables, handoffs, and quality bar. In local mode these roles produce deterministic structured output. When model keys are connected, the same role definitions become the worker instructions.
+
+Inspect the current bench with:
+
+```text
+GET /api/engine/agent-roles
+```
 
 ## Deployment Workflow
 

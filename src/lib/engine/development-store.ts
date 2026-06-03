@@ -29,12 +29,15 @@ export type StoredRun = {
   agents: Array<{
     id: string;
     agent: string;
+    phase?: string;
     task: string;
     status: string;
     summary: string;
     provider?: string;
     recommendations?: string[];
     artifacts?: string[];
+    handoffs?: string[];
+    qualityChecks?: string[];
   }>;
   qa_checks: Array<{
     id: string;

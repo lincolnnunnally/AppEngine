@@ -90,8 +90,8 @@ export async function createPlannedProject(input: CreateProjectInput) {
 
   for (const task of defaultTaskGraph) {
     await sql`
-      insert into app_tasks (project_id, agent_role_id, title, description, status, priority)
-      select ${project.id}, agent_roles.id, ${task.title}, ${task.description}, 'todo', 'medium'
+      insert into app_tasks (project_id, agent_role_id, title, description, status, priority, acceptance_criteria)
+      select ${project.id}, agent_roles.id, ${task.title}, ${task.description}, 'todo', ${task.priority}, ${JSON.stringify(task.acceptanceCriteria)}
       from agent_roles
       where agent_roles.slug = ${task.agent}
     `;

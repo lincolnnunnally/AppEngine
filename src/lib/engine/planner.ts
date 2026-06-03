@@ -34,7 +34,7 @@ export function analyzeIdea(input: AnalyzeIdeaInput) {
     tasks: defaultTaskGraph.map((task, index) => ({
       ...task,
       status: "todo",
-      priority: index < 6 ? "high" : index < 10 ? "medium" : "low"
+      priority: task.priority || (index < 6 ? "high" : index < 10 ? "medium" : "low")
     })),
     qaChecks: buildQaChecks(),
     readinessScore: input.targetCustomer && input.problem ? 32 : 24,

@@ -32,6 +32,7 @@ Important runtime values:
 - `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`: optional GitHub OAuth.
 - `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`: optional Google OAuth.
 - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`: enables real model workers.
+- `APP_ENGINE_WORKER_PROVIDER`: optional `local`, `openai`, or `anthropic` override. Local mode defaults to deterministic local workers.
 - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`: enables deployment preparation.
 
 Do not commit `.env.local`, generated `.app-engine` output, `.next`, `node_modules`, or `*.tsbuildinfo`.
@@ -42,3 +43,4 @@ Do not commit `.env.local`, generated `.app-engine` output, `.next`, `node_modul
 - Keep customer/admin auth, Neon persistence, QA checks, generated app export, and deployment gates working together.
 - When adding a new engine action, add the API route, cockpit UI state, readiness/autopilot behavior, and verification path together.
 - Keep generated apps buildable with no database configured by using static fallback data where appropriate.
+- Keep agent behavior centralized in `src/lib/engine/agent-roles.ts`; task graph and worker prompts should derive from the shared role registry.

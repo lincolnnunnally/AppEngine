@@ -1,3 +1,5 @@
+import { getAgentRole, type AgentRole } from "./agent-roles";
+import { isLocalMode } from "./local-mode";
 import type { EngineTask } from "./tasks";
 
 export type WorkerProvider = "local" | "openai" | "anthropic";
@@ -10,16 +12,29 @@ export type AgentJobContext = {
   appType: string;
   recommendedTarget: string;
   templates: string[];
+  completedAgents?: AgentCompletedHandoff[];
+};
+
+export type AgentCompletedHandoff = {
+  agent: string;
+  task: string;
+  summary: string;
+  recommendations?: string[];
+  artifacts?: string[];
+  handoffs?: string[];
 };
 
 export type AgentJobResult = {
   provider: WorkerProvider;
   agent: string;
+  phase?: string;
   task: string;
   status: "completed" | "needs_attention" | "failed";
   summary: string;
   recommendations: string[];
   artifacts: string[];
+  handoffs?: string[];
+  qualityChecks?: string[];
   raw?: unknown;
 };
 
@@ -29,6 +44,12 @@ type WorkerAdapter = {
 };
 
 export function getWorkerProvider(): WorkerProvider {
+  const requestedProvider = process.env.APP_ENGINE_WORKER_PROVIDER?.toLowerCase();
+
+  if (requestedProvider === "local") return "local";
+  if (requestedProvider === "openai" && process.env.OPENAI_API_KEY) return "openai";
+  if (requestedProvider === "anthropic" && process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (isLocalMode()) return "local";
   if (process.env.OPENAI_API_KEY) return "openai";
   if (process.env.ANTHROPIC_API_KEY) return "anthropic";
   return "local";
@@ -46,16 +67,20 @@ class LocalWorkerAdapter implements WorkerAdapter {
   provider = "local" as const;
 
   async runTask(task: EngineTask, context: AgentJobContext): Promise<AgentJobResult> {
-    const summary = summarizeLocalTask(task, context);
+    const role = getAgentRole(task.agent);
+    const summary = summarizeLocalTask(role, task, context);
 
     return {
       provider: this.provider,
       agent: task.agent,
+      phase: role.phase,
       task: task.title,
       status: "completed",
       summary,
-      recommendations: buildLocalRecommendations(task.agent, context),
-      artifacts: [summary]
+      recommendations: buildLocalRecommendations(role, context),
+      artifacts: buildLocalArtifacts(role, task, context),
+      handoffs: buildLocalHandoffs(role),
+      qualityChecks: role.qualityBar
     };
   }
 }
@@ -72,7 +97,7 @@ class OpenAiWorkerAdapter implements WorkerAdapter {
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5.1",
-        instructions: buildWorkerInstructions(),
+        instructions: buildWorkerInstructions(task),
         input: buildWorkerPrompt(task, context),
         max_output_tokens: 900
       })
@@ -84,7 +109,7 @@ class OpenAiWorkerAdapter implements WorkerAdapter {
       return buildFailedResult(this.provider, task, payload?.error?.message || "OpenAI worker request failed", payload);
     }
 
-    return normalizeWorkerText(this.provider, task, extractOpenAiText(payload), payload);
+    return normalizeWorkerText(this.provider, task, context, extractOpenAiText(payload), payload);
   }
 }
 
@@ -102,7 +127,7 @@ class AnthropicWorkerAdapter implements WorkerAdapter {
       body: JSON.stringify({
         model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
         max_tokens: 900,
-        system: buildWorkerInstructions(),
+        system: buildWorkerInstructions(task),
         messages: [
           {
             role: "user",
@@ -118,23 +143,31 @@ class AnthropicWorkerAdapter implements WorkerAdapter {
       return buildFailedResult(this.provider, task, payload?.error?.message || "Anthropic worker request failed", payload);
     }
 
-    return normalizeWorkerText(this.provider, task, extractAnthropicText(payload), payload);
+    return normalizeWorkerText(this.provider, task, context, extractAnthropicText(payload), payload);
   }
 }
 
-function buildWorkerInstructions() {
+function buildWorkerInstructions(task: EngineTask) {
+  const role = getAgentRole(task.agent);
+
   return [
     "You are one specialist agent inside an automated app-building engine.",
-    "Return practical implementation output for your assigned task.",
+    `Your role is ${role.name}: ${role.purpose}`,
+    `Mission: ${role.mission}`,
+    `Role instruction: ${role.systemPrompt}`,
     "Be specific about product value, technical choices, files, data, QA, and deployment handoffs.",
     "Do not write marketing copy. Do not ask the user questions.",
-    "Return short sections: Summary, Recommendations, Artifacts."
+    "Return short sections: Summary, Recommendations, Artifacts, Handoffs."
   ].join(" ");
 }
 
 function buildWorkerPrompt(task: EngineTask, context: AgentJobContext) {
+  const role = getAgentRole(task.agent);
+
   return [
     `Agent: ${task.agent}`,
+    `Agent name: ${role.name}`,
+    `Phase: ${role.phase}`,
     `Task: ${task.title}`,
     `Description: ${task.description}`,
     `Project: ${context.projectName}`,
@@ -144,12 +177,19 @@ function buildWorkerPrompt(task: EngineTask, context: AgentJobContext) {
     `App type: ${context.appType}`,
     `Target stack: ${context.recommendedTarget}`,
     `Templates: ${context.templates.join(", ")}`,
-    task.dependsOn.length ? `Dependencies: ${task.dependsOn.join(", ")}` : "Dependencies: none"
+    `Responsibilities: ${role.responsibilities.join("; ")}`,
+    `Expected artifacts: ${role.deliverables.join("; ")}`,
+    `Quality bar: ${role.qualityBar.join("; ")}`,
+    task.dependsOn.length ? `Dependencies: ${task.dependsOn.join(", ")}` : "Dependencies: none",
+    context.completedAgents?.length
+      ? `Completed handoffs:\n${context.completedAgents.map((agent) => `- ${agent.agent}: ${agent.summary}`).join("\n")}`
+      : "Completed handoffs: none"
   ].join("\n");
 }
 
-function normalizeWorkerText(provider: WorkerProvider, task: EngineTask, text: string, raw: unknown): AgentJobResult {
-  const cleanText = text.trim() || summarizeLocalTask(task, {
+function normalizeWorkerText(provider: WorkerProvider, task: EngineTask, context: AgentJobContext, text: string, raw: unknown): AgentJobResult {
+  const role = getAgentRole(task.agent);
+  const fallbackContext = {
     projectName: "Project",
     idea: "Generated app",
     customer: "target customers",
@@ -157,29 +197,41 @@ function normalizeWorkerText(provider: WorkerProvider, task: EngineTask, text: s
     appType: "app",
     recommendedTarget: "Next.js + Neon",
     templates: []
-  });
+  };
+  const cleanText = text.trim() || summarizeLocalTask(role, task, fallbackContext);
+  const recommendations = extractSectionLines(cleanText, "Recommendations").slice(0, 5);
+  const artifacts = extractSectionLines(cleanText, "Artifacts").slice(0, 5);
+  const handoffs = extractSectionLines(cleanText, "Handoffs").slice(0, 5);
 
   return {
     provider,
     agent: task.agent,
+    phase: role.phase,
     task: task.title,
     status: "completed",
     summary: firstNonEmptyLine(cleanText),
-    recommendations: extractSectionLines(cleanText, "Recommendations").slice(0, 5),
-    artifacts: extractSectionLines(cleanText, "Artifacts").slice(0, 5),
+    recommendations: recommendations.length ? recommendations : buildLocalRecommendations(role, context),
+    artifacts: artifacts.length ? artifacts : buildLocalArtifacts(role, task, context),
+    handoffs: handoffs.length ? handoffs : buildLocalHandoffs(role),
+    qualityChecks: role.qualityBar,
     raw
   };
 }
 
 function buildFailedResult(provider: WorkerProvider, task: EngineTask, message: string, raw: unknown): AgentJobResult {
+  const role = getAgentRole(task.agent);
+
   return {
     provider,
     agent: task.agent,
+    phase: role.phase,
     task: task.title,
     status: "failed",
     summary: message,
     recommendations: ["Retry the worker task after checking provider credentials, model access, and rate limits."],
     artifacts: [],
+    handoffs: [],
+    qualityChecks: role.qualityBar,
     raw
   };
 }
@@ -218,7 +270,7 @@ function extractSectionLines(text: string, heading: string) {
   const sectionLines = [];
 
   for (const line of lines.slice(headingIndex + 1)) {
-    if (/^[#*_\s-]*(summary|recommendations|artifacts)\b/i.test(line) && sectionLines.length) {
+    if (/^[#*_\s-]*(summary|recommendations|artifacts|handoffs)\b/i.test(line) && sectionLines.length) {
       break;
     }
 
@@ -232,26 +284,153 @@ function extractSectionLines(text: string, heading: string) {
   return sectionLines;
 }
 
-function summarizeLocalTask(task: EngineTask, context: AgentJobContext) {
-  return `${task.agent} agent completed "${task.title}" for ${context.projectName}, focused on ${context.customer} solving ${context.problem}.`;
+function summarizeLocalTask(role: AgentRole, task: EngineTask, context: AgentJobContext) {
+  const priorCount = context.completedAgents?.length || 0;
+  const priorNote = priorCount ? ` using ${priorCount} prior agent handoff${priorCount === 1 ? "" : "s"}` : "";
+
+  return `${role.name} completed "${task.title}" for ${context.projectName}${priorNote}, focused on ${context.customer} solving ${context.problem}.`;
 }
 
-function buildLocalRecommendations(agent: string, context: AgentJobContext) {
-  const common = `Keep ${context.appType} scoped to ${context.customer} and the paid outcome.`;
+function buildLocalRecommendations(role: AgentRole, context: AgentJobContext) {
+  const common = `Keep the ${context.appType} scoped to ${context.customer} and the paid outcome.`;
+  const templates = context.templates.length ? context.templates.join(", ") : "auth, customer account, admin console, onboarding, dashboard";
   const recommendations: Record<string, string[]> = {
-    product: [common, "Convert assumptions into acceptance criteria before implementation."],
-    business: ["Define first paid tier, upgrade trigger, and retention metric.", common],
-    architecture: [`Use ${context.recommendedTarget} as the default deployment boundary.`, "Keep long-running work behind worker adapters."],
-    template: [`Start from ${context.templates.join(", ") || "core"} templates.`, "Track template selections as reusable project artifacts."],
-    database: ["Apply migrations before provider-backed runs.", "Persist every task, artifact, QA check, and deployment event."],
-    auth: ["Require customer/admin role checks on page and API routes.", "Keep owner/admin access auditable."],
-    design: ["Build customer and admin workflows as repeated-use surfaces.", "Verify mobile and desktop states before release."],
-    frontend: ["Ship cockpit, customer account, admin console, and run-history views first."],
-    backend: ["Expose narrow APIs for planning, runs, QA, artifacts, and deployments."],
-    qa: ["Run browser, API, auth, persistence, and deployment smoke checks after every build run."],
-    fixer: ["Turn every failed QA check into a concrete repair task."],
-    deployment: ["Require env, migration, build, and smoke-test gates before production promotion."]
+    product: [
+      common,
+      `Make the first release prove that ${context.customer} will pay to solve ${context.problem}.`,
+      "Write acceptance criteria before generated files are marked ready."
+    ],
+    business: [
+      "Define the first paid tier, usage limit, upgrade trigger, and retention metric.",
+      "Use onboarding to capture the customer goal that proves value later.",
+      common
+    ],
+    architecture: [
+      `Use ${context.recommendedTarget} as the default deployment boundary.`,
+      "Keep long-running or provider-heavy work behind worker adapters.",
+      "Store every generated artifact so QA and deployment can trace what changed."
+    ],
+    template: [
+      `Start from ${templates} modules.`,
+      "Treat template selections as project artifacts so future generated apps can reuse them.",
+      "Add a new reusable template only when at least two app ideas need the same foundation."
+    ],
+    database: [
+      "Create organization-owned tables first, then customer workflow tables.",
+      "Add indexes for dashboard lists, account lookups, run history, and audit timelines.",
+      "Make generated schema and seed setup repeatable for Neon branches."
+    ],
+    auth: [
+      "Require customer, admin, and owner checks on both page access and mutating API routes.",
+      "Keep local mode open for development, then enforce Auth.js sessions when production env is configured.",
+      "Audit owner/admin actions that affect customers, billing, generated apps, or deployments."
+    ],
+    design: [
+      "Design customer and admin workflows as daily-use surfaces, not a marketing page.",
+      "Give every workflow empty, loading, success, warning, and blocked states.",
+      "Use dense but readable layouts for project history, QA findings, and account management."
+    ],
+    frontend: [
+      "Ship customer account, admin console, run history, generated app, database setup, and launch readiness views first.",
+      "Keep primary actions disabled until their prerequisites exist.",
+      "Verify responsive layouts after generated app files are created."
+    ],
+    backend: [
+      "Expose narrow APIs for planning, projects, agent runs, QA, exports, database setup, readiness, and deployment.",
+      "Persist failed provider calls as actionable blockers instead of losing them in logs.",
+      "Validate every mutation with schemas and enforce admin/customer access server side."
+    ],
+    qa: [
+      "Run typecheck, build, API, auth, persistence, generated app, browser, and deployment smoke checks.",
+      "Create fixer tasks from failed checks with evidence and reproduction steps.",
+      "Do not let deployment pass until generated app output and database setup are both verified."
+    ],
+    fixer: [
+      "Patch the smallest surface that resolves the QA finding.",
+      "Rerun the exact failed check before broad verification.",
+      "Record the fix and remaining risk in the run report."
+    ],
+    deployment: [
+      "Require env, migration, generated database, build, and smoke-test gates before production promotion.",
+      "Keep deployment credentials out of artifacts and logs.",
+      "Store release notes with the deployment record."
+    ]
   };
 
-  return recommendations[agent] || [common];
+  return recommendations[role.slug] || [common];
+}
+
+function buildLocalArtifacts(role: AgentRole, task: EngineTask, context: AgentJobContext) {
+  const artifacts: Record<string, string[]> = {
+    product: [
+      `Customer/problem brief: ${context.customer} needs a finished ${context.appType} that removes this blocker: ${context.problem}.`,
+      "MVP boundary: sign-in, account workspace, primary workflow, admin management, run history, QA status, and support path.",
+      `Acceptance focus: ${task.acceptanceCriteria.join("; ")}.`
+    ],
+    business: [
+      "Pricing hypothesis: start with a subscription tied to active projects, generated app outputs, or usage volume.",
+      "Activation path: customer signs in, completes setup, creates the first useful run, and sees launch blockers disappear.",
+      "Expansion levers: more seats, more generated apps, deeper automation, premium support, and deployment management."
+    ],
+    architecture: [
+      `System map: ${context.recommendedTarget} with Next.js routes, Neon persistence, Auth.js sessions, and worker adapters.`,
+      "Service boundaries: planner, template selection, agent runs, generated app export, database setup, QA, readiness, and deployment.",
+      "Async boundary: queue or external worker for long model runs, code generation, browser verification, and deployment execution."
+    ],
+    template: [
+      `Selected modules: ${context.templates.join(", ") || "Authentication + Roles, Customer Account Portal, Admin Console, Guided Onboarding, Operational Dashboard"}.`,
+      "Template contract: each module must declare routes, tables, roles, UI states, API needs, and QA checks.",
+      "Reuse backlog: payments, notifications, AI run history, marketplace core, support, and audit reporting."
+    ],
+    database: [
+      "Entity model: organizations, users, memberships, projects, templates, tasks, agent runs, artifacts, QA checks, deployments, audit events.",
+      "Generated app model: customer accounts, workflow records, status history, notifications, billing or usage events, and admin notes.",
+      "Migration plan: engine schema first, selected generated schema second, seed data last."
+    ],
+    auth: [
+      "Role matrix: owner can administer the engine, admin can manage projects and customers, customer can access only their account/workflows.",
+      "Protected routes: /account, /admin, /builder, /api/customer/*, /api/admin/*, and mutating engine routes.",
+      "Session rule: local mode can bypass admin checks for development, production mode requires Auth.js and an owner email."
+    ],
+    design: [
+      "Workflow map: intake, plan, save project, run agents, generate app, setup database, run QA, prepare deployment, launch readiness.",
+      "Screen inventory: builder cockpit, customer account, admin console, project detail, run history, QA findings, deployment gate.",
+      "State checklist: empty project, blocked env, local mode, running, completed, failed, retryable, and ready."
+    ],
+    frontend: [
+      "UI surfaces: planner form, health/setup panels, agent bench, task graph, generated app preview, database setup, readiness, latest run.",
+      "Interaction contract: actions stay available in the right order and show current status, blocker, and next step.",
+      "Responsive note: dense operational panels collapse to one column on small screens."
+    ],
+    backend: [
+      "API contract: analyze, projects, agents, runs, exports, database setup, readiness, autopilot, deployments, setup profile, health.",
+      "Persistence contract: each run stores agent output, artifacts, QA findings, readiness changes, deployment blockers, and audit events.",
+      "Provider contract: local worker runs without keys; OpenAI or Anthropic workers activate from env vars."
+    ],
+    qa: [
+      "Acceptance suite: customer/problem, auth/roles, persistence, primary workflow, responsive UI, generated app, generated database, deployment.",
+      "Evidence plan: typecheck/build output, API responses, browser screenshot, console logs, stored run report, and readiness score.",
+      "Fixer queue: every failed check must include severity, details, reproduction path, and expected pass condition."
+    ],
+    fixer: [
+      "Repair queue: sort findings by launch blocker, high severity, shared surface, then polish.",
+      "Patch note format: changed files, behavior fixed, verification rerun, and remaining risk.",
+      "Rerun list: typecheck, build, relevant API route, browser flow, and readiness check."
+    ],
+    deployment: [
+      "Deployment gate: env vars, generated app database, typecheck, build, migrations, Vercel project link, preview smoke test.",
+      "Command sequence: npm run typecheck, npm run build, npm run db:setup, vercel pull, vercel build, vercel deploy.",
+      "Release record: preview URL, commit SHA, readiness score, blockers cleared, and post-deploy smoke checks."
+    ]
+  };
+
+  return artifacts[role.slug] || [`${role.name} artifact: ${task.description}`];
+}
+
+function buildLocalHandoffs(role: AgentRole) {
+  if (!role.handoffTo.length) {
+    return ["No downstream agent handoff remains after release preparation."];
+  }
+
+  return role.handoffTo.map((target) => `Hand off ${role.deliverables.join(", ")} to ${target}.`);
 }

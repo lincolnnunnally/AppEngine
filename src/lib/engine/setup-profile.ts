@@ -81,16 +81,17 @@ export async function getEngineSetupProfile(): Promise<EngineSetupProfile> {
         variable("AUTH_GOOGLE_SECRET", "Google OAuth secret", "optional")
       ]
     }),
-    createEitherPhase({
+    createPhase({
       id: "model-workers",
       title: "Model workers",
+      ready: health.workerProvider !== "local" && (hasEnv("OPENAI_API_KEY") || hasEnv("ANTHROPIC_API_KEY")),
+      partial: health.workerProvider === "local" || hasEnv("OPENAI_API_KEY") || hasEnv("ANTHROPIC_API_KEY"),
       readyDetails: `Real worker automation is configured through ${health.workerProvider}.`,
-      fallbackDetails: "A model provider is partially configured. Complete one provider for real multi-agent work.",
+      partialDetails: "Deterministic local workers are active for core engine development. Add a model provider when you are ready for real worker calls.",
       missingDetails: "The engine will use deterministic local workers until an OpenAI or Anthropic key is configured.",
-      nextAction: "Add OPENAI_API_KEY",
-      primaryReady: hasEnv("OPENAI_API_KEY"),
-      fallbackReady: hasEnv("ANTHROPIC_API_KEY"),
+      nextAction: health.workerProvider === "local" ? "Keep building locally or add OPENAI_API_KEY" : "Add OPENAI_API_KEY",
       variables: [
+        variable("APP_ENGINE_WORKER_PROVIDER", "Worker provider override", "optional"),
         variable("OPENAI_API_KEY", "OpenAI worker key", "either"),
         variable("OPENAI_MODEL", "OpenAI model", "optional"),
         variable("ANTHROPIC_API_KEY", "Anthropic worker key", "either"),

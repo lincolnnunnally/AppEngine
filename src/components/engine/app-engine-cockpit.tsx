@@ -12,11 +12,14 @@ type Template = {
 
 type Task = {
   agent: string;
+  phase: string;
   title: string;
   description: string;
   dependsOn: string[];
   priority: string;
   status: string;
+  expectedArtifacts?: string[];
+  acceptanceCriteria?: string[];
 };
 
 type QaCheck = {
@@ -95,12 +98,15 @@ type EngineRun = {
   agents?: Array<{
     id: string;
     agent: string;
+    phase?: string;
     task: string;
     status: string;
     summary: string;
     provider?: string;
     recommendations?: string[];
     artifacts?: string[];
+    handoffs?: string[];
+    qualityChecks?: string[];
   }>;
   qa_checks?: Array<{
     id: string;
@@ -231,6 +237,24 @@ type EngineSetupProfile = {
   generatedAt: string;
 };
 
+type AgentRole = {
+  slug: string;
+  name: string;
+  phase: string;
+  purpose: string;
+  mission: string;
+  responsibilities: string[];
+  deliverables: string[];
+  handoffTo: string[];
+  qualityBar: string[];
+  task: {
+    title: string;
+    description: string;
+    dependsOn: string[];
+    priority: string;
+  };
+};
+
 const starterIdea =
   "A multi-agent app-building engine that takes an idea, improves it for the target customer, creates customer/admin auth, builds the app, runs QA, fixes issues, and deploys to Vercel with Neon.";
 
@@ -250,6 +274,7 @@ export function AppEngineCockpit() {
   const [readinessReport, setReadinessReport] = useState<EngineReadinessReport | null>(null);
   const [autopilotResult, setAutopilotResult] = useState<EngineAutopilotResult | null>(null);
   const [setupProfile, setSetupProfile] = useState<EngineSetupProfile | null>(null);
+  const [agentRoles, setAgentRoles] = useState<AgentRole[]>([]);
   const [health, setHealth] = useState<EngineHealth | null>(null);
   const [storage, setStorage] = useState("local");
   const [status, setStatus] = useState("Ready");
@@ -258,6 +283,7 @@ export function AppEngineCockpit() {
   useEffect(() => {
     void loadHealth();
     void loadSetupProfile();
+    void loadAgentRoles();
     void refreshProjects();
   }, []);
 
@@ -577,6 +603,15 @@ export function AppEngineCockpit() {
     }
   }
 
+  async function loadAgentRoles() {
+    const response = await fetch("/api/engine/agent-roles");
+    const payload = await response.json();
+
+    if (response.ok) {
+      setAgentRoles(payload.roles || []);
+    }
+  }
+
   async function refreshProjects() {
     const response = await fetch("/api/engine/projects");
     const payload = await response.json();
@@ -754,6 +789,39 @@ export function AppEngineCockpit() {
         ) : null}
       </section>
 
+      {agentRoles.length ? (
+        <section className="panel agent-bench-panel">
+          <div className="agent-bench-header">
+            <div>
+              <p className="eyebrow">Agent Bench</p>
+              <h2>{agentRoles.length} specialists selected automatically</h2>
+              <p>
+                The engine routes the build through role-based agents, passes handoffs forward, and uses local workers until model keys are connected.
+              </p>
+            </div>
+            <div className="agent-bench-summary">
+              <span>Mode</span>
+              <strong>{health?.workerProvider || "local"}</strong>
+            </div>
+          </div>
+          <div className="agent-bench-grid">
+            {agentRoles.map((role) => (
+              <article className="agent-role-card" key={role.slug}>
+                <span>{role.phase}</span>
+                <strong>{role.name}</strong>
+                <p>{role.purpose}</p>
+                <div>
+                  {role.deliverables.slice(0, 3).map((deliverable) => (
+                    <small key={deliverable}>{deliverable}</small>
+                  ))}
+                </div>
+                <em>{role.handoffTo.length ? `Hands off to ${role.handoffTo.join(", ")}` : "Final release gate"}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {setupProfile ? (
         <section className="panel setup-panel">
           <div className="setup-summary">
@@ -848,8 +916,8 @@ export function AppEngineCockpit() {
       <section className="metric-grid">
         <Metric label="Readiness" value={plan ? `${plan.readinessScore}%` : "0%"} />
         <Metric label="Templates" value={String(plan?.templates.length || 0)} />
-        <Metric label="Agents" value={String(taskCounts.agents)} />
-        <Metric label="Tasks" value={String(taskCounts.total)} />
+        <Metric label="Agents" value={String(taskCounts.agents || agentRoles.length)} />
+        <Metric label="Tasks" value={String(taskCounts.total || agentRoles.length)} />
       </section>
 
       {plan ? (
@@ -919,13 +987,16 @@ export function AppEngineCockpit() {
             <div className="task-list">
               {plan.tasks.map((task) => (
                 <article className="task-item" key={`${task.agent}-${task.title}`}>
-                  <span>{task.agent}</span>
+                  <span>
+                    {task.phase} - {task.agent}
+                  </span>
                   <strong>{task.title}</strong>
                   <p>{task.description}</p>
                   <small>
                     {task.priority} priority
                     {task.dependsOn.length ? ` - waits for ${task.dependsOn.join(", ")}` : " - starts immediately"}
                   </small>
+                  {task.expectedArtifacts?.length ? <small>Artifacts: {task.expectedArtifacts.slice(0, 2).join(", ")}</small> : null}
                 </article>
               ))}
             </div>
@@ -1033,14 +1104,16 @@ export function AppEngineCockpit() {
                       {latestRunAgents.slice(0, 6).map((agent) => (
                         <article className="agent-output" key={agent.id || `${agent.agent}-${agent.task}`}>
                           <span>
-                            {agent.agent}
+                            {agent.phase || agent.agent}
                             {agent.provider ? ` - ${agent.provider}` : ""}
                           </span>
                           <strong>{agent.task}</strong>
                           <p>{agent.summary}</p>
+                          {agent.artifacts?.length ? <small>Artifact: {agent.artifacts[0]}</small> : null}
                           {agent.recommendations?.length ? (
                             <small>{agent.recommendations.slice(0, 2).join(" | ")}</small>
                           ) : null}
+                          {agent.handoffs?.length ? <small>Handoff: {agent.handoffs[0]}</small> : null}
                         </article>
                       ))}
                     </div>

@@ -14,7 +14,7 @@ import { listProjectDatabaseSetups } from "./database-setup";
 import { isLocalMode } from "./local-mode";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
-import { getWorkerAdapter, getWorkerProvider, type AgentJobContext } from "./worker-adapters";
+import { getWorkerAdapter, getWorkerProvider, type AgentJobContext, type AgentJobResult } from "./worker-adapters";
 
 type QaStatus = "passed" | "needs_attention";
 
@@ -376,8 +376,11 @@ export async function runProjectAgents(projectId: string) {
         ${JSON.stringify({ task: agentRun.task, agent: agentRun.agent, provider: agentRun.provider })},
         ${JSON.stringify({
           summary: agentRun.summary,
+          phase: agentRun.phase,
           recommendations: agentRun.recommendations || [],
           artifacts: agentRun.artifacts || [],
+          handoffs: agentRun.handoffs || [],
+          qualityChecks: agentRun.qualityChecks || [],
           rootRunId: rootRun.id
         })},
         ${runPayload.started_at},
@@ -603,10 +606,22 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
     recommendedTarget: plan.recommendedTarget,
     templates: plan.templates.map((template) => template.name)
   };
-  const taskResults = [];
+  const taskResults: AgentJobResult[] = [];
 
   for (const task of defaultTaskGraph) {
-    taskResults.push(await adapter.runTask(task, context));
+    taskResults.push(
+      await adapter.runTask(task, {
+        ...context,
+        completedAgents: taskResults.map((result) => ({
+          agent: result.agent,
+          task: result.task,
+          summary: result.summary,
+          recommendations: result.recommendations,
+          artifacts: result.artifacts,
+          handoffs: result.handoffs
+        }))
+      })
+    );
   }
 
   const finishedAt = new Date();
@@ -617,12 +632,15 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
   const agents = taskResults.map((result) => ({
     id: `agent_${result.agent}_${startedAt.getTime()}`,
     agent: result.agent,
+    phase: result.phase,
     task: result.task,
     status: result.status,
     summary: result.summary,
     provider: result.provider,
     recommendations: result.recommendations,
-    artifacts: result.artifacts
+    artifacts: result.artifacts,
+    handoffs: result.handoffs,
+    qualityChecks: result.qualityChecks
   }));
   const reportLines = [
     `${project.name} agent build run`,
@@ -632,8 +650,10 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
     `Agents completed: ${taskResults.length - failedResults.length}/${taskResults.length}`,
     "",
     ...agents.flatMap((agent) => [
-      `${agent.agent}: ${agent.summary}`,
-      ...(agent.recommendations || []).map((recommendation) => `- ${recommendation}`)
+      `${agent.agent}${agent.phase ? ` (${agent.phase})` : ""}: ${agent.summary}`,
+      ...(agent.recommendations || []).map((recommendation) => `- recommendation: ${recommendation}`),
+      ...(agent.artifacts || []).slice(0, 2).map((artifact) => `- artifact: ${artifact}`),
+      ...(agent.handoffs || []).slice(0, 2).map((handoff) => `- handoff: ${handoff}`)
     ]),
     "",
     formatGeneratedAppHandoff(handoff)
@@ -682,6 +702,7 @@ function buildRunPayload(project: RunProject, health: EngineHealth): Omit<Stored
   const agents = defaultTaskGraph.slice(0, 12).map((task) => ({
     id: `agent_${task.agent}_${startedAt.getTime()}`,
     agent: task.agent,
+    phase: task.phase,
     task: task.title,
     status: "completed",
     summary: summarizeAgentWork(task.agent, plan.appType, health)

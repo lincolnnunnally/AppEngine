@@ -295,6 +295,88 @@ label {
   font-weight: 800;
 }
 
+.agent-bench-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-bench-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.25fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.agent-bench-summary {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #edf3fb;
+}
+
+.agent-bench-summary span,
+.agent-role-card > span,
+.agent-role-card small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.agent-bench-summary strong {
+  color: var(--blue);
+  font-size: 1.25rem;
+  text-transform: capitalize;
+}
+
+.agent-bench-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.agent-role-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.agent-role-card strong {
+  display: block;
+}
+
+.agent-role-card p {
+  margin: 0;
+}
+
+.agent-role-card div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-role-card small {
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: var(--teal);
+  background: var(--green-soft);
+}
+
+.agent-role-card em {
+  color: #344138;
+  font-size: 0.82rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
 .setup-panel {
   display: grid;
   gap: 14px;
@@ -632,6 +714,13 @@ label {
   margin-bottom: 8px;
 }
 
+.agent-output small {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.4;
+  text-transform: none;
+}
+
 .deployment-panel {
   display: grid;
   gap: 12px;
@@ -670,6 +759,8 @@ label {
   .metric-grid,
   .health-panel,
   .health-grid,
+  .agent-bench-header,
+  .agent-bench-grid,
   .setup-summary,
   .setup-phase-list,
   .readiness-summary,
