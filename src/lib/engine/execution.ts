@@ -379,6 +379,7 @@ export async function runProjectAgents(projectId: string) {
           phase: agentRun.phase,
           recommendations: agentRun.recommendations || [],
           artifacts: agentRun.artifacts || [],
+          structuredArtifacts: agentRun.structuredArtifacts || [],
           handoffs: agentRun.handoffs || [],
           qualityChecks: agentRun.qualityChecks || [],
           rootRunId: rootRun.id
@@ -618,6 +619,7 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
           summary: result.summary,
           recommendations: result.recommendations,
           artifacts: result.artifacts,
+          structuredArtifacts: result.structuredArtifacts,
           handoffs: result.handoffs
         }))
       })
@@ -626,7 +628,6 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
 
   const finishedAt = new Date();
   const failedResults = taskResults.filter((result) => result.status !== "completed");
-  const handoff = buildGeneratedAppHandoff(plan);
   const status = failedResults.length ? "agents_need_attention" : "agents_completed";
   const readinessScore = Math.min(88, Math.max(project.readiness_score, 32) + taskResults.filter((result) => result.status === "completed").length * 4);
   const agents = taskResults.map((result) => ({
@@ -639,9 +640,11 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
     provider: result.provider,
     recommendations: result.recommendations,
     artifacts: result.artifacts,
+    structuredArtifacts: result.structuredArtifacts,
     handoffs: result.handoffs,
     qualityChecks: result.qualityChecks
   }));
+  const handoff = buildGeneratedAppHandoff(plan, agents);
   const reportLines = [
     `${project.name} agent build run`,
     `Status: ${status}`,
@@ -653,6 +656,7 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
       `${agent.agent}${agent.phase ? ` (${agent.phase})` : ""}: ${agent.summary}`,
       ...(agent.recommendations || []).map((recommendation) => `- recommendation: ${recommendation}`),
       ...(agent.artifacts || []).slice(0, 2).map((artifact) => `- artifact: ${artifact}`),
+      ...(agent.structuredArtifacts || []).slice(0, 2).map((artifact) => `- usable artifact: ${artifact.title} (${artifact.kind})`),
       ...(agent.handoffs || []).slice(0, 2).map((handoff) => `- handoff: ${handoff}`)
     ]),
     "",

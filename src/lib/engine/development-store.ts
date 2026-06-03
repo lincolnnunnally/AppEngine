@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { AgentStructuredArtifact } from "./agent-artifacts";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
 import type { CreateProjectInput } from "./persistence";
@@ -36,6 +37,7 @@ export type StoredRun = {
     provider?: string;
     recommendations?: string[];
     artifacts?: string[];
+    structuredArtifacts?: AgentStructuredArtifact[];
     handoffs?: string[];
     qualityChecks?: string[];
   }>;

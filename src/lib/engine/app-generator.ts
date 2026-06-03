@@ -1,8 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getDatabase } from "@/lib/db/client";
+import type { AgentStructuredArtifact } from "./agent-artifacts";
 import { buildGeneratedAppHandoff } from "./app-output";
-import { createLocalExport, getLocalProject, listLocalExports } from "./development-store";
+import { createLocalExport, getLocalProject, listLocalExports, listLocalRuns } from "./development-store";
 import { isLocalMode } from "./local-mode";
 import { analyzeIdea } from "./planner";
 
@@ -20,6 +21,11 @@ type GeneratorProject = {
 type GeneratedFile = {
   path: string;
   content: string;
+};
+
+type GeneratorAgentOutput = {
+  agent: string;
+  structuredArtifacts?: AgentStructuredArtifact[];
 };
 
 export async function listGeneratedAppExports(projectId: string) {
@@ -54,7 +60,7 @@ export async function generateProjectApp(projectId: string) {
       throw new Error("Project not found");
     }
 
-    const exportResult = await writeGeneratedBundle(project);
+    const exportResult = await writeGeneratedBundle(project, await getLatestAgentOutputs(projectId));
     const generatedExport = await createLocalExport(projectId, exportResult);
 
     return {
@@ -75,7 +81,7 @@ export async function generateProjectApp(projectId: string) {
     throw new Error("Project not found");
   }
 
-  const exportResult = await writeGeneratedBundle(project as GeneratorProject);
+  const exportResult = await writeGeneratedBundle(project as GeneratorProject, await getLatestAgentOutputs(projectId));
   const [artifact] = await sql`
     insert into artifacts (project_id, artifact_type, title, uri, metadata, content)
     values (
@@ -108,7 +114,7 @@ export async function generateProjectApp(projectId: string) {
   };
 }
 
-async function writeGeneratedBundle(project: GeneratorProject) {
+async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: GeneratorAgentOutput[] = []) {
   const plan =
     project.plan ||
     analyzeIdea({
@@ -118,10 +124,10 @@ async function writeGeneratedBundle(project: GeneratorProject) {
       revenueModel: project.revenue_model || "SaaS subscription",
       appType: project.app_type || "Auto detect"
     });
-  const handoff = buildGeneratedAppHandoff(plan);
+  const handoff = buildGeneratedAppHandoff(plan, agentOutputs);
   const safeSlug = slugify(project.name || plan.title || project.id);
   const outputDir = join(process.cwd(), ".app-engine", "generated-apps", `${project.id}-${safeSlug}`);
-  const files = buildGeneratedFiles(project, plan);
+  const files = buildGeneratedFiles(project, plan, handoff);
 
   for (const file of files) {
     const fullPath = join(outputDir, file.path);
@@ -146,18 +152,72 @@ async function writeGeneratedBundle(project: GeneratorProject) {
     status: "app_exported",
     output_dir: outputDir,
     file_count: files.length + 1,
-    summary: `Generated ${files.length + 1} files for ${project.name}.`,
+    summary: `Generated ${files.length + 1} files for ${project.name} using ${handoff.agentBlueprint.length} agent blueprint artifact${handoff.agentBlueprint.length === 1 ? "" : "s"}.`,
     manifest
   };
 }
 
-function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>): GeneratedFile[] {
+async function getLatestAgentOutputs(projectId: string): Promise<GeneratorAgentOutput[]> {
+  if (isLocalMode()) {
+    const runs = await listLocalRuns(projectId);
+    const latestAgentRun = runs.find((run) => run.status === "agents_completed" || run.status === "agents_need_attention");
+
+    return extractAgentOutputs(latestAgentRun);
+  }
+
+  const sql = getDatabase();
+  const [run] = await sql`
+    select output
+    from agent_runs
+    where project_id = ${projectId}
+      and task_id is null
+      and status in ('agents_completed', 'agents_need_attention')
+    order by finished_at desc nulls last, created_at desc
+    limit 1
+  `;
+
+  return extractAgentOutputs(run?.output);
+}
+
+function extractAgentOutputs(source: unknown): GeneratorAgentOutput[] {
+  if (!source || typeof source !== "object") {
+    return [];
+  }
+
+  const maybeAgents = "agents" in source ? (source as { agents?: unknown }).agents : undefined;
+
+  if (!Array.isArray(maybeAgents)) {
+    return [];
+  }
+
+  return maybeAgents
+    .filter((agent): agent is { agent?: unknown; structuredArtifacts?: unknown } => Boolean(agent && typeof agent === "object"))
+    .map((agent) => ({
+      agent: typeof agent.agent === "string" ? agent.agent : "unknown",
+      structuredArtifacts: Array.isArray(agent.structuredArtifacts) ? (agent.structuredArtifacts as AgentStructuredArtifact[]) : []
+    }));
+}
+
+function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: ReturnType<typeof buildGeneratedAppHandoff>): GeneratedFile[] {
   const projectName = escapeText(project.name || plan.title || "Generated App");
   const customer = escapeText(plan.customer);
   const problem = escapeText(plan.problem);
   const templates = plan.templates.map((template) => template.name);
   const roles = plan.auth.roles;
-const appData = buildAppSeedData(plan);
+  const appData = buildAppSeedData(plan);
+  const blueprint = {
+    project: {
+      id: project.id,
+      name: projectName,
+      idea: project.idea,
+      customer,
+      problem,
+      appType: plan.appType,
+      recommendedTarget: plan.recommendedTarget
+    },
+    handoff
+  };
+  const blueprintJson = JSON.stringify(blueprint, null, 2);
 
   return [
     {
@@ -234,8 +294,13 @@ const appData = buildAppSeedData(plan);
         "- Notification center",
         "- Admin customer management",
         "- Admin project queue",
-        "- API stubs for customer/admin workflows"
+        "- API stubs for customer/admin workflows",
+        "- Machine-usable blueprint generated from agent artifacts"
       ].join("\n")
+    },
+    {
+      path: "app-engine-blueprint.json",
+      content: `${blueprintJson}\n`
     },
     {
       path: "next.config.mjs",
@@ -401,6 +466,10 @@ const appData = buildAppSeedData(plan);
     {
       path: "src/lib/templates/index.ts",
       content: `export const selectedTemplates = ${JSON.stringify(plan.templates, null, 2)};\n`
+    },
+    {
+      path: "src/lib/generated-blueprint.ts",
+      content: `export const generatedBlueprint = ${blueprintJson} as const;\n`
     },
     {
       path: "src/lib/app-data.ts",

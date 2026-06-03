@@ -1,3 +1,4 @@
+import { buildLocalStructuredArtifacts, type AgentStructuredArtifact } from "./agent-artifacts";
 import { getAgentRole, type AgentRole } from "./agent-roles";
 import { isLocalMode } from "./local-mode";
 import type { EngineTask } from "./tasks";
@@ -21,6 +22,7 @@ export type AgentCompletedHandoff = {
   summary: string;
   recommendations?: string[];
   artifacts?: string[];
+  structuredArtifacts?: AgentStructuredArtifact[];
   handoffs?: string[];
 };
 
@@ -33,6 +35,7 @@ export type AgentJobResult = {
   summary: string;
   recommendations: string[];
   artifacts: string[];
+  structuredArtifacts?: AgentStructuredArtifact[];
   handoffs?: string[];
   qualityChecks?: string[];
   raw?: unknown;
@@ -79,6 +82,7 @@ class LocalWorkerAdapter implements WorkerAdapter {
       summary,
       recommendations: buildLocalRecommendations(role, context),
       artifacts: buildLocalArtifacts(role, task, context),
+      structuredArtifacts: buildLocalStructuredArtifacts(role, task, context),
       handoffs: buildLocalHandoffs(role),
       qualityChecks: role.qualityBar
     };
@@ -212,6 +216,7 @@ function normalizeWorkerText(provider: WorkerProvider, task: EngineTask, context
     summary: firstNonEmptyLine(cleanText),
     recommendations: recommendations.length ? recommendations : buildLocalRecommendations(role, context),
     artifacts: artifacts.length ? artifacts : buildLocalArtifacts(role, task, context),
+    structuredArtifacts: buildLocalStructuredArtifacts(role, task, context),
     handoffs: handoffs.length ? handoffs : buildLocalHandoffs(role),
     qualityChecks: role.qualityBar,
     raw
@@ -230,6 +235,7 @@ function buildFailedResult(provider: WorkerProvider, task: EngineTask, message: 
     summary: message,
     recommendations: ["Retry the worker task after checking provider credentials, model access, and rate limits."],
     artifacts: [],
+    structuredArtifacts: [],
     handoffs: [],
     qualityChecks: role.qualityBar,
     raw

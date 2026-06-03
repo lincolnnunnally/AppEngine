@@ -11,6 +11,7 @@ It is designed for:
 - page and API-level authorization guards
 - reusable app templates
 - shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
+- typed agent artifacts for routes, APIs, roles, tables, workflows, QA checks, and deployment gates
 - project planning API routes
 - local, OpenAI, and Anthropic worker adapters
 - persisted agent runs, QA reports, and artifacts
@@ -129,6 +130,15 @@ Inspect the current bench with:
 ```text
 GET /api/engine/agent-roles
 ```
+
+Agent runs now produce machine-usable artifacts in addition to human summaries. Generated app exports consume the latest agent run and write:
+
+```text
+app-engine-blueprint.json
+src/lib/generated-blueprint.ts
+```
+
+Those files contain the agent-produced routes, API routes, role matrix, database model, workflows, QA checks, deployment gates, and raw agent blueprint artifacts.
 
 ## Deployment Workflow
 

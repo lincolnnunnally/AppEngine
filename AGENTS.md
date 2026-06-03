@@ -44,3 +44,4 @@ Do not commit `.env.local`, generated `.app-engine` output, `.next`, `node_modul
 - When adding a new engine action, add the API route, cockpit UI state, readiness/autopilot behavior, and verification path together.
 - Keep generated apps buildable with no database configured by using static fallback data where appropriate.
 - Keep agent behavior centralized in `src/lib/engine/agent-roles.ts`; task graph and worker prompts should derive from the shared role registry.
+- Keep machine-usable agent outputs centralized in `src/lib/engine/agent-artifacts.ts`; generated app exports should consume these artifacts instead of relying only on prose summaries.

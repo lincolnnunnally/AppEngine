@@ -105,6 +105,12 @@ type EngineRun = {
     provider?: string;
     recommendations?: string[];
     artifacts?: string[];
+    structuredArtifacts?: Array<{
+      kind: string;
+      title: string;
+      summary: string;
+      data: Record<string, unknown>;
+    }>;
     handoffs?: string[];
     qualityChecks?: string[];
   }>;
@@ -1109,6 +1115,11 @@ export function AppEngineCockpit() {
                           </span>
                           <strong>{agent.task}</strong>
                           <p>{agent.summary}</p>
+                          {agent.structuredArtifacts?.length ? (
+                            <small>
+                              Usable output: {agent.structuredArtifacts.map((artifact) => `${artifact.title} (${artifact.kind})`).join(" | ")}
+                            </small>
+                          ) : null}
                           {agent.artifacts?.length ? <small>Artifact: {agent.artifacts[0]}</small> : null}
                           {agent.recommendations?.length ? (
                             <small>{agent.recommendations.slice(0, 2).join(" | ")}</small>
