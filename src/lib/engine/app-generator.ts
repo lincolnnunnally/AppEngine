@@ -1,0 +1,885 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { getDatabase } from "@/lib/db/client";
+import { buildGeneratedAppHandoff } from "./app-output";
+import { createLocalExport, getLocalProject, listLocalExports } from "./development-store";
+import { isLocalMode } from "./local-mode";
+import { analyzeIdea } from "./planner";
+
+type GeneratorProject = {
+  id: string;
+  name: string;
+  idea: string;
+  target_customer?: string | null;
+  problem_statement?: string | null;
+  revenue_model?: string | null;
+  app_type?: string | null;
+  plan?: ReturnType<typeof analyzeIdea>;
+};
+
+type GeneratedFile = {
+  path: string;
+  content: string;
+};
+
+export async function listGeneratedAppExports(projectId: string) {
+  if (isLocalMode()) {
+    return {
+      exports: await listLocalExports(projectId),
+      storage: "local" as const
+    };
+  }
+
+  const sql = getDatabase();
+  const exports = await sql`
+    select id, project_id, artifact_type, title, uri, metadata, created_at
+    from artifacts
+    where project_id = ${projectId}
+      and artifact_type = 'generated_app_export'
+    order by created_at desc
+    limit 12
+  `;
+
+  return {
+    exports,
+    storage: "neon" as const
+  };
+}
+
+export async function generateProjectApp(projectId: string) {
+  if (isLocalMode()) {
+    const project = await getLocalProject(projectId);
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const exportResult = await writeGeneratedBundle(project);
+    const generatedExport = await createLocalExport(projectId, exportResult);
+
+    return {
+      export: generatedExport,
+      storage: "local" as const
+    };
+  }
+
+  const sql = getDatabase();
+  const [project] = await sql`
+    select id, name, idea, target_customer, problem_statement, revenue_model, app_type
+    from app_projects
+    where id = ${projectId}
+    limit 1
+  `;
+
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  const exportResult = await writeGeneratedBundle(project as GeneratorProject);
+  const [artifact] = await sql`
+    insert into artifacts (project_id, artifact_type, title, uri, metadata, content)
+    values (
+      ${projectId},
+      'generated_app_export',
+      'Generated App Bundle',
+      ${exportResult.output_dir},
+      ${JSON.stringify(exportResult.manifest)},
+      ${exportResult.summary}
+    )
+    returning *
+  `;
+
+  await sql`
+    update app_projects
+    set status = 'app_exported',
+      readiness_score = greatest(readiness_score, 86),
+      updated_at = now()
+    where id = ${projectId}
+  `;
+
+  await sql`
+    insert into audit_events (project_id, event_type, event_data)
+    values (${projectId}, 'project.app_exported', ${JSON.stringify({ artifactId: artifact.id, outputDir: exportResult.output_dir })})
+  `;
+
+  return {
+    export: artifact,
+    storage: "neon" as const
+  };
+}
+
+async function writeGeneratedBundle(project: GeneratorProject) {
+  const plan =
+    project.plan ||
+    analyzeIdea({
+      idea: project.idea,
+      targetCustomer: project.target_customer || undefined,
+      problem: project.problem_statement || undefined,
+      revenueModel: project.revenue_model || "SaaS subscription",
+      appType: project.app_type || "Auto detect"
+    });
+  const handoff = buildGeneratedAppHandoff(plan);
+  const safeSlug = slugify(project.name || plan.title || project.id);
+  const outputDir = join(process.cwd(), ".app-engine", "generated-apps", `${project.id}-${safeSlug}`);
+  const files = buildGeneratedFiles(project, plan);
+
+  for (const file of files) {
+    const fullPath = join(outputDir, file.path);
+    await mkdir(dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, file.content, "utf8");
+  }
+
+  const manifest = {
+    projectId: project.id,
+    name: project.name,
+    idea: project.idea,
+    appType: plan.appType,
+    recommendedTarget: plan.recommendedTarget,
+    handoff,
+    files: files.map((file) => file.path),
+    generatedAt: new Date().toISOString()
+  };
+
+  await writeFile(join(outputDir, "app-engine-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  return {
+    status: "app_exported",
+    output_dir: outputDir,
+    file_count: files.length + 1,
+    summary: `Generated ${files.length + 1} files for ${project.name}.`,
+    manifest
+  };
+}
+
+function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>): GeneratedFile[] {
+  const projectName = escapeText(project.name || plan.title || "Generated App");
+  const customer = escapeText(plan.customer);
+  const problem = escapeText(plan.problem);
+  const templates = plan.templates.map((template) => template.name);
+  const roles = plan.auth.roles;
+const appData = buildAppSeedData(plan);
+
+  return [
+    {
+      path: "package.json",
+      content: `${JSON.stringify(
+        {
+          name: slugify(projectName),
+          version: "0.1.0",
+          private: true,
+          type: "module",
+          scripts: {
+            dev: "next dev",
+            build: "next build",
+            start: "next start",
+            typecheck: "tsc --noEmit",
+            "db:setup": "node scripts/setup-database.mjs"
+          },
+          dependencies: {
+            next: "^16.2.7",
+            react: "^19.2.7",
+            "react-dom": "^19.2.7",
+            "@auth/pg-adapter": "latest",
+            "next-auth": "5.0.0-beta.31",
+            "@neondatabase/serverless": "latest"
+          },
+          devDependencies: {
+            typescript: "latest",
+            "@types/node": "latest",
+            "@types/react": "latest",
+            "@types/react-dom": "latest"
+          },
+          overrides: {
+            postcss: "^8.5.10"
+          }
+        },
+        null,
+        2
+      )}\n`
+    },
+    {
+      path: "README.md",
+      content: [
+        `# ${projectName}`,
+        "",
+        `Customer: ${customer}`,
+        `Problem: ${problem}`,
+        `App type: ${plan.appType}`,
+        `Target: ${plan.recommendedTarget}`,
+        "",
+        "## Run",
+        "",
+        "```bash",
+        "npm install",
+        "npm run typecheck",
+        "npm run build",
+        "npm run db:setup",
+        "npm run dev",
+        "```",
+        "",
+        "## Database Setup",
+        "",
+        "1. Copy `.env.example` to `.env.local`.",
+        "2. Set `DATABASE_URL` to your Neon connection string.",
+        "3. Set `AUTH_SECRET` and `APP_ENGINE_OWNER_EMAIL`.",
+        "4. Run `npm run db:setup` to apply `src/lib/db/schema.sql` and `src/lib/db/seed.sql`.",
+        "",
+        "## Included Surfaces",
+        "",
+        "- Customer workspace",
+        "- Guided onboarding",
+        "- Account management",
+        "- Billing and plans",
+        "- Request tracking",
+        "- Notification center",
+        "- Admin customer management",
+        "- Admin project queue",
+        "- API stubs for customer/admin workflows"
+      ].join("\n")
+    },
+    {
+      path: "next.config.mjs",
+      content:
+        'import { dirname } from "node:path";\nimport { fileURLToPath } from "node:url";\n\nconst root = dirname(fileURLToPath(import.meta.url));\n\n/** @type {import("next").NextConfig} */\nconst nextConfig = {\n  allowedDevOrigins: ["127.0.0.1"],\n  turbopack: {\n    root\n  }\n};\n\nexport default nextConfig;\n'
+    },
+    {
+      path: "tsconfig.json",
+      content: `${JSON.stringify(
+        {
+          compilerOptions: {
+            target: "ES2017",
+            lib: ["dom", "dom.iterable", "esnext"],
+            allowJs: true,
+            skipLibCheck: true,
+            strict: true,
+            noEmit: true,
+            esModuleInterop: true,
+            module: "esnext",
+            moduleResolution: "bundler",
+            resolveJsonModule: true,
+            isolatedModules: true,
+            jsx: "react-jsx",
+            incremental: false,
+            plugins: [{ name: "next" }],
+            paths: {
+              "@/*": ["./src/*"]
+            }
+          },
+          include: ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+          exclude: ["node_modules", "tests"]
+        },
+        null,
+        2
+      )}\n`
+    },
+    {
+      path: "next-env.d.ts",
+      content: '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n'
+    },
+    {
+      path: ".env.example",
+      content: [
+        'DATABASE_URL="postgresql://USER:PASSWORD@HOST.neon.tech/app?sslmode=require"',
+        'AUTH_SECRET="replace-with-a-long-random-secret"',
+        'AUTH_URL="http://localhost:3000"',
+        'APP_ENGINE_OWNER_EMAIL="you@example.com"',
+        'AUTH_GITHUB_ID=""',
+        'AUTH_GITHUB_SECRET=""',
+        'AUTH_GOOGLE_ID=""',
+        'AUTH_GOOGLE_SECRET=""',
+        'OPENAI_API_KEY=""',
+        'ANTHROPIC_API_KEY=""',
+        'VERCEL_TOKEN=""',
+        'VERCEL_ORG_ID=""',
+        'VERCEL_PROJECT_ID=""'
+      ].join("\n")
+    },
+    {
+      path: "src/app/layout.tsx",
+      content: `import "./styles.css";\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n`
+    },
+    {
+      path: "src/auth.ts",
+      content: `import NextAuth from "next-auth";\nimport PostgresAdapter from "@auth/pg-adapter";\nimport { Pool } from "@neondatabase/serverless";\nimport GitHub from "next-auth/providers/github";\nimport Google from "next-auth/providers/google";\nimport { roleForEmail } from "@/lib/auth/roles";\n\nfunction hasDatabase() {\n  return Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("USER:PASSWORD@HOST"));\n}\n\nconst providers = [\n  ...(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET\n    ? [GitHub({ clientId: process.env.AUTH_GITHUB_ID, clientSecret: process.env.AUTH_GITHUB_SECRET })]\n    : []),\n  ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET\n    ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET })]\n    : [])\n];\n\nexport const { handlers, auth, signIn, signOut } = NextAuth(() => {\n  const adapter = hasDatabase() ? PostgresAdapter(new Pool({ connectionString: process.env.DATABASE_URL })) : undefined;\n\n  return {\n    adapter,\n    secret: process.env.AUTH_SECRET || "generated-app-local-development-secret",\n    providers,\n    callbacks: {\n      session({ session }) {\n        if (session.user) {\n          (session.user as typeof session.user & { role?: string }).role = roleForEmail(session.user.email);\n        }\n        return session;\n      }\n    }\n  };\n});\n`
+    },
+    {
+      path: "src/app/api/auth/[...nextauth]/route.ts",
+      content: `import { handlers } from "@/auth";\n\nexport const { GET, POST } = handlers;\n`
+    },
+    {
+      path: "src/lib/db/client.ts",
+      content: `import { neon } from "@neondatabase/serverless";\n\nexport function hasDatabase() {\n  return Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("USER:PASSWORD@HOST"));\n}\n\nexport function getDatabase() {\n  if (!hasDatabase()) {\n    throw new Error("DATABASE_URL is required before using Neon persistence.");\n  }\n\n  return neon(process.env.DATABASE_URL!);\n}\n`
+    },
+    {
+      path: "src/lib/db/queries.ts",
+      content: `import { adminCustomers, adminProjects, customerRequests, notifications, pricingPlans } from "@/lib/app-data";\nimport { getDatabase, hasDatabase } from "./client";\n\ntype CustomerRequest = (typeof customerRequests)[number];\ntype Notification = (typeof notifications)[number];\ntype PricingPlan = (typeof pricingPlans)[number];\ntype AdminCustomer = (typeof adminCustomers)[number];\ntype AdminProject = (typeof adminProjects)[number];\n\nasync function withFallback<T>(fallback: T[], readRows: () => Promise<T[]>) {\n  if (!hasDatabase()) {\n    return fallback;\n  }\n\n  try {\n    const rows = await readRows();\n    return rows.length > 0 ? rows : fallback;\n  } catch (error) {\n    console.warn(\"Database read failed; using generated fallback data.\", error);\n    return fallback;\n  }\n}\n\nexport async function listCustomerRequests() {\n  return withFallback<CustomerRequest>(customerRequests, async () => {\n    const sql = getDatabase();\n    const rows = await sql\`select title, status, priority, summary from customer_requests order by created_at desc limit 20\`;\n\n    return rows.map((row) => ({\n      title: String(row.title),\n      status: String(row.status),\n      priority: String(row.priority),\n      summary: String(row.summary || \"\")\n    }));\n  });\n}\n\nexport async function listNotifications() {\n  return withFallback<Notification>(notifications, async () => {\n    const sql = getDatabase();\n    const rows = await sql\`select title, body, channel from notifications order by created_at desc limit 20\`;\n\n    return rows.map((row) => ({\n      title: String(row.title),\n      body: String(row.body),\n      channel: String(row.channel)\n    }));\n  });\n}\n\nexport async function listPricingPlans() {\n  return withFallback<PricingPlan>(pricingPlans, async () => {\n    const sql = getDatabase();\n    const rows = await sql\`select name, audience, price, includes from subscription_plans where active = true order by created_at asc limit 20\`;\n\n    return rows.map((row) => ({\n      name: String(row.name),\n      audience: String(row.audience || \"customers\"),\n      price: String(row.price),\n      includes: Array.isArray(row.includes) ? row.includes.map(String) : []\n    }));\n  });\n}\n\nexport async function listAdminCustomers() {\n  return withFallback<AdminCustomer>(adminCustomers, async () => {\n    const sql = getDatabase();\n    const rows = await sql\`\n      select organizations.name, count(customer_requests.id)::int as request_count\n      from organizations\n      left join customer_requests on customer_requests.organization_id = organizations.id\n      group by organizations.id, organizations.name\n      order by organizations.created_at asc\n      limit 20\n    \`;\n\n    return rows.map((row) => {\n      const requestCount = Number(row.request_count || 0);\n\n      return {\n        name: String(row.name),\n        health: requestCount > 3 ? \"watch\" : \"good\",\n        plan: \"Seed\",\n        status: requestCount > 0 ? requestCount + \" active requests\" : \"active\",\n        nextAction: requestCount > 0 ? \"Review request queue.\" : \"Invite another user.\"\n      };\n    });\n  });\n}\n\nexport async function listAdminProjects() {\n  return withFallback<AdminProject>(adminProjects, async () => {\n    const sql = getDatabase();\n    const rows = await sql\`select name, status, readiness_score, summary from app_projects order by updated_at desc limit 20\`;\n\n    return rows.map((row) => ({\n      name: String(row.name),\n      status: String(row.status),\n      readiness: Number(row.readiness_score || 0),\n      summary: String(row.summary || \"\")\n    }));\n  });\n}\n`
+    },
+    {
+      path: "scripts/setup-database.mjs",
+      content: `import { readFile } from "node:fs/promises";\nimport { dirname, join } from "node:path";\nimport { fileURLToPath } from "node:url";\nimport { neon } from "@neondatabase/serverless";\n\nconst rootDir = dirname(dirname(fileURLToPath(import.meta.url)));\nconst databaseUrl = process.env.DATABASE_URL;\n\nif (!databaseUrl || databaseUrl.includes("USER:PASSWORD@HOST")) {\n  console.error("DATABASE_URL must point to your Neon database before running setup.");\n  process.exit(1);\n}\n\nconst sql = neon(databaseUrl);\nconst files = [\"src/lib/db/schema.sql\", \"src/lib/db/seed.sql\"];\n\nfor (const file of files) {\n  const contents = await readFile(join(rootDir, file), \"utf8\");\n\n  console.log(\"Applying \" + file);\n  await sql.query(contents);\n}\n\nconsole.log(\"Database setup complete.\");\n`
+    },
+    {
+      path: "src/app/styles.css",
+      content: buildGeneratedCss()
+    },
+    {
+      path: "src/app/page.tsx",
+      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Open App</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/sign-in/page.tsx",
+      content: `import { isAuthConfigured } from "@/lib/auth/session";\n\nexport default function SignInPage() {\n  const configured = isAuthConfigured();\n\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">Sign In</p>\n      <h1>Access ${projectName}</h1>\n      <p>\n        {configured\n          ? "Choose a configured identity provider to continue."\n          : "Local setup mode is active until DATABASE_URL, AUTH_SECRET, and an OAuth provider are configured."}\n      </p>\n      <section className="grid">\n        <article className="card">\n          <span>Customer</span>\n          <strong>Customer workspace</strong>\n          <p>Manage account, requests, onboarding, billing, and notifications.</p>\n          <a className="button primary" href="/app">Continue</a>\n        </article>\n        <article className="card">\n          <span>Admin</span>\n          <strong>Admin console</strong>\n          <p>Owner and admin users can manage customers, projects, QA, and deployments.</p>\n          <a className="button" href="/admin">Open Admin</a>\n        </article>\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/app/page.tsx",
+      content: `import { customerMetrics, customerWorkflows, selectedModules } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Customer Workspace</p>\n      <h1>${projectName}</h1>\n      <p>${customer} can manage the workflow for ${problem}.</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <section className="metric-grid">\n        {customerMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {selectedModules.map((template) => (\n          <article className="card" key={template.name}>\n            <span>Module</span>\n            <strong>{template.name}</strong>\n            <p>{template.description}</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/account/page.tsx",
+      content: `import { accountSections } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AccountPage() {\n  const user = await requireCustomerAccess("/account");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Account</p>\n      <h1>Customer Account</h1>\n      <p>Profile, organization, plan, billing, notification, and service usage controls.</p>\n      <p className="session-note">Managing account for {user.email}.</p>\n      <section className="grid">\n        {accountSections.map((section) => (\n          <article className="card" key={section.title}>\n            <span>{section.state}</span>\n            <strong>{section.title}</strong>\n            <p>{section.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/onboarding/page.tsx",
+      content: `import { onboardingSteps } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function OnboardingPage() {\n  await requireCustomerAccess("/onboarding");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Onboarding</p>\n      <h1>Guided Setup</h1>\n      <p>Capture the customer's goal, company context, success criteria, and first useful workflow.</p>\n      <section className="panel-list">\n        {onboardingSteps.map((step) => (\n          <article className="wide-card" key={step.title}>\n            <span>{step.status}</span>\n            <strong>{step.title}</strong>\n            <p>{step.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/billing/page.tsx",
+      content: `import { requireCustomerAccess } from "@/lib/auth/session";\nimport { listPricingPlans } from "@/lib/db/queries";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function BillingPage() {\n  await requireCustomerAccess("/billing");\n  const plans = await listPricingPlans();\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Billing</p>\n      <h1>Plans And Usage</h1>\n      <p>Subscription state, usage limits, invoices, and upgrade triggers.</p>\n      <section className="grid">\n        {plans.map((plan) => (\n          <article className="card" key={plan.name}>\n            <span>{plan.audience}</span>\n            <strong>{plan.name}</strong>\n            <p>{plan.price}</p>\n            <small>{plan.includes.join(" | ")}</small>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/requests/page.tsx",
+      content: `import { requireCustomerAccess } from "@/lib/auth/session";\nimport { listCustomerRequests } from "@/lib/db/queries";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function RequestsPage() {\n  await requireCustomerAccess("/requests");\n  const requests = await listCustomerRequests();\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Requests</p>\n      <h1>Customer Requests</h1>\n      <p>Track intake, priority, owner, status, and next recovery step.</p>\n      <section className="panel-list">\n        {requests.map((request) => (\n          <article className="wide-card" key={request.title}>\n            <span>{request.status}</span>\n            <strong>{request.title}</strong>\n            <p>{request.summary}</p>\n            <small>{request.priority} priority</small>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/notifications/page.tsx",
+      content: `import { requireCustomerAccess } from "@/lib/auth/session";\nimport { listNotifications } from "@/lib/db/queries";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function NotificationsPage() {\n  await requireCustomerAccess("/notifications");\n  const messages = await listNotifications();\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Notifications</p>\n      <h1>Message Center</h1>\n      <p>In-app and email notifications for workflow updates, risk, opportunities, and account events.</p>\n      <section className="panel-list">\n        {messages.map((notification) => (\n          <article className="wide-card" key={notification.title}>\n            <span>{notification.channel}</span>\n            <strong>{notification.title}</strong>\n            <p>{notification.body}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/admin/page.tsx",
+      content: `import { adminMetrics, adminQueues } from "@/lib/app-data";\nimport { requireAdminAccess } from "@/lib/auth/session";\nimport { roles } from "@/lib/auth/roles";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AdminPage() {\n  const user = await requireAdminAccess("/admin");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Admin</p>\n      <h1>Admin Console</h1>\n      <p>Manage customers, projects, agent runs, QA reports, deployments, support, and audit logs.</p>\n      <p className="session-note">Admin access granted for {user.email}.</p>\n      <section className="metric-grid">\n        {adminMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {roles.map((role) => (\n          <article className="card" key={role}>\n            <span>Role</span>\n            <strong>{role}</strong>\n            <p>Access policy should be enforced on matching routes and APIs.</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {adminQueues.map((queue) => (\n          <article className="wide-card" key={queue.title}>\n            <span>{queue.status}</span>\n            <strong>{queue.title}</strong>\n            <p>{queue.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/admin/customers/page.tsx",
+      content: `import { requireAdminAccess } from "@/lib/auth/session";\nimport { listAdminCustomers } from "@/lib/db/queries";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AdminCustomersPage() {\n  await requireAdminAccess("/admin/customers");\n  const customers = await listAdminCustomers();\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Admin</p>\n      <h1>Customers</h1>\n      <p>Customer health, plan, request load, support state, and expansion opportunities.</p>\n      <section className="panel-list">\n        {customers.map((customer) => (\n          <article className="wide-card" key={customer.name}>\n            <span>{customer.health}</span>\n            <strong>{customer.name}</strong>\n            <p>{customer.plan} plan - {customer.status}</p>\n            <small>{customer.nextAction}</small>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/admin/projects/page.tsx",
+      content: `import { requireAdminAccess } from "@/lib/auth/session";\nimport { listAdminProjects } from "@/lib/db/queries";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AdminProjectsPage() {\n  await requireAdminAccess("/admin/projects");\n  const projects = await listAdminProjects();\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Admin</p>\n      <h1>Generated App Projects</h1>\n      <p>Agent status, QA state, deployment state, and customer handoff readiness.</p>\n      <section className="panel-list">\n        {projects.map((project) => (\n          <article className="wide-card" key={project.name}>\n            <span>{project.status}</span>\n            <strong>{project.name}</strong>\n            <p>{project.summary}</p>\n            <small>{project.readiness}% readiness</small>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+    },
+    {
+      path: "src/app/api/health/route.ts",
+      content: `import { NextResponse } from "next/server";\n\nexport async function GET() {\n  return NextResponse.json({ ok: true, app: "${projectName}" });\n}\n`
+    },
+    {
+      path: "src/app/api/customer/requests/route.ts",
+      content: `import { NextResponse } from "next/server";\nimport { canAccessCustomerArea } from "@/lib/auth/roles";\nimport { getCurrentUser } from "@/lib/auth/session";\nimport { listCustomerRequests } from "@/lib/db/queries";\n\nexport async function GET() {\n  const user = await getCurrentUser();\n\n  if (!canAccessCustomerArea(user?.role)) {\n    return NextResponse.json({ error: "Authentication required" }, { status: 401 });\n  }\n\n  return NextResponse.json({ user, requests: await listCustomerRequests() });\n}\n`
+    },
+    {
+      path: "src/app/api/admin/customers/route.ts",
+      content: `import { NextResponse } from "next/server";\nimport { canAccessAdmin } from "@/lib/auth/roles";\nimport { getCurrentUser } from "@/lib/auth/session";\nimport { listAdminCustomers } from "@/lib/db/queries";\n\nexport async function GET() {\n  const user = await getCurrentUser();\n\n  if (!user) {\n    return NextResponse.json({ error: "Authentication required" }, { status: 401 });\n  }\n\n  if (!canAccessAdmin(user.role)) {\n    return NextResponse.json({ error: "Admin access required" }, { status: 403 });\n  }\n\n  return NextResponse.json({ user, customers: await listAdminCustomers() });\n}\n`
+    },
+    {
+      path: "src/app/api/admin/projects/route.ts",
+      content: `import { NextResponse } from "next/server";\nimport { canAccessAdmin } from "@/lib/auth/roles";\nimport { getCurrentUser } from "@/lib/auth/session";\nimport { listAdminProjects } from "@/lib/db/queries";\n\nexport async function GET() {\n  const user = await getCurrentUser();\n\n  if (!user) {\n    return NextResponse.json({ error: "Authentication required" }, { status: 401 });\n  }\n\n  if (!canAccessAdmin(user.role)) {\n    return NextResponse.json({ error: "Admin access required" }, { status: 403 });\n  }\n\n  return NextResponse.json({ user, projects: await listAdminProjects() });\n}\n`
+    },
+    {
+      path: "src/lib/auth/roles.ts",
+      content: `export const roles = ${JSON.stringify(roles, null, 2)} as const;\nexport const defaultRoles = ["owner", "admin", "customer"] as const;\n\nexport type GeneratedRole = (typeof roles)[number];\nexport type DefaultRole = (typeof defaultRoles)[number];\nexport type Role = GeneratedRole | DefaultRole;\n\nexport function roleForEmail(email?: string | null): Role {\n  const normalizedEmail = email?.trim().toLowerCase();\n  const ownerEmail = process.env.APP_ENGINE_OWNER_EMAIL?.trim().toLowerCase();\n\n  if (normalizedEmail && ownerEmail && normalizedEmail === ownerEmail) {\n    return "owner";\n  }\n\n  return "customer";\n}\n\nexport function canAccessAdmin(role?: string | null) {\n  return role === "owner" || role === "admin";\n}\n\nexport function canAccessCustomerArea(role?: string | null) {\n  return Boolean(role);\n}\n`
+    },
+    {
+      path: "src/lib/auth/session.ts",
+      content: `import { redirect } from "next/navigation";\nimport { auth } from "@/auth";\nimport { hasDatabase } from "@/lib/db/client";\nimport { canAccessAdmin, canAccessCustomerArea, roleForEmail, type Role } from "./roles";\n\nexport type CurrentUser = {\n  name: string;\n  email: string;\n  role: Role;\n  mode: "session" | "setup";\n};\n\nfunction hasAuthProvider() {\n  return Boolean(\n    (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) ||\n      (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)\n  );\n}\n\nexport function isAuthConfigured() {\n  return hasDatabase() && Boolean(process.env.AUTH_SECRET) && hasAuthProvider();\n}\n\nexport async function getCurrentUser(): Promise<CurrentUser | null> {\n  if (!isAuthConfigured()) {\n    const email = process.env.APP_ENGINE_OWNER_EMAIL || "owner@example.com";\n\n    return {\n      name: "Local Setup User",\n      email,\n      role: "owner",\n      mode: "setup"\n    };\n  }\n\n  const session = await auth();\n  const email = session?.user?.email;\n\n  if (!email) {\n    return null;\n  }\n\n  return {\n    name: session.user?.name || email,\n    email,\n    role: roleForEmail(email),\n    mode: "session"\n  };\n}\n\nexport async function requireCustomerAccess(nextPath = "/app") {\n  const user = await getCurrentUser();\n\n  if (!user || !canAccessCustomerArea(user.role)) {\n    redirect("/sign-in?next=" + encodeURIComponent(nextPath));\n  }\n\n  return user;\n}\n\nexport async function requireAdminAccess(nextPath = "/admin") {\n  const user = await getCurrentUser();\n\n  if (!user) {\n    redirect("/sign-in?next=" + encodeURIComponent(nextPath));\n  }\n\n  if (!canAccessAdmin(user.role)) {\n    redirect("/app");\n  }\n\n  return user;\n}\n`
+    },
+    {
+      path: "src/lib/db/schema.sql",
+      content: buildSchemaSql()
+    },
+    {
+      path: "src/lib/db/seed.sql",
+      content: buildSeedSql(projectName, customer, problem, appData)
+    },
+    {
+      path: "src/lib/templates/index.ts",
+      content: `export const selectedTemplates = ${JSON.stringify(plan.templates, null, 2)};\n`
+    },
+    {
+      path: "src/lib/app-data.ts",
+      content: `export const selectedModules = ${JSON.stringify(appData.selectedModules, null, 2)};
+
+export const customerMetrics = ${JSON.stringify(appData.customerMetrics, null, 2)};
+
+export const customerWorkflows = ${JSON.stringify(appData.customerWorkflows, null, 2)};
+
+export const accountSections = ${JSON.stringify(appData.accountSections, null, 2)};
+
+export const onboardingSteps = ${JSON.stringify(appData.onboardingSteps, null, 2)};
+
+export const pricingPlans = ${JSON.stringify(appData.pricingPlans, null, 2)};
+
+export const customerRequests = ${JSON.stringify(appData.customerRequests, null, 2)};
+
+export const notifications = ${JSON.stringify(appData.notifications, null, 2)};
+
+export const adminMetrics = ${JSON.stringify(appData.adminMetrics, null, 2)};
+
+export const adminQueues = ${JSON.stringify(appData.adminQueues, null, 2)};
+
+export const adminCustomers = ${JSON.stringify(appData.adminCustomers, null, 2)};
+
+export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
+`
+    },
+    {
+      path: "tests/e2e/customer-admin.spec.ts",
+      content: `import { test, expect } from "@playwright/test";\n\ntest("customer and admin surfaces load", async ({ page }) => {\n  await page.goto("/app");\n  await expect(page.getByText("${projectName}")).toBeVisible();\n  await page.goto("/admin");\n  await expect(page.getByText("Admin Console")).toBeVisible();\n});\n`
+    },
+    {
+      path: "vercel.json",
+      content: `${JSON.stringify({ framework: "nextjs", buildCommand: "npm run build" }, null, 2)}\n`
+    }
+  ];
+}
+
+function buildGeneratedCss() {
+  return `:root {
+  --ink: #17211b;
+  --muted: #66736c;
+  --line: #d9d4ca;
+  --paper: #f6f3ed;
+  --panel: #ffffff;
+  --teal: #127c73;
+  --blue: #456ea8;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: var(--paper); }
+a { color: inherit; }
+.shell { width: min(1120px, calc(100vw - 32px)); margin: 0 auto; padding: 32px 0; }
+.hero { min-height: 70vh; display: grid; align-content: center; }
+.eyebrow, .card span { margin: 0 0 6px; color: var(--muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
+h1 { margin: 0 0 14px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1; }
+p, small { color: #344138; line-height: 1.55; }
+.grid, .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.panel-list { display: grid; gap: 10px; margin-top: 18px; }
+.card, .metric-card, .wide-card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--panel); }
+.card strong, .metric-card strong, .wide-card strong { display: block; }
+.metric-card strong { font-size: 1.6rem; line-height: 1; }
+.wide-card span, .metric-card span { display: block; margin-bottom: 6px; color: var(--muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
+.action-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.button { min-height: 40px; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 0 14px; background: #fff; font-weight: 800; text-decoration: none; }
+.button.primary { border-color: var(--teal); color: #fff; background: var(--teal); }
+.card .button { margin-top: 8px; }
+.session-note { display: inline-flex; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--muted); font-size: .9rem; }
+@media (max-width: 760px) { .grid, .metric-grid { grid-template-columns: 1fr; } }
+`;
+}
+
+function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>) {
+  return {
+    selectedModules: plan.templates.map((template) => ({
+      name: template.name,
+      category: template.category,
+      description: template.description
+    })),
+    customerMetrics: [
+      { label: "Open work", value: "8", detail: "Active customer-facing items needing action." },
+      { label: "Time saved", value: "14h", detail: "Estimated monthly time recovered from automation." },
+      { label: "Plan usage", value: "62%", detail: "Current usage against plan limits." },
+      { label: "Health", value: "Good", detail: "Account has no critical blockers." }
+    ],
+    customerWorkflows: [
+      { title: "First outcome workflow", status: "active", nextAction: `Move the customer through the ${plan.problem} workflow.` },
+      { title: "Recovery path", status: "ready", nextAction: "Show blocked items, support escalation, and next best action." },
+      { title: "Expansion signal", status: "watching", nextAction: "Track usage and trigger upgrade when limits are approached." }
+    ],
+    accountSections: [
+      { title: "Profile", state: "ready", description: "Customer name, email, role, avatar, and preferences." },
+      { title: "Organization", state: "ready", description: "Company details, members, permissions, and ownership." },
+      { title: "Billing", state: "ready", description: "Subscription, invoices, usage, plan limits, and upgrade path." },
+      { title: "Notifications", state: "ready", description: "Email and in-app delivery preferences." }
+    ],
+    onboardingSteps: [
+      { title: "Capture goal", status: "step 1", description: "Ask what success looks like and what has to happen first." },
+      { title: "Set up company", status: "step 2", description: "Collect company, team, role, and account context." },
+      { title: "Choose workflow", status: "step 3", description: "Select the first workflow that proves value fastest." },
+      { title: "Confirm success criteria", status: "step 4", description: "Turn the promise into measurable acceptance criteria." }
+    ],
+    pricingPlans: [
+      { name: "Starter", audience: "new customers", price: "$49/mo", includes: ["1 workspace", "basic automations", "email support"] },
+      { name: "Growth", audience: "scaling teams", price: "$149/mo", includes: ["5 workspaces", "AI runs", "priority support"] },
+      { name: "Scale", audience: "operators", price: "$399/mo", includes: ["unlimited workflows", "admin controls", "SLA support"] }
+    ],
+    customerRequests: [
+      { title: "Complete setup", status: "open", priority: "high", summary: "Customer needs onboarding steps finished before first value." },
+      { title: "Review workflow", status: "in progress", priority: "medium", summary: "Customer submitted a workflow for admin review." },
+      { title: "Upgrade limit", status: "waiting", priority: "medium", summary: "Usage is approaching the plan limit and needs a decision." }
+    ],
+    notifications: [
+      { title: "Workflow completed", channel: "in-app", body: "Notify the customer when their primary workflow reaches success." },
+      { title: "Action required", channel: "email", body: "Escalate blocked work with a direct recovery action." },
+      { title: "Upgrade opportunity", channel: "in-app", body: "Prompt upgrade when value and usage justify expansion." }
+    ],
+    adminMetrics: [
+      { label: "Customers", value: "24", detail: "Accounts in the current workspace." },
+      { label: "At risk", value: "3", detail: "Customers needing support or onboarding help." },
+      { label: "MRR", value: "$8.2k", detail: "Monthly recurring revenue snapshot." },
+      { label: "Deployments", value: "6", detail: "Preview or production releases this month." }
+    ],
+    adminQueues: [
+      { title: "Customer onboarding", status: "attention", nextAction: "Review incomplete onboarding and send next action." },
+      { title: "QA findings", status: "active", nextAction: "Patch unresolved checks before production promotion." },
+      { title: "Deployment queue", status: "blocked", nextAction: "Resolve env and credential gates before release." }
+    ],
+    adminCustomers: [
+      { name: "Acme Services", health: "good", plan: "Growth", status: "active", nextAction: "Invite second admin user." },
+      { name: "Northstar Ops", health: "watch", plan: "Starter", status: "setup incomplete", nextAction: "Finish onboarding checklist." },
+      { name: "Atlas Field", health: "expansion", plan: "Growth", status: "near usage limit", nextAction: "Offer Scale upgrade." }
+    ],
+    adminProjects: [
+      { name: plan.title || "Generated App", status: "qa", readiness: 86, summary: "Agent run complete and awaiting final deployment gates." },
+      { name: "Customer Portal", status: "planned", readiness: 42, summary: "Templates selected and data model ready for implementation." },
+      { name: "Workflow Automation", status: "deployed", readiness: 96, summary: "Preview verified and ready for promotion." }
+    ]
+  };
+}
+
+function buildSchemaSql() {
+  return `create extension if not exists pgcrypto;
+
+create table if not exists verification_token (
+  identifier text not null,
+  expires timestamptz not null,
+  token text not null,
+  primary key (identifier, token)
+);
+
+create table if not exists users (
+  id serial primary key,
+  name varchar(255),
+  email varchar(255),
+  "emailVerified" timestamptz,
+  image text
+);
+
+create table if not exists accounts (
+  id serial primary key,
+  "userId" integer not null references users(id) on delete cascade,
+  type varchar(255) not null,
+  provider varchar(255) not null,
+  "providerAccountId" varchar(255) not null,
+  refresh_token text,
+  access_token text,
+  expires_at bigint,
+  id_token text,
+  scope text,
+  session_state text,
+  token_type text
+);
+
+create table if not exists sessions (
+  id serial primary key,
+  "userId" integer not null references users(id) on delete cascade,
+  expires timestamptz not null,
+  "sessionToken" varchar(255) not null unique
+);
+
+create table if not exists app_user_profiles (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id integer not null references users(id) on delete cascade,
+  role text not null default 'customer',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(auth_user_id)
+);
+
+create table if not exists organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text unique,
+  owner_user_id integer references users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists organization_memberships (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  user_id integer not null references users(id) on delete cascade,
+  role text not null default 'member',
+  created_at timestamptz not null default now(),
+  unique(organization_id, user_id)
+);
+
+create table if not exists app_projects (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references organizations(id) on delete set null,
+  name text not null,
+  summary text,
+  customer_goal text,
+  status text not null default 'planned',
+  readiness_score integer not null default 0 check (readiness_score >= 0 and readiness_score <= 100),
+  created_by_user_id integer references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(organization_id, name)
+);
+
+create table if not exists app_templates (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  category text not null,
+  description text not null,
+  config jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists app_tasks (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references app_projects(id) on delete cascade,
+  title text not null,
+  description text,
+  status text not null default 'todo',
+  priority text not null default 'medium',
+  acceptance_criteria jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists agent_runs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references app_projects(id) on delete cascade,
+  task_id uuid references app_tasks(id) on delete set null,
+  agent_name text not null,
+  status text not null default 'queued',
+  input jsonb not null default '{}'::jsonb,
+  output jsonb not null default '{}'::jsonb,
+  error_message text,
+  started_at timestamptz,
+  finished_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists artifacts (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references app_projects(id) on delete cascade,
+  task_id uuid references app_tasks(id) on delete set null,
+  agent_run_id uuid references agent_runs(id) on delete set null,
+  artifact_type text not null,
+  title text not null,
+  content text,
+  uri text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists qa_checks (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references app_projects(id) on delete cascade,
+  task_id uuid references app_tasks(id) on delete set null,
+  title text not null,
+  status text not null default 'pending',
+  severity text not null default 'medium',
+  details text,
+  reproduction_steps jsonb not null default '[]'::jsonb,
+  evidence_artifact_id uuid references artifacts(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists deployments (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references app_projects(id) on delete cascade,
+  provider text not null default 'vercel',
+  environment text not null default 'preview',
+  status text not null default 'queued',
+  url text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  verified_at timestamptz
+);
+
+create table if not exists customer_requests (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references organizations(id) on delete cascade,
+  created_by_user_id integer references users(id) on delete set null,
+  title text not null,
+  summary text,
+  priority text not null default 'medium',
+  status text not null default 'open',
+  created_at timestamptz not null default now(),
+  unique(organization_id, title)
+);
+
+create table if not exists subscription_plans (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  price text not null,
+  audience text,
+  includes jsonb not null default '[]'::jsonb,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references organizations(id) on delete cascade,
+  user_id integer references users(id) on delete cascade,
+  title text not null,
+  body text not null,
+  channel text not null default 'in-app',
+  read_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique(organization_id, title)
+);
+
+create table if not exists audit_events (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references organizations(id) on delete set null,
+  actor_user_id integer references users(id) on delete set null,
+  event_type text not null,
+  event_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists users_email_idx on users(email);
+create index if not exists accounts_user_idx on accounts("userId");
+create index if not exists accounts_provider_account_idx on accounts(provider, "providerAccountId");
+create index if not exists sessions_user_idx on sessions("userId");
+create index if not exists app_user_profiles_role_idx on app_user_profiles(role);
+create index if not exists organizations_owner_idx on organizations(owner_user_id);
+create index if not exists organization_memberships_user_idx on organization_memberships(user_id);
+create index if not exists app_projects_org_status_idx on app_projects(organization_id, status);
+create index if not exists app_tasks_project_status_idx on app_tasks(project_id, status);
+create index if not exists agent_runs_project_status_idx on agent_runs(project_id, status);
+create index if not exists artifacts_project_type_idx on artifacts(project_id, artifact_type);
+create index if not exists qa_checks_project_status_idx on qa_checks(project_id, status);
+create index if not exists deployments_project_environment_idx on deployments(project_id, environment);
+create index if not exists customer_requests_org_status_idx on customer_requests(organization_id, status);
+create index if not exists notifications_org_read_idx on notifications(organization_id, read_at);
+create index if not exists audit_events_org_idx on audit_events(organization_id, created_at desc);
+`;
+}
+
+function buildSeedSql(
+  projectName: string,
+  customer: string,
+  problem: string,
+  appData: ReturnType<typeof buildAppSeedData>
+) {
+  const templateRows = appData.selectedModules
+    .map(
+      (template) =>
+        `(${sqlString(slugify(template.name))}, ${sqlString(template.name)}, ${sqlString(template.category)}, ${sqlString(template.description)}, '{}'::jsonb)`
+    )
+    .join(",\n");
+  const planRows = appData.pricingPlans
+    .map(
+      (plan) =>
+        `(${sqlString(plan.name)}, ${sqlString(plan.audience)}, ${sqlString(plan.price)}, ${sqlString(JSON.stringify(plan.includes))}::jsonb)`
+    )
+    .join(",\n");
+  const requestRows = appData.customerRequests
+    .map(
+      (request) =>
+        `(${sqlString(request.title)}, ${sqlString(request.summary)}, ${sqlString(request.priority)}, ${sqlString(request.status)})`
+    )
+    .join(",\n");
+  const notificationRows = appData.notifications
+    .map(
+      (notification) =>
+        `(${sqlString(notification.title)}, ${sqlString(notification.body)}, ${sqlString(notification.channel)})`
+    )
+    .join(",\n");
+  const projectRows = appData.adminProjects
+    .map(
+      (project) =>
+        `(${sqlString(project.name)}, ${sqlString(project.summary)}, ${sqlString(project.status)}, ${project.readiness})`
+    )
+    .join(",\n");
+
+  return `insert into organizations (name, slug)
+values (${sqlString(`${projectName} Demo Organization`)}, 'demo-organization')
+on conflict (slug) do update set name = excluded.name;
+
+insert into app_templates (slug, name, category, description, config)
+values
+${templateRows}
+on conflict (slug) do update set
+  name = excluded.name,
+  category = excluded.category,
+  description = excluded.description,
+  config = excluded.config;
+
+insert into subscription_plans (name, audience, price, includes)
+values
+${planRows}
+on conflict (name) do update set
+  audience = excluded.audience,
+  price = excluded.price,
+  includes = excluded.includes,
+  active = true;
+
+with seed_org as (
+  select id from organizations where slug = 'demo-organization'
+)
+insert into customer_requests (organization_id, title, summary, priority, status)
+select seed_org.id, request_data.title, request_data.summary, request_data.priority, request_data.status
+from seed_org
+cross join (
+  values
+${requestRows}
+) as request_data(title, summary, priority, status)
+on conflict (organization_id, title) do update set
+  summary = excluded.summary,
+  priority = excluded.priority,
+  status = excluded.status;
+
+with seed_org as (
+  select id from organizations where slug = 'demo-organization'
+)
+insert into notifications (organization_id, title, body, channel)
+select seed_org.id, notification_data.title, notification_data.body, notification_data.channel
+from seed_org
+cross join (
+  values
+${notificationRows}
+) as notification_data(title, body, channel)
+on conflict (organization_id, title) do update set
+  body = excluded.body,
+  channel = excluded.channel;
+
+with seed_org as (
+  select id from organizations where slug = 'demo-organization'
+)
+insert into app_projects (organization_id, name, summary, customer_goal, status, readiness_score)
+select seed_org.id, project_data.name, project_data.summary, ${sqlString(`Target customer: ${customer}. Problem: ${problem}.`)}, project_data.status, project_data.readiness_score
+from seed_org
+cross join (
+  values
+${projectRows}
+) as project_data(name, summary, status, readiness_score)
+on conflict (organization_id, name) do update set
+  summary = excluded.summary,
+  customer_goal = excluded.customer_goal,
+  status = excluded.status,
+  readiness_score = excluded.readiness_score,
+  updated_at = now();
+`;
+}
+
+function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "generated-app";
+}
+
+function escapeText(input: string) {
+  return input.replace(/[<>]/g, "");
+}
+
+function sqlString(input: string) {
+  return `'${input.replace(/'/g, "''")}'`;
+}
