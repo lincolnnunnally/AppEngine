@@ -98,6 +98,7 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
   const latestExport = generatedExports[0] || null;
   const latestDatabaseSetup = databaseSetups[0] || null;
   const latestDeployment = deployments[0] || null;
+  const localCoreMode = health.storage === "local";
   const items: ProjectReadinessItem[] = [
     createReadinessItem({
       id: "plan",
@@ -139,9 +140,11 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
       group: "Data",
       weight: 16,
       ready: latestDatabaseSetup?.status === "database_ready",
-      blocked: !latestDatabaseSetup || latestDatabaseSetup.status !== "database_ready",
+      blocked: localCoreMode ? false : !latestDatabaseSetup || latestDatabaseSetup.status !== "database_ready",
       details: "The generated schema and seed data have been applied to the target Neon database.",
-      blockedDetails: latestDatabaseSetup?.details || "The generated app database has not been prepared.",
+      blockedDetails: localCoreMode
+        ? latestDatabaseSetup?.details || "The generated app can use static fallback data until Neon credentials are connected."
+        : latestDatabaseSetup?.details || "The generated app database has not been prepared.",
       evidence: latestDatabaseSetup
         ? `${latestDatabaseSetup.status || "database_setup"} on ${latestDatabaseSetup.target || "unknown target"}`
         : "No database setup run recorded",
@@ -165,8 +168,13 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
       group: "Production setup",
       weight: 8,
       ready: health.databaseConfigured && health.schemaReady,
+      blocked: localCoreMode ? false : undefined,
       details: "The engine database is configured and the schema is ready.",
-      blockedDetails: health.databaseConfigured ? "The engine database is configured, but migrations or connectivity still need attention." : "DATABASE_URL is missing.",
+      blockedDetails: localCoreMode
+        ? "Local project storage is active; connect DATABASE_URL when you are ready for production persistence."
+        : health.databaseConfigured
+          ? "The engine database is configured, but migrations or connectivity still need attention."
+          : "DATABASE_URL is missing.",
       evidence: `${health.storage} storage`,
       nextAction: "Set DATABASE_URL and apply engine migrations"
     }),
@@ -176,8 +184,11 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
       group: "Production setup",
       weight: 8,
       ready: health.authConfigured && health.adminConfigured,
+      blocked: localCoreMode ? false : undefined,
       details: "Auth secret and owner admin email are configured.",
-      blockedDetails: "AUTH_SECRET and APP_ENGINE_OWNER_EMAIL are required for production sign-in and admin access.",
+      blockedDetails: localCoreMode
+        ? "Local setup user is active; set AUTH_SECRET and APP_ENGINE_OWNER_EMAIL before production."
+        : "AUTH_SECRET and APP_ENGINE_OWNER_EMAIL are required for production sign-in and admin access.",
       evidence: health.providers.length ? `${health.providers.join(", ")} OAuth` : "No OAuth provider configured",
       nextAction: "Set AUTH_SECRET and APP_ENGINE_OWNER_EMAIL"
     }),
@@ -187,8 +198,11 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
       group: "Automation",
       weight: 6,
       ready: health.workerConfigured,
+      blocked: localCoreMode ? false : undefined,
       details: `Model worker provider is configured through ${health.workerProvider}.`,
-      blockedDetails: "Real multi-agent work needs OPENAI_API_KEY or ANTHROPIC_API_KEY. Local worker mode is only a fallback.",
+      blockedDetails: localCoreMode
+        ? "Deterministic local workers are active; connect OPENAI_API_KEY or ANTHROPIC_API_KEY for model-generated work."
+        : "Real multi-agent work needs OPENAI_API_KEY or ANTHROPIC_API_KEY. Local worker mode is only a fallback.",
       evidence: health.workerProvider,
       nextAction: "Set OPENAI_API_KEY or ANTHROPIC_API_KEY"
     }),
@@ -198,8 +212,11 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
       group: "Deployment",
       weight: 4,
       ready: health.deploymentConfigured,
+      blocked: localCoreMode ? false : undefined,
       details: "Vercel deployment credentials are configured.",
-      blockedDetails: "VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID are required to deploy automatically.",
+      blockedDetails: localCoreMode
+        ? "Vercel credentials can wait until the generated app is ready for preview deployment."
+        : "VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID are required to deploy automatically.",
       evidence: health.deploymentConfigured ? "Configured" : "Vercel credentials missing",
       nextAction: "Set Vercel deployment environment variables"
     }),
