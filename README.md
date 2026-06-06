@@ -26,6 +26,8 @@ npm install
 npm run dev
 ```
 
+Use `.env.local` only for local development. For Vercel Production and Preview variables, use `.env.vercel.example` as the allow-list. Do not upload `.env.local` wholesale because it can contain localhost URLs, local bypass flags, or provider snippets this app does not use.
+
 When `DATABASE_URL` points to a real Neon database, apply migrations and seeds with:
 
 ```bash
@@ -57,6 +59,47 @@ Production completion still requires OAuth sign-in credentials, deployment verif
 ```
 
 This keeps the production cockpit usable before real Neon credentials are connected. Once `DATABASE_URL` points to a real Neon database, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds.
+
+On Vercel, `APP_ENGINE_LOCAL_MODE` must be `false`. Vercel cannot persist `.app-engine/dev-projects.json`, so project save requires Neon persistence.
+
+## Vercel Environment
+
+Use `.env.vercel.example` as the Vercel allow-list. The important production values are:
+
+```text
+DATABASE_URL
+APP_ENGINE_LOCAL_MODE="false"
+APP_ENGINE_DEV_ADMIN_BYPASS="false"
+APP_ENGINE_SETUP_ADMIN_BYPASS="false"
+AUTH_SECRET
+AUTH_URL="https://your-vercel-app-url"
+APP_ENGINE_OWNER_EMAIL
+AUTH_GITHUB_ID
+AUTH_GITHUB_SECRET
+NEON_API_KEY
+NEON_PROJECT_ID
+VERCEL_TOKEN
+VERCEL_ORG_ID
+VERCEL_PROJECT_ID
+```
+
+Remove these from Vercel if they were copied from a Neon snippet because App Engine does not read them:
+
+```text
+NEON_CONNECTION_STRING
+NEON_AUTH_URL
+NEON_JWKS_URL
+unknown_neon_DATABASE_URL
+```
+
+After changing Vercel variables, redeploy. Then verify:
+
+```text
+/api/engine/health
+/api/engine/setup-profile
+```
+
+Health should report `storage: "neon"`, `databaseConfigured: true`, and `schemaReady: true`.
 
 ## Auth Access
 
