@@ -11,7 +11,7 @@ import {
 } from "./development-store";
 import { buildGeneratedAppHandoff, formatGeneratedAppHandoff } from "./app-output";
 import { listProjectDatabaseSetups } from "./database-setup";
-import { isLocalMode, isUsableDatabaseUrl } from "./local-mode";
+import { getConfiguredDatabaseUrl, isLocalMode, isUsableDatabaseUrl } from "./local-mode";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
 import { getLocalWorkerAdapter, getWorkerAdapter, getWorkerProvider, type AgentJobContext, type AgentJobResult } from "./worker-adapters";
@@ -73,7 +73,7 @@ export async function getEngineHealth(): Promise<EngineHealth> {
   const workerConfigured = Boolean(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY);
   const deploymentConfigured = Boolean(process.env.VERCEL_TOKEN && process.env.VERCEL_ORG_ID && process.env.VERCEL_PROJECT_ID);
   const missing = [
-    databaseConfigured ? "" : "DATABASE_URL",
+    databaseConfigured ? "" : "DATABASE_URL or POSTGRES_URL",
     authConfigured ? "" : "AUTH_SECRET",
     adminConfigured ? "" : "APP_ENGINE_OWNER_EMAIL",
     providers.length ? "" : "GOOGLE/GITHUB OAuth credentials",
@@ -781,7 +781,13 @@ function buildDeploymentPayload(
     "vercel deploy --prebuilt --token=$VERCEL_TOKEN"
   ];
   const missingDeploymentEnv = localCoreMode ? [] : ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"].filter((key) => !process.env[key]);
-  const missingCoreEnv = localCoreMode ? [] : ["DATABASE_URL", "AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL"].filter((key) => !process.env[key]);
+  const missingCoreEnv = localCoreMode
+    ? []
+    : [
+        getConfiguredDatabaseUrl() ? "" : "DATABASE_URL or POSTGRES_URL",
+        process.env.AUTH_SECRET ? "" : "AUTH_SECRET",
+        process.env.APP_ENGINE_OWNER_EMAIL ? "" : "APP_ENGINE_OWNER_EMAIL"
+      ].filter(Boolean);
   const blockers = [
     ...missingCoreEnv,
     ...missingDeploymentEnv,
@@ -805,7 +811,7 @@ function buildDeploymentPayload(
       readiness,
       generatedDatabaseReady: databaseReadyForDeployment,
       localFallbacks: localCoreMode ? ["Generated app database", "Deployment credentials"] : [],
-      requiredEnv: ["DATABASE_URL", "AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL", "VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"]
+      requiredEnv: ["DATABASE_URL or POSTGRES_URL", "AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL", "VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"]
     }
   };
 }
@@ -847,8 +853,8 @@ function scoreQaChecks(plan: ReturnType<typeof analyzeIdea>, health: EngineHealt
         health.storage === "neon" && health.schemaReady
           ? "Neon schema is reachable and run records were persisted."
           : localCoreMode
-            ? "Local JSON persistence is active for core build verification until DATABASE_URL is connected."
-            : "Running in local JSON mode until DATABASE_URL is connected and migrations are applied."
+            ? "Local JSON persistence is active for core build verification until a Postgres database URL is connected."
+            : "Running in local JSON mode until a Postgres database URL is connected and migrations are applied."
     },
     {
       title: "Primary workflow completion",

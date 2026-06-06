@@ -8,10 +8,10 @@ const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 await loadEnvFile(".env.local");
 await loadEnvFile(".env");
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = getConfiguredDatabaseUrl();
 
-if (!databaseUrl || databaseUrl.includes("USER:PASSWORD@HOST")) {
-  console.error("DATABASE_URL must point to your Neon database before running setup.");
+if (!databaseUrl) {
+  console.error("DATABASE_URL or POSTGRES_URL must point to your Neon database before running setup.");
   process.exit(1);
 }
 
@@ -97,4 +97,23 @@ async function loadEnvFile(fileName) {
       throw error;
     }
   }
+}
+
+function getConfiguredDatabaseUrl() {
+  const keys = ["DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"];
+
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+
+    if (
+      value &&
+      !value.includes("USER:PASSWORD@HOST") &&
+      !value.startsWith("replace-with") &&
+      /^postgres(?:ql)?:\/\//i.test(value)
+    ) {
+      return value;
+    }
+  }
+
+  return undefined;
 }

@@ -28,7 +28,7 @@ npm run dev
 
 Use `.env.local` only for local development. For Vercel Production and Preview variables, use `.env.vercel.example` as the allow-list. Do not upload `.env.local` wholesale because it can contain localhost URLs, local bypass flags, or provider snippets this app does not use.
 
-When `DATABASE_URL` points to a real Neon database, apply migrations and seeds with:
+When `DATABASE_URL` or a supported Vercel/Neon Postgres URL points to a real Neon database, apply migrations and seeds with:
 
 ```bash
 npm run db:setup
@@ -58,16 +58,16 @@ Production completion still requires OAuth sign-in credentials, deployment verif
 .app-engine/dev-projects.json
 ```
 
-This keeps the production cockpit usable before real Neon credentials are connected. Once `DATABASE_URL` points to a real Neon database, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds.
+This keeps the production cockpit usable before real Neon credentials are connected. Once a Postgres URL points to a real Neon database, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds.
 
-On Vercel, `APP_ENGINE_LOCAL_MODE` must be `false`. Vercel cannot persist `.app-engine/dev-projects.json`, so project save requires Neon persistence.
+On Vercel, `APP_ENGINE_LOCAL_MODE` must be `false`. Vercel cannot persist `.app-engine/dev-projects.json`, so project save requires Neon persistence. The deployed app will still use Neon when Vercel has a valid Postgres URL, even if an old local-mode value is present.
 
 ## Vercel Environment
 
 Use `.env.vercel.example` as the Vercel allow-list. The important production values are:
 
 ```text
-DATABASE_URL
+DATABASE_URL or POSTGRES_URL
 APP_ENGINE_LOCAL_MODE="false"
 APP_ENGINE_DEV_ADMIN_BYPASS="false"
 APP_ENGINE_SETUP_ADMIN_BYPASS="false"
@@ -83,6 +83,8 @@ VERCEL_ORG_ID
 VERCEL_PROJECT_ID
 ```
 
+`DATABASE_URL` is preferred, but Neon/Vercel Marketplace integrations may provide `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, or `NEON_DATABASE_URL`. App Engine accepts those aliases for core persistence and database setup.
+
 Remove these from Vercel if they were copied from a Neon snippet because App Engine does not read them:
 
 ```text
@@ -92,7 +94,7 @@ NEON_JWKS_URL
 unknown_neon_DATABASE_URL
 ```
 
-After changing Vercel variables, redeploy. Then verify:
+After changing Vercel variables, redeploy the affected environment. Check that the variable is scoped to the deployment you are testing, usually Production for the live URL and Preview for branch deployments. Then verify:
 
 ```text
 /api/engine/health

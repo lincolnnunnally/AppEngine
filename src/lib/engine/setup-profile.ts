@@ -1,4 +1,5 @@
 import { getEngineHealth } from "./execution";
+import { getConfiguredDatabaseEnvKey } from "./local-mode";
 
 type SetupPhaseStatus = "ready" | "partial" | "missing";
 type SetupVariableKind = "required" | "either" | "optional";
@@ -29,6 +30,7 @@ export type EngineSetupProfile = {
 
 export async function getEngineSetupProfile(): Promise<EngineSetupProfile> {
   const health = await getEngineHealth();
+  const configuredDatabaseEnvKey = getConfiguredDatabaseEnvKey();
   const phases = [
     createPhase({
       id: "engine-database",
@@ -36,11 +38,14 @@ export async function getEngineSetupProfile(): Promise<EngineSetupProfile> {
       ready: health.databaseConfigured && health.schemaReady,
       partial: health.databaseConfigured,
       readyDetails: "The engine can persist projects, runs, QA, artifacts, and deployments in Neon.",
-      partialDetails: "DATABASE_URL is present, but the engine schema still needs migration or connection attention.",
-      missingDetails: "The engine is still using local JSON storage until DATABASE_URL is configured.",
-      nextAction: health.databaseConfigured ? "Run npm run db:setup" : "Add DATABASE_URL",
+      partialDetails: "A Postgres connection URL is present, but the engine schema still needs migration or connection attention.",
+      missingDetails: "The engine is still using local JSON storage until a Postgres connection URL is configured.",
+      nextAction: health.databaseConfigured ? "Run npm run db:setup" : "Add DATABASE_URL or POSTGRES_URL",
       variables: [
-        variable("DATABASE_URL", "Engine Neon database", "required"),
+        variable(configuredDatabaseEnvKey || "DATABASE_URL", "Engine Neon database", "required", health.databaseConfigured),
+        ...["POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"]
+          .filter((key) => key !== configuredDatabaseEnvKey)
+          .map((key) => variable(key, key === "NEON_DATABASE_URL" ? "Neon database alias" : "Vercel/Neon database alias", "optional")),
         variable("APP_ENGINE_LOCAL_MODE", "Local JSON fallback", "optional")
       ]
     }),
@@ -180,7 +185,7 @@ function createEitherPhase(input: {
   };
 }
 
-function variable(name: string, label: string, kind: SetupVariableKind): SetupVariable {
+function variable(name: string, label: string, kind: SetupVariableKind, present = hasEnv(name)): SetupVariable {
   return {
     name,
     label,

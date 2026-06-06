@@ -4,6 +4,7 @@ import { Pool } from "@neondatabase/serverless";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import { roleForEmail } from "@/lib/auth/roles";
+import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 
 const providers = [
   ...(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET
@@ -25,10 +26,10 @@ const providers = [
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const databaseUrl = getConfiguredDatabaseUrl();
 
   return {
-    adapter: PostgresAdapter(pool),
+    adapter: databaseUrl ? PostgresAdapter(new Pool({ connectionString: databaseUrl })) : undefined,
     secret: process.env.AUTH_SECRET || "app-engine-local-development-secret",
     providers,
     callbacks: {

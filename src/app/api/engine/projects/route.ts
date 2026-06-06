@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 function getProjectRouteError(caught: unknown, fallback: string) {
   const message = caught instanceof Error && caught.message ? caught.message : fallback;
   const setupHint =
-    "Check /api/engine/health and /api/engine/setup-profile. On Vercel, project saving requires DATABASE_URL, APP_ENGINE_LOCAL_MODE=false, and the engine database schema/seeds applied.";
+    "Check /api/engine/health and /api/engine/setup-profile. On Vercel, project saving requires DATABASE_URL or POSTGRES_URL, APP_ENGINE_LOCAL_MODE=false, and the engine database schema/seeds applied.";
 
   return NextResponse.json(
     {

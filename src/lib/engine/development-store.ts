@@ -328,7 +328,7 @@ async function readStore(): Promise<StoreShape> {
 async function writeStore(store: StoreShape) {
   if (process.env.VERCEL === "1") {
     throw new Error(
-      "Project save needs Neon persistence on Vercel. Set DATABASE_URL, set APP_ENGINE_LOCAL_MODE=false, then run the engine database setup before saving projects."
+      "Project save needs Neon persistence on Vercel. Set DATABASE_URL or POSTGRES_URL, set APP_ENGINE_LOCAL_MODE=false, then run the engine database setup before saving projects."
     );
   }
 

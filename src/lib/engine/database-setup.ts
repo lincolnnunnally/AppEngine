@@ -7,7 +7,7 @@ import {
   listLocalExports,
   type StoredDatabaseSetup
 } from "./development-store";
-import { isLocalMode } from "./local-mode";
+import { getConfiguredDatabaseUrl, isLocalMode } from "./local-mode";
 
 type SetupStatus = "database_ready" | "database_blocked" | "database_failed";
 
@@ -666,7 +666,7 @@ function delay(ms: number) {
 }
 
 function isSharedEngineDatabase(targetDatabaseUrl: string) {
-  const engineDatabaseUrl = process.env.DATABASE_URL;
+  const engineDatabaseUrl = getConfiguredDatabaseUrl();
 
   return (
     Boolean(engineDatabaseUrl) &&
