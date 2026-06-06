@@ -1331,7 +1331,8 @@ async function readJsonResponse<T>(response: Response, fallbackMessage: string):
 
   if (!response.ok) {
     const error = typeof payload === "object" && payload && "error" in payload ? String((payload as { error?: unknown }).error) : "";
-    throw new Error(error || `${fallbackMessage} (${response.status})`);
+    const hint = typeof payload === "object" && payload && "hint" in payload ? String((payload as { hint?: unknown }).hint) : "";
+    throw new Error([error || `${fallbackMessage} (${response.status})`, hint].filter(Boolean).join(" "));
   }
 
   return payload as T;
