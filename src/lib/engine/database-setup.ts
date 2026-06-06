@@ -21,7 +21,7 @@ type GeneratedExportLocation = {
 type GeneratedDatabaseTarget = {
   databaseUrl: string;
   target: string;
-  source: "manual" | "neon_branch";
+  source: "manual_project" | "manual_global" | "neon_branch";
   metadata: Record<string, unknown>;
 };
 
@@ -139,9 +139,10 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
   const targetResult = await getGeneratedDatabaseTarget(projectId, projectName);
   const targetDatabaseUrl = targetResult?.databaseUrl || "";
   const target = targetResult?.target || "Not configured";
+  const manualEnvKeys = buildGeneratedAppDatabaseEnvKeys(projectId, projectName);
   const commands = [
     "Generate App",
-    "Configure NEON_API_KEY and NEON_PROJECT_ID for automatic generated app database branches",
+    `Set ${manualEnvKeys[0]} for this generated app, or configure NEON_API_KEY and NEON_PROJECT_ID for automatic branches`,
     "Setup DB",
     "Run QA Loop",
     "Prepare Deploy"
@@ -165,13 +166,14 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
       status: "database_blocked",
       target,
       details:
-        "Configure NEON_API_KEY and NEON_PROJECT_ID so the engine can create a Neon branch for each generated app, or set GENERATED_APP_DATABASE_URL as a manual fallback.",
+        `Configure NEON_API_KEY and NEON_PROJECT_ID so the engine can create a Neon branch for each generated app, or set ${manualEnvKeys.join(" or ")} in .env.local for this generated app.`,
       appliedFiles: [],
       commands,
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
-        missing: ["NEON_API_KEY", "NEON_PROJECT_ID"]
+        databaseEnvKeys: manualEnvKeys,
+        missing: ["NEON_API_KEY", "NEON_PROJECT_ID", ...manualEnvKeys]
       }
     });
   }
@@ -296,15 +298,16 @@ function createSetupPayload(input: {
 }
 
 async function getGeneratedDatabaseTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget | null> {
-  const manualTargetUrl = getManualTargetDatabaseUrl();
+  const manualTarget = getProjectManualTargetDatabaseUrl(projectId, projectName);
 
-  if (manualTargetUrl) {
+  if (manualTarget) {
     return {
-      databaseUrl: manualTargetUrl,
-      target: describeDatabaseUrl(manualTargetUrl),
-      source: "manual",
+      databaseUrl: manualTarget.databaseUrl,
+      target: describeDatabaseUrl(manualTarget.databaseUrl),
+      source: manualTarget.source,
       metadata: {
-        targetSource: "GENERATED_APP_DATABASE_URL"
+        targetSource: manualTarget.key,
+        databaseEnvKeys: buildGeneratedAppDatabaseEnvKeys(projectId, projectName)
       }
     };
   }
@@ -313,17 +316,61 @@ async function getGeneratedDatabaseTarget(projectId: string, projectName?: strin
     return null;
   }
 
-  return getOrCreateNeonBranchTarget(projectId, projectName);
+  const neonTarget = await getOrCreateNeonBranchTarget(projectId, projectName);
+
+  return neonTarget;
 }
 
-function getManualTargetDatabaseUrl() {
-  const targetUrl = process.env.GENERATED_APP_DATABASE_URL || process.env.APP_ENGINE_GENERATED_APP_DATABASE_URL;
+export function buildGeneratedAppDatabaseEnvKeys(projectId: string, projectName?: string) {
+  const keys = [`GENERATED_APP_DATABASE_URL_${toEnvKeySuffix(projectId)}`];
+  const nameSuffix = projectName ? toEnvKeySuffix(projectName) : "";
 
-  if (!targetUrl || targetUrl.includes("USER:PASSWORD@HOST")) {
+  if (nameSuffix && !keys.includes(`GENERATED_APP_DATABASE_URL_${nameSuffix}`)) {
+    keys.push(`GENERATED_APP_DATABASE_URL_${nameSuffix}`);
+  }
+
+  return keys;
+}
+
+function getProjectManualTargetDatabaseUrl(projectId: string, projectName?: string) {
+  for (const key of buildGeneratedAppDatabaseEnvKeys(projectId, projectName)) {
+    const databaseUrl = usableDatabaseUrl(process.env[key]);
+
+    if (databaseUrl) {
+      return { key, databaseUrl, source: "manual_project" as const };
+    }
+  }
+
+  const globalDatabaseUrl = usableDatabaseUrl(process.env.GENERATED_APP_DATABASE_URL || process.env.APP_ENGINE_GENERATED_APP_DATABASE_URL);
+
+  if (globalDatabaseUrl && process.env.APP_ENGINE_ALLOW_GLOBAL_GENERATED_DATABASE_URL === "true") {
+    return {
+      key: process.env.GENERATED_APP_DATABASE_URL ? "GENERATED_APP_DATABASE_URL" : "APP_ENGINE_GENERATED_APP_DATABASE_URL",
+      databaseUrl: globalDatabaseUrl,
+      source: "manual_global" as const
+    };
+  }
+
+  return null;
+}
+
+function usableDatabaseUrl(value?: string) {
+  const databaseUrl = value?.trim();
+
+  if (!databaseUrl || databaseUrl.includes("USER:PASSWORD@HOST") || databaseUrl.startsWith("replace-with")) {
     return "";
   }
 
-  return targetUrl;
+  return /^postgres(?:ql)?:\/\//.test(databaseUrl) ? databaseUrl : "";
+}
+
+function toEnvKeySuffix(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
 }
 
 async function getOrCreateNeonBranchTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget> {

@@ -139,15 +139,19 @@ export async function getProjectLaunchReadiness(projectId: string): Promise<Proj
       label: "Generated app database",
       group: "Data",
       weight: 16,
-      ready: latestDatabaseSetup?.status === "database_ready",
+      ready: localCoreMode ? Boolean(latestExport) : latestDatabaseSetup?.status === "database_ready",
       blocked: localCoreMode ? false : !latestDatabaseSetup || latestDatabaseSetup.status !== "database_ready",
-      details: "The generated schema and seed data have been applied to the target Neon database.",
+      details: localCoreMode
+        ? "The generated app can use static fallback data until a separate Neon target is connected."
+        : "The generated schema and seed data have been applied to the target Neon database.",
       blockedDetails: localCoreMode
         ? latestDatabaseSetup?.details || "The generated app can use static fallback data until Neon credentials are connected."
         : latestDatabaseSetup?.details || "The generated app database has not been prepared.",
       evidence: latestDatabaseSetup
         ? `${latestDatabaseSetup.status || "database_setup"} on ${latestDatabaseSetup.target || "unknown target"}`
-        : "No database setup run recorded",
+        : localCoreMode && latestExport
+          ? "Local generated app fallback data ready"
+          : "No database setup run recorded",
       nextAction: latestExport ? "Setup DB" : "Generate App"
     }),
     createReadinessItem({

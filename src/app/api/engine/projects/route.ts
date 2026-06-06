@@ -1,28 +1,19 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { canAccessAdmin } from "@/lib/auth/roles";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { isLocalMode } from "@/lib/engine/local-mode";
 import { createPlannedProject, createProjectInput, listPlannedProjects } from "@/lib/engine/persistence";
 
 export async function GET() {
-  if (!isLocalMode()) {
-    const session = await auth();
-
-    if (!canAccessAdmin(session?.user?.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isLocalMode() && !(await canAccessEngineAdmin())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   return NextResponse.json(await listPlannedProjects());
 }
 
 export async function POST(request: Request) {
-  if (!isLocalMode()) {
-    const session = await auth();
-
-    if (!canAccessAdmin(session?.user?.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isLocalMode() && !(await canAccessEngineAdmin())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const payload = await request.json();

@@ -1,9 +1,9 @@
 export function isLocalMode() {
-  const databaseUrl = process.env.DATABASE_URL;
+  return process.env.APP_ENGINE_LOCAL_MODE === "true" || !isUsableDatabaseUrl();
+}
 
-  return (
-    process.env.APP_ENGINE_LOCAL_MODE === "true" ||
-    !databaseUrl ||
-    databaseUrl.includes("USER:PASSWORD@HOST")
-  );
+export function isUsableDatabaseUrl(value = process.env.DATABASE_URL) {
+  const databaseUrl = value?.trim();
+
+  return Boolean(databaseUrl && !databaseUrl.includes("USER:PASSWORD@HOST") && /^postgres(?:ql)?:\/\//.test(databaseUrl));
 }

@@ -11,7 +11,7 @@ import {
 } from "./development-store";
 import { buildGeneratedAppHandoff, formatGeneratedAppHandoff } from "./app-output";
 import { listProjectDatabaseSetups } from "./database-setup";
-import { isLocalMode } from "./local-mode";
+import { isLocalMode, isUsableDatabaseUrl } from "./local-mode";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
 import { getWorkerAdapter, getWorkerProvider, type AgentJobContext, type AgentJobResult } from "./worker-adapters";
@@ -65,7 +65,7 @@ export type EngineHealth = {
 };
 
 export async function getEngineHealth(): Promise<EngineHealth> {
-  const databaseConfigured = Boolean(process.env.DATABASE_URL);
+  const databaseConfigured = isUsableDatabaseUrl();
   const providers = getConfiguredProviders();
   const workerProvider = getWorkerProvider();
   const authConfigured = Boolean(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET);
@@ -744,6 +744,8 @@ function buildDeploymentPayload(
   generatedDatabaseReady: boolean
 ): Omit<StoredDeployment, "id" | "project_id" | "created_at"> {
   const readiness = Number(project.readiness_score || 0);
+  const localCoreMode = health.storage === "local";
+  const databaseReadyForDeployment = generatedDatabaseReady || localCoreMode;
   const commands = [
     "npm run typecheck",
     "npm run build",
@@ -752,12 +754,12 @@ function buildDeploymentPayload(
     "vercel build --token=$VERCEL_TOKEN",
     "vercel deploy --prebuilt --token=$VERCEL_TOKEN"
   ];
-  const missingDeploymentEnv = ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"].filter((key) => !process.env[key]);
-  const missingCoreEnv = ["DATABASE_URL", "AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL"].filter((key) => !process.env[key]);
+  const missingDeploymentEnv = localCoreMode ? [] : ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"].filter((key) => !process.env[key]);
+  const missingCoreEnv = localCoreMode ? [] : ["DATABASE_URL", "AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL"].filter((key) => !process.env[key]);
   const blockers = [
     ...missingCoreEnv,
     ...missingDeploymentEnv,
-    generatedDatabaseReady ? "" : "Generated app database not ready",
+    databaseReadyForDeployment ? "" : "Generated app database not ready",
     readiness >= 90 ? "" : "QA readiness below 90%"
   ].filter(Boolean);
   const status = blockers.length ? "deployment_blocked" : "deployment_ready";
@@ -775,7 +777,8 @@ function buildDeploymentPayload(
     metadata: {
       storage: health.storage,
       readiness,
-      generatedDatabaseReady,
+      generatedDatabaseReady: databaseReadyForDeployment,
+      localFallbacks: localCoreMode ? ["Generated app database", "Deployment credentials"] : [],
       requiredEnv: ["DATABASE_URL", "AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL", "VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"]
     }
   };
@@ -842,11 +845,14 @@ function scoreQaChecks(plan: ReturnType<typeof analyzeIdea>, health: EngineHealt
     },
     {
       title: "Model worker handoff",
-      status: health.workerConfigured ? "passed" : "needs_attention",
+      status: localCoreMode || health.workerConfigured ? "passed" : "needs_attention",
       severity: "high",
-      details: health.workerConfigured
-        ? "At least one model worker provider is configured."
-        : "OPENAI_API_KEY or ANTHROPIC_API_KEY is needed before real Codex/Claude worker jobs can run."
+      details:
+        localCoreMode && !health.workerConfigured
+          ? "Deterministic local workers are active, so the app factory can run without external model calls."
+          : health.workerConfigured
+            ? "At least one model worker provider is configured."
+            : "OPENAI_API_KEY or ANTHROPIC_API_KEY is needed before real Codex/Claude worker jobs can run."
     }
   ];
 }

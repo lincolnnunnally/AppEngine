@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
+
+await loadEnvFile(".env.local");
+await loadEnvFile(".env");
+
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl || databaseUrl.includes("USER:PASSWORD@HOST")) {
@@ -21,9 +25,76 @@ const files = [
 for (const file of files) {
   const fullPath = join(rootDir, file);
   const contents = await readFile(fullPath, "utf8");
+  const statements = splitSqlStatements(contents);
 
   console.log(`Applying ${file}`);
-  await sql.query(contents);
+
+  for (const statement of statements) {
+    await sql.query(statement);
+  }
 }
 
 console.log("Database setup complete.");
+
+function splitSqlStatements(contents) {
+  const statements = [];
+  let current = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let previous = "";
+
+  for (const character of contents) {
+    current += character;
+
+    if (character === "'" && !inDoubleQuote && previous !== "\\") {
+      inSingleQuote = !inSingleQuote;
+    } else if (character === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (character === ";" && !inSingleQuote && !inDoubleQuote) {
+      const statement = current.trim();
+
+      if (statement) {
+        statements.push(statement);
+      }
+
+      current = "";
+    }
+
+    previous = character;
+  }
+
+  const finalStatement = current.trim();
+
+  if (finalStatement) {
+    statements.push(finalStatement);
+  }
+
+  return statements;
+}
+
+async function loadEnvFile(fileName) {
+  try {
+    const contents = await readFile(join(rootDir, fileName), "utf8");
+
+    for (const line of contents.split(/\r?\n/)) {
+      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+
+      if (!match || line.trim().startsWith("#")) {
+        continue;
+      }
+
+      const [, key, rawValue] = match;
+      let value = rawValue.trim();
+
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+
+      process.env[key] ??= value;
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+}

@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { canAccessCustomerArea } from "@/lib/auth/roles";
+import { canAccessEngineCustomerArea } from "@/lib/auth/access";
+
+export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
-  const session = await auth();
-
-  if (!canAccessCustomerArea(session?.user?.role)) {
+  if (!(await canAccessEngineCustomerArea())) {
     redirect("/");
   }
 

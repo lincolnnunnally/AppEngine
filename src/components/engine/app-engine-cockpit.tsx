@@ -180,6 +180,7 @@ type EngineDatabaseSetup = {
   metadata?: {
     applied_files?: string[];
     commands?: string[];
+    databaseEnvKeys?: string[];
   };
   created_at: string;
   finished_at?: string;
@@ -306,6 +307,38 @@ export function AppEngineCockpit() {
   const setupPhases = setupProfile?.phases || [];
   const latestRunQaChecks = getRunQaChecks(latestRun);
   const latestRunAgents = getRunAgents(latestRun);
+  const factoryStages = [
+    {
+      label: "Plan",
+      status: plan || activeProject ? "ready" : "waiting",
+      detail: plan?.recommendedTarget || activeProject?.recommended_target || "Analyze an app idea"
+    },
+    {
+      label: "Agents",
+      status: latestRunAgents.length ? "ready" : currentProjectId ? "waiting" : "blocked",
+      detail: latestRunAgents.length ? `${latestRunAgents.length} specialists completed` : "Run agent build"
+    },
+    {
+      label: "Bundle",
+      status: latestExport ? "ready" : currentProjectId ? "waiting" : "blocked",
+      detail: latestExport ? `${latestExport.file_count || getExportFiles(latestExport).length} files exported` : "Generate app bundle"
+    },
+    {
+      label: "Data",
+      status: latestDatabaseSetup?.status === "database_ready" || (storage === "local" && latestExport) ? "ready" : latestExport ? "waiting" : "blocked",
+      detail: latestDatabaseSetup?.details || (storage === "local" && latestExport ? "Local fallback data active" : "Setup generated database")
+    },
+    {
+      label: "QA",
+      status: latestRun?.status === "qa_passed" ? "ready" : latestRun ? "waiting" : "blocked",
+      detail: latestRun ? formatStatus(latestRun.status) : "Run QA loop"
+    },
+    {
+      label: "Deploy",
+      status: latestDeployment?.status === "deployment_ready" ? "ready" : latestDeployment ? "waiting" : "blocked",
+      detail: latestDeployment ? formatStatus(latestDeployment.status) : "Prepare Vercel preview"
+    }
+  ];
   const healthReady =
     health?.schemaReady && health.authConfigured && health.adminConfigured && health.workerConfigured && health.deploymentConfigured;
 
@@ -770,6 +803,31 @@ export function AppEngineCockpit() {
         </div>
       </section>
 
+      <section className="panel factory-line-panel">
+        <div className="factory-line-header">
+          <div>
+            <p className="eyebrow">Factory Line</p>
+            <h2>{activeProject ? activeProject.name : "No project selected"}</h2>
+            <p>
+              Autopilot advances through the same stages as the manual controls, then records the next blocker or the deployment command path.
+            </p>
+          </div>
+          <div className="factory-line-target">
+            <span>Current output</span>
+            <strong>{latestExport ? getExportLocation(latestExport) : "No bundle yet"}</strong>
+          </div>
+        </div>
+        <div className="factory-stage-grid">
+          {factoryStages.map((stage) => (
+            <article className={`factory-stage ${stage.status}`} key={stage.label}>
+              <span>{stage.status}</span>
+              <strong>{stage.label}</strong>
+              <p>{stage.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="panel health-panel">
         <div>
           <p className="eyebrow">Engine Health</p>
@@ -1046,8 +1104,9 @@ export function AppEngineCockpit() {
                 <div>
                   <span>{latestExport.status || "generated_app_export"}</span>
                   <strong>{latestExport.file_count || getExportFiles(latestExport).length} files</strong>
-                  <p>{latestExport.summary || latestExport.uri || "Generated app bundle is stored as an artifact."}</p>
+                  <p>{latestExport.summary || getExportLocation(latestExport) || "Generated app bundle is stored as an artifact."}</p>
                 </div>
+                <pre className="artifact-preview">{getExportLocation(latestExport)}</pre>
                 <pre className="artifact-preview">{getExportFiles(latestExport).slice(0, 18).join("\n")}</pre>
               </div>
             ) : (
@@ -1070,7 +1129,12 @@ export function AppEngineCockpit() {
                 </pre>
               </div>
             ) : (
-              <p>Generate app files, set GENERATED_APP_DATABASE_URL, then run Setup DB to apply schema and seed data.</p>
+              <div>
+                <p>Generate app files, add a per-app database URL to `.env.local`, then run Setup DB to apply schema and seed data.</p>
+                {activeProject ? (
+                  <pre className="artifact-preview">{getGeneratedDatabaseEnvKeys(activeProject).map((key) => `${key}="postgresql://..."`).join("\n")}</pre>
+                ) : null}
+              </div>
             )}
           </section>
 
@@ -1213,6 +1277,10 @@ function getExportFiles(generatedExport: EngineExport) {
   return generatedExport.manifest?.files || generatedExport.metadata?.files || [];
 }
 
+function getExportLocation(generatedExport: EngineExport) {
+  return generatedExport.output_dir || generatedExport.uri || "Stored in engine artifacts";
+}
+
 function getDatabaseSetupFiles(setup: EngineDatabaseSetup) {
   const files = setup.applied_files || setup.metadata?.applied_files || [];
 
@@ -1221,6 +1289,22 @@ function getDatabaseSetupFiles(setup: EngineDatabaseSetup) {
 
 function getDatabaseSetupCommands(setup: EngineDatabaseSetup) {
   return setup.commands || setup.metadata?.commands || [];
+}
+
+function getGeneratedDatabaseEnvKeys(project: SavedProject) {
+  const keys = [`GENERATED_APP_DATABASE_URL_${toEnvKeySuffix(project.id)}`];
+  const nameKey = `GENERATED_APP_DATABASE_URL_${toEnvKeySuffix(project.name)}`;
+
+  return keys.includes(nameKey) ? keys : [...keys, nameKey];
+}
+
+function toEnvKeySuffix(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
 }
 
 function formatStatus(status: string) {

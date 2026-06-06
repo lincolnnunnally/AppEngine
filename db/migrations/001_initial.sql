@@ -1,13 +1,13 @@
 create extension if not exists pgcrypto;
 
-create table verification_token (
+create table if not exists verification_token (
   identifier text not null,
   expires timestamptz not null,
   token text not null,
   primary key (identifier, token)
 );
 
-create table users (
+create table if not exists users (
   id serial primary key,
   name varchar(255),
   email varchar(255),
@@ -15,7 +15,7 @@ create table users (
   image text
 );
 
-create table accounts (
+create table if not exists accounts (
   id serial primary key,
   "userId" integer not null references users(id) on delete cascade,
   type varchar(255) not null,
@@ -30,14 +30,14 @@ create table accounts (
   token_type text
 );
 
-create table sessions (
+create table if not exists sessions (
   id serial primary key,
   "userId" integer not null references users(id) on delete cascade,
   expires timestamptz not null,
   "sessionToken" varchar(255) not null unique
 );
 
-create table app_user_profiles (
+create table if not exists app_user_profiles (
   id uuid primary key default gen_random_uuid(),
   auth_user_id integer not null references users(id) on delete cascade,
   role text not null default 'customer',
@@ -46,7 +46,7 @@ create table app_user_profiles (
   unique(auth_user_id)
 );
 
-create table organizations (
+create table if not exists organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   slug text not null unique,
@@ -55,7 +55,7 @@ create table organizations (
   updated_at timestamptz not null default now()
 );
 
-create table organization_memberships (
+create table if not exists organization_memberships (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
   user_id integer not null references users(id) on delete cascade,
@@ -64,7 +64,7 @@ create table organization_memberships (
   unique(organization_id, user_id)
 );
 
-create table app_projects (
+create table if not exists app_projects (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid references organizations(id) on delete set null,
   name text not null,
@@ -82,7 +82,7 @@ create table app_projects (
   updated_at timestamptz not null default now()
 );
 
-create table app_templates (
+create table if not exists app_templates (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
   name text not null,
@@ -92,7 +92,7 @@ create table app_templates (
   created_at timestamptz not null default now()
 );
 
-create table project_templates (
+create table if not exists project_templates (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references app_projects(id) on delete cascade,
   template_id uuid not null references app_templates(id) on delete cascade,
@@ -101,7 +101,7 @@ create table project_templates (
   unique(project_id, template_id)
 );
 
-create table agent_roles (
+create table if not exists agent_roles (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
   name text not null,
@@ -111,7 +111,7 @@ create table agent_roles (
   created_at timestamptz not null default now()
 );
 
-create table app_tasks (
+create table if not exists app_tasks (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references app_projects(id) on delete cascade,
   agent_role_id uuid references agent_roles(id),
@@ -125,7 +125,7 @@ create table app_tasks (
   updated_at timestamptz not null default now()
 );
 
-create table agent_runs (
+create table if not exists agent_runs (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references app_projects(id) on delete cascade,
   task_id uuid references app_tasks(id) on delete set null,
@@ -139,7 +139,7 @@ create table agent_runs (
   created_at timestamptz not null default now()
 );
 
-create table artifacts (
+create table if not exists artifacts (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references app_projects(id) on delete cascade,
   task_id uuid references app_tasks(id) on delete set null,
@@ -152,7 +152,7 @@ create table artifacts (
   created_at timestamptz not null default now()
 );
 
-create table qa_checks (
+create table if not exists qa_checks (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references app_projects(id) on delete cascade,
   task_id uuid references app_tasks(id) on delete set null,
@@ -166,7 +166,7 @@ create table qa_checks (
   updated_at timestamptz not null default now()
 );
 
-create table deployments (
+create table if not exists deployments (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references app_projects(id) on delete cascade,
   provider text not null default 'vercel',
@@ -179,7 +179,7 @@ create table deployments (
   verified_at timestamptz
 );
 
-create table audit_events (
+create table if not exists audit_events (
   id uuid primary key default gen_random_uuid(),
   project_id uuid references app_projects(id) on delete cascade,
   organization_id uuid references organizations(id) on delete set null,
@@ -189,17 +189,17 @@ create table audit_events (
   created_at timestamptz not null default now()
 );
 
-create index users_email_idx on users(email);
-create index accounts_user_idx on accounts("userId");
-create index accounts_provider_account_idx on accounts(provider, "providerAccountId");
-create index sessions_user_idx on sessions("userId");
-create index app_user_profiles_role_idx on app_user_profiles(role);
-create index organization_memberships_user_idx on organization_memberships(user_id);
-create index app_projects_org_status_idx on app_projects(organization_id, status);
-create index app_tasks_project_status_idx on app_tasks(project_id, status);
-create index agent_runs_project_status_idx on agent_runs(project_id, status);
-create index artifacts_project_type_idx on artifacts(project_id, artifact_type);
-create index qa_checks_project_status_idx on qa_checks(project_id, status);
-create index deployments_project_environment_idx on deployments(project_id, environment);
-create index audit_events_project_idx on audit_events(project_id, created_at desc);
-create index project_templates_project_idx on project_templates(project_id);
+create index if not exists users_email_idx on users(email);
+create index if not exists accounts_user_idx on accounts("userId");
+create index if not exists accounts_provider_account_idx on accounts(provider, "providerAccountId");
+create index if not exists sessions_user_idx on sessions("userId");
+create index if not exists app_user_profiles_role_idx on app_user_profiles(role);
+create index if not exists organization_memberships_user_idx on organization_memberships(user_id);
+create index if not exists app_projects_org_status_idx on app_projects(organization_id, status);
+create index if not exists app_tasks_project_status_idx on app_tasks(project_id, status);
+create index if not exists agent_runs_project_status_idx on agent_runs(project_id, status);
+create index if not exists artifacts_project_type_idx on artifacts(project_id, artifact_type);
+create index if not exists qa_checks_project_status_idx on qa_checks(project_id, status);
+create index if not exists deployments_project_environment_idx on deployments(project_id, environment);
+create index if not exists audit_events_project_idx on audit_events(project_id, created_at desc);
+create index if not exists project_templates_project_idx on project_templates(project_id);

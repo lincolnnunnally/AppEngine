@@ -46,7 +46,7 @@ Current working flow:
 - Prepare deployment and record Vercel command gates/blockers
 - Track readiness, findings, and setup gaps
 
-Production completion still requires real service credentials, Neon migrations, worker-provider API keys, deployment automation, and generated-app filesystem/worktree output.
+Production completion still requires OAuth sign-in credentials, deployment verification, and a full real-project autopilot pass from idea to generated app preview.
 
 ## Local Mode
 
@@ -57,6 +57,32 @@ Production completion still requires real service credentials, Neon migrations, 
 ```
 
 This keeps the production cockpit usable before real Neon credentials are connected. Once `DATABASE_URL` points to a real Neon database, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds.
+
+## Auth Access
+
+During local development, admin routes can be opened without OAuth so you can keep building:
+
+```text
+APP_ENGINE_DEV_ADMIN_BYPASS="true"
+```
+
+Public deployments must use Auth.js with a configured OAuth provider. Add either GitHub or Google OAuth credentials before exposing the app:
+
+```text
+AUTH_SECRET
+APP_ENGINE_OWNER_EMAIL
+AUTH_GITHUB_ID
+AUTH_GITHUB_SECRET
+```
+
+or:
+
+```text
+AUTH_SECRET
+APP_ENGINE_OWNER_EMAIL
+AUTH_GOOGLE_ID
+AUTH_GOOGLE_SECRET
+```
 
 ## Generated App Databases
 
@@ -73,13 +99,23 @@ NEON_ROLE_NAME="neondb_owner"
 
 When these are configured, `Setup DB` creates or reuses a Neon branch for the generated app, retrieves a connection URI, and applies the generated app schema and seed data.
 
-2. Manual fallback:
+2. Manual per-app fallback:
 
 ```text
+GENERATED_APP_DATABASE_URL_<PROJECT_ID>
+GENERATED_APP_DATABASE_URL_<PROJECT_SLUG>
+```
+
+Use this when you manually create a Neon database/branch for a generated app. Select the project in the builder and the Generated Database panel will show the exact `.env.local` keys to use. This keeps Church Connect, Toner Management, Kindred Soul, and future apps on separate database targets while still letting the factory apply each generated schema.
+
+Global manual fallback is available only when explicitly enabled:
+
+```text
+APP_ENGINE_ALLOW_GLOBAL_GENERATED_DATABASE_URL="true"
 GENERATED_APP_DATABASE_URL
 ```
 
-Use this only when you want all generated app setup to target a specific database or branch.
+Use the global fallback only for temporary testing because every generated app setup will target the same database/branch.
 
 ## Setup Profile
 
@@ -158,9 +194,10 @@ The deployment gate checks:
 
 ```text
 DATABASE_URL
-NEON_API_KEY and NEON_PROJECT_ID, or GENERATED_APP_DATABASE_URL
+NEON_API_KEY and NEON_PROJECT_ID, or a per-app GENERATED_APP_DATABASE_URL_<PROJECT_ID>/<PROJECT_SLUG>
 AUTH_SECRET
 APP_ENGINE_OWNER_EMAIL
+GitHub or Google OAuth credentials
 VERCEL_TOKEN
 VERCEL_ORG_ID
 VERCEL_PROJECT_ID

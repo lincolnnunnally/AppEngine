@@ -48,18 +48,22 @@ export async function getEngineSetupProfile(): Promise<EngineSetupProfile> {
       id: "generated-databases",
       title: "Generated app databases",
       readyDetails: "The engine can provision a Neon branch for each generated app and apply schema/seed data.",
-      fallbackDetails: "A manual generated app database URL is configured. Automatic per-app branch provisioning is still preferred.",
-      missingDetails: "Generated apps need either Neon API branch provisioning or a manual generated database URL.",
+      fallbackDetails: "A global manual generated app database URL is enabled. Per-app database URLs or automatic Neon branches are still preferred.",
+      missingDetails: "Generated apps need either Neon API branch provisioning or a per-app manual database URL after each project is created.",
       nextAction: "Add NEON_API_KEY and NEON_PROJECT_ID",
       primaryReady: hasEnv("NEON_API_KEY") && hasEnv("NEON_PROJECT_ID"),
-      fallbackReady: hasEnv("GENERATED_APP_DATABASE_URL") || hasEnv("APP_ENGINE_GENERATED_APP_DATABASE_URL"),
+      fallbackReady:
+        process.env.APP_ENGINE_ALLOW_GLOBAL_GENERATED_DATABASE_URL === "true" &&
+        (hasEnv("GENERATED_APP_DATABASE_URL") || hasEnv("APP_ENGINE_GENERATED_APP_DATABASE_URL")),
       variables: [
         variable("NEON_API_KEY", "Neon API key", "either"),
         variable("NEON_PROJECT_ID", "Neon project id", "either"),
         variable("NEON_PARENT_BRANCH_ID", "Parent branch", "optional"),
         variable("NEON_DATABASE_NAME", "Database name", "optional"),
         variable("NEON_ROLE_NAME", "Role name", "optional"),
-        variable("GENERATED_APP_DATABASE_URL", "Manual fallback", "optional")
+        variable("GENERATED_APP_DATABASE_URL_<PROJECT_ID>", "Per-app manual database", "optional"),
+        variable("GENERATED_APP_DATABASE_URL_<PROJECT_SLUG>", "Per-app manual database", "optional"),
+        variable("APP_ENGINE_ALLOW_GLOBAL_GENERATED_DATABASE_URL", "Allow shared manual fallback", "optional")
       ]
     }),
     createPhase({
@@ -70,7 +74,7 @@ export async function getEngineSetupProfile(): Promise<EngineSetupProfile> {
       readyDetails: "Auth secret, owner bootstrap email, and an OAuth provider are configured.",
       partialDetails: "Auth secret and owner email are configured. Add GitHub or Google OAuth before production sign-in.",
       missingDetails: "Customer/admin sign-in needs an auth secret and owner bootstrap email.",
-      nextAction: hasEnv("AUTH_SECRET") ? "Add APP_ENGINE_OWNER_EMAIL" : "Add AUTH_SECRET",
+      nextAction: getAuthNextAction(),
       variables: [
         variable("AUTH_SECRET", "Auth.js secret", "required"),
         variable("AUTH_URL", "Auth callback URL", "optional"),
@@ -187,6 +191,22 @@ function variable(name: string, label: string, kind: SetupVariableKind): SetupVa
 
 function hasAuthProvider() {
   return (hasEnv("AUTH_GITHUB_ID") && hasEnv("AUTH_GITHUB_SECRET")) || (hasEnv("AUTH_GOOGLE_ID") && hasEnv("AUTH_GOOGLE_SECRET"));
+}
+
+function getAuthNextAction() {
+  if (!hasEnv("AUTH_SECRET")) {
+    return "Add AUTH_SECRET";
+  }
+
+  if (!hasEnv("APP_ENGINE_OWNER_EMAIL")) {
+    return "Add APP_ENGINE_OWNER_EMAIL";
+  }
+
+  if (!hasAuthProvider()) {
+    return "Add GitHub or Google OAuth";
+  }
+
+  return "Complete";
 }
 
 function hasEnv(name: string) {

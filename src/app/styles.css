@@ -300,6 +300,78 @@ label {
   gap: 14px;
 }
 
+.factory-line-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.factory-line-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.45fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.factory-line-target {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #edf3fb;
+  min-width: 0;
+}
+
+.factory-line-target span,
+.factory-stage span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.factory-line-target strong {
+  color: var(--blue);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.factory-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.factory-stage {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.factory-stage.ready {
+  background: var(--green-soft);
+}
+
+.factory-stage.waiting {
+  background: #f7efd8;
+}
+
+.factory-stage.blocked {
+  background: #f8e9e5;
+}
+
+.factory-stage strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.factory-stage p {
+  margin: 8px 0 0;
+}
+
 .agent-bench-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 0.25fr);
@@ -758,6 +830,8 @@ label {
   .grid,
   .metric-grid,
   .health-panel,
+  .factory-line-header,
+  .factory-stage-grid,
   .health-grid,
   .agent-bench-header,
   .agent-bench-grid,

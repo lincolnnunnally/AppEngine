@@ -1,15 +1,14 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { canAccessAdmin } from "@/lib/auth/roles";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { getEngineHealth } from "@/lib/engine/execution";
 import { isLocalMode } from "@/lib/engine/local-mode";
 import { listPlannedProjects } from "@/lib/engine/persistence";
 import { defaultTaskGraph } from "@/lib/engine/tasks";
 
-export default async function AdminPage() {
-  const session = await auth();
+export const dynamic = "force-dynamic";
 
-  if (!isLocalMode() && !canAccessAdmin(session?.user?.role)) {
+export default async function AdminPage() {
+  if (!isLocalMode() && !(await canAccessEngineAdmin())) {
     redirect("/");
   }
 

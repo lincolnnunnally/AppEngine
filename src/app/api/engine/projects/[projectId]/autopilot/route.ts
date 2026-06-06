@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { canAccessAdmin } from "@/lib/auth/roles";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { runProjectAutopilot } from "@/lib/engine/autopilot";
 import { isLocalMode } from "@/lib/engine/local-mode";
 
@@ -34,9 +33,7 @@ async function getUnauthorizedResponse() {
     return null;
   }
 
-  const session = await auth();
-
-  if (!canAccessAdmin(session?.user?.role)) {
+  if (!(await canAccessEngineAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
