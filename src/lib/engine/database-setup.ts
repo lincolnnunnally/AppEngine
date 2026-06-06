@@ -199,10 +199,24 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
   const appliedFiles: string[] = [];
 
   try {
-    for (const file of setupFiles) {
-      const contents = await readGeneratedSetupFile(generatedExport.outputDir, file);
+    const generatedSchema = buildGeneratedSchemaName(projectId, projectName);
+    const setupFileContents = await Promise.all(
+      setupFiles.map(async (file) => ({
+        file,
+        contents: await readGeneratedSetupFile(generatedExport.outputDir, file)
+      }))
+    );
+    const tableNames = extractGeneratedTableNames(setupFileContents.find((file) => file.file.endsWith("schema.sql"))?.contents || "");
 
-      await targetSql.query(contents);
+    await targetSql.query(`create schema if not exists ${quoteIdentifier(generatedSchema)}`);
+
+    for (const { file, contents } of setupFileContents) {
+      const statements = splitSqlStatements(contents).map((statement) => qualifyGeneratedSqlStatement(statement, generatedSchema, tableNames));
+
+      for (const statement of statements) {
+        await targetSql.query(statement);
+      }
+
       appliedFiles.push(file);
     }
 
@@ -215,6 +229,7 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
+        generatedSchema,
         source: targetResult?.source,
         ...targetResult?.metadata
       }
@@ -229,6 +244,7 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
+        generatedSchema: buildGeneratedSchemaName(projectId, projectName),
         source: targetResult?.source,
         ...targetResult?.metadata,
         failedFiles: setupFiles.filter((file) => !appliedFiles.includes(file))
@@ -241,6 +257,84 @@ async function readGeneratedSetupFile(outputDir: string, file: string) {
   const { readFile } = await import("node:fs/promises");
 
   return readFile(`${outputDir}/${file}`, "utf8");
+}
+
+function splitSqlStatements(contents: string) {
+  const statements: string[] = [];
+  let current = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let previous = "";
+
+  for (const character of contents) {
+    current += character;
+
+    if (character === "'" && !inDoubleQuote && previous !== "\\") {
+      inSingleQuote = !inSingleQuote;
+    } else if (character === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (character === ";" && !inSingleQuote && !inDoubleQuote) {
+      const statement = current.trim();
+
+      if (statement) {
+        statements.push(statement);
+      }
+
+      current = "";
+    }
+
+    previous = character;
+  }
+
+  const finalStatement = current.trim();
+
+  if (finalStatement) {
+    statements.push(finalStatement);
+  }
+
+  return statements;
+}
+
+function extractGeneratedTableNames(schemaSql: string) {
+  return Array.from(schemaSql.matchAll(/\bcreate\s+table\s+if\s+not\s+exists\s+([a-z_][a-z0-9_]*)\b/gi)).map((match) => match[1]);
+}
+
+function qualifyGeneratedSqlStatement(statement: string, schemaName: string, tableNames: string[]) {
+  let qualifiedStatement = statement;
+
+  for (const tableName of tableNames) {
+    const escapedTable = escapeRegExp(tableName);
+    const qualifiedTable = `${quoteIdentifier(schemaName)}.${quoteIdentifier(tableName)}`;
+
+    qualifiedStatement = qualifiedStatement
+      .replace(
+        new RegExp(`\\b(create\\s+table\\s+if\\s+not\\s+exists)\\s+${escapedTable}\\b`, "gi"),
+        `$1 ${qualifiedTable}`
+      )
+      .replace(new RegExp(`\\b(references)\\s+${escapedTable}\\s*\\(`, "gi"), `$1 ${qualifiedTable}(`)
+      .replace(new RegExp(`\\b(on)\\s+${escapedTable}\\s*\\(`, "gi"), `$1 ${qualifiedTable}(`)
+      .replace(new RegExp(`\\b(insert\\s+into)\\s+${escapedTable}\\b`, "gi"), `$1 ${qualifiedTable}`)
+      .replace(new RegExp(`\\b(from)\\s+${escapedTable}\\b`, "gi"), `$1 ${qualifiedTable}`)
+      .replace(new RegExp(`\\b(join)\\s+${escapedTable}\\b`, "gi"), `$1 ${qualifiedTable}`)
+      .replace(new RegExp(`\\b(update)\\s+${escapedTable}\\b`, "gi"), `$1 ${qualifiedTable}`);
+  }
+
+  return qualifiedStatement;
+}
+
+function buildGeneratedSchemaName(projectId: string, projectName?: string) {
+  const suffix = slugify(projectName || projectId).replace(/-/g, "_").slice(0, 36) || "app";
+  const shortId = projectId.replace(/[^a-zA-Z0-9]/g, "").slice(-8).toLowerCase() || Date.now().toString(36);
+
+  return `generated_${suffix}_${shortId}`.slice(0, 63);
+}
+
+function quoteIdentifier(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function getLatestGeneratedExport(projectId: string): Promise<GeneratedExportLocation | null> {

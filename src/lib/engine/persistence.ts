@@ -10,7 +10,7 @@ export const createProjectInput = z.object({
   name: z.string().optional(),
   targetCustomer: z.string().optional(),
   problem: z.string().optional(),
-  revenueModel: z.string().default("SaaS subscription"),
+  revenueModel: z.string().default("Not sure yet"),
   appType: z.string().default("Auto detect"),
   buildTarget: z.string().optional()
 });

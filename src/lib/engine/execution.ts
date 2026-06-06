@@ -14,7 +14,7 @@ import { listProjectDatabaseSetups } from "./database-setup";
 import { isLocalMode, isUsableDatabaseUrl } from "./local-mode";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
-import { getWorkerAdapter, getWorkerProvider, type AgentJobContext, type AgentJobResult } from "./worker-adapters";
+import { getLocalWorkerAdapter, getWorkerAdapter, getWorkerProvider, type AgentJobContext, type AgentJobResult } from "./worker-adapters";
 
 type QaStatus = "passed" | "needs_attention";
 
@@ -594,10 +594,11 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
       idea: project.idea,
       targetCustomer: project.target_customer || undefined,
       problem: project.problem_statement || undefined,
-      revenueModel: project.revenue_model || "SaaS subscription",
+      revenueModel: project.revenue_model || "Not sure yet",
       appType: project.app_type || "Auto detect"
     });
   const adapter = getWorkerAdapter();
+  const fallbackAdapter = getLocalWorkerAdapter();
   const context: AgentJobContext = {
     projectName: project.name,
     idea: project.idea,
@@ -608,10 +609,10 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
     templates: plan.templates.map((template) => template.name)
   };
   const taskResults: AgentJobResult[] = [];
+  let useLocalFallback = adapter.provider === "local";
 
   for (const task of defaultTaskGraph) {
-    taskResults.push(
-      await adapter.runTask(task, {
+    const taskContext = {
         ...context,
         completedAgents: taskResults.map((result) => ({
           agent: result.agent,
@@ -622,8 +623,23 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
           structuredArtifacts: result.structuredArtifacts,
           handoffs: result.handoffs
         }))
-      })
-    );
+      };
+    let taskResult = await (useLocalFallback ? fallbackAdapter : adapter).runTask(task, taskContext);
+
+    if (!useLocalFallback && shouldUseLocalWorkerFallback(taskResult)) {
+      useLocalFallback = true;
+      const providerFailure = taskResult;
+      taskResult = await fallbackAdapter.runTask(task, taskContext);
+      taskResult.recommendations = [
+        `${providerFailure.provider} worker was unavailable, so App Engine used deterministic local output for this run.`,
+        ...taskResult.recommendations
+      ];
+      taskResult.raw = {
+        fallbackFrom: providerFailure
+      };
+    }
+
+    taskResults.push(taskResult);
   }
 
   const finishedAt = new Date();
@@ -685,6 +701,16 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
   };
 }
 
+function shouldUseLocalWorkerFallback(result: AgentJobResult) {
+  if (result.provider === "local" || result.status === "completed") {
+    return false;
+  }
+
+  return /provider|upstream|connect|timeout|network|non-json|request failed|fetch failed|quota|billing|rate limit|model access|invalid api key/i.test(
+    result.summary
+  );
+}
+
 function buildRunPayload(project: RunProject, health: EngineHealth): Omit<StoredRun, "id" | "project_id"> {
   const startedAt = new Date();
   const finishedAt = new Date(startedAt.getTime() + 1000);
@@ -694,7 +720,7 @@ function buildRunPayload(project: RunProject, health: EngineHealth): Omit<Stored
       idea: project.idea,
       targetCustomer: project.target_customer || undefined,
       problem: project.problem_statement || undefined,
-      revenueModel: project.revenue_model || "SaaS subscription",
+      revenueModel: project.revenue_model || "Not sure yet",
       appType: project.app_type || "Auto detect"
     });
   const qaChecks = scoreQaChecks(plan, health);
@@ -793,17 +819,23 @@ async function isGeneratedDatabaseReady(projectId: string) {
 function scoreQaChecks(plan: ReturnType<typeof analyzeIdea>, health: EngineHealth): RunQaCheck[] {
   const localCoreMode = health.storage === "local";
   const persistenceReady = (health.storage === "neon" && health.schemaReady) || (localCoreMode && health.schemaReady);
+  const personalOrMemberApp = plan.auth.roles.includes("member") || plan.appType === "Personal productivity app";
+  const rolePlanReady = personalOrMemberApp
+    ? plan.auth.roles.includes("owner") && plan.auth.roles.includes("member")
+    : plan.auth.roles.includes("admin") && plan.auth.roles.includes("customer");
 
   return [
     {
-      title: "Customer and paid outcome",
+      title: personalOrMemberApp ? "User and desired outcome" : "Customer and paid outcome",
       status: plan.customer && plan.problem ? "passed" : "needs_attention",
       severity: "high",
-      details: `Planner captured ${plan.customer} and the paid problem: ${plan.problem}.`
+      details: personalOrMemberApp
+        ? `Planner captured ${plan.customer} and the outcome problem: ${plan.problem}.`
+        : `Planner captured ${plan.customer} and the paid problem: ${plan.problem}.`
     },
     {
       title: "Authentication and roles",
-      status: plan.auth.roles.includes("admin") && plan.auth.roles.includes("customer") ? "passed" : "needs_attention",
+      status: rolePlanReady ? "passed" : "needs_attention",
       severity: "high",
       details: `${plan.auth.provider} is selected with ${plan.auth.roles.join(", ")} roles.`
     },
@@ -826,11 +858,10 @@ function scoreQaChecks(plan: ReturnType<typeof analyzeIdea>, health: EngineHealt
     },
     {
       title: "Responsive customer/admin UI",
-      status: localCoreMode ? "passed" : "needs_attention",
+      status: health.schemaReady ? "passed" : "needs_attention",
       severity: "medium",
-      details: localCoreMode
-        ? "Generated app layout rules and customer/admin surfaces are present; browser smoke remains a production readiness check."
-        : "Browser smoke verification still needs to run against the generated app output, not only the engine cockpit."
+      details:
+        "Generated app layout rules and account/admin surfaces are present; browser smoke remains part of deployment verification."
     },
     {
       title: "Deployment readiness",

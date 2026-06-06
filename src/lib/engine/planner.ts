@@ -6,7 +6,7 @@ export const analyzeIdeaInput = z.object({
   idea: z.string().min(8),
   targetCustomer: z.string().optional(),
   problem: z.string().optional(),
-  revenueModel: z.string().default("SaaS subscription"),
+  revenueModel: z.string().default("Not sure yet"),
   appType: z.string().default("Auto detect")
 });
 
@@ -16,8 +16,9 @@ export function analyzeIdea(input: AnalyzeIdeaInput) {
   const appType = detectAppType(input.idea, input.appType);
   const recommendedTarget = chooseBuildTarget(input.idea);
   const templates = selectTemplates(`${input.idea} ${input.revenueModel} ${appType}`);
-  const customer = input.targetCustomer || "the first paying customer segment";
-  const problem = input.problem || "the most expensive repeated workflow";
+  const personalOrFree = isPersonalOrFree(input, appType);
+  const customer = input.targetCustomer || (personalOrFree ? "you and people with the same goal" : "the first focused customer segment");
+  const problem = input.problem || (personalOrFree ? "staying consistent when comfort is easier than progress" : "the most expensive repeated workflow");
 
   return {
     title: deriveTitle(input.idea),
@@ -27,8 +28,8 @@ export function analyzeIdea(input: AnalyzeIdeaInput) {
     recommendedTarget,
     auth: {
       provider: "Auth.js with Neon-backed account and session data",
-      roles: appType === "Marketplace" ? ["owner", "admin", "customer", "vendor"] : ["owner", "admin", "customer"],
-      protectedRoutes: ["/app", "/account", "/admin", "/api/admin/*", "/api/customer/*"]
+      roles: getRolesForAppType(appType, personalOrFree),
+      protectedRoutes: personalOrFree ? ["/app", "/account", "/api/customer/*"] : ["/app", "/account", "/admin", "/api/admin/*", "/api/customer/*"]
     },
     templates,
     tasks: defaultTaskGraph.map((task, index) => ({
@@ -36,7 +37,7 @@ export function analyzeIdea(input: AnalyzeIdeaInput) {
       status: "todo",
       priority: task.priority || (index < 6 ? "high" : index < 10 ? "medium" : "low")
     })),
-    qaChecks: buildQaChecks(),
+    qaChecks: buildQaChecks(personalOrFree),
     readinessScore: input.targetCustomer && input.problem ? 32 : 24,
     stack: [
       "Next.js App Router",
@@ -53,15 +54,19 @@ export function analyzeIdea(input: AnalyzeIdeaInput) {
       "Create task graph",
       "Run architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agents"
     ],
-    valueProposition: `Help ${customer} solve ${problem} with a finished, tested, account-based app instead of a prototype.`
+    valueProposition: personalOrFree
+      ? `Help ${customer} solve ${problem} with a focused, tested app that supports the real habit loop.`
+      : `Help ${customer} solve ${problem} with a finished, tested, account-based app instead of a prototype.`
   };
 }
 
-function buildQaChecks() {
+function buildQaChecks(personalOrFree = false) {
   return [
     {
-      title: "Customer and paid outcome",
-      description: "Target customer, painful problem, and business outcome are explicit.",
+      title: personalOrFree ? "User and desired outcome" : "Customer and paid outcome",
+      description: personalOrFree
+        ? "Primary user, motivation trigger, success state, and personal outcome are explicit."
+        : "Target customer, painful problem, and business outcome are explicit.",
       severity: "high",
       status: "pending"
     },
@@ -101,11 +106,47 @@ function buildQaChecks() {
 function detectAppType(idea: string, selectedType: string) {
   if (selectedType && selectedType !== "Auto detect") return selectedType;
   const text = idea.toLowerCase();
+  if (
+    text.includes("dream board") ||
+    text.includes("vision board") ||
+    text.includes("habit") ||
+    text.includes("motivation") ||
+    text.includes("focus") ||
+    text.includes("personal") ||
+    text.includes("journal")
+  ) {
+    return "Personal productivity app";
+  }
   if (text.includes("marketplace") || text.includes("vendor") || text.includes("supplier")) return "Marketplace";
   if (text.includes("customer portal") || text.includes("customer-facing") || text.includes("client portal")) return "SaaS customer portal";
   if (text.includes("ai") || text.includes("agent") || text.includes("generate") || text.includes("automation")) return "AI workflow app";
   if (text.includes("internal") || text.includes("back office") || text.includes("operations team")) return "Internal operations tool";
   return "SaaS customer portal";
+}
+
+function isPersonalOrFree(input: AnalyzeIdeaInput, appType: string) {
+  const text = `${input.idea} ${input.revenueModel} ${appType}`.toLowerCase();
+
+  return (
+    appType === "Personal productivity app" ||
+    text.includes("free") ||
+    text.includes("personal") ||
+    text.includes("not sure") ||
+    text.includes("dream board") ||
+    text.includes("vision board")
+  );
+}
+
+function getRolesForAppType(appType: string, personalOrFree: boolean) {
+  if (personalOrFree) {
+    return ["owner", "member"];
+  }
+
+  if (appType === "Marketplace") {
+    return ["owner", "admin", "customer", "vendor"];
+  }
+
+  return ["owner", "admin", "customer"];
 }
 
 function chooseBuildTarget(idea: string) {

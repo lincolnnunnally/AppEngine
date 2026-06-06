@@ -121,7 +121,7 @@ async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: Gen
       idea: project.idea,
       targetCustomer: project.target_customer || undefined,
       problem: project.problem_statement || undefined,
-      revenueModel: project.revenue_model || "SaaS subscription",
+      revenueModel: project.revenue_model || "Not sure yet",
       appType: project.app_type || "Auto detect"
     });
   const handoff = buildGeneratedAppHandoff(plan, agentOutputs);

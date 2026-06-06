@@ -46,6 +46,8 @@ type WorkerAdapter = {
   runTask(task: EngineTask, context: AgentJobContext): Promise<AgentJobResult>;
 };
 
+type ProviderPayload = Record<string, unknown>;
+
 export function getWorkerProvider(): WorkerProvider {
   const requestedProvider = process.env.APP_ENGINE_WORKER_PROVIDER?.toLowerCase();
 
@@ -63,6 +65,10 @@ export function getWorkerAdapter(): WorkerAdapter {
 
   if (provider === "openai") return new OpenAiWorkerAdapter();
   if (provider === "anthropic") return new AnthropicWorkerAdapter();
+  return new LocalWorkerAdapter();
+}
+
+export function getLocalWorkerAdapter(): WorkerAdapter {
   return new LocalWorkerAdapter();
 }
 
@@ -93,27 +99,33 @@ class OpenAiWorkerAdapter implements WorkerAdapter {
   provider = "openai" as const;
 
   async runTask(task: EngineTask, context: AgentJobContext): Promise<AgentJobResult> {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5.1",
-        instructions: buildWorkerInstructions(task),
-        input: buildWorkerPrompt(task, context),
-        max_output_tokens: 900
-      })
-    });
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || "gpt-5.1",
+          instructions: buildWorkerInstructions(task),
+          input: buildWorkerPrompt(task, context),
+          max_output_tokens: 900
+        }),
+        signal: AbortSignal.timeout(getWorkerTimeoutMs())
+      });
+      const { payload, parseError } = await readProviderPayload(response);
 
-    const payload = await response.json();
+      if (!response.ok || parseError) {
+        return buildFailedResult(this.provider, task, getProviderErrorMessage(payload, parseError || "OpenAI worker request failed"), payload);
+      }
 
-    if (!response.ok) {
-      return buildFailedResult(this.provider, task, payload?.error?.message || "OpenAI worker request failed", payload);
+      return normalizeWorkerText(this.provider, task, context, extractOpenAiText(payload), payload);
+    } catch (caught) {
+      return buildFailedResult(this.provider, task, getCaughtErrorMessage(caught, "OpenAI worker request failed"), {
+        error: String(caught)
+      });
     }
-
-    return normalizeWorkerText(this.provider, task, context, extractOpenAiText(payload), payload);
   }
 }
 
@@ -121,34 +133,104 @@ class AnthropicWorkerAdapter implements WorkerAdapter {
   provider = "anthropic" as const;
 
   async runTask(task: EngineTask, context: AgentJobContext): Promise<AgentJobResult> {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY || ""
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
-        max_tokens: 900,
-        system: buildWorkerInstructions(task),
-        messages: [
-          {
-            role: "user",
-            content: buildWorkerPrompt(task, context)
-          }
-        ]
-      })
-    });
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY || ""
+        },
+        body: JSON.stringify({
+          model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+          max_tokens: 900,
+          system: buildWorkerInstructions(task),
+          messages: [
+            {
+              role: "user",
+              content: buildWorkerPrompt(task, context)
+            }
+          ]
+        }),
+        signal: AbortSignal.timeout(getWorkerTimeoutMs())
+      });
+      const { payload, parseError } = await readProviderPayload(response);
 
-    const payload = await response.json();
+      if (!response.ok || parseError) {
+        return buildFailedResult(this.provider, task, getProviderErrorMessage(payload, parseError || "Anthropic worker request failed"), payload);
+      }
 
-    if (!response.ok) {
-      return buildFailedResult(this.provider, task, payload?.error?.message || "Anthropic worker request failed", payload);
+      return normalizeWorkerText(this.provider, task, context, extractAnthropicText(payload), payload);
+    } catch (caught) {
+      return buildFailedResult(this.provider, task, getCaughtErrorMessage(caught, "Anthropic worker request failed"), {
+        error: String(caught)
+      });
     }
-
-    return normalizeWorkerText(this.provider, task, context, extractAnthropicText(payload), payload);
   }
+}
+
+async function readProviderPayload(response: Response): Promise<{ payload: ProviderPayload; parseError?: string }> {
+  const text = await response.text();
+
+  if (!text) {
+    return { payload: {} };
+  }
+
+  try {
+    return { payload: JSON.parse(text) as ProviderPayload };
+  } catch {
+    return {
+      payload: {
+        error: {
+          message: summarizeProviderText(text)
+        },
+        raw: text.slice(0, 500)
+      },
+      parseError: "Provider returned a non-JSON response."
+    };
+  }
+}
+
+function getProviderErrorMessage(payload: ProviderPayload, fallback: string) {
+  const error = payload.error;
+
+  if (typeof error === "object" && error && "message" in error) {
+    const message = String((error as { message?: unknown }).message || "").trim();
+
+    if (message) {
+      return message;
+    }
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
+  return fallback;
+}
+
+function getCaughtErrorMessage(caught: unknown, fallback: string) {
+  if (caught instanceof Error && caught.message.trim()) {
+    return `${fallback}: ${caught.message}`;
+  }
+
+  return fallback;
+}
+
+function summarizeProviderText(text: string) {
+  const compact = text.replace(/\s+/g, " ").trim();
+
+  if (/upstream|connect|timeout|reset|temporar/i.test(compact)) {
+    return "Provider connection failed upstream. Retry the worker run or switch to local worker mode while provider access is unstable.";
+  }
+
+  return compact.slice(0, 180) || "Provider returned an unreadable response.";
+}
+
+function getWorkerTimeoutMs() {
+  const value = Number(process.env.APP_ENGINE_WORKER_TIMEOUT_MS || 12000);
+
+  return Number.isFinite(value) && value > 1000 ? value : 12000;
 }
 
 function buildWorkerInstructions(task: EngineTask) {

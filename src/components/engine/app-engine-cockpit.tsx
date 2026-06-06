@@ -262,14 +262,11 @@ type AgentRole = {
   };
 };
 
-const starterIdea =
-  "A multi-agent app-building engine that takes an idea, improves it for the target customer, creates customer/admin auth, builds the app, runs QA, fixes issues, and deploys to Vercel with Neon.";
-
 export function AppEngineCockpit() {
-  const [idea, setIdea] = useState(starterIdea);
-  const [targetCustomer, setTargetCustomer] = useState("Founders and builders who need finished apps");
-  const [problem, setProblem] = useState("Prototype tools stop before auth, QA, database, and deployment are complete");
-  const [revenueModel, setRevenueModel] = useState("SaaS subscription");
+  const [idea, setIdea] = useState("");
+  const [targetCustomer, setTargetCustomer] = useState("");
+  const [problem, setProblem] = useState("");
+  const [revenueModel, setRevenueModel] = useState("Not sure yet");
   const [appType, setAppType] = useState("Auto detect");
   const [plan, setPlan] = useState<Plan | null>(null);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
@@ -286,6 +283,7 @@ export function AppEngineCockpit() {
   const [storage, setStorage] = useState("local");
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState("");
+  const [busyAction, setBusyAction] = useState("");
 
   useEffect(() => {
     void loadHealth();
@@ -341,6 +339,7 @@ export function AppEngineCockpit() {
   ];
   const healthReady =
     health?.schemaReady && health.authConfigured && health.adminConfigured && health.workerConfigured && health.deploymentConfigured;
+  const busy = Boolean(busyAction);
 
   const taskCounts = useMemo(() => {
     const tasks = plan?.tasks || [];
@@ -352,6 +351,11 @@ export function AppEngineCockpit() {
   }, [plan]);
 
   async function analyze() {
+    if (!hasUsableIdea()) {
+      return null;
+    }
+
+    setBusyAction("plan");
     setStatus("Analyzing");
     setError("");
 
@@ -359,71 +363,69 @@ export function AppEngineCockpit() {
       const response = await fetch("/api/engine/analyze", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          idea,
-          targetCustomer,
-          problem,
-          revenueModel,
-          appType
-        })
+        body: JSON.stringify(getIntakePayload())
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Analyzer failed");
-      }
+      const payload = await readJsonResponse<Plan>(response, "Analyzer failed");
 
       setPlan(payload);
       setStatus("Planned");
       await refreshProjects();
+      return payload;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Analyzer failed");
       setStatus("Needs attention");
+      return null;
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function startProjectBuild() {
+    if (!hasUsableIdea()) {
+      return;
+    }
+
+    setBusyAction("start");
+    setStatus("Creating project");
+    setError("");
+
+    try {
+      const payload = await createProjectRecord();
+      const projectId = payload.project.id;
+
+      setStatus("Autopilot running");
+
+      const autopilotResponse = await fetch(`/api/engine/projects/${projectId}/autopilot`, {
+        method: "POST"
+      });
+      const autopilotPayload = await readJsonResponse<EngineAutopilotResult>(autopilotResponse, "Autopilot failed");
+
+      setAutopilotResult(autopilotPayload);
+      setReadinessReport(autopilotPayload.readiness);
+      await refreshProjectWorkspace(projectId);
+      setStatus(autopilotPayload.status === "completed" ? "Autopilot complete" : "Autopilot blocked");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Project build failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
   async function saveProject() {
+    setBusyAction("save");
     setStatus("Saving");
     setError("");
 
     try {
-      const response = await fetch("/api/engine/projects", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          idea,
-          name: plan?.title,
-          targetCustomer,
-          problem,
-          revenueModel,
-          appType
-        })
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Project save failed");
-      }
-
-      setStorage(payload.storage || "neon");
-      setPlan(payload.plan);
-      setCurrentProjectId(payload.project.id);
-      setAutopilotResult(null);
-      await refreshProjects();
-      await Promise.all([
-        refreshRuns(payload.project.id),
-        refreshDeployments(payload.project.id),
-        refreshExports(payload.project.id),
-        refreshDatabaseSetups(payload.project.id),
-        refreshReadiness(payload.project.id),
-        loadSetupProfile()
-      ]);
+      await createProjectRecord();
       setStatus("Saved");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Project save failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -433,6 +435,7 @@ export function AppEngineCockpit() {
       return;
     }
 
+    setBusyAction("autopilot");
     setStatus("Autopilot running");
     setError("");
 
@@ -440,11 +443,7 @@ export function AppEngineCockpit() {
       const response = await fetch(`/api/engine/projects/${currentProjectId}/autopilot`, {
         method: "POST"
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Autopilot failed");
-      }
+      const payload = await readJsonResponse<EngineAutopilotResult>(response, "Autopilot failed");
 
       setAutopilotResult(payload);
       setReadinessReport(payload.readiness);
@@ -461,6 +460,8 @@ export function AppEngineCockpit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Autopilot failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -470,6 +471,7 @@ export function AppEngineCockpit() {
       return;
     }
 
+    setBusyAction("qa");
     setStatus("Running QA");
     setError("");
 
@@ -477,11 +479,7 @@ export function AppEngineCockpit() {
       const response = await fetch(`/api/engine/projects/${currentProjectId}/runs`, {
         method: "POST"
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Automation run failed");
-      }
+      const payload = await readJsonResponse<{ run: EngineRun }>(response, "Automation run failed");
 
       await refreshProjects();
       await Promise.all([refreshRuns(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
@@ -489,6 +487,8 @@ export function AppEngineCockpit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Automation run failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -498,6 +498,7 @@ export function AppEngineCockpit() {
       return;
     }
 
+    setBusyAction("agents");
     setStatus("Running agents");
     setError("");
 
@@ -505,11 +506,7 @@ export function AppEngineCockpit() {
       const response = await fetch(`/api/engine/projects/${currentProjectId}/agents`, {
         method: "POST"
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Agent build run failed");
-      }
+      const payload = await readJsonResponse<{ run: EngineRun }>(response, "Agent build run failed");
 
       await refreshProjects();
       await Promise.all([refreshRuns(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
@@ -517,6 +514,8 @@ export function AppEngineCockpit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Agent build run failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -526,6 +525,7 @@ export function AppEngineCockpit() {
       return;
     }
 
+    setBusyAction("deploy");
     setStatus("Preparing deploy");
     setError("");
 
@@ -533,11 +533,7 @@ export function AppEngineCockpit() {
       const response = await fetch(`/api/engine/projects/${currentProjectId}/deployments`, {
         method: "POST"
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Deployment preparation failed");
-      }
+      const payload = await readJsonResponse<{ deployment: EngineDeployment }>(response, "Deployment preparation failed");
 
       await refreshProjects();
       await Promise.all([refreshDeployments(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
@@ -545,6 +541,8 @@ export function AppEngineCockpit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Deployment preparation failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -554,6 +552,7 @@ export function AppEngineCockpit() {
       return;
     }
 
+    setBusyAction("database");
     setStatus("Setting up DB");
     setError("");
 
@@ -561,11 +560,7 @@ export function AppEngineCockpit() {
       const response = await fetch(`/api/engine/projects/${currentProjectId}/database`, {
         method: "POST"
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Database setup failed");
-      }
+      const payload = await readJsonResponse<{ setup: EngineDatabaseSetup }>(response, "Database setup failed");
 
       await refreshProjects();
       await Promise.all([refreshDatabaseSetups(currentProjectId), refreshReadiness(currentProjectId), loadSetupProfile(), loadHealth()]);
@@ -573,6 +568,8 @@ export function AppEngineCockpit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Database setup failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -582,6 +579,7 @@ export function AppEngineCockpit() {
       return;
     }
 
+    setBusyAction("export");
     setStatus("Generating app");
     setError("");
 
@@ -589,11 +587,7 @@ export function AppEngineCockpit() {
       const response = await fetch(`/api/engine/projects/${currentProjectId}/exports`, {
         method: "POST"
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "App export failed");
-      }
+      await readJsonResponse(response, "App export failed");
 
       await refreshProjects();
       await Promise.all([
@@ -607,6 +601,8 @@ export function AppEngineCockpit() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "App export failed");
       setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -722,6 +718,58 @@ export function AppEngineCockpit() {
     }
   }
 
+  function getIntakePayload() {
+    return {
+      idea: idea.trim(),
+      targetCustomer: targetCustomer.trim() || undefined,
+      problem: problem.trim() || undefined,
+      revenueModel,
+      appType
+    };
+  }
+
+  function hasUsableIdea() {
+    if (idea.trim().length >= 8) {
+      return true;
+    }
+
+    setError("Add a short app description first.");
+    setStatus("Needs attention");
+    return false;
+  }
+
+  async function createProjectRecord() {
+    const response = await fetch("/api/engine/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...getIntakePayload(),
+        name: plan?.title
+      })
+    });
+    const payload = await readJsonResponse<{ project: SavedProject; plan: Plan; storage?: string }>(response, "Project save failed");
+
+    setStorage(payload.storage || "neon");
+    setPlan(payload.plan);
+    setCurrentProjectId(payload.project.id);
+    setAutopilotResult(null);
+    await refreshProjectWorkspace(payload.project.id);
+    return payload;
+  }
+
+  async function refreshProjectWorkspace(projectId: string) {
+    await refreshProjects();
+    await Promise.all([
+      refreshRuns(projectId),
+      refreshDeployments(projectId),
+      refreshExports(projectId),
+      refreshDatabaseSetups(projectId),
+      refreshReadiness(projectId),
+      loadSetupProfile(),
+      loadHealth()
+    ]);
+  }
+
   return (
     <div className="cockpit">
       <section className="panel cockpit-intake">
@@ -734,72 +782,101 @@ export function AppEngineCockpit() {
           </p>
         </div>
 
-        <div className="form-grid">
-          <label>
-            App idea
-            <textarea value={idea} onChange={(event) => setIdea(event.target.value)} />
-          </label>
-          <label>
-            Target customer
-            <input value={targetCustomer} onChange={(event) => setTargetCustomer(event.target.value)} />
-          </label>
-          <label>
-            Problem
-            <input value={problem} onChange={(event) => setProblem(event.target.value)} />
-          </label>
-          <label>
-            Revenue model
-            <select value={revenueModel} onChange={(event) => setRevenueModel(event.target.value)}>
-              <option>SaaS subscription</option>
-              <option>Usage based</option>
-              <option>Marketplace commission</option>
-              <option>Lead generation</option>
-              <option>Internal tool</option>
-            </select>
-          </label>
-          <label>
-            App type
-            <select value={appType} onChange={(event) => setAppType(event.target.value)}>
-              <option>Auto detect</option>
-              <option>SaaS customer portal</option>
-              <option>Marketplace</option>
-              <option>Internal operations tool</option>
-              <option>AI workflow app</option>
-            </select>
-          </label>
-        </div>
+        <form className="intake-form" onSubmit={(event) => {
+          event.preventDefault();
+          void startProjectBuild();
+        }}>
+          <div className="form-grid">
+            <label>
+              App description
+              <textarea
+                value={idea}
+                onChange={(event) => setIdea(event.target.value)}
+                placeholder="A dream board that helps me stay focused, push through challenges, and choose long-term goals over short-term comfort."
+              />
+            </label>
+            <label>
+              Target customer
+              <input
+                value={targetCustomer}
+                onChange={(event) => setTargetCustomer(event.target.value)}
+                placeholder="Me first, then people trying to stay disciplined"
+              />
+            </label>
+            <label>
+              Problem
+              <input
+                value={problem}
+                onChange={(event) => setProblem(event.target.value)}
+                placeholder="Hard moments make comfort feel easier than progress"
+              />
+            </label>
+            <label>
+              Revenue model
+              <select value={revenueModel} onChange={(event) => setRevenueModel(event.target.value)}>
+                <option>Not sure yet</option>
+                <option>Free / personal project</option>
+                <option>Free now, monetize later</option>
+                <option>SaaS subscription</option>
+                <option>Usage based</option>
+                <option>Marketplace commission</option>
+                <option>Lead generation</option>
+                <option>Internal tool</option>
+              </select>
+            </label>
+            <label>
+              App type
+              <select value={appType} onChange={(event) => setAppType(event.target.value)}>
+                <option>Auto detect</option>
+                <option>Personal productivity app</option>
+                <option>SaaS customer portal</option>
+                <option>Marketplace</option>
+                <option>Internal operations tool</option>
+                <option>AI workflow app</option>
+              </select>
+            </label>
+          </div>
 
-        <div className="action-row">
-          <button className="button primary" type="button" onClick={analyze}>
-            Analyze And Plan
-          </button>
-          <button className="button" type="button" onClick={saveProject} disabled={!plan}>
+          <div className="action-row">
+            <button className="button primary" type="submit" disabled={busy}>
+              {busyAction === "start" ? "Building..." : "Start App Build"}
+            </button>
+            <button className="button" type="button" onClick={() => void analyze()} disabled={busy}>
+              {busyAction === "plan" ? "Planning..." : "Preview Plan"}
+            </button>
+            <button className="button" type="button" onClick={saveProject} disabled={busy || !plan}>
             Save Project
           </button>
-          <button className="button accent" type="button" onClick={runAutopilot} disabled={!currentProjectId}>
+          <button className="button accent" type="button" onClick={runAutopilot} disabled={busy || !currentProjectId}>
             Run Autopilot
           </button>
-          <button className="button" type="button" onClick={runAgents} disabled={!currentProjectId}>
+          <button className="button" type="button" onClick={runAgents} disabled={busy || !currentProjectId}>
             Run Agents
           </button>
-          <button className="button" type="button" onClick={generateAppFiles} disabled={!currentProjectId}>
+          <button className="button" type="button" onClick={generateAppFiles} disabled={busy || !currentProjectId}>
             Generate App
           </button>
-          <button className="button" type="button" onClick={setupDatabase} disabled={!currentProjectId || !latestExport}>
+          <button className="button" type="button" onClick={setupDatabase} disabled={busy || !currentProjectId || !latestExport}>
             Setup DB
           </button>
-          <button className="button" type="button" onClick={runAutomation} disabled={!currentProjectId}>
+          <button className="button" type="button" onClick={runAutomation} disabled={busy || !currentProjectId}>
             Run QA Loop
           </button>
-          <button className="button" type="button" onClick={prepareDeployment} disabled={!currentProjectId}>
+          <button className="button" type="button" onClick={prepareDeployment} disabled={busy || !currentProjectId}>
             Prepare Deploy
           </button>
-          <button className="button" type="button" onClick={() => void refreshReadiness(currentProjectId)} disabled={!currentProjectId}>
+          <button className="button" type="button" onClick={() => void refreshReadiness(currentProjectId)} disabled={busy || !currentProjectId}>
             Check Launch
           </button>
           <span className="status-chip">{status}</span>
           <span className="status-chip">{storage === "local" ? "Local storage" : "Neon storage"}</span>
-          {error ? <span className="error-chip">{error}</span> : null}
+            {error ? <span className="error-chip">{error}</span> : null}
+          </div>
+        </form>
+
+        <div className={`workflow-feedback ${error ? "error" : ""}`} aria-live="polite">
+          <strong>{error ? "Action needs attention" : status}</strong>
+          <p>{error || getStatusDetails(status, storage, activeProject)}</p>
         </div>
       </section>
 
@@ -1238,6 +1315,50 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </article>
   );
+}
+
+async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const text = await response.text();
+  let payload: unknown = {};
+
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { error: text.slice(0, 180) };
+    }
+  }
+
+  if (!response.ok) {
+    const error = typeof payload === "object" && payload && "error" in payload ? String((payload as { error?: unknown }).error) : "";
+    throw new Error(error || `${fallbackMessage} (${response.status})`);
+  }
+
+  return payload as T;
+}
+
+function getStatusDetails(status: string, storage: string, activeProject: SavedProject | null) {
+  if (status === "Ready") {
+    return "Add an app idea, then start the build. Optional fields can stay blank when the description already covers them.";
+  }
+
+  if (status === "Planned") {
+    return "Plan created. Save it or start the app build to let the engine create the project and run autopilot.";
+  }
+
+  if (status === "Saved") {
+    return "Project saved. Autopilot can now run agents, generate files, prepare data, run QA, and check deployment blockers.";
+  }
+
+  if (status.includes("running") || status === "Creating project" || status === "Saving" || status === "Analyzing") {
+    return "The engine is working on the request now.";
+  }
+
+  if (activeProject) {
+    return `${activeProject.name} is selected with ${storage === "local" ? "local" : "Neon"} storage.`;
+  }
+
+  return `${storage === "local" ? "Local" : "Neon"} storage is active.`;
 }
 
 function HealthItem({ label, ready }: { label: string; ready: boolean }) {
