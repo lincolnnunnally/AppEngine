@@ -1,0 +1,216 @@
+version: 1
+name: AppEngine Autonomous Agent Council
+purpose: >
+  Coordinate an AI venture-and-development workflow that turns Lincoln's ideas,
+  project issues, monitoring signals, and customer needs into planned, designed,
+  built, tested, reviewed, connected, marketed, and improved applications.
+
+operating_principles:
+  - Build tools that help people help people.
+  - Favor empowerment over dependency.
+  - Keep the user out of repetitive middleman work.
+  - Turn messy ideas into structured issues, specs, prompts, pull requests, tests, and follow-up work.
+  - Never expose secrets, credentials, API keys, tokens, or private user data.
+  - Prefer pull requests, preview deployments, and human approval before production-impacting changes.
+
+shared_context_files:
+  - agents/context/mission.md
+  - agents/context/app-standards.md
+  - agents/context/security-rules.md
+  - agents/context/output-contracts.md
+
+agents:
+  mission:
+    prompt: agents/prompts/mission.md
+    purpose: Ensure every project aligns with the mission, values, and Life Produces Life philosophy.
+    runs_on:
+      - new_idea
+      - new_issue
+      - major_feature
+    outputs:
+      - mission_alignment_report
+      - risks
+      - recommended_next_step
+
+  visionary:
+    prompt: agents/prompts/visionary.md
+    purpose: Discover deeper opportunities, hidden problems, future possibilities, and creative solutions.
+    runs_on:
+      - new_idea
+      - weekly_review
+      - product_gap
+    outputs:
+      - opportunity_map
+      - problem_insights
+      - innovation_candidates
+
+  customer_perspective:
+    prompt: agents/prompts/customer-perspective.md
+    purpose: Step into the target customer's shoes and evaluate trust, emotion, clarity, friction, and usefulness.
+    runs_on:
+      - new_feature_spec
+      - design_review
+      - pull_request
+    outputs:
+      - customer_reaction
+      - friction_points
+      - trust_concerns
+      - recommended_improvements
+
+  discovery:
+    prompt: agents/prompts/discovery.md
+    purpose: Identify who needs the app, where those people already gather, what alternatives they use, and how to reach them.
+    runs_on:
+      - new_app
+      - launch_planning
+      - growth_review
+    outputs:
+      - audience_map
+      - problem_context
+      - outreach_channels
+      - competitor_or_alternative_notes
+
+  connection:
+    prompt: agents/prompts/connection.md
+    purpose: Find connections between this app and the rest of the ecosystem.
+    runs_on:
+      - new_app
+      - new_feature
+      - weekly_review
+    outputs:
+      - integration_candidates
+      - shared_data_opportunities
+      - cross_app_workflows
+      - follow_up_issues
+
+  systems:
+    prompt: agents/prompts/systems.md
+    purpose: Look for root causes, reusable infrastructure, and system-level solutions instead of isolated one-off features.
+    runs_on:
+      - repeated_problem
+      - architecture_review
+      - monthly_review
+    outputs:
+      - root_cause_analysis
+      - reusable_solution_candidates
+      - simplification_opportunities
+
+  planner:
+    prompt: agents/prompts/planner.md
+    purpose: Convert ideas and agent findings into a clear build specification for Codex.
+    runs_on:
+      - approved_idea
+      - issue_labeled_ai_plan
+    outputs:
+      - build_spec
+      - acceptance_criteria
+      - implementation_steps
+      - codex_ready_prompt
+
+  designer:
+    prompt: agents/prompts/designer.md
+    purpose: Create layout direction, UX flow, copy guidance, and visual/emotional design intent.
+    runs_on:
+      - approved_spec
+      - design_needed
+    outputs:
+      - design_brief
+      - user_flow
+      - page_sections
+      - copy_notes
+
+  builder:
+    prompt: agents/prompts/builder.md
+    purpose: Build the feature or app through Codex, using the planner and designer output as source material.
+    runs_on:
+      - issue_labeled_ai_build
+      - codex_trigger
+    outputs:
+      - pull_request
+      - implementation_summary
+      - changed_files
+
+  workflow_tester:
+    prompt: agents/prompts/workflow-tester.md
+    purpose: Test full user journeys, not just whether the code compiles.
+    runs_on:
+      - pull_request
+      - preview_deploy
+    outputs:
+      - workflow_test_plan
+      - pass_fail_report
+      - broken_paths
+      - fix_recommendations
+
+  code_reviewer:
+    prompt: agents/prompts/code-reviewer.md
+    purpose: Review code quality, maintainability, security, performance, data handling, and deployment risk.
+    runs_on:
+      - pull_request
+    outputs:
+      - review_report
+      - blocking_issues
+      - non_blocking_improvements
+
+  growth:
+    prompt: agents/prompts/growth.md
+    purpose: Create practical launch, marketing, SEO, partnership, onboarding, and sharing strategies.
+    runs_on:
+      - launch_planning
+      - new_app_ready
+      - monthly_growth_review
+    outputs:
+      - launch_plan
+      - audience_channels
+      - content_ideas
+      - partnership_targets
+
+  monitor:
+    prompt: agents/prompts/monitor.md
+    purpose: Watch deployments, errors, broken workflows, failed jobs, and signals that change is needed.
+    runs_on:
+      - scheduled_check
+      - deploy_complete
+      - error_signal
+    outputs:
+      - health_report
+      - incident_issue
+      - improvement_issue
+
+  fixer:
+    prompt: agents/prompts/fixer.md
+    purpose: Convert failures, bug reports, failed tests, and review feedback into focused repair prompts for Codex.
+    runs_on:
+      - failed_test
+      - failed_deploy
+      - review_changes_requested
+      - incident_issue
+    outputs:
+      - fix_spec
+      - codex_repair_prompt
+      - regression_checks
+
+recommended_flow:
+  new_idea:
+    - mission
+    - visionary
+    - customer_perspective
+    - discovery
+    - connection
+    - systems
+    - planner
+    - designer
+    - builder
+    - workflow_tester
+    - code_reviewer
+    - fixer
+    - growth
+    - monitor
+
+labels:
+  ai:plan: Run planner workflow.
+  ai:build: Run builder/Codex workflow.
+  ai:review: Run customer, workflow tester, and code reviewer workflows.
+  ai:fix: Run fixer/Codex repair workflow.
+  ai:growth: Run discovery, connection, and growth workflows.
+  ai:monitor: Run monitor workflow.
