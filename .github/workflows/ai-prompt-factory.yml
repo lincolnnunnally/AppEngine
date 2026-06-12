@@ -241,11 +241,30 @@ jobs:
             fi
           } > pr-body.md
 
+          echo "branch_name=$branch" >> "$GITHUB_OUTPUT"
+          echo "branch_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/tree/$branch" >> "$GITHUB_OUTPUT"
+          echo "compare_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${BASE_BRANCH}...${branch}?quick_pull=1" >> "$GITHUB_OUTPUT"
+
+          set +e
           gh pr create \
             --base "$BASE_BRANCH" \
             --head "$branch" \
             --title "AI ${MODE}: ${title}" \
-            --body-file pr-body.md
+            --body-file pr-body.md \
+            2> agent-run/pr-create-error.txt
+          pr_create_status=$?
+          set -e
+
+          if [ "$pr_create_status" -ne 0 ]; then
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+            {
+              echo "pr_error<<PR_ERROR"
+              head -c 2000 agent-run/pr-create-error.txt
+              echo
+              echo "PR_ERROR"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           pr_url="$(gh pr view "$branch" --json url --jq .url)"
           echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
@@ -257,6 +276,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
           MODE: ${{ needs.codex.outputs.mode }}
+          BRANCH_NAME: ${{ steps.pr.outputs.branch_name }}
+          BRANCH_URL: ${{ steps.pr.outputs.branch_url }}
+          COMPARE_URL: ${{ steps.pr.outputs.compare_url }}
+          PR_ERROR: ${{ steps.pr.outputs.pr_error }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
         run: |
           {
@@ -264,6 +287,19 @@ jobs:
             echo
             if [ -n "$PR_URL" ]; then
               echo "Pull request: $PR_URL"
+            elif [ -n "$BRANCH_NAME" ]; then
+              echo "A branch was pushed, but GitHub did not allow this workflow to create the pull request automatically."
+              echo
+              echo "- Branch: $BRANCH_URL"
+              echo "- Create PR: $COMPARE_URL"
+              if [ -n "$PR_ERROR" ]; then
+                echo
+                echo "PR creation error:"
+                echo
+                echo "\`\`\`text"
+                printf "%s\n" "$PR_ERROR"
+                echo "\`\`\`"
+              fi
             else
               echo "No file changes were produced, so no pull request was opened."
             fi
