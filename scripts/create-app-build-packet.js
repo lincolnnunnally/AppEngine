@@ -17,6 +17,7 @@ const successDefinition = input.successDefinition || process.env.APP_SUCCESS_DEF
 const deploymentTarget = input.deploymentTarget || process.env.APP_DEPLOYMENT_TARGET || "Vercel preview first; production only after human approval.";
 const dataPrivacyNotes = input.dataPrivacyNotes || process.env.APP_DATA_PRIVACY_NOTES || "Document ownership, retention, access, and privacy expectations before launch.";
 const mvpStages = input.mvpStages || defaultMvpStages(appName);
+const releaseVersion = input.version || process.env.APP_RELEASE_VERSION || "v1";
 const identityAuth =
   input.identityAuth ||
   buildIdentityAuthPlan({
@@ -65,7 +66,32 @@ const superAdminRegistry =
     userManagement: process.env.APP_USER_MANAGEMENT_URL || "planned",
     billingStatus: process.env.APP_BILLING_STATUS || "not_applicable",
     authProvider: identityAuth.auth.provider,
-    roles: identityAuth.roles.map((role) => role.role)
+    roles: identityAuth.roles.map((role) => role.role),
+    version: releaseVersion
+  });
+const deploymentEnvironment =
+  input.deploymentEnvironment ||
+  buildDeploymentEnvironment({
+    appName,
+    slug,
+    version: releaseVersion,
+    frontendProvider: process.env.APP_FRONTEND_PROVIDER || "Vercel",
+    backendRequired: process.env.APP_BACKEND_REQUIRED === "true",
+    backendProvider: process.env.APP_BACKEND_PROVIDER || (process.env.APP_BACKEND_REQUIRED === "true" ? "Render" : "Vercel Functions"),
+    databaseProvider: process.env.APP_DATABASE_PROVIDER || "Neon",
+    previewUrl: process.env.APP_PREVIEW_URL || "planned",
+    productionUrl: process.env.APP_PRODUCTION_URL || "approval-gated",
+    customDomain: process.env.APP_CUSTOM_DOMAIN || "planned",
+    healthPath: process.env.APP_HEALTH_PATH || `/api/engine/apps/${slug}/health`,
+    logsUrl: process.env.APP_LOGS_URL || "planned"
+  });
+const releaseGate =
+  input.releaseGate ||
+  buildReleaseGate({
+    appName,
+    slug,
+    version: deploymentEnvironment.app.version,
+    deploymentEnvironment
   });
 
 const packet = {
@@ -89,7 +115,9 @@ const packet = {
       dashboard: "AppEngine Super Admin",
       requirements: superAdminRequirements
     },
-    superAdminRegistry
+    superAdminRegistry,
+    deploymentEnvironment,
+    releaseGate
   },
   guardrails: {
     noGiantCodexTask: true,
@@ -101,7 +129,9 @@ const packet = {
       "Keep this app inside its charter.",
       "Create phased follow-up issues instead of one giant Codex task.",
       "Define identity/auth before app build or launch work.",
-      "Register management, monitoring, health, logs, users, billing/status if needed, and admin actions with Super Admin."
+      "Register management, monitoring, health, logs, users, billing/status if needed, and admin actions with Super Admin.",
+      "Define deployment environment and release gates before preview or production launch.",
+      "Launch MVP as v1 and route later improvements to vNext packets or follow-up issues."
     ]
   },
   phases: buildPhases(slug),
@@ -197,9 +227,17 @@ function buildPhases(slug) {
       "Security and maintainability risks are recorded.",
       "App-goal bleeding is checked before merge."
     ]),
+    phase("deployment_environment", "Deployment Environment", "builder", "ai:build", "Define frontend, backend if needed, database, env vars, preview/production URLs, custom domain, logs, health, and rollback.", [
+      "Deployment environment plan includes frontend, backend if needed, database, environment variable names, URLs, logs, health, and rollback notes.",
+      "No secret values are written into the plan."
+    ]),
     phase("deployment", "Deployment", "workflow_tester", "ai:review", "Prepare preview deployment gates and production approval notes.", [
       "Preview deployment target is documented.",
       "Production deploy remains approval-gated."
+    ]),
+    phase("release_gate", "Release Gate", "workflow_tester", "ai:review", "Confirm v1 launch rules, preview deploy, production approval, monitoring, and vNext follow-up path.", [
+      "Preview deploy contract and production approval gate are explicit.",
+      "Post-launch monitoring and vNext follow-up rules are defined."
     ]),
     phase("monitoring", "Monitoring", "monitor", "ai:monitor", "Define health checks, logs, incidents, alerts, and monitor follow-ups.", [
       "Health and logs are visible from Super Admin or linked from it.",
@@ -267,12 +305,33 @@ function toFollowUpTask(packet, phase) {
       `- Roles: ${app.identityAuth.roles.map((role) => role.role).join(", ")}`,
       `- Protected routes: ${app.identityAuth.protectedRoutes.map((route) => route.path).join(", ")}`,
       "",
+      "## Deployment Environment",
+      `- Frontend: ${app.deploymentEnvironment.frontend.provider}`,
+      `- API/backend required: ${app.deploymentEnvironment.apiBackend.required}`,
+      `- API/backend provider: ${app.deploymentEnvironment.apiBackend.provider}`,
+      `- Database: ${app.deploymentEnvironment.database.provider}`,
+      `- Preview URL: ${app.deploymentEnvironment.frontend.previewUrl}`,
+      `- Production URL: ${app.deploymentEnvironment.frontend.productionUrl}`,
+      `- Custom domain/subdomain: ${app.deploymentEnvironment.frontend.customDomain}`,
+      `- Health: ${app.deploymentEnvironment.frontend.healthPath}`,
+      `- Logs: ${app.deploymentEnvironment.frontend.logsUrl}`,
+      `- Env vars: ${app.deploymentEnvironment.environmentVariables.map((item) => item.name).join(", ")}`,
+      "",
+      "## Release Gate",
+      `- Launch version: ${app.releaseGate.versioning.launchVersion}`,
+      `- Future work: ${app.releaseGate.versioning.futureWork}`,
+      "- Preview before production: true",
+      "- Production approval required: true",
+      "- Post-launch monitoring required: true",
+      "",
       "## Guardrails",
       "- Do not turn this phase into a full-app build.",
       "- Do not import unrelated app goals, audiences, data, or features.",
       "- Do not invent auth outside the Identity/Auth Standard.",
       "- Do not skip Super Admin registry planning.",
+      "- Do not include secret values in deployment environment output.",
       "- Keep production deployment approval-gated.",
+      "- Launch MVP as v1 and route later improvements to vNext packets or follow-up issues.",
       "- Create follow-up issues for later phases instead of expanding this task."
     ].join("\n")
   };
@@ -289,7 +348,9 @@ function validatePacket(packet) {
     "mvp_build",
     "testing",
     "review",
+    "deployment_environment",
     "deployment",
+    "release_gate",
     "monitoring",
     "super_admin_registration"
   ];
@@ -303,7 +364,10 @@ function validatePacket(packet) {
     ["app.successDefinition", packet.app.successDefinition],
     ["app.deploymentTarget", packet.app.deploymentTarget],
     ["app.identityAuth.auth.provider", packet.app.identityAuth?.auth?.provider],
-    ["app.superAdminRegistry.status", packet.app.superAdminRegistry?.status]
+    ["app.superAdminRegistry.status", packet.app.superAdminRegistry?.status],
+    ["app.deploymentEnvironment.frontend.provider", packet.app.deploymentEnvironment?.frontend?.provider],
+    ["app.deploymentEnvironment.frontend.previewUrl", packet.app.deploymentEnvironment?.frontend?.previewUrl],
+    ["app.releaseGate.versioning.launchVersion", packet.app.releaseGate?.versioning?.launchVersion]
   ]) {
     if (!value) missingFields.push(label);
   }
@@ -315,7 +379,9 @@ function validatePacket(packet) {
     ["app.superAdminIntegration.requirements", packet.app.superAdminIntegration.requirements],
     ["app.identityAuth.roles", packet.app.identityAuth?.roles],
     ["app.identityAuth.protectedRoutes", packet.app.identityAuth?.protectedRoutes],
-    ["app.superAdminRegistry.superAdminActions", packet.app.superAdminRegistry?.superAdminActions]
+    ["app.superAdminRegistry.superAdminActions", packet.app.superAdminRegistry?.superAdminActions],
+    ["app.deploymentEnvironment.environmentVariables", packet.app.deploymentEnvironment?.environmentVariables],
+    ["app.releaseGate.gates", packet.app.releaseGate?.gates]
   ]) {
     if (!Array.isArray(value) || value.length === 0) missingFields.push(label);
   }
@@ -344,6 +410,14 @@ function validatePacket(packet) {
 
   if (!packet.app.superAdminRegistry.required || !packet.app.superAdminRegistry.guardrails.requiresIdentityAuthPlan) {
     throw new Error("App Build Packet must require a Super Admin registry entry connected to Identity/Auth.");
+  }
+
+  if (!packet.app.deploymentEnvironment.guardrails.previewBeforeProduction || !packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate) {
+    throw new Error("App Build Packet must require a Deployment Environment plan with preview-before-production guardrails.");
+  }
+
+  if (!packet.app.releaseGate.guardrails.previewBeforeProduction || !packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction) {
+    throw new Error("App Build Packet must require a Release Gate with owner approval before production.");
   }
 }
 
@@ -450,7 +524,8 @@ function buildSuperAdminRegistry({
   userManagement,
   billingStatus,
   authProvider,
-  roles
+  roles,
+  version
 }) {
   return {
     kind: "super_admin_registry_entry",
@@ -466,6 +541,11 @@ function buildSuperAdminRegistry({
       charterPath,
       packetPath: "source-of-truth/app-build-packet.md",
       environment
+    },
+    release: {
+      version,
+      gateStatus: "preview_pending",
+      productionApproval: "required"
     },
     deployment: {
       provider: deploymentProvider,
@@ -493,6 +573,152 @@ function buildSuperAdminRegistry({
       requiresReleaseGateForProduction: true
     }
   };
+}
+
+function buildDeploymentEnvironment({
+  appName,
+  slug,
+  version,
+  frontendProvider,
+  backendRequired,
+  backendProvider,
+  databaseProvider,
+  previewUrl,
+  productionUrl,
+  customDomain,
+  healthPath,
+  logsUrl
+}) {
+  return {
+    kind: "deployment_environment_plan",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug,
+      version
+    },
+    frontend: {
+      provider: frontendProvider,
+      previewUrl,
+      productionUrl,
+      customDomain,
+      logsUrl,
+      healthPath
+    },
+    apiBackend: {
+      required: backendRequired,
+      provider: backendProvider,
+      previewUrl: backendRequired ? "planned" : "not_applicable",
+      healthPath,
+      logsUrl: backendRequired ? "planned" : "not_applicable"
+    },
+    database: {
+      provider: databaseProvider,
+      strategy: "generated-app branch or app-scoped database",
+      migrationPath: "planned",
+      seedPath: "planned",
+      rollbackNotes: "Record migration rollback or restore point before production."
+    },
+    environmentVariables: defaultEnvironmentVariables({ backendRequired }),
+    rollback: {
+      preview: "Close or update the preview PR and rerun checks.",
+      production: "Revert to the last approved release and apply documented data rollback if needed."
+    },
+    guardrails: {
+      previewBeforeProduction: true,
+      productionRequiresReleaseGate: true,
+      noSecretsInOutput: true,
+      rollbackNotesRequired: true
+    }
+  };
+}
+
+function defaultEnvironmentVariables({ backendRequired }) {
+  const variables = [
+    variable("DATABASE_URL", "database", "Vercel/Render server env", true, true, "Database connection string."),
+    variable("AUTH_SECRET", "server", "Vercel/Render server env", true, true, "Auth session secret."),
+    variable("AUTH_URL", "server", "Vercel/Render server env", true, false, "Canonical app URL for auth callbacks."),
+    variable("APP_ENGINE_OWNER_EMAIL", "server", "Vercel/Render server env", true, false, "Owner/admin bootstrap email."),
+    variable("NEXT_PUBLIC_APP_URL", "frontend_public", "Vercel preview/production env", false, false, "Browser-visible app URL.")
+  ];
+
+  if (backendRequired) {
+    variables.push(
+      variable("RENDER_SERVICE_URL", "server", "Vercel server env", true, false, "API backend base URL."),
+      variable("RENDER_API_KEY", "provider", "GitHub Actions or secure deployment env", false, true, "Render automation token when automation is approved.")
+    );
+  }
+
+  return variables;
+}
+
+function variable(name, scope, target, required, secret, purpose) {
+  return {
+    name,
+    scope,
+    target,
+    required,
+    secret,
+    purpose
+  };
+}
+
+function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
+  return {
+    kind: "release_gate_plan",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug,
+      version,
+      targetStatus: "preview"
+    },
+    versioning: {
+      launchVersion: version,
+      futureWork: "vNext packets or follow-up issues after v1 launch"
+    },
+    gates: [
+      gate("app_build_packet", "required", "app_build_packet"),
+      gate("identity_auth", "required", "identity_auth_plan"),
+      gate("super_admin_registry", "required", "super_admin_registry_entry"),
+      gate("deployment_environment", "required", "deployment_environment_plan"),
+      gate("preview_deploy", "required", deploymentEnvironment.frontend.previewUrl),
+      gate("preview_health_logs", "required", "health checks and logs"),
+      gate("production_approval", "blocked_until_owner_approval", "owner approval comment or release issue"),
+      gate("v1_launch", "blocked_until_release_gate_passes", version),
+      gate("post_launch_monitoring", "required", "ai:monitor follow-up")
+    ],
+    automationContracts: {
+      previewDeploy: {
+        recommendedLabel: "ai:review",
+        deploysProduction: false,
+        updatesSuperAdminStatus: "preview"
+      },
+      productionApproval: {
+        recommendedLabel: "ai:review",
+        requiresHumanApproval: true,
+        deploysProduction: false
+      },
+      postLaunchMonitoring: {
+        recommendedLabel: "ai:monitor",
+        checks: ["health", "logs", "user workflow", "admin workflow"]
+      },
+      superAdminStatusUpdate: {
+        statuses: ["planned", "building", "preview", "production", "paused", "retired"]
+      }
+    },
+    guardrails: {
+      previewBeforeProduction: true,
+      ownerApprovalBeforeProduction: true,
+      postLaunchMonitoringRequired: true,
+      vNextAfterV1: true,
+      noSecretsInOutput: true
+    }
+  };
+}
+
+function gate(id, status, evidence) {
+  return { id, status, evidence };
 }
 
 function writeJson(filePath, value) {

@@ -11,6 +11,8 @@ These rules apply to ChatGPT, Codex, GitHub Actions, future agents, and monitori
 - Load the App Build Packet when the task is a new app, major rebuild, generated-app foundation, or complex multi-phase feature.
 - Load the Identity/Auth Standard when the task touches generated apps, app users, permissions, admin access, launch readiness, or deployment.
 - Load the Super Admin Registry Standard when the task touches generated apps, app operations, launch readiness, monitoring, or deployment.
+- Load the Deployment Environment Standard when the task touches generated apps, environment variables, preview URLs, production URLs, domains, logs, health checks, rollback, or deployment.
+- Load the Release Gate Standard when the task touches generated apps, preview, production approval, launch readiness, monitoring, v1, v2, or vNext work.
 - Load the issue, pull request, or active task.
 - Run the Context Gate.
 
@@ -25,6 +27,8 @@ Stop and reconcile before editing when:
 - A new app or complex build is being treated as one giant Codex task instead of an App Build Packet with phased follow-up issues.
 - A generated app has no Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates.
 - A generated app has no Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and admin actions.
+- A generated app has no Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain/subdomain, logs, health checks, and rollback notes.
+- A generated app has no Release Gate with preview deploy, production approval, post-launch monitoring, Super Admin status update, and v1/vNext rules.
 - The task skips required Super Admin management, monitoring, health, logs, users, billing/status if needed, or admin-action planning for a generated app.
 - The task imports goals from another app without a documented connection.
 - The task depends only on chat memory and has no GitHub issue, doc, or repo file.
@@ -37,7 +41,7 @@ When structured `followUpTasks` are present in agent output, AppEngine may creat
 
 ## App Build Packets
 
-Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, and phase follow-up tasks. Do not collapse discovery, architecture, data model, identity/auth, UI/design, build, testing, review, deployment, monitoring, and Super Admin registration into one task.
+Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, Deployment Environment plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, data model, identity/auth, UI/design, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
 
 ## Monitoring
 

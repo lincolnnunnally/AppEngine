@@ -20,7 +20,9 @@ const requiredPhaseIds = [
   "mvp_build",
   "testing",
   "review",
+  "deployment_environment",
   "deployment",
+  "release_gate",
   "monitoring",
   "super_admin_registration"
 ];
@@ -58,7 +60,17 @@ runStep("packet creation", () => {
   assertEqual(packet.app.superAdminRegistry.required, true, "packet requires Super Admin registry");
   assertEqual(packet.app.superAdminRegistry.kind, "super_admin_registry_entry", "packet embeds registry artifact");
   assertEqual(packet.app.superAdminRegistry.status, "planned", "packet registry status");
+  assertEqual(packet.app.superAdminRegistry.release.version, "v1", "packet registry release version");
   assertArrayIncludes(packet.app.superAdminRegistry.superAdminActions, "view logs", "packet registry logs action");
+  assertEqual(packet.app.deploymentEnvironment.kind, "deployment_environment_plan", "packet embeds deployment environment artifact");
+  assertEqual(packet.app.deploymentEnvironment.frontend.provider, "Vercel", "packet frontend provider");
+  assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL is gated");
+  assertArrayIncludes(packet.app.deploymentEnvironment.environmentVariables.map((item) => item.name), "DATABASE_URL", "packet database env var");
+  assertEqual(packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate, true, "packet production requires release gate");
+  assertEqual(packet.app.releaseGate.kind, "release_gate_plan", "packet embeds release gate artifact");
+  assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet launch version");
+  assertEqual(packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction, true, "packet owner approval guardrail");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "production_approval", "packet production approval gate");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "management", "Super Admin management requirement");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "monitoring", "Super Admin monitoring requirement");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "health", "Super Admin health requirement");
@@ -124,8 +136,11 @@ runStep("phased follow-up dry run", () => {
   assertIncludes(dryRun.issues[0].body, "App Build Packet", "dry-run issue includes packet context");
   assertIncludes(dryRun.issues[0].body, "Identity/Auth", "dry-run issue includes identity/auth requirements");
   assertIncludes(dryRun.issues[0].body, "Super Admin", "dry-run issue includes Super Admin requirements");
+  assertIncludes(dryRun.issues[0].body, "Deployment Environment", "dry-run issue includes deployment environment requirements");
+  assertIncludes(dryRun.issues[0].body, "Release Gate", "dry-run issue includes release gate requirements");
   assertIncludes(dryRun.issues[0].body, "Do not turn this phase into a full-app build.", "dry-run issue includes phase guardrail");
   assertIncludes(dryRun.issues[0].body, "Do not invent auth outside the Identity/Auth Standard.", "dry-run issue includes auth guardrail");
+  assertIncludes(dryRun.issues[0].body, "Launch MVP as v1", "dry-run issue includes v1 guardrail");
   assertIncludes(dryRun.issues[0].body, "Source issue: #999", "dry-run issue includes source issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:build", "dry-run issues include build label");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:review", "dry-run issues include review label");
