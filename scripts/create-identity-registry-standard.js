@@ -13,6 +13,7 @@ const slug = input.slug || process.env.APP_SLUG || slugify(appName);
 const repo = input.repo || process.env.APP_REPOSITORY || process.env.GITHUB_REPOSITORY || "lincolnnunnally/AppEngine";
 const charterPath = input.charterPath || process.env.APP_CHARTER_PATH || `source-of-truth/charters/${slug}.md`;
 const owner = input.owner || process.env.APP_REGISTRY_OWNER || "APP_ENGINE_OWNER_EMAIL";
+const version = input.version || process.env.APP_RELEASE_VERSION || "v1";
 const provider = input.authProvider || process.env.APP_AUTH_PROVIDER || "Auth.js";
 const roles = input.roles || listFromEnv("APP_AUTH_ROLES", ["owner", "admin", "customer"]);
 const protectedRoutes =
@@ -57,7 +58,8 @@ const superAdminRegistryEntry =
     userManagement: input.userManagement || process.env.APP_USER_MANAGEMENT_URL || "planned",
     billingStatus: input.billingStatus || process.env.APP_BILLING_STATUS || "not_applicable",
     authProvider: identityAuthPlan.auth.provider,
-    roles: identityAuthPlan.roles.map((role) => role.role)
+    roles: identityAuthPlan.roles.map((role) => role.role),
+    version
   });
 
 const followUpTasks = buildFollowUpTasks({ appName, slug, identityAuthPlan, superAdminRegistryEntry });
@@ -210,7 +212,8 @@ function buildSuperAdminRegistry({
   userManagement,
   billingStatus,
   authProvider,
-  roles
+  roles,
+  version
 }) {
   return {
     kind: "super_admin_registry_entry",
@@ -224,6 +227,11 @@ function buildSuperAdminRegistry({
       charterPath,
       packetPath: "source-of-truth/app-build-packet.md",
       environment
+    },
+    release: {
+      version,
+      gateStatus: "preview_pending",
+      productionApproval: "required"
     },
     deployment: {
       provider: deploymentProvider,
@@ -358,6 +366,8 @@ function validateSuperAdminRegistry(entry) {
     ["app.status", entry.app?.status],
     ["app.owner", entry.app?.owner],
     ["app.repo", entry.app?.repo],
+    ["release.version", entry.release?.version],
+    ["release.gateStatus", entry.release?.gateStatus],
     ["deployment.provider", entry.deployment?.provider],
     ["operations.healthUrl", entry.operations?.healthUrl],
     ["operations.logsUrl", entry.operations?.logsUrl],

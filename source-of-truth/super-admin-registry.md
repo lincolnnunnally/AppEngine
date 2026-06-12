@@ -26,6 +26,7 @@ Each app must register or plan a registry entry with:
 - Billing/status link when billing exists
 - Allowed Super Admin actions
 - Identity/auth provider and roles
+- Release version and release-gate status
 - Last reviewed marker
 
 ## Lifecycle Status
@@ -41,6 +42,8 @@ Use one of these statuses:
 - `retired`
 
 Agents must not mark an app `production` unless a release gate says production approval happened.
+
+Super Admin status updates should be driven by the Release Gate automation contract whenever an app moves to `preview`, `production`, `paused`, or `retired`.
 
 ## Required Super Admin Actions
 
@@ -90,6 +93,11 @@ Agents should produce registry artifacts with this shape:
     "charterPath": "source-of-truth/charters/app-slug.md",
     "packetPath": "source-of-truth/app-build-packet.md",
     "environment": "preview"
+  },
+  "release": {
+    "version": "v1",
+    "gateStatus": "preview_pending",
+    "productionApproval": "required"
   },
   "deployment": {
     "provider": "Vercel",

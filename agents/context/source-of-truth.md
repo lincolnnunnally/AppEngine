@@ -38,5 +38,7 @@ Every agent workflow must load:
 - App Build Packet when planning or building a new app, generated app, major rebuild, or complex multi-phase workflow
 - Identity/Auth Standard when planning, building, reviewing, or launching a generated app
 - Super Admin Registry Standard when planning, building, reviewing, monitoring, or launching a generated app
+- Deployment Environment Standard when planning, building, reviewing, deploying, or launching a generated app
+- Release Gate Standard when moving a generated app from build to preview, production, monitoring, or vNext work
 - Current Context
 - Active Task

@@ -34,6 +34,8 @@ source-of-truth/agent-enforcement.md
 source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
+source-of-truth/deployment-environment-standard.md
+source-of-truth/release-gate-standard.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
@@ -77,6 +79,8 @@ The packet defines:
 - Identity/Auth plan
 - Super Admin integration requirements
 - Super Admin registry entry
+- Deployment Environment plan
+- Release Gate plan
 - phased work plan
 - app-goal bleed guardrails
 - issue-ready follow-up tasks
@@ -93,7 +97,9 @@ ui_design
 mvp_build
 testing
 review
+deployment_environment
 deployment
+release_gate
 monitoring
 super_admin_registration
 ```
@@ -103,6 +109,10 @@ Generated apps must register or plan registration with the central AppEngine Sup
 Generated apps must also define an Identity/Auth plan before build work begins. The required plan covers provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
 
 Super Admin registry entries must declare the app lifecycle status, owner, repo, deployment, health, logs, admin path, user-management status, billing/status if needed, and allowed admin actions.
+
+Deployment Environment plans must declare Vercel frontend settings, Render/API backend settings when needed, database provider, environment variable names without values, preview URL, production URL or approval gate, custom domain/subdomain, logs, health checks, and rollback notes.
+
+Release Gates move apps out of endless build mode. The first public MVP launch is `v1`; later improvements become `vNext`, `v2`, or focused follow-up issues. Production requires preview evidence, owner approval, rollback notes, post-launch monitoring, and Super Admin status update.
 
 Local packet verification:
 
@@ -114,6 +124,12 @@ Local identity/registry verification:
 
 ```bash
 npm run smoke:identity-registry
+```
+
+Local deployment/release verification:
+
+```bash
+npm run smoke:release-gate
 ```
 
 ## GitHub Trigger Path
@@ -180,6 +196,8 @@ Every agent workflow must load:
 - Global Principles
 - Life Produces Life product doctrine
 - App Charter
+- App Build Packet when the work is a generated app, major rebuild, or complex multi-phase workflow
+- Identity/Auth, Super Admin Registry, Deployment Environment, and Release Gate standards when the work moves toward launch
 - Current Context
 - Active Task
 
@@ -213,6 +231,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-app-build-packet.js` creates an App Build Packet and phase-ready follow-up tasks for new or complex app work.
 
 `scripts/create-identity-registry-standard.js` creates an Identity/Auth plan, Super Admin registry entry, and focused follow-up tasks.
+
+`scripts/create-release-gate-standard.js` creates a Deployment Environment plan, Release Gate, and focused preview/release/monitor follow-up tasks.
 
 `scripts/monitor-ai-issues.js` scans open AI-labeled issues and records a monitor report.
 

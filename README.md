@@ -11,6 +11,8 @@ It is designed for:
 - page and API-level authorization guards
 - generated-app Identity/Auth standard
 - generated-app Super Admin registry standard
+- generated-app Deployment Environment standard
+- generated-app Release Gate standard
 - reusable app templates
 - shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
 - typed agent artifacts for routes, APIs, roles, tables, workflows, QA checks, and deployment gates
@@ -149,6 +151,27 @@ Verify the local generator and follow-up issue handoff with:
 npm run smoke:identity-registry
 ```
 
+Generated apps must also define a Deployment Environment plan and Release Gate before moving from build mode to launch mode:
+
+```text
+source-of-truth/deployment-environment-standard.md
+source-of-truth/release-gate-standard.md
+```
+
+The release path is:
+
+```text
+idea -> packet -> identity/auth -> registry -> environment -> release gate -> monitored launch
+```
+
+The first useful public launch is `v1`. Later improvements become `vNext`, `v2`, or focused follow-up issues instead of endlessly expanding the MVP.
+
+Verify the release generator and no-production-deploy follow-up handoff with:
+
+```bash
+npm run smoke:release-gate
+```
+
 ## Generated App Databases
 
 The engine can prepare databases for generated apps in two ways:
@@ -272,6 +295,10 @@ source-of-truth/life-produces-life.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
 source-of-truth/app-build-packet.md
+source-of-truth/identity-auth-standard.md
+source-of-truth/super-admin-registry.md
+source-of-truth/deployment-environment-standard.md
+source-of-truth/release-gate-standard.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
@@ -280,11 +307,12 @@ agents/context/security-rules.md
 agents/context/output-contracts.md
 ```
 
-For new generated apps or complicated app builds, create an App Build Packet before implementation. The packet defines the app charter, boundaries, audience, success definition, MVP stages, deployment target, Super Admin integration requirements, and phased follow-up issues.
+For new generated apps or complicated app builds, create an App Build Packet before implementation. The packet defines the app charter, boundaries, audience, success definition, MVP stages, identity/auth, Super Admin registry, deployment environment, release gate, deployment target, and phased follow-up issues.
 
 ```bash
 npm run packet:create
 npm run smoke:app-build-packet
+npm run smoke:release-gate
 ```
 
 The packet standard lives in:

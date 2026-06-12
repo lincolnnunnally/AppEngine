@@ -30,6 +30,7 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - Current phase:
 - MVP stages:
 - Deployment target:
+- Release version:
 
 ## Identity/Auth
 
@@ -53,6 +54,28 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - Admin actions:
 - Registry status:
 - Registry entry path or source:
+
+## Deployment Environment
+
+- Frontend provider:
+- API/backend provider if needed:
+- Database provider:
+- Environment variables needed:
+- Preview URL:
+- Production URL:
+- Custom domain/subdomain:
+- Logs:
+- Health checks:
+- Rollback notes:
+
+## Release Gate
+
+- Launch version:
+- Preview deploy contract:
+- Production approval:
+- Post-launch monitoring:
+- Super Admin status update:
+- vNext/follow-up rules:
 
 ## Boundaries And Related Apps
 

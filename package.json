@@ -12,10 +12,12 @@
     "prompt:make": "node scripts/make-codex-prompt.js",
     "packet:create": "node scripts/create-app-build-packet.js",
     "identity:registry": "node scripts/create-identity-registry-standard.js",
+    "release:gate": "node scripts/create-release-gate-standard.js",
     "orchestration:plan": "node scripts/make-orchestration-plan.js",
     "orchestration:followups": "node scripts/create-follow-up-issues.js",
     "smoke:app-build-packet": "node scripts/smoke-app-build-packet.js",
     "smoke:identity-registry": "node scripts/smoke-identity-registry.js",
+    "smoke:release-gate": "node scripts/smoke-release-gate.js",
     "smoke:planner-loop": "node scripts/smoke-planner-loop.js",
     "monitor:issues": "node scripts/monitor-ai-issues.js",
     "source:check": "node scripts/check-source-of-truth.js"

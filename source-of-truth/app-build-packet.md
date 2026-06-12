@@ -21,6 +21,8 @@ Each packet must define:
 - Identity/Auth plan
 - Super Admin integration requirements
 - Super Admin registry entry or planned entry
+- Deployment Environment plan
+- Release Gate plan
 - Phase plan with follow-up labels
 - Guardrails that prevent app-goal bleeding
 
@@ -39,7 +41,9 @@ Complicated apps must be split into these phases. Agents may add subphases, but 
 | mvp_build | Build the smallest useful version without absorbing later phases. | ai:build |
 | testing | Verify workflows, acceptance criteria, permissions, and edge cases. | ai:review |
 | review | Review code, security, maintainability, scope, and app-boundary risks. | ai:review |
+| deployment_environment | Define frontend, backend if needed, database, env vars, preview/production URLs, custom domain, logs, health, and rollback. | ai:build |
 | deployment | Prepare preview deployment gates and deployment notes. Do not deploy production without approval. | ai:review |
+| release_gate | Confirm v1 launch rules, preview deploy, production approval, monitoring, and vNext follow-up path. | ai:review |
 | monitoring | Define health checks, logs, incidents, alerts, and follow-up monitoring. | ai:monitor |
 | super_admin_registration | Register the app with AppEngine Super Admin surfaces. | ai:build |
 
@@ -71,6 +75,18 @@ Every generated app must include a Super Admin registry entry or planned entry. 
 
 Use `source-of-truth/super-admin-registry.md` for the required shape.
 
+## Deployment Environment Requirement
+
+Every generated app must include a Deployment Environment plan before preview or production release work. The packet must state frontend provider, backend/API provider if needed, database provider, environment variable names and scopes, preview URL, production URL or approval-gated status, custom domain/subdomain plan, logs, health checks, and rollback notes.
+
+Use `source-of-truth/deployment-environment-standard.md` for the required shape.
+
+## Release Gate Requirement
+
+Every generated app must include a Release Gate before it leaves build mode. The packet must state the v1 launch path, vNext/follow-up rules, preview deploy contract, production approval requirement, post-launch monitoring, and Super Admin status update contract.
+
+Use `source-of-truth/release-gate-standard.md` for the required shape.
+
 ## Guardrails
 
 Packets must enforce:
@@ -82,6 +98,7 @@ Packets must enforce:
 - Do not deploy directly to production from an agent workflow.
 - Do not expose secrets, private data, API keys, tokens, or credentials.
 - Do not merge phases just because a model can generate more code.
+- Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
 
 ## Machine Shape
 
@@ -147,6 +164,11 @@ Agents should produce packet artifacts with this shape:
         "repo": "owner/repo",
         "environment": "preview"
       },
+      "release": {
+        "version": "v1",
+        "gateStatus": "preview_pending",
+        "productionApproval": "required"
+      },
       "deployment": {
         "provider": "Vercel",
         "previewUrl": "planned",
@@ -157,6 +179,41 @@ Agents should produce packet artifacts with this shape:
         "logsUrl": "planned",
         "adminUrl": "/admin",
         "billingStatus": "not_applicable"
+      }
+    },
+    "deploymentEnvironment": {
+      "kind": "deployment_environment_plan",
+      "schemaVersion": 1,
+      "app": {
+        "version": "v1"
+      },
+      "frontend": {
+        "provider": "Vercel",
+        "previewUrl": "planned",
+        "productionUrl": "approval-gated",
+        "customDomain": "planned",
+        "logsUrl": "planned",
+        "healthPath": "/api/health"
+      },
+      "apiBackend": {
+        "required": false,
+        "provider": "Vercel Functions or Render"
+      },
+      "database": {
+        "provider": "Neon",
+        "strategy": "generated-app branch or app-scoped database"
+      }
+    },
+    "releaseGate": {
+      "kind": "release_gate_plan",
+      "schemaVersion": 1,
+      "app": {
+        "version": "v1",
+        "targetStatus": "preview"
+      },
+      "versioning": {
+        "launchVersion": "v1",
+        "futureWork": "vNext packets or follow-up issues after v1 launch"
       }
     }
   },
@@ -216,6 +273,28 @@ Use this outline when creating a new app packet:
 - Preview:
 - Production:
 - Production approval required:
+- Custom domain/subdomain:
+- Rollback notes:
+
+## Deployment Environment
+- Frontend provider:
+- API/backend provider if needed:
+- Database provider:
+- Environment variables needed:
+- Preview URL:
+- Production URL:
+- Custom domain/subdomain:
+- Logs:
+- Health checks:
+- Rollback notes:
+
+## Release Gate
+- Launch version:
+- Preview deploy contract:
+- Production approval:
+- Post-launch monitoring:
+- Super Admin status update:
+- vNext/follow-up rules:
 
 ## Super Admin Integration
 - Management:
@@ -248,7 +327,9 @@ Use this outline when creating a new app packet:
 - mvp_build:
 - testing:
 - review:
+- deployment_environment:
 - deployment:
+- release_gate:
 - monitoring:
 - super_admin_registration:
 

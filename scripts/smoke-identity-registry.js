@@ -54,6 +54,8 @@ runStep("identity and registry creation", () => {
   assertEqual(registry.app.status, "planned", "registry status");
   assertEqual(registry.deployment.provider, "Vercel", "registry deployment provider");
   assertEqual(registry.deployment.productionApprovalRequired, true, "registry production approval gate");
+  assertEqual(registry.release.version, "v1", "registry release version");
+  assertEqual(registry.release.productionApproval, "required", "registry release approval");
   assertEqual(registry.operations.healthUrl, "/api/engine/apps/kind-help-desk/health", "registry health URL");
   assertEqual(registry.operations.adminUrl, "/admin/apps/kind-help-desk", "registry admin URL");
   assertArrayIncludes(registry.auth.roles, "coordinator", "registry custom role");
