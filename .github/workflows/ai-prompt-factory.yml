@@ -147,6 +147,7 @@ jobs:
           sandbox: workspace-write
           safety-strategy: drop-sudo
           codex-args: '["--ephemeral"]'
+          allow-bot-users: github-actions[bot]
 
       - name: Create patch artifact
         id: diff
