@@ -2,7 +2,7 @@ name: AI Prompt Factory
 
 on:
   issues:
-    types: [opened, edited, labeled, reopened]
+    types: [edited, labeled, reopened]
   workflow_dispatch:
     inputs:
       mode:
@@ -73,7 +73,7 @@ jobs:
           AGENT_MODE: ${{ steps.mode.outputs.mode }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           ISSUE_LABELS_JSON: ${{ toJson(github.event.issue.labels.*.name) }}
-          PLAN_OUTPUT: ${{ runner.temp }}/agent-run/orchestration-plan.json
+          PLAN_OUTPUT: agent-run/orchestration-plan.json
           TASK_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', steps.mode.outputs.mode) }}
           TASK_URL: ${{ github.event.issue.html_url || github.server_url }}
@@ -84,45 +84,57 @@ jobs:
         env:
           AGENT_MODE: ${{ steps.mode.outputs.mode }}
           GITHUB_LABEL: ${{ steps.mode.outputs.trigger_label }}
-          PROMPT_OUTPUT: ${{ runner.temp }}/agent-run/generated-codex-prompt.md
+          PROMPT_OUTPUT: agent-run/generated-codex-prompt.md
           TASK_BODY: ${{ github.event.issue.body || inputs.task }}
           TASK_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', steps.mode.outputs.mode) }}
           TASK_URL: ${{ github.event.issue.html_url || github.server_url }}
         run: node scripts/make-codex-prompt.js
 
+      - name: Validate OpenAI API key secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY GitHub secret is not configured for this repository."
+            exit 1
+          fi
+
+      - name: Prepare Codex workspace
+        run: |
+          mkdir -p agent-run
+          chmod -R u+rwX,g+rwX "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+
       - name: Run Codex
         id: run_codex
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: ${{ runner.temp }}/agent-run/generated-codex-prompt.md
-          output-file: ${{ runner.temp }}/agent-run/codex-output.md
+          prompt-file: agent-run/generated-codex-prompt.md
+          output-file: agent-run/codex-output.md
           sandbox: workspace-write
           safety-strategy: drop-sudo
           codex-args: '["--ephemeral"]'
 
       - name: Create patch artifact
         id: diff
+        if: ${{ always() }}
         run: |
           git add -N .
-          git diff --binary HEAD > "$RUNNER_TEMP/agent-run/codex.patch"
+          git diff --binary HEAD > agent-run/codex.patch
 
-          if [ -s "$RUNNER_TEMP/agent-run/codex.patch" ]; then
+          if [ -s agent-run/codex.patch ]; then
             echo "has_patch=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_patch=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload Codex artifacts
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: agent-run
-          path: |
-            ${{ runner.temp }}/agent-run/orchestration-plan.json
-            ${{ runner.temp }}/agent-run/generated-codex-prompt.md
-            ${{ runner.temp }}/agent-run/codex-output.md
-            ${{ runner.temp }}/agent-run/codex.patch
+          path: agent-run
           if-no-files-found: warn
 
   publish:
@@ -241,3 +253,42 @@ jobs:
           SOURCE_ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
           SOURCE_ISSUE_URL: ${{ github.event.issue.html_url }}
         run: node scripts/create-follow-up-issues.js
+
+  report_failure:
+    needs: codex
+    if: ${{ always() && needs.codex.result == 'failure' && needs.codex.outputs.issue_number != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: agent-run
+          path: agent-run
+
+      - name: Comment on source issue when Codex fails
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
+          MODE: ${{ needs.codex.outputs.mode }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "AI prompt factory failed for \`$MODE\`."
+            echo
+            echo "Workflow run: $RUN_URL"
+            echo
+            echo "The trigger worked, but the Codex job did not complete. Check the workflow run for the exact failing step."
+            echo
+            if [ -f agent-run/codex-output.md ]; then
+              echo "## Codex output"
+              echo
+              head -c 12000 agent-run/codex-output.md
+            else
+              echo "No Codex output file was captured before the failure."
+            fi
+          } > issue-comment.md
+
+          gh issue comment "$ISSUE_NUMBER" --body-file issue-comment.md

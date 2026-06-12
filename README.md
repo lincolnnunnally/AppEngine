@@ -288,7 +288,7 @@ ai:monitor
 
 The workflow generates a prompt from the issue, runs the Codex GitHub Action, captures Codex changes as a patch, opens a pull request when files changed, and comments the result back on the issue. It does not deploy. Keep `OPENAI_API_KEY` configured as a GitHub secret; do not expose it as a job-level environment variable.
 
-The workflow now listens for issues that are opened, edited, reopened, or labeled. That lets ChatGPT create a labeled issue and have AppEngine pick it up without Lincoln re-labeling it manually.
+The workflow listens for issues that are labeled, edited, or reopened. Creating an issue with an `ai:*` label triggers the label event immediately, while avoiding a duplicate opened-and-labeled run. If Codex fails, the workflow comments back on the issue with the failed run link.
 
 Useful orchestration commands:
 

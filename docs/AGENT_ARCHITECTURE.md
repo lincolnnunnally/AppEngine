@@ -64,7 +64,7 @@ The orchestrator can reroute follow-up work by returning issue-ready tasks with 
 
 ## GitHub Trigger Path
 
-The prompt factory workflow listens for `opened`, `edited`, `reopened`, and `labeled` issue events. This matters because ChatGPT may create a GitHub issue with labels already attached; the system should not require Lincoln to remove and re-add a label.
+The prompt factory workflow listens for `labeled`, `edited`, and `reopened` issue events. This matters because ChatGPT may create a GitHub issue with labels already attached, and the label event is the immediate trigger. Avoiding the separate `opened` trigger prevents duplicate runs for the same newly labeled issue.
 
 The workflow sequence is:
 
@@ -73,10 +73,11 @@ The workflow sequence is:
 3. Write an `agent-run` artifact containing `orchestration-plan.json`.
 4. Generate a manifest-backed Codex prompt.
 5. Run Codex.
-6. Store prompt, output, plan, and patch in the `agent-run` artifact.
+6. Store prompt, output, plan, and patch in the `agent-run` artifact, even if Codex fails before publishing.
 7. Open a pull request if Codex changed files.
 8. Comment the result on the source issue.
-9. Create follow-up GitHub issues when Codex returns structured `followUpTasks`.
+9. Comment the failure run link on the source issue if Codex exits nonzero.
+10. Create follow-up GitHub issues when Codex returns structured `followUpTasks`.
 
 ## Orchestration Monitor
 
