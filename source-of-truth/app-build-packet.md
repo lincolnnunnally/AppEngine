@@ -4,6 +4,8 @@ The App Build Packet is the required handoff object for any new generated app, m
 
 Every new app must have its own packet before implementation begins.
 
+Natural language requests must pass through the Intake Command Standard and App Selection Standard before an App Build Packet is created. The intake packet should prove that the request is a new app, not an existing-app improvement.
+
 ## Required Packet Fields
 
 Each packet must define:

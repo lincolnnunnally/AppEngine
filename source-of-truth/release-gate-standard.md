@@ -7,7 +7,9 @@ Every generated app must have a route from idea to preview to production to moni
 Use this path for generated apps:
 
 ```text
-idea
+natural request
+-> intake packet
+-> app selection
 -> App Build Packet
 -> Identity/Auth plan
 -> Super Admin registry entry

@@ -8,6 +8,8 @@ These rules apply to ChatGPT, Codex, GitHub Actions, future agents, and monitori
 - Load the manifest.
 - Load shared context files from the manifest.
 - Load the app charter.
+- Load the Intake Command Standard when the task begins as a natural language request, GitHub issue, ChatGPT handoff, or app command.
+- Load the App Selection Standard before deciding whether work is a new app, existing app improvement, ambiguous request, or multi-app request.
 - Load the App Build Packet when the task is a new app, major rebuild, generated-app foundation, or complex multi-phase feature.
 - Load the Identity/Auth Standard when the task touches generated apps, app users, permissions, admin access, launch readiness, or deployment.
 - Load the Super Admin Registry Standard when the task touches generated apps, app operations, launch readiness, monitoring, or deployment.
@@ -29,6 +31,10 @@ Stop and reconcile before editing when:
 - The local branch is stale.
 - The agent cannot find the referenced source-of-truth files.
 - The task contradicts the app charter.
+- A natural language request has no `intake_packet` before planning, building, fixing, or improving an app.
+- The app selection outcome is ambiguous, references "this app" without a durable source, or matches multiple apps without a documented integration reason.
+- A new app request is being implemented before an App Build Packet exists.
+- An existing app request is being implemented before a vNext packet exists.
 - A new app or complex build is being treated as one giant Codex task instead of an App Build Packet with phased follow-up issues.
 - A generated app has no Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates.
 - A generated app has no Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and admin actions.
@@ -55,6 +61,19 @@ When structured `followUpTasks` are present in agent output, AppEngine may creat
 ## App Build Packets
 
 Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
+
+## Intake and App Selection
+
+Use an Intake Packet before converting plain-language requests into AppEngine workflow tasks. The packet must record the raw request, inferred app, request type, confidence, missing context, selected workflow, next issue labels, and guardrails.
+
+Use the App Selection Standard before app work starts:
+
+- New app requests route to an App Build Packet.
+- Existing app requests route to a vNext Packet only after loading charter, Super Admin registry, current version, release history, monitoring state, known issues, and open issues.
+- Ambiguous requests route to clarification.
+- Multi-app requests are split into one scoped issue per app unless the task is explicitly a cross-app integration.
+
+Do not let a natural request become implementation work until intake and app selection have selected the correct packet path.
 
 ## App Improvements
 

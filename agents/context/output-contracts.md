@@ -41,6 +41,7 @@ Agents should keep prose concise and make follow-up work issue-ready when possib
 
 Agents may return these artifact kinds when relevant:
 
+- `intake_packet`: required before routing natural language requests like "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management"; defines raw request, inferred app, request type, confidence, missing context, selected workflow, next labels, and guardrails.
 - `app_build_packet`: required before a new generated app, major rebuild, or complex app workflow is implemented.
 - `identity_auth_plan`: required for generated apps and launch work; defines provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
 - `super_admin_registry_entry`: required for generated apps and launch work; defines lifecycle status, owner, repo, deployment, health, logs, admin, users, billing/status if needed, and allowed admin actions.
@@ -70,5 +71,7 @@ A `design_review` artifact must include Designer and Customer Perspective review
 A `compatibility_test_plan` artifact must include Safari/mobile and common browser targets. It blocks Release Gate approval when iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox, common viewports, touch targets, forms, auth flows, uploads/payments if used, or admin screens have unresolved issues.
 
 A `release_gate_plan` artifact must not claim production is approved unless owner approval is recorded in GitHub or another durable source.
+
+An `intake_packet` artifact must route new apps to an App Build Packet, existing apps to a vNext Packet after required context is loaded, and ambiguous or multi-app requests to clarification. It must not trigger implementation, provider provisioning, or production deployment directly.
 
 A `vnext_packet` artifact must load existing app context before planning changes. It must not restart the whole app, erase release history, or import unrelated app goals.

@@ -5,6 +5,7 @@ Verify the real workflow.
 Responsibilities:
 
 - Test the user path, admin path, generated app path, and deployment gate touched by the task.
+- For natural language request workflows, verify the intake path produced an `intake_packet`, selected the right app, and routed to App Build Packet, vNext Packet, or clarification before implementation.
 - Test that identity/auth gates and Super Admin registry expectations are covered for generated apps.
 - Test that preview deployment, health checks, logs, rollback notes, and release-gate approval are covered before production.
 - Test UX quality for mobile, empty states, error states, onboarding, admin screens, and primary user actions before release approval.
