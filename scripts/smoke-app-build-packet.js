@@ -19,6 +19,7 @@ const requiredPhaseIds = [
   "ui_design",
   "design_quality",
   "ux_review",
+  "compatibility",
   "mvp_build",
   "testing",
   "review",
@@ -76,12 +77,24 @@ runStep("packet creation", () => {
   assertArrayIncludes(packet.app.designReview.stateChecks, "empty states", "packet design empty states");
   assertArrayIncludes(packet.app.designReview.workflowTestChecks, "admin screens", "packet design admin checks");
   assertEqual(packet.app.designReview.guardrails.blocksReleaseGateApproval, true, "packet design blocks release gate");
+  assertEqual(packet.app.compatibilityTestPlan.kind, "compatibility_test_plan", "packet embeds compatibility artifact");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.browserSupport.map((item) => item.id), "iphone_safari", "packet compatibility iPhone Safari");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.browserSupport.map((item) => item.id), "ipad_safari", "packet compatibility iPad Safari");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.browserSupport.map((item) => item.id), "chrome_desktop", "packet compatibility Chrome desktop");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.checks.map((check) => check.id), "touch_targets", "packet compatibility touch targets");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.checks.map((check) => check.id), "forms_validation", "packet compatibility forms");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.checks.map((check) => check.id), "auth_flows", "packet compatibility auth flows");
+  assertArrayIncludes(packet.app.compatibilityTestPlan.checks.map((check) => check.id), "admin_screens", "packet compatibility admin screens");
+  assertEqual(packet.app.compatibilityTestPlan.guardrails.blocksReleaseGateApproval, true, "packet compatibility blocks release gate");
   assertEqual(packet.app.releaseGate.kind, "release_gate_plan", "packet embeds release gate artifact");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet launch version");
   assertEqual(packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction, true, "packet owner approval guardrail");
   assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design quality gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "compatibility", "packet compatibility gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "safari_mobile", "packet Safari mobile gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "common_browsers", "packet common browsers gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "production_approval", "packet production approval gate");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "management", "Super Admin management requirement");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "monitoring", "Super Admin monitoring requirement");
@@ -150,12 +163,14 @@ runStep("phased follow-up dry run", () => {
   assertIncludes(dryRun.issues[0].body, "Super Admin", "dry-run issue includes Super Admin requirements");
   assertIncludes(dryRun.issues[0].body, "Deployment Environment", "dry-run issue includes deployment environment requirements");
   assertIncludes(dryRun.issues[0].body, "Design Quality", "dry-run issue includes design quality requirements");
+  assertIncludes(dryRun.issues[0].body, "Compatibility", "dry-run issue includes compatibility requirements");
   assertIncludes(dryRun.issues[0].body, "Release Gate", "dry-run issue includes release gate requirements");
   assertIncludes(dryRun.issues[0].body, "Do not turn this phase into a full-app build.", "dry-run issue includes phase guardrail");
   assertIncludes(dryRun.issues[0].body, "Do not invent auth outside the Identity/Auth Standard.", "dry-run issue includes auth guardrail");
   assertIncludes(dryRun.issues[0].body, "Launch MVP as v1", "dry-run issue includes v1 guardrail");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: Design Quality", "dry-run creates design quality issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: UX Review", "dry-run creates UX review issue");
+  assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: Compatibility", "dry-run creates compatibility issue");
   assertIncludes(dryRun.issues[0].body, "Source issue: #999", "dry-run issue includes source issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:build", "dry-run issues include build label");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:review", "dry-run issues include review label");

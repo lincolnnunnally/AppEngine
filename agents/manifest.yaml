@@ -28,6 +28,7 @@ shared_context_files:
   - source-of-truth/deployment-environment-standard.md
   - source-of-truth/design-quality-gate.md
   - source-of-truth/ux-review-standard.md
+  - source-of-truth/compatibility-standard.md
   - source-of-truth/release-gate-standard.md
   - source-of-truth/charters/appengine.md
   - agents/context/mission.md
@@ -173,6 +174,7 @@ agents:
       - preview_deploy
     outputs:
       - workflow_test_plan
+      - compatibility_test_plan
       - pass_fail_report
       - broken_paths
       - fix_recommendations

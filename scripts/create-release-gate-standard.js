@@ -25,6 +25,8 @@ const emotionalFit =
   input.emotionalFit ||
   process.env.APP_EMOTIONAL_FIT ||
   "Clear, trustworthy, calm, and fitted to the audience's real-life context.";
+const fileUploadsUsed = booleanFrom(input.fileUploadsUsed, process.env.APP_FILE_UPLOADS_USED, false);
+const paymentsUsed = booleanFrom(input.paymentsUsed, process.env.APP_PAYMENTS_USED, false);
 
 const deploymentEnvironment =
   input.deploymentEnvironment ||
@@ -50,6 +52,14 @@ const designReview =
     audience,
     emotionalFit
   });
+const compatibilityTestPlan =
+  input.compatibilityTestPlan ||
+  buildCompatibilityTestPlan({
+    appName,
+    slug,
+    fileUploadsUsed,
+    paymentsUsed
+  });
 
 const releaseGate =
   input.releaseGate ||
@@ -58,10 +68,11 @@ const releaseGate =
     slug,
     version,
     deploymentEnvironment,
-    designReview
+    designReview,
+    compatibilityTestPlan
   });
 
-const followUpTasks = buildFollowUpTasks({ appName, slug, deploymentEnvironment, releaseGate });
+const followUpTasks = buildFollowUpTasks({ appName, slug, deploymentEnvironment, compatibilityTestPlan, releaseGate });
 const output = {
   agent: "planner",
   status: "needs_follow_up",
@@ -78,6 +89,11 @@ const output = {
       content: designReview
     },
     {
+      kind: "compatibility_test_plan",
+      title: `${appName} Compatibility Test Plan`,
+      content: compatibilityTestPlan
+    },
+    {
       kind: "release_gate_plan",
       title: `${appName} Release Gate Plan`,
       content: releaseGate
@@ -89,6 +105,7 @@ const output = {
 };
 
 validateDeploymentEnvironment(deploymentEnvironment);
+validateCompatibilityTestPlan(compatibilityTestPlan);
 validateReleaseGate(releaseGate);
 
 if (combinedOutput) writeJson(combinedOutput, output);
@@ -261,7 +278,7 @@ function qualityCheck(id, question) {
   };
 }
 
-function buildReleaseGate({ appName, slug, version, deploymentEnvironment, designReview }) {
+function buildReleaseGate({ appName, slug, version, deploymentEnvironment, designReview, compatibilityTestPlan }) {
   return {
     kind: "release_gate_plan",
     schemaVersion: 1,
@@ -284,6 +301,10 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
       gate("designer_review", "required", designReview.reviewers.designerStatus),
       gate("customer_perspective_review", "required", designReview.reviewers.customerPerspectiveStatus),
       gate("ux_state_review", "required", designReview.workflowTestChecks.join(", ")),
+      gate("compatibility", "required", compatibilityTestPlan.kind),
+      gate("safari_mobile", "required", "iPhone Safari, iPad Safari, desktop Safari"),
+      gate("common_browsers", "required", compatibilityTestPlan.browserSupport.map((item) => item.id).join(", ")),
+      gate("touch_forms_auth_admin", "required", "touch targets, forms, auth flows, admin screens"),
       gate("preview_deploy", "required", deploymentEnvironment.frontend.previewUrl),
       gate("preview_health_logs", "required", "health checks and logs"),
       gate("production_approval", "blocked_until_owner_approval", "owner approval comment or release issue"),
@@ -302,6 +323,13 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
         requiresCustomerPerspectiveReview: true,
         blocksReleaseApproval: true
       },
+      compatibilityTesting: {
+        recommendedLabel: "ai:review",
+        requiresSafariMobile: true,
+        requiresCommonBrowsers: true,
+        blocksReleaseApproval: true,
+        checks: compatibilityTestPlan.workflowTestChecks
+      },
       productionApproval: {
         recommendedLabel: "ai:review",
         requiresHumanApproval: true,
@@ -319,6 +347,7 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
       designReviewBeforeRelease: true,
+      compatibilityBeforeRelease: true,
       postLaunchMonitoringRequired: true,
       vNextAfterV1: true,
       noSecretsInOutput: true
@@ -330,7 +359,76 @@ function gate(id, status, evidence) {
   return { id, status, evidence };
 }
 
-function buildFollowUpTasks({ appName, slug, deploymentEnvironment, releaseGate }) {
+function buildCompatibilityTestPlan({ appName, slug, fileUploadsUsed, paymentsUsed }) {
+  return {
+    kind: "compatibility_test_plan",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug
+    },
+    browserSupport: [
+      browserTarget("iphone_safari", "Safari", "iPhone", "390x844", true),
+      browserTarget("ipad_safari", "Safari", "iPad", "768x1024", true),
+      browserTarget("desktop_safari", "Safari", "macOS desktop", "1440x900", true),
+      browserTarget("chrome_mobile", "Chrome", "Android or iOS mobile", "390x844", true),
+      browserTarget("chrome_desktop", "Chrome", "desktop", "1440x900", true),
+      browserTarget("edge_desktop", "Edge", "desktop", "1280x720", false),
+      browserTarget("firefox_desktop", "Firefox", "desktop", "1280x720", false)
+    ],
+    viewports: ["360x640", "390x844", "430x932", "768x1024", "1024x768", "1280x720", "1440x900"],
+    checks: [
+      compatibilityCheck("mobile_first_layout", "Does the main workflow work cleanly at mobile widths?"),
+      compatibilityCheck("responsive_navigation", "Does navigation remain usable across phone, tablet, and desktop?"),
+      compatibilityCheck("touch_targets", "Can the primary workflow be completed comfortably with touch?"),
+      compatibilityCheck("forms_validation", "Can required forms be completed and corrected on mobile and desktop browsers?"),
+      compatibilityCheck("auth_flows", "Do sign-in, sign-out, protected routes, and redirects work across Safari and common browsers?"),
+      compatibilityCheck("file_uploads_if_used", "If the app uses uploads, do uploads work on mobile Safari and desktop browsers?"),
+      compatibilityCheck("payments_if_used", "If the app uses payments, do payment flows work on mobile Safari and common browsers?"),
+      compatibilityCheck("admin_screens", "Can admins use required screens on tablet and desktop without layout or control issues?"),
+      compatibilityCheck("super_admin_status", "Is Super Admin status readable and actionable across common viewports?"),
+      compatibilityCheck("browser_api_fallbacks", "Are browser-specific APIs guarded with practical fallbacks?")
+    ],
+    conditionalChecks: {
+      fileUploadsIfUsed: true,
+      fileUploadsUsed,
+      paymentsIfUsed: true,
+      paymentsUsed
+    },
+    workflowTestChecks: ["iPhone Safari", "iPad Safari", "desktop Safari", "Chrome mobile", "Chrome desktop", "Edge desktop", "Firefox desktop", "touch targets", "forms", "auth flows", "admin screens"],
+    guardrails: {
+      blocksReleaseGateApproval: true,
+      safariMobileRequired: true,
+      commonBrowsersRequired: true,
+      touchTargetsRequired: true,
+      formsRequired: true,
+      authFlowsRequired: true,
+      adminScreensRequired: true,
+      unresolvedCompatibilityIssuesBlockRelease: true
+    }
+  };
+}
+
+function browserTarget(id, browser, platform, viewport, required) {
+  return {
+    id,
+    browser,
+    platform,
+    viewport,
+    required,
+    status: "required"
+  };
+}
+
+function compatibilityCheck(id, question) {
+  return {
+    id,
+    status: "required",
+    question
+  };
+}
+
+function buildFollowUpTasks({ appName, slug, deploymentEnvironment, compatibilityTestPlan, releaseGate }) {
   return [
     {
       title: `[${slug}] Deployment Environment plan`,
@@ -389,6 +487,22 @@ function buildFollowUpTasks({ appName, slug, deploymentEnvironment, releaseGate 
         "## Guardrails",
         "- Block Release Gate approval if the app is technically working but ugly, confusing, inaccessible, or emotionally mismatched.",
         "- Create ai:fix follow-up work for release-blocking UX issues."
+      ].join("\n")
+    },
+    {
+      title: `[${slug}] Compatibility Test Plan`,
+      recommendedLabel: "ai:review",
+      body: [
+        `Run compatibility checks for ${appName} before Release Gate approval.`,
+        "",
+        "## Compatibility",
+        `- Browsers/platforms: ${compatibilityTestPlan.browserSupport.map((item) => `${item.platform} ${item.browser}`).join(", ")}`,
+        `- Viewports: ${compatibilityTestPlan.viewports.join(", ")}`,
+        "- Check mobile-first layout, touch targets, forms, auth flows, file uploads if used, payments if used, admin screens, and Super Admin status.",
+        "",
+        "## Guardrails",
+        "- Block Release Gate approval while Safari, mobile, common browser, form, auth, upload, payment, touch-target, or admin issues remain unresolved.",
+        "- Create ai:fix follow-up work for release-blocking compatibility issues."
       ].join("\n")
     },
     {
@@ -456,6 +570,46 @@ function validateDeploymentEnvironment(plan) {
   if (missing.length) throw new Error(`Deployment Environment plan is missing required fields: ${missing.join(", ")}`);
 }
 
+function validateCompatibilityTestPlan(plan) {
+  const missing = [];
+
+  for (const [label, value] of [
+    ["kind", plan.kind],
+    ["app.name", plan.app?.name],
+    ["app.slug", plan.app?.slug]
+  ]) {
+    if (!value) missing.push(label);
+  }
+
+  for (const [label, value] of [
+    ["browserSupport", plan.browserSupport],
+    ["viewports", plan.viewports],
+    ["checks", plan.checks],
+    ["workflowTestChecks", plan.workflowTestChecks]
+  ]) {
+    if (!Array.isArray(value) || value.length === 0) missing.push(label);
+  }
+
+  for (const id of ["iphone_safari", "ipad_safari", "desktop_safari", "chrome_mobile", "chrome_desktop"]) {
+    if (!plan.browserSupport?.some((item) => item.id === id)) missing.push(`browserSupport.${id}`);
+  }
+
+  for (const id of ["touch_targets", "forms_validation", "auth_flows", "admin_screens"]) {
+    if (!plan.checks?.some((check) => check.id === id)) missing.push(`checks.${id}`);
+  }
+
+  if (
+    !plan.guardrails?.blocksReleaseGateApproval ||
+    !plan.guardrails?.safariMobileRequired ||
+    !plan.guardrails?.commonBrowsersRequired ||
+    !plan.guardrails?.unresolvedCompatibilityIssuesBlockRelease
+  ) {
+    missing.push("guardrails");
+  }
+
+  if (missing.length) throw new Error(`Compatibility test plan is missing required fields: ${missing.join(", ")}`);
+}
+
 function validateReleaseGate(plan) {
   const missing = [];
 
@@ -473,8 +627,11 @@ function validateReleaseGate(plan) {
   if (!Array.isArray(plan.gates) || plan.gates.length === 0) missing.push("gates");
   if (!plan.gates?.some((gate) => gate.id === "design_quality")) missing.push("gates.design_quality");
   if (!plan.gates?.some((gate) => gate.id === "customer_perspective_review")) missing.push("gates.customer_perspective_review");
+  if (!plan.gates?.some((gate) => gate.id === "compatibility")) missing.push("gates.compatibility");
+  if (!plan.gates?.some((gate) => gate.id === "safari_mobile")) missing.push("gates.safari_mobile");
+  if (!plan.gates?.some((gate) => gate.id === "common_browsers")) missing.push("gates.common_browsers");
   if (!plan.gates?.some((gate) => gate.id === "production_approval")) missing.push("gates.production_approval");
-  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.designReview || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
+  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.designReview || !plan.automationContracts?.compatibilityTesting || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
     missing.push("automationContracts");
   }
 
@@ -482,6 +639,7 @@ function validateReleaseGate(plan) {
     !plan.guardrails?.previewBeforeProduction ||
     !plan.guardrails?.ownerApprovalBeforeProduction ||
     !plan.guardrails?.designReviewBeforeRelease ||
+    !plan.guardrails?.compatibilityBeforeRelease ||
     !plan.guardrails?.postLaunchMonitoringRequired
   ) {
     missing.push("guardrails");

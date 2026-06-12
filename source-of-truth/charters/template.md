@@ -73,6 +73,7 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - Launch version:
 - Designer review:
 - Customer Perspective review:
+- Compatibility plan:
 - Preview deploy contract:
 - Production approval:
 - Post-launch monitoring:
@@ -91,6 +92,23 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - Empty states:
 - Error states:
 - Onboarding:
+- Admin screens:
+
+## Compatibility
+
+- iPhone Safari:
+- iPad Safari:
+- Desktop Safari:
+- Chrome mobile:
+- Chrome desktop:
+- Edge desktop:
+- Firefox desktop:
+- Required viewports:
+- Touch targets:
+- Forms and validation:
+- Auth flows:
+- File uploads if used:
+- Payments if used:
 - Admin screens:
 
 ## Boundaries And Related Apps

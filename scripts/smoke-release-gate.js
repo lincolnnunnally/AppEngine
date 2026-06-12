@@ -28,7 +28,9 @@ runStep("packet embeds deployment and release gate", () => {
     APP_PREVIEW_URL: "https://kind-help-desk-preview.vercel.app",
     APP_PRODUCTION_URL: "approval-gated",
     APP_CUSTOM_DOMAIN: "help.example.org",
-    APP_LOGS_URL: "planned"
+    APP_LOGS_URL: "planned",
+    APP_FILE_UPLOADS_USED: "true",
+    APP_PAYMENTS_USED: "true"
   });
 
   const packet = readJson(packetOutput);
@@ -45,8 +47,12 @@ runStep("packet embeds deployment and release gate", () => {
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet v1 version");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "compatibility", "packet compatibility gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "safari_mobile", "packet Safari mobile gate");
   assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
+  assertEqual(packet.app.releaseGate.guardrails.compatibilityBeforeRelease, true, "packet release requires compatibility");
   assertEqual(packet.app.releaseGate.automationContracts.previewDeploy.deploysProduction, false, "preview deploy avoids production");
+  assertEqual(packet.app.releaseGate.automationContracts.compatibilityTesting.blocksReleaseApproval, true, "compatibility blocks release approval");
   assertEqual(packet.app.releaseGate.automationContracts.productionApproval.requiresHumanApproval, true, "production requires approval");
   assertIncludes(deploymentPhase.body, "Env vars", "deployment phase includes env var inventory");
   assertIncludes(deploymentPhase.body, "Do not include secret values", "deployment phase prevents secret values");
@@ -71,7 +77,9 @@ runStep("standalone release generator creates follow-ups", () => {
     APP_PRODUCTION_URL: "approval-gated",
     APP_CUSTOM_DOMAIN: "help.example.org",
     APP_HEALTH_PATH: "/api/health",
-    APP_LOGS_URL: "planned"
+    APP_LOGS_URL: "planned",
+    APP_FILE_UPLOADS_USED: "true",
+    APP_PAYMENTS_USED: "true"
   });
 
   const deployment = readJson(deploymentOutput);
@@ -91,15 +99,22 @@ runStep("standalone release generator creates follow-ups", () => {
   assertArrayIncludes(release.gates.map((gate) => gate.id), "preview_deploy", "release preview gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "design_quality", "release design gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "customer_perspective_review", "release customer perspective gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "compatibility", "release compatibility gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "safari_mobile", "release Safari mobile gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "common_browsers", "release common browsers gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "production_approval", "release production approval gate");
   assertEqual(release.automationContracts.designReview.blocksReleaseApproval, true, "release design review blocks approval");
+  assertEqual(release.automationContracts.compatibilityTesting.blocksReleaseApproval, true, "release compatibility blocks approval");
+  assertEqual(release.automationContracts.compatibilityTesting.requiresSafariMobile, true, "release compatibility requires Safari mobile");
   assertEqual(release.automationContracts.previewDeploy.deploysProduction, false, "release preview does not deploy production");
   assertEqual(release.automationContracts.productionApproval.requiresHumanApproval, true, "release approval requires human");
   assertEqual(release.guardrails.designReviewBeforeRelease, true, "release guardrail requires design review");
+  assertEqual(release.guardrails.compatibilityBeforeRelease, true, "release guardrail requires compatibility");
   assertEqual(release.guardrails.vNextAfterV1, true, "release vNext guardrail");
   assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "design_review", "release output includes design review artifact");
+  assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "compatibility_test_plan", "release output includes compatibility artifact");
 
-  assertEqual(combined.followUpTasks.length, 5, "release generator follow-up count");
+  assertEqual(combined.followUpTasks.length, 6, "release generator follow-up count");
   assertArrayIncludes(combined.followUpTasks.map((task) => task.recommendedLabel), "ai:build", "release follow-ups include build");
   assertArrayIncludes(combined.followUpTasks.map((task) => task.recommendedLabel), "ai:review", "release follow-ups include review");
   assertArrayIncludes(combined.followUpTasks.map((task) => task.recommendedLabel), "ai:monitor", "release follow-ups include monitor");
@@ -130,15 +145,17 @@ runStep("release follow-up dry run creates issues without production deploy", ()
   });
 
   const dryRun = readJson(issuesOutput);
-  assertEqual(dryRun.issues.length, 5, "dry run creates release issues");
+  assertEqual(dryRun.issues.length, 6, "dry run creates release issues");
   assertIncludes(dryRun.issues[0].title, "Deployment Environment", "dry run creates deployment issue");
   assertIncludes(dryRun.issues[1].title, "Preview deploy", "dry run creates preview issue");
   assertIncludes(dryRun.issues[1].body, "Deploys production: false", "preview issue avoids production");
   assertIncludes(dryRun.issues[2].title, "Design Quality Gate", "dry run creates design gate issue");
   assertIncludes(dryRun.issues[2].body, "Customer Perspective review", "design gate requires customer perspective");
-  assertIncludes(dryRun.issues[3].title, "Production Release Gate", "dry run creates production gate issue");
-  assertIncludes(dryRun.issues[3].body, "Production approval required: true", "production gate requires approval");
-  assertIncludes(dryRun.issues[4].title, "Post-launch monitoring", "dry run creates monitor issue");
+  assertIncludes(dryRun.issues[3].title, "Compatibility Test Plan", "dry run creates compatibility issue");
+  assertIncludes(dryRun.issues[3].body, "Safari, mobile", "compatibility gate blocks Safari mobile issues");
+  assertIncludes(dryRun.issues[4].title, "Production Release Gate", "dry run creates production gate issue");
+  assertIncludes(dryRun.issues[4].body, "Production approval required: true", "production gate requires approval");
+  assertIncludes(dryRun.issues[5].title, "Post-launch monitoring", "dry run creates monitor issue");
   assertIncludes(dryRun.issues[0].body, "Source issue: #1002", "dry run includes source issue");
 });
 
