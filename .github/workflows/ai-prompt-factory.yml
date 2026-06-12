@@ -335,6 +335,7 @@ jobs:
 
           const interesting = lines.filter((line) =>
             /(::error::|##\[error\]|\bERROR:|\bError:|quota exceeded|insufficient_quota|billing|rate limit|unauthorized|forbidden|codex exited)/i.test(line)
+            && !/^echo\s+["']?::error::/.test(line)
           );
 
           const selected = interesting.slice(-16).map((line) => line.slice(0, 900));
