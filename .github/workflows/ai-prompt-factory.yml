@@ -95,10 +95,42 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          mkdir -p agent-run
+
           if [ -z "$OPENAI_API_KEY" ]; then
+            {
+              echo "## OpenAI API key preflight failed"
+              echo
+              echo "The \`OPENAI_API_KEY\` GitHub Actions secret is missing."
+            } > agent-run/failure-diagnostics.md
             echo "::error::OPENAI_API_KEY GitHub secret is not configured for this repository."
             exit 1
           fi
+
+          status="$(curl -sS -o agent-run/openai-key-check.json -w "%{http_code}" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            https://api.openai.com/v1/models || true)"
+
+          case "$status" in
+            2*)
+              rm -f agent-run/openai-key-check.json
+              ;;
+            *)
+              message="$(node -e "const fs=require('fs');let msg='No response body was returned.';try{const data=JSON.parse(fs.readFileSync('agent-run/openai-key-check.json','utf8'));msg=data?.error?.message||data?.message||msg;}catch{};process.stdout.write(String(msg).replace(/\\s+/g,' ').slice(0,800));")"
+              {
+                echo "## OpenAI API key preflight failed"
+                echo
+                echo "- HTTP status: \`$status\`"
+                echo "- Response: $message"
+                echo
+                echo "The \`OPENAI_API_KEY\` secret is present, but OpenAI rejected a minimal API request."
+                echo "Check that the GitHub Actions secret value is the raw key only, with no surrounding quotes, extra spaces, or expired/revoked key material."
+              } > agent-run/failure-diagnostics.md
+              rm -f agent-run/openai-key-check.json
+              echo "::error::OPENAI_API_KEY is present but OpenAI rejected it. See failure diagnostics artifact."
+              exit 1
+              ;;
+          esac
 
       - name: Prepare Codex workspace
         run: |
@@ -289,6 +321,10 @@ jobs:
             echo
             echo "The trigger worked, but the Codex job did not complete. Check the workflow run for the exact failing step."
             echo
+            if [ -f agent-run/failure-diagnostics.md ]; then
+              cat agent-run/failure-diagnostics.md
+              echo
+            fi
             if [ -f agent-run/codex-output.md ]; then
               echo "## Codex output"
               echo
