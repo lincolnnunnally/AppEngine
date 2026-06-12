@@ -25,3 +25,20 @@ Stop and reconcile before editing when:
 ## Follow-Up Tasks
 
 Agents should create or recommend GitHub issues when they find missing context, cross-app opportunities, recurring failures, growth opportunities, or app charter conflicts.
+
+When structured `followUpTasks` are present in agent output, AppEngine may create GitHub issues automatically with one of the supported `ai:*` labels.
+
+## Monitoring
+
+The orchestration monitor checks open AI-labeled GitHub issues on a schedule. Its job is to make sure GitHub remains the handoff hub and Lincoln does not have to manually ask whether ChatGPT, Codex, or future agents noticed the work.
+
+The first monitor implementation is a GitHub Actions watchdog. It should stay narrow:
+
+- detect open AI issues
+- detect stale issues and PRs
+- detect failed workflow runs
+- detect recently merged PRs
+- detect source-of-truth changes
+- write reports and one-time marker comments
+
+Do not add production-impacting monitor actions without a new chartered design and approval step.

@@ -288,6 +288,25 @@ ai:monitor
 
 The workflow generates a prompt from the issue, runs the Codex GitHub Action, captures Codex changes as a patch, opens a pull request when files changed, and comments the result back on the issue. It does not deploy. Keep `OPENAI_API_KEY` configured as a GitHub secret; do not expose it as a job-level environment variable.
 
+The workflow now listens for issues that are opened, edited, reopened, or labeled. That lets ChatGPT create a labeled issue and have AppEngine pick it up without Lincoln re-labeling it manually.
+
+Useful orchestration commands:
+
+```bash
+npm run orchestration:plan
+npm run monitor:issues
+```
+
+GitHub also has an Orchestration Monitor workflow that checks open `ai:*` issues on a schedule and records a report artifact. When enabled, it adds a one-time marker comment so the issue itself shows that AppEngine saw it.
+
+Monitor behavior is controlled by:
+
+```text
+monitor.config.yaml
+```
+
+The monitor starts as a scheduled GitHub Actions watchdog. It reports open AI issues, stale issues/PRs, failed workflow runs, recently merged PRs, and source-of-truth changes without deploying or touching production.
+
 ## Deployment Workflow
 
 The cockpit records deployment attempts through:

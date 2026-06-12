@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "db:setup": "node scripts/setup-database.mjs",
     "prompt:make": "node scripts/make-codex-prompt.js",
+    "orchestration:plan": "node scripts/make-orchestration-plan.js",
+    "orchestration:followups": "node scripts/create-follow-up-issues.js",
+    "monitor:issues": "node scripts/monitor-ai-issues.js",
     "source:check": "node scripts/check-source-of-truth.js"
   },
   "dependencies": {

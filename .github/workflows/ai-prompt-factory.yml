@@ -2,7 +2,7 @@ name: AI Prompt Factory
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, edited, labeled, reopened]
   workflow_dispatch:
     inputs:
       mode:
@@ -35,7 +35,7 @@ on:
 
 jobs:
   codex:
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'ai:') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'ai:') || contains(toJson(github.event.issue.labels.*.name), 'ai:') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,34 +65,26 @@ jobs:
           DISPATCH_MODE: ${{ inputs.mode }}
           ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           LABEL_NAME: ${{ github.event.label.name }}
-        run: |
-          mode="$DISPATCH_MODE"
+          ISSUE_LABELS_JSON: ${{ toJson(github.event.issue.labels.*.name) }}
+        run: node scripts/select-agent-mode.js
 
-          if [ -z "$mode" ]; then
-            case "$LABEL_NAME" in
-              ai:plan) mode="planner" ;;
-              ai:build) mode="builder" ;;
-              ai:review) mode="code-reviewer" ;;
-              ai:design) mode="designer" ;;
-              ai:fix) mode="fixer" ;;
-              ai:growth) mode="growth" ;;
-              ai:monitor) mode="monitor" ;;
-              ai:deploy-check) mode="monitor" ;;
-              *)
-                echo "Unsupported AI label: $LABEL_NAME" >&2
-                exit 1
-                ;;
-            esac
-          fi
-
-          echo "mode=$mode" >> "$GITHUB_OUTPUT"
-          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+      - name: Create orchestration record
+        env:
+          AGENT_MODE: ${{ steps.mode.outputs.mode }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          ISSUE_LABELS_JSON: ${{ toJson(github.event.issue.labels.*.name) }}
+          PLAN_OUTPUT: ${{ runner.temp }}/agent-run/orchestration-plan.json
+          TASK_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', steps.mode.outputs.mode) }}
+          TASK_URL: ${{ github.event.issue.html_url || github.server_url }}
+          TRIGGER_LABEL: ${{ steps.mode.outputs.trigger_label }}
+        run: node scripts/make-orchestration-plan.js
 
       - name: Generate Codex prompt
         env:
           AGENT_MODE: ${{ steps.mode.outputs.mode }}
-          GITHUB_LABEL: ${{ github.event.label.name }}
-          PROMPT_OUTPUT: ${{ runner.temp }}/generated-codex-prompt.md
+          GITHUB_LABEL: ${{ steps.mode.outputs.trigger_label }}
+          PROMPT_OUTPUT: ${{ runner.temp }}/agent-run/generated-codex-prompt.md
           TASK_BODY: ${{ github.event.issue.body || inputs.task }}
           TASK_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', steps.mode.outputs.mode) }}
@@ -104,8 +96,8 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: ${{ runner.temp }}/generated-codex-prompt.md
-          output-file: ${{ runner.temp }}/codex-output.md
+          prompt-file: ${{ runner.temp }}/agent-run/generated-codex-prompt.md
+          output-file: ${{ runner.temp }}/agent-run/codex-output.md
           sandbox: workspace-write
           safety-strategy: drop-sudo
           codex-args: '["--ephemeral"]'
@@ -114,9 +106,9 @@ jobs:
         id: diff
         run: |
           git add -N .
-          git diff --binary HEAD > "$RUNNER_TEMP/codex.patch"
+          git diff --binary HEAD > "$RUNNER_TEMP/agent-run/codex.patch"
 
-          if [ -s "$RUNNER_TEMP/codex.patch" ]; then
+          if [ -s "$RUNNER_TEMP/agent-run/codex.patch" ]; then
             echo "has_patch=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_patch=false" >> "$GITHUB_OUTPUT"
@@ -125,11 +117,12 @@ jobs:
       - name: Upload Codex artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: codex-prompt-factory
+          name: agent-run
           path: |
-            ${{ runner.temp }}/generated-codex-prompt.md
-            ${{ runner.temp }}/codex-output.md
-            ${{ runner.temp }}/codex.patch
+            ${{ runner.temp }}/agent-run/orchestration-plan.json
+            ${{ runner.temp }}/agent-run/generated-codex-prompt.md
+            ${{ runner.temp }}/agent-run/codex-output.md
+            ${{ runner.temp }}/agent-run/codex.patch
           if-no-files-found: warn
 
   publish:
@@ -147,8 +140,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: codex-prompt-factory
-          path: codex-artifacts
+          name: agent-run
+          path: agent-run
 
       - name: Open pull request when Codex changed files
         id: pr
@@ -165,7 +158,7 @@ jobs:
             exit 0
           fi
 
-          git apply --index codex-artifacts/codex.patch
+          git apply --index agent-run/codex.patch
 
           if git diff --cached --quiet; then
             echo "pr_url=" >> "$GITHUB_OUTPUT"
@@ -195,8 +188,8 @@ jobs:
             echo
             echo "## Codex Final Message"
             echo
-            if [ -f codex-artifacts/codex-output.md ]; then
-              head -c 12000 codex-artifacts/codex-output.md
+            if [ -f agent-run/codex-output.md ]; then
+              head -c 12000 agent-run/codex-output.md
             else
               echo "No Codex output file was captured."
             fi
@@ -230,11 +223,21 @@ jobs:
             echo
             echo "## Codex Final Message"
             echo
-            if [ -f codex-artifacts/codex-output.md ]; then
-              head -c 12000 codex-artifacts/codex-output.md
+            if [ -f agent-run/codex-output.md ]; then
+              head -c 12000 agent-run/codex-output.md
             else
               echo "No Codex output file was captured."
             fi
           } > issue-comment.md
 
           gh issue comment "$ISSUE_NUMBER" --body-file issue-comment.md
+
+      - name: Create follow-up issues from structured output
+        if: ${{ needs.codex.outputs.issue_number != '' }}
+        env:
+          CODEX_OUTPUT_FILE: agent-run/codex-output.md
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SOURCE_ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
+          SOURCE_ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: node scripts/create-follow-up-issues.js

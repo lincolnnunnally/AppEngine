@@ -1,0 +1,22 @@
+version: 1
+stale_hours: 24
+max_comments_per_run: 10
+dry_run_default: false
+labels:
+  - ai:plan
+  - ai:build
+  - ai:review
+  - ai:fix
+  - ai:growth
+  - ai:monitor
+actions:
+  comment_on_seen_issue: true
+  comment_on_stale_issue: true
+  create_follow_up_issues: false
+  label_stale_items: false
+guardrails:
+  - Never expose secrets.
+  - Never deploy to production.
+  - Use marker comments to prevent duplicate monitor comments.
+  - Prefer reports and follow-up issues over automatic destructive changes.
+  - Keep scheduled watchdog behavior narrow until webhooks or a GitHub App are added.
