@@ -17,6 +17,8 @@ const requiredPhaseIds = [
   "data_model",
   "identity_auth",
   "ui_design",
+  "design_quality",
+  "ux_review",
   "mvp_build",
   "testing",
   "review",
@@ -67,9 +69,19 @@ runStep("packet creation", () => {
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL is gated");
   assertArrayIncludes(packet.app.deploymentEnvironment.environmentVariables.map((item) => item.name), "DATABASE_URL", "packet database env var");
   assertEqual(packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate, true, "packet production requires release gate");
+  assertEqual(packet.app.designReview.kind, "design_review", "packet embeds design review artifact");
+  assertEqual(packet.app.designReview.reviewers.designerRequired, true, "packet requires designer review");
+  assertEqual(packet.app.designReview.reviewers.customerPerspectiveRequired, true, "packet requires customer perspective review");
+  assertArrayIncludes(packet.app.designReview.qualityChecks.map((check) => check.id), "clear_primary_action", "packet design clear primary action");
+  assertArrayIncludes(packet.app.designReview.stateChecks, "empty states", "packet design empty states");
+  assertArrayIncludes(packet.app.designReview.workflowTestChecks, "admin screens", "packet design admin checks");
+  assertEqual(packet.app.designReview.guardrails.blocksReleaseGateApproval, true, "packet design blocks release gate");
   assertEqual(packet.app.releaseGate.kind, "release_gate_plan", "packet embeds release gate artifact");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet launch version");
   assertEqual(packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction, true, "packet owner approval guardrail");
+  assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design quality gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "production_approval", "packet production approval gate");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "management", "Super Admin management requirement");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "monitoring", "Super Admin monitoring requirement");
@@ -137,10 +149,13 @@ runStep("phased follow-up dry run", () => {
   assertIncludes(dryRun.issues[0].body, "Identity/Auth", "dry-run issue includes identity/auth requirements");
   assertIncludes(dryRun.issues[0].body, "Super Admin", "dry-run issue includes Super Admin requirements");
   assertIncludes(dryRun.issues[0].body, "Deployment Environment", "dry-run issue includes deployment environment requirements");
+  assertIncludes(dryRun.issues[0].body, "Design Quality", "dry-run issue includes design quality requirements");
   assertIncludes(dryRun.issues[0].body, "Release Gate", "dry-run issue includes release gate requirements");
   assertIncludes(dryRun.issues[0].body, "Do not turn this phase into a full-app build.", "dry-run issue includes phase guardrail");
   assertIncludes(dryRun.issues[0].body, "Do not invent auth outside the Identity/Auth Standard.", "dry-run issue includes auth guardrail");
   assertIncludes(dryRun.issues[0].body, "Launch MVP as v1", "dry-run issue includes v1 guardrail");
+  assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: Design Quality", "dry-run creates design quality issue");
+  assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: UX Review", "dry-run creates UX review issue");
   assertIncludes(dryRun.issues[0].body, "Source issue: #999", "dry-run issue includes source issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:build", "dry-run issues include build label");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:review", "dry-run issues include review label");

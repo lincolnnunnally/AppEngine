@@ -20,6 +20,11 @@ const productionUrl = input.productionUrl || process.env.APP_PRODUCTION_URL || "
 const customDomain = input.customDomain || process.env.APP_CUSTOM_DOMAIN || "planned";
 const healthPath = input.healthPath || process.env.APP_HEALTH_PATH || "/api/health";
 const logsUrl = input.logsUrl || process.env.APP_LOGS_URL || "planned";
+const audience = input.audience || listFromEnv("APP_AUDIENCE", ["Primary users"]);
+const emotionalFit =
+  input.emotionalFit ||
+  process.env.APP_EMOTIONAL_FIT ||
+  "Clear, trustworthy, calm, and fitted to the audience's real-life context.";
 
 const deploymentEnvironment =
   input.deploymentEnvironment ||
@@ -37,6 +42,14 @@ const deploymentEnvironment =
     healthPath,
     logsUrl
   });
+const designReview =
+  input.designReview ||
+  buildDesignReview({
+    appName,
+    slug,
+    audience,
+    emotionalFit
+  });
 
 const releaseGate =
   input.releaseGate ||
@@ -44,7 +57,8 @@ const releaseGate =
     appName,
     slug,
     version,
-    deploymentEnvironment
+    deploymentEnvironment,
+    designReview
   });
 
 const followUpTasks = buildFollowUpTasks({ appName, slug, deploymentEnvironment, releaseGate });
@@ -57,6 +71,11 @@ const output = {
       kind: "deployment_environment_plan",
       title: `${appName} Deployment Environment Plan`,
       content: deploymentEnvironment
+    },
+    {
+      kind: "design_review",
+      title: `${appName} Design Review`,
+      content: designReview
     },
     {
       kind: "release_gate_plan",
@@ -93,6 +112,15 @@ function booleanFrom(inputValue, envValue, fallback) {
   const value = String(envValue || "").trim().toLowerCase();
   if (!value) return fallback;
   return value === "true" || value === "1" || value === "yes";
+}
+
+function listFromEnv(name, fallback) {
+  const raw = process.env[name] || "";
+  if (!raw.trim()) return fallback;
+  return raw
+    .split(/[|,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function buildDeploymentEnvironment({
@@ -183,7 +211,57 @@ function variable(name, scope, target, required, secret, purpose) {
   };
 }
 
-function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
+function buildDesignReview({ appName, slug, audience, emotionalFit }) {
+  return {
+    kind: "design_review",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug,
+      audience
+    },
+    reviewers: {
+      designerRequired: true,
+      customerPerspectiveRequired: true,
+      designerStatus: "required",
+      customerPerspectiveStatus: "required"
+    },
+    qualityChecks: [
+      qualityCheck("simple_navigation", "Can the user understand where they are and where to go next?"),
+      qualityCheck("clear_primary_action", "Is the next best action obvious on the main workflow screens?"),
+      qualityCheck("mobile_first_layout", "Does the workflow feel complete and comfortable on mobile?"),
+      qualityCheck("readable_copy", "Is the copy clear, human, and free of unnecessary technical language?"),
+      qualityCheck("accessible_spacing_contrast", "Are spacing, contrast, and text size comfortable and accessible?"),
+      qualityCheck("trust_building_elements", "Does the interface explain status, privacy, next steps, and safety where trust matters?"),
+      qualityCheck("audience_emotional_fit", "Does the experience feel emotionally right for the people this app serves?")
+    ],
+    stateChecks: ["mobile", "empty states", "error states", "loading states", "onboarding", "admin screens", "Super Admin status"],
+    uxReview: {
+      required: true,
+      status: "required",
+      surfaces: ["first screen", "main workflow", "mobile", "empty states", "error states", "onboarding", "admin screens"],
+      emotionalFit,
+      releaseBlockingIssues: []
+    },
+    workflowTestChecks: ["mobile", "empty states", "error states", "onboarding", "admin screens"],
+    guardrails: {
+      blocksReleaseGateApproval: true,
+      requiresDesignerReview: true,
+      requiresCustomerPerspectiveReview: true,
+      blocksUglyOrConfusingApps: true
+    }
+  };
+}
+
+function qualityCheck(id, question) {
+  return {
+    id,
+    status: "required",
+    question
+  };
+}
+
+function buildReleaseGate({ appName, slug, version, deploymentEnvironment, designReview }) {
   return {
     kind: "release_gate_plan",
     schemaVersion: 1,
@@ -202,6 +280,10 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
       gate("identity_auth", "required", "identity_auth_plan"),
       gate("super_admin_registry", "required", "super_admin_registry_entry"),
       gate("deployment_environment", "required", "deployment_environment_plan"),
+      gate("design_quality", "required", designReview.kind),
+      gate("designer_review", "required", designReview.reviewers.designerStatus),
+      gate("customer_perspective_review", "required", designReview.reviewers.customerPerspectiveStatus),
+      gate("ux_state_review", "required", designReview.workflowTestChecks.join(", ")),
       gate("preview_deploy", "required", deploymentEnvironment.frontend.previewUrl),
       gate("preview_health_logs", "required", "health checks and logs"),
       gate("production_approval", "blocked_until_owner_approval", "owner approval comment or release issue"),
@@ -213,6 +295,12 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
         recommendedLabel: "ai:review",
         deploysProduction: false,
         updatesSuperAdminStatus: "preview"
+      },
+      designReview: {
+        recommendedLabel: "ai:review",
+        requiresDesignerReview: true,
+        requiresCustomerPerspectiveReview: true,
+        blocksReleaseApproval: true
       },
       productionApproval: {
         recommendedLabel: "ai:review",
@@ -230,6 +318,7 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
     guardrails: {
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
+      designReviewBeforeRelease: true,
       postLaunchMonitoringRequired: true,
       vNextAfterV1: true,
       noSecretsInOutput: true
@@ -283,6 +372,23 @@ function buildFollowUpTasks({ appName, slug, deploymentEnvironment, releaseGate 
         "## Guardrails",
         "- Do not deploy production from this task.",
         "- Missing preview health or logs should create ai:fix follow-up work."
+      ].join("\n")
+    },
+    {
+      title: `[${slug}] Design Quality Gate`,
+      recommendedLabel: "ai:review",
+      body: [
+        `Run Designer and Customer Perspective review for ${appName} before Release Gate approval.`,
+        "",
+        "## Design Quality",
+        "- Designer review: required",
+        "- Customer Perspective review: required",
+        "- Check simple navigation, clear primary action, mobile-first layout, readable copy, spacing, contrast, trust-building elements, and audience-specific emotional fit.",
+        "- Check mobile, empty states, error states, onboarding, and admin screens.",
+        "",
+        "## Guardrails",
+        "- Block Release Gate approval if the app is technically working but ugly, confusing, inaccessible, or emotionally mismatched.",
+        "- Create ai:fix follow-up work for release-blocking UX issues."
       ].join("\n")
     },
     {
@@ -365,12 +471,19 @@ function validateReleaseGate(plan) {
   }
 
   if (!Array.isArray(plan.gates) || plan.gates.length === 0) missing.push("gates");
+  if (!plan.gates?.some((gate) => gate.id === "design_quality")) missing.push("gates.design_quality");
+  if (!plan.gates?.some((gate) => gate.id === "customer_perspective_review")) missing.push("gates.customer_perspective_review");
   if (!plan.gates?.some((gate) => gate.id === "production_approval")) missing.push("gates.production_approval");
-  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
+  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.designReview || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
     missing.push("automationContracts");
   }
 
-  if (!plan.guardrails?.previewBeforeProduction || !plan.guardrails?.ownerApprovalBeforeProduction || !plan.guardrails?.postLaunchMonitoringRequired) {
+  if (
+    !plan.guardrails?.previewBeforeProduction ||
+    !plan.guardrails?.ownerApprovalBeforeProduction ||
+    !plan.guardrails?.designReviewBeforeRelease ||
+    !plan.guardrails?.postLaunchMonitoringRequired
+  ) {
     missing.push("guardrails");
   }
 

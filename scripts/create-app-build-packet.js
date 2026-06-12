@@ -85,13 +85,24 @@ const deploymentEnvironment =
     healthPath: process.env.APP_HEALTH_PATH || `/api/engine/apps/${slug}/health`,
     logsUrl: process.env.APP_LOGS_URL || "planned"
   });
+const designReview =
+  input.designReview ||
+  buildDesignReview({
+    appName,
+    slug,
+    audience,
+    emotionalFit:
+      process.env.APP_EMOTIONAL_FIT ||
+      "Clear, trustworthy, calm, and fitted to the audience's real-life context."
+  });
 const releaseGate =
   input.releaseGate ||
   buildReleaseGate({
     appName,
     slug,
     version: deploymentEnvironment.app.version,
-    deploymentEnvironment
+    deploymentEnvironment,
+    designReview
   });
 
 const packet = {
@@ -117,6 +128,7 @@ const packet = {
     },
     superAdminRegistry,
     deploymentEnvironment,
+    designReview,
     releaseGate
   },
   guardrails: {
@@ -131,6 +143,8 @@ const packet = {
       "Define identity/auth before app build or launch work.",
       "Register management, monitoring, health, logs, users, billing/status if needed, and admin actions with Super Admin.",
       "Define deployment environment and release gates before preview or production launch.",
+      "Require Designer and Customer Perspective review before release approval.",
+      "Block technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.",
       "Launch MVP as v1 and route later improvements to vNext packets or follow-up issues."
     ]
   },
@@ -214,6 +228,14 @@ function buildPhases(slug) {
     phase("ui_design", "UI Design", "designer", "ai:build", "Define user flows, screens, copy, accessibility, and design direction.", [
       "Primary workflow is visible and testable.",
       "Design supports the app audience and charter."
+    ]),
+    phase("design_quality", "Design Quality", "designer", "ai:review", "Review navigation, primary actions, mobile layout, copy, spacing, contrast, trust, and emotional fit.", [
+      "Designer review is complete or release-blocking issues are recorded.",
+      "Design quality checks cover simple navigation, clear primary action, mobile, readable copy, spacing, contrast, trust, and audience fit."
+    ]),
+    phase("ux_review", "UX Review", "customer_perspective", "ai:review", "Review mobile, empty states, error states, onboarding, admin screens, and release-blocking UX confusion.", [
+      "Customer Perspective review is complete or release-blocking issues are recorded.",
+      "UX review covers mobile, empty states, error states, onboarding, and admin screens."
     ]),
     phase("mvp_build", "MVP Build", "builder", "ai:build", "Build the first useful scope without absorbing later phases.", [
       "MVP implements the chartered workflow only.",
@@ -317,6 +339,12 @@ function toFollowUpTask(packet, phase) {
       `- Logs: ${app.deploymentEnvironment.frontend.logsUrl}`,
       `- Env vars: ${app.deploymentEnvironment.environmentVariables.map((item) => item.name).join(", ")}`,
       "",
+      "## Design Quality",
+      `- Designer review: ${app.designReview.reviewers.designerStatus}`,
+      `- Customer Perspective review: ${app.designReview.reviewers.customerPerspectiveStatus}`,
+      `- Checks: ${app.designReview.qualityChecks.map((check) => check.id).join(", ")}`,
+      `- State checks: ${app.designReview.stateChecks.join(", ")}`,
+      "",
       "## Release Gate",
       `- Launch version: ${app.releaseGate.versioning.launchVersion}`,
       `- Future work: ${app.releaseGate.versioning.futureWork}`,
@@ -330,6 +358,8 @@ function toFollowUpTask(packet, phase) {
       "- Do not invent auth outside the Identity/Auth Standard.",
       "- Do not skip Super Admin registry planning.",
       "- Do not include secret values in deployment environment output.",
+      "- Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched UX.",
+      "- Require Designer and Customer Perspective review before Release Gate approval.",
       "- Keep production deployment approval-gated.",
       "- Launch MVP as v1 and route later improvements to vNext packets or follow-up issues.",
       "- Create follow-up issues for later phases instead of expanding this task."
@@ -345,6 +375,8 @@ function validatePacket(packet) {
     "data_model",
     "identity_auth",
     "ui_design",
+    "design_quality",
+    "ux_review",
     "mvp_build",
     "testing",
     "review",
@@ -367,6 +399,8 @@ function validatePacket(packet) {
     ["app.superAdminRegistry.status", packet.app.superAdminRegistry?.status],
     ["app.deploymentEnvironment.frontend.provider", packet.app.deploymentEnvironment?.frontend?.provider],
     ["app.deploymentEnvironment.frontend.previewUrl", packet.app.deploymentEnvironment?.frontend?.previewUrl],
+    ["app.designReview.reviewers.designerStatus", packet.app.designReview?.reviewers?.designerStatus],
+    ["app.designReview.reviewers.customerPerspectiveStatus", packet.app.designReview?.reviewers?.customerPerspectiveStatus],
     ["app.releaseGate.versioning.launchVersion", packet.app.releaseGate?.versioning?.launchVersion]
   ]) {
     if (!value) missingFields.push(label);
@@ -381,6 +415,8 @@ function validatePacket(packet) {
     ["app.identityAuth.protectedRoutes", packet.app.identityAuth?.protectedRoutes],
     ["app.superAdminRegistry.superAdminActions", packet.app.superAdminRegistry?.superAdminActions],
     ["app.deploymentEnvironment.environmentVariables", packet.app.deploymentEnvironment?.environmentVariables],
+    ["app.designReview.qualityChecks", packet.app.designReview?.qualityChecks],
+    ["app.designReview.stateChecks", packet.app.designReview?.stateChecks],
     ["app.releaseGate.gates", packet.app.releaseGate?.gates]
   ]) {
     if (!Array.isArray(value) || value.length === 0) missingFields.push(label);
@@ -416,8 +452,16 @@ function validatePacket(packet) {
     throw new Error("App Build Packet must require a Deployment Environment plan with preview-before-production guardrails.");
   }
 
-  if (!packet.app.releaseGate.guardrails.previewBeforeProduction || !packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction) {
-    throw new Error("App Build Packet must require a Release Gate with owner approval before production.");
+  if (!packet.app.designReview.guardrails.blocksReleaseGateApproval || !packet.app.designReview.guardrails.requiresDesignerReview) {
+    throw new Error("App Build Packet must require a Design Quality Gate that blocks release approval.");
+  }
+
+  if (
+    !packet.app.releaseGate.guardrails.previewBeforeProduction ||
+    !packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction ||
+    !packet.app.releaseGate.guardrails.designReviewBeforeRelease
+  ) {
+    throw new Error("App Build Packet must require a Release Gate with design review and owner approval before production.");
   }
 }
 
@@ -663,7 +707,7 @@ function variable(name, scope, target, required, secret, purpose) {
   };
 }
 
-function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
+function buildReleaseGate({ appName, slug, version, deploymentEnvironment, designReview }) {
   return {
     kind: "release_gate_plan",
     schemaVersion: 1,
@@ -682,6 +726,10 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
       gate("identity_auth", "required", "identity_auth_plan"),
       gate("super_admin_registry", "required", "super_admin_registry_entry"),
       gate("deployment_environment", "required", "deployment_environment_plan"),
+      gate("design_quality", "required", designReview.kind),
+      gate("designer_review", "required", designReview.reviewers.designerStatus),
+      gate("customer_perspective_review", "required", designReview.reviewers.customerPerspectiveStatus),
+      gate("ux_state_review", "required", designReview.workflowTestChecks.join(", ")),
       gate("preview_deploy", "required", deploymentEnvironment.frontend.previewUrl),
       gate("preview_health_logs", "required", "health checks and logs"),
       gate("production_approval", "blocked_until_owner_approval", "owner approval comment or release issue"),
@@ -693,6 +741,12 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
         recommendedLabel: "ai:review",
         deploysProduction: false,
         updatesSuperAdminStatus: "preview"
+      },
+      designReview: {
+        recommendedLabel: "ai:review",
+        requiresDesignerReview: true,
+        requiresCustomerPerspectiveReview: true,
+        blocksReleaseApproval: true
       },
       productionApproval: {
         recommendedLabel: "ai:review",
@@ -710,6 +764,7 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
     guardrails: {
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
+      designReviewBeforeRelease: true,
       postLaunchMonitoringRequired: true,
       vNextAfterV1: true,
       noSecretsInOutput: true
@@ -719,6 +774,56 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment }) {
 
 function gate(id, status, evidence) {
   return { id, status, evidence };
+}
+
+function buildDesignReview({ appName, slug, audience, emotionalFit }) {
+  return {
+    kind: "design_review",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug,
+      audience
+    },
+    reviewers: {
+      designerRequired: true,
+      customerPerspectiveRequired: true,
+      designerStatus: "required",
+      customerPerspectiveStatus: "required"
+    },
+    qualityChecks: [
+      qualityCheck("simple_navigation", "Can the user understand where they are and where to go next?"),
+      qualityCheck("clear_primary_action", "Is the next best action obvious on the main workflow screens?"),
+      qualityCheck("mobile_first_layout", "Does the workflow feel complete and comfortable on mobile?"),
+      qualityCheck("readable_copy", "Is the copy clear, human, and free of unnecessary technical language?"),
+      qualityCheck("accessible_spacing_contrast", "Are spacing, contrast, and text size comfortable and accessible?"),
+      qualityCheck("trust_building_elements", "Does the interface explain status, privacy, next steps, and safety where trust matters?"),
+      qualityCheck("audience_emotional_fit", "Does the experience feel emotionally right for the people this app serves?")
+    ],
+    stateChecks: ["mobile", "empty states", "error states", "loading states", "onboarding", "admin screens", "Super Admin status"],
+    uxReview: {
+      required: true,
+      status: "required",
+      surfaces: ["first screen", "main workflow", "mobile", "empty states", "error states", "onboarding", "admin screens"],
+      emotionalFit,
+      releaseBlockingIssues: []
+    },
+    workflowTestChecks: ["mobile", "empty states", "error states", "onboarding", "admin screens"],
+    guardrails: {
+      blocksReleaseGateApproval: true,
+      requiresDesignerReview: true,
+      requiresCustomerPerspectiveReview: true,
+      blocksUglyOrConfusingApps: true
+    }
+  };
+}
+
+function qualityCheck(id, question) {
+  return {
+    id,
+    status: "required",
+    question
+  };
 }
 
 function writeJson(filePath, value) {

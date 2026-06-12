@@ -43,6 +43,9 @@ runStep("packet embeds deployment and release gate", () => {
   assertEqual(packet.app.deploymentEnvironment.frontend.previewUrl, "https://kind-help-desk-preview.vercel.app", "packet preview URL");
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL gated");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet v1 version");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
+  assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
   assertEqual(packet.app.releaseGate.automationContracts.previewDeploy.deploysProduction, false, "preview deploy avoids production");
   assertEqual(packet.app.releaseGate.automationContracts.productionApproval.requiresHumanApproval, true, "production requires approval");
   assertIncludes(deploymentPhase.body, "Env vars", "deployment phase includes env var inventory");
@@ -86,12 +89,17 @@ runStep("standalone release generator creates follow-ups", () => {
   assertEqual(release.kind, "release_gate_plan", "release artifact kind");
   assertEqual(release.app.version, "v1", "release version");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "preview_deploy", "release preview gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "design_quality", "release design gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "customer_perspective_review", "release customer perspective gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "production_approval", "release production approval gate");
+  assertEqual(release.automationContracts.designReview.blocksReleaseApproval, true, "release design review blocks approval");
   assertEqual(release.automationContracts.previewDeploy.deploysProduction, false, "release preview does not deploy production");
   assertEqual(release.automationContracts.productionApproval.requiresHumanApproval, true, "release approval requires human");
+  assertEqual(release.guardrails.designReviewBeforeRelease, true, "release guardrail requires design review");
   assertEqual(release.guardrails.vNextAfterV1, true, "release vNext guardrail");
+  assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "design_review", "release output includes design review artifact");
 
-  assertEqual(combined.followUpTasks.length, 4, "release generator follow-up count");
+  assertEqual(combined.followUpTasks.length, 5, "release generator follow-up count");
   assertArrayIncludes(combined.followUpTasks.map((task) => task.recommendedLabel), "ai:build", "release follow-ups include build");
   assertArrayIncludes(combined.followUpTasks.map((task) => task.recommendedLabel), "ai:review", "release follow-ups include review");
   assertArrayIncludes(combined.followUpTasks.map((task) => task.recommendedLabel), "ai:monitor", "release follow-ups include monitor");
@@ -122,13 +130,15 @@ runStep("release follow-up dry run creates issues without production deploy", ()
   });
 
   const dryRun = readJson(issuesOutput);
-  assertEqual(dryRun.issues.length, 4, "dry run creates release issues");
+  assertEqual(dryRun.issues.length, 5, "dry run creates release issues");
   assertIncludes(dryRun.issues[0].title, "Deployment Environment", "dry run creates deployment issue");
   assertIncludes(dryRun.issues[1].title, "Preview deploy", "dry run creates preview issue");
   assertIncludes(dryRun.issues[1].body, "Deploys production: false", "preview issue avoids production");
-  assertIncludes(dryRun.issues[2].title, "Production Release Gate", "dry run creates production gate issue");
-  assertIncludes(dryRun.issues[2].body, "Production approval required: true", "production gate requires approval");
-  assertIncludes(dryRun.issues[3].title, "Post-launch monitoring", "dry run creates monitor issue");
+  assertIncludes(dryRun.issues[2].title, "Design Quality Gate", "dry run creates design gate issue");
+  assertIncludes(dryRun.issues[2].body, "Customer Perspective review", "design gate requires customer perspective");
+  assertIncludes(dryRun.issues[3].title, "Production Release Gate", "dry run creates production gate issue");
+  assertIncludes(dryRun.issues[3].body, "Production approval required: true", "production gate requires approval");
+  assertIncludes(dryRun.issues[4].title, "Post-launch monitoring", "dry run creates monitor issue");
   assertIncludes(dryRun.issues[0].body, "Source issue: #1002", "dry run includes source issue");
 });
 
