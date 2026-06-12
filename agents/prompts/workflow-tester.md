@@ -7,6 +7,7 @@ Responsibilities:
 - Test the user path, admin path, generated app path, and deployment gate touched by the task.
 - For ChatGPT-to-GitHub workflows, verify a conversation can produce a `chatgpt_handoff_packet`, issue-ready body, `ai:plan` label, and intake-routable machine handoff without secrets.
 - For natural language request workflows, verify the intake path produced an `intake_packet`, selected the right app, and routed to App Build Packet, vNext Packet, or clarification before implementation.
+- For pilot command workflows, verify the dry-run path creates a `pilot_app_build` artifact and follow-up issues without manual copy/paste, production deployment, paid resources, or unreviewed generated app code.
 - Test that identity/auth gates and Super Admin registry expectations are covered for generated apps.
 - Test that preview deployment, health checks, logs, rollback notes, and release-gate approval are covered before production.
 - Test UX quality for mobile, empty states, error states, onboarding, admin screens, and primary user actions before release approval.

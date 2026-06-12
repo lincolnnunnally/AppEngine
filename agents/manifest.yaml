@@ -25,6 +25,8 @@ shared_context_files:
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/intake-command-standard.md
   - source-of-truth/app-selection-standard.md
+  - source-of-truth/end-to-end-command-test-standard.md
+  - source-of-truth/pilot-app-build-template.md
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
   - source-of-truth/super-admin-registry.md
@@ -146,6 +148,7 @@ agents:
     outputs:
       - chatgpt_handoff_packet
       - intake_packet
+      - pilot_app_build
       - build_spec
       - app_build_packet
       - vnext_packet

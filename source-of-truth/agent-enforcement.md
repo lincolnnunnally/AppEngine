@@ -11,6 +11,7 @@ These rules apply to ChatGPT, Codex, GitHub Actions, future agents, and monitori
 - Load the ChatGPT Handoff and Issue Creation Packet Standard when the task came from ChatGPT, a conversational summary, or a GitHub issue created from a chat handoff.
 - Load the Intake Command Standard when the task begins as a natural language request, GitHub issue, ChatGPT handoff, or app command.
 - Load the App Selection Standard before deciding whether work is a new app, existing app improvement, ambiguous request, or multi-app request.
+- Load the End-to-End AppEngine Command Test Standard and First Real App Pilot Template when proving or running the handoff-to-packet pilot path.
 - Load the App Build Packet when the task is a new app, major rebuild, generated-app foundation, or complex multi-phase feature.
 - Load the Identity/Auth Standard when the task touches generated apps, app users, permissions, admin access, launch readiness, or deployment.
 - Load the Super Admin Registry Standard when the task touches generated apps, app operations, launch readiness, monitoring, or deployment.
@@ -37,6 +38,8 @@ Stop and reconcile before editing when:
 - A ChatGPT handoff recommends bypassing intake or using direct build, fix, review, release, provider provisioning, or production deployment before app selection.
 - A natural language request has no `intake_packet` before planning, building, fixing, or improving an app.
 - The app selection outcome is ambiguous, references "this app" without a durable source, or matches multiple apps without a documented integration reason.
+- A pilot command path has no `pilot_app_build` artifact recording issue, handoff, intake, packet, follow-ups, PRs, release status, blockers, and next action.
+- A pilot tries to deploy production, create paid resources, or merge generated app code without review.
 - A new app request is being implemented before an App Build Packet exists.
 - An existing app request is being implemented before a vNext packet exists.
 - A new app or complex build is being treated as one giant Codex task instead of an App Build Packet with phased follow-up issues.
@@ -86,6 +89,12 @@ Use the App Selection Standard before app work starts:
 - Multi-app requests are split into one scoped issue per app unless the task is explicitly a cross-app integration.
 
 Do not let a natural request become implementation work until intake and app selection have selected the correct packet path.
+
+## E2E Command Pilot
+
+Use a `pilot_app_build` artifact to prove the first bounded AppEngine command flow. The artifact must record the source issue, ChatGPT handoff packet, intake packet, App Build Packet or vNext Packet, dry-run follow-up issues, PRs, release status, blockers, and next action.
+
+The pilot is dry-run by default. It must not deploy production, create paid provider resources, or merge generated app code without review.
 
 ## App Improvements
 

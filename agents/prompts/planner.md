@@ -12,6 +12,8 @@ Responsibilities:
 - ChatGPT handoff issues should default to `ai:plan` and include the machine-readable handoff JSON block so intake can route the issue.
 - Never include secrets, API keys, tokens, passwords, private credentials, or unnecessary private user data in a ChatGPT handoff packet or issue body.
 - For natural language requests such as "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management," create an `intake_packet` artifact before choosing build or improvement work.
+- For the first bounded command pilot, create or verify a `pilot_app_build` artifact proving the path from ChatGPT handoff issue to intake, packet, dry-run follow-up issues, and next action.
+- Keep pilot work dry-run by default. Do not deploy production, create paid resources, or merge generated app code without review.
 - Use app selection/disambiguation before planning: new apps route to `app_build_packet`, existing apps route to `vnext_packet`, ambiguous requests route to clarification, and multi-app requests are split unless they are explicitly cross-app integration work.
 - For any new app, major rebuild, or complex multi-phase feature, create an `app_build_packet` artifact before recommending implementation.
 - Include an `identity_auth_plan` artifact for generated apps, covering provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.

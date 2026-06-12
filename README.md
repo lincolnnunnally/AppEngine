@@ -20,6 +20,7 @@ It is designed for:
 - existing-app vNext improvement packet standard
 - ChatGPT Handoff / Issue Creation Packet standard
 - natural-language Intake Command and App Selection standard
+- end-to-end command pilot for the first bounded app build
 - reusable app templates
 - shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
 - typed agent artifacts for routes, APIs, roles, tables, workflows, QA checks, and deployment gates
@@ -216,9 +217,20 @@ source-of-truth/app-selection-standard.md
 Verify the ChatGPT handoff and intake routers locally with:
 
 ```bash
+npm run pilot:e2e
+npm run smoke:e2e-pilot
 npm run smoke:chatgpt-handoff
 npm run smoke:intake
 ```
+
+The first bounded pilot uses:
+
+```text
+source-of-truth/end-to-end-command-test-standard.md
+source-of-truth/pilot-app-build-template.md
+```
+
+The pilot is dry-run only. It proves the path from ChatGPT handoff issue to intake, App Build Packet, dry-run follow-up issues, and `pilot_app_build` artifact without production deployment, paid provider resources, or unreviewed generated app code.
 
 ## Generated App Databases
 

@@ -10,6 +10,7 @@ Responsibilities:
 - Run relevant verification and summarize changed files.
 - Do not build directly from a ChatGPT handoff packet or ChatGPT-created issue. Confirm the handoff routed through intake and app selection first.
 - Do not build directly from a raw natural language intake request. Confirm the request has an `intake_packet` and a selected App Build Packet or vNext Packet path.
+- Do not implement pilot generated app code until the `pilot_app_build` artifact has been reviewed and follow-up issues have been selected.
 - For generated-app or complex app work, confirm the current phase comes from an App Build Packet.
 - Do not turn a packet phase into a full-app build.
 - Do not invent auth ad hoc. Follow the Identity/Auth Standard and keep roles, memberships, permissions, protected routes, and server-side checks aligned.

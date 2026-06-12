@@ -43,6 +43,7 @@ Agents may return these artifact kinds when relevant:
 
 - `chatgpt_handoff_packet`: required when ChatGPT turns Lincoln's conversation into a GitHub issue; defines raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, source-of-truth files to load, issue title/body, and secret-safety guardrails.
 - `intake_packet`: required before routing natural language requests like "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management"; defines raw request, inferred app, request type, confidence, missing context, selected workflow, next labels, and guardrails.
+- `pilot_app_build`: required for the first bounded AppEngine command pilot; records issue, handoff packet, intake packet, App Build Packet or vNext Packet, dry-run follow-up issues, PRs, release status, blockers, next action, and guardrails.
 - `app_build_packet`: required before a new generated app, major rebuild, or complex app workflow is implemented.
 - `identity_auth_plan`: required for generated apps and launch work; defines provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
 - `super_admin_registry_entry`: required for generated apps and launch work; defines lifecycle status, owner, repo, deployment, health, logs, admin, users, billing/status if needed, and allowed admin actions.
@@ -76,5 +77,7 @@ A `release_gate_plan` artifact must not claim production is approved unless owne
 A `chatgpt_handoff_packet` artifact must not contain secrets, private API keys, tokens, passwords, private credentials, or unnecessary private user data. It should default to `ai:plan` so intake and app selection happen before build, fix, review, or release work.
 
 An `intake_packet` artifact must route new apps to an App Build Packet, existing apps to a vNext Packet after required context is loaded, and ambiguous or multi-app requests to clarification. It must not trigger implementation, provider provisioning, or production deployment directly.
+
+A `pilot_app_build` artifact must be dry-run by default. It must not deploy production, create paid provider resources, or merge generated app code without review. It should record the first real bounded pilot from handoff issue to dry-run follow-up issues.
 
 A `vnext_packet` artifact must load existing app context before planning changes. It must not restart the whole app, erase release history, or import unrelated app goals.
