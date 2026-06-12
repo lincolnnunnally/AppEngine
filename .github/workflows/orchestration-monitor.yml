@@ -1,0 +1,60 @@
+name: Orchestration Monitor
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      comment:
+        description: "Add a one-time monitor marker comment to open AI issues"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      dry_run:
+        description: "Run without creating comments or follow-up actions"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify source of truth
+        env:
+          SOURCE_CHECK_STRICT: "true"
+        run: npm run source:check
+
+      - name: Check open AI issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          MONITOR_COMMENT: ${{ github.event_name == 'schedule' && 'true' || inputs.comment }}
+          MONITOR_DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+          MONITOR_OUTPUT: ${{ runner.temp }}/agent-run/orchestration-monitor-report.json
+        run: node scripts/monitor-ai-issues.js
+
+      - name: Upload monitor report
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestration-monitor-report
+          path: ${{ runner.temp }}/agent-run/orchestration-monitor-report.json
+          if-no-files-found: error

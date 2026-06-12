@@ -1,0 +1,24 @@
+name: Feature Request
+description: Request a scoped feature or improvement.
+title: "[Feature]: "
+labels: ["ai:plan"]
+body:
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature
+      description: What should AppEngine or a generated app do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals

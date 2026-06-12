@@ -6,20 +6,48 @@ purpose: >
   built, tested, reviewed, connected, marketed, and improved applications.
 
 operating_principles:
+  - GitHub main is the central source of truth before agents build.
+  - Every agent must pass the Context Gate before taking action.
+  - Every agent workflow must load Global Principles, App Charter, Current Context, and Active Task.
   - Build tools that help people help people.
   - Favor empowerment over dependency.
   - Keep the user out of repetitive middleman work.
   - Turn messy ideas into structured issues, specs, prompts, pull requests, tests, and follow-up work.
   - Never expose secrets, credentials, API keys, tokens, or private user data.
   - Prefer pull requests, preview deployments, and human approval before production-impacting changes.
+  - Preserve mission, core principles, and prior decisions through repo-owned context files instead of chat memory alone.
 
 shared_context_files:
+  - source-of-truth/global-principles.md
+  - source-of-truth/life-produces-life.md
+  - source-of-truth/context-checklist.md
+  - source-of-truth/agent-enforcement.md
+  - source-of-truth/charters/appengine.md
   - agents/context/mission.md
+  - agents/context/source-of-truth.md
   - agents/context/app-standards.md
   - agents/context/security-rules.md
   - agents/context/output-contracts.md
 
 agents:
+  context_gate:
+    prompt: agents/prompts/context-gate.md
+    purpose: Verify that agents have loaded the right source-of-truth files, app charter, current context, and active task before taking action.
+    runs_on:
+      - new_idea
+      - new_issue
+      - pull_request
+      - issue_labeled_ai_plan
+      - issue_labeled_ai_build
+      - issue_labeled_ai_review
+      - issue_labeled_ai_fix
+      - issue_labeled_ai_growth
+      - issue_labeled_ai_monitor
+    outputs:
+      - context_gate_report
+      - missing_context
+      - go_no_go_decision
+
   mission:
     prompt: agents/prompts/mission.md
     purpose: Ensure every project aligns with the mission, values, and Life Produces Life philosophy.
@@ -192,6 +220,7 @@ agents:
 
 recommended_flow:
   new_idea:
+    - context_gate
     - mission
     - visionary
     - customer_perspective
@@ -214,3 +243,34 @@ labels:
   ai:fix: Run fixer/Codex repair workflow.
   ai:growth: Run discovery, connection, and growth workflows.
   ai:monitor: Run monitor workflow.
+
+label_workflows:
+  ai:plan:
+    - context_gate
+    - mission
+    - visionary
+    - customer_perspective
+    - discovery
+    - connection
+    - systems
+    - planner
+  ai:build:
+    - context_gate
+    - designer
+    - builder
+  ai:review:
+    - context_gate
+    - customer_perspective
+    - workflow_tester
+    - code_reviewer
+  ai:fix:
+    - context_gate
+    - fixer
+  ai:growth:
+    - context_gate
+    - discovery
+    - connection
+    - growth
+  ai:monitor:
+    - context_gate
+    - monitor

@@ -39,6 +39,8 @@ Do not commit `.env.local`, generated `.app-engine` output, `.next`, `node_modul
 
 ## Working Style
 
+- Treat GitHub `main` plus repo-owned files as the central source of truth before building. Before agent or prompt-factory work, run `npm run source:check` or otherwise verify live GitHub `main`, local `origin/main`, `agents/manifest.yaml`, and the manifest's shared context files are aligned.
+- If ChatGPT, Codex, local files, and GitHub disagree, stop and reconcile the source of truth before editing. Do not build parallel prompt folders, agent manifests, or product directions from chat memory alone.
 - Prefer small, production-shaped changes over prototypes.
 - Keep customer/admin auth, Neon persistence, QA checks, generated app export, and deployment gates working together.
 - When adding a new engine action, add the API route, cockpit UI state, readiness/autopilot behavior, and verification path together.

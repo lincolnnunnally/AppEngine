@@ -1,0 +1,26 @@
+name: Bug Report
+description: Report a broken behavior or failed workflow.
+title: "[Bug]: "
+labels: ["ai:fix"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What broke?
+      description: Describe the exact failure, screen, route, command, or workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add logs, screenshots, command output, or reproduction steps without secrets.
+  - type: textarea
+    id: context
+    attributes:
+      label: Relevant context
+      description: Link related issues, PRs, docs, or agent outputs.

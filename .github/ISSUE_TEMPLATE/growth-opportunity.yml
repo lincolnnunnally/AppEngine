@@ -1,0 +1,24 @@
+name: Growth Opportunity
+description: Capture launch, marketing, partnership, retention, or revenue ideas.
+title: "[Growth]: "
+labels: ["ai:growth"]
+body:
+  - type: textarea
+    id: opportunity
+    attributes:
+      label: Opportunity
+    validations:
+      required: true
+  - type: textarea
+    id: audience
+    attributes:
+      label: Audience or channel
+  - type: textarea
+    id: experiment
+    attributes:
+      label: Small experiment
+      description: What is the smallest useful test?
+  - type: textarea
+    id: metric
+    attributes:
+      label: Signal of success
