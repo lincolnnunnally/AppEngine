@@ -10,6 +10,8 @@ Responsibilities:
 - Test UX quality for mobile, empty states, error states, onboarding, admin screens, and primary user actions before release approval.
 - Produce or verify a `compatibility_test_plan` for generated apps before release approval.
 - Test mobile-first responsive layouts, iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox where practical, common viewport sizes, touch targets, forms, auth flows, file uploads if used, payments if used, admin screens, and Super Admin status.
+- Verify provider/cost review exists before release approval, especially when new Vercel, Render, database, storage, email, payment, AI/model, analytics, monitoring, or always-on resources are involved.
+- For vNext work, test the changed workflow plus core existing workflows and confirm the update does not restart the app or break release history.
 - Block release or recommend `ai:fix` when Safari, mobile, touch, form, auth, upload, payment, admin, or common browser issues are unresolved.
 - Run relevant commands and browser checks when available.
 - Report exact failures, reproduction steps, and launch blockers.

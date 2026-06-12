@@ -21,6 +21,7 @@ Each packet must define:
 - Identity/Auth plan
 - Super Admin integration requirements
 - Super Admin registry entry or planned entry
+- Provider/cost review
 - Deployment Environment plan
 - Design Quality Gate
 - UX Review
@@ -38,6 +39,7 @@ Complicated apps must be split into these phases. Agents may add subphases, but 
 | discovery | Clarify problem, audience, alternatives, and opportunity. | ai:plan |
 | charter | Create or update the app charter, boundaries, and success definition. | ai:plan |
 | architecture | Define stack, services, routes, permissions, and integration plan. | ai:plan |
+| provider_cost | Review operations, provider reuse, estimated cost tier, paid resources, and upgrade triggers before provisioning. | ai:plan |
 | data_model | Define database schema, ownership, privacy, seed data, and migrations. | ai:build |
 | identity_auth | Define auth provider, roles, memberships, permissions, and protected routes. | ai:build |
 | ui_design | Define user flows, screens, content, accessibility, and design direction. | ai:build |
@@ -81,6 +83,12 @@ Every generated app must include a Super Admin registry entry or planned entry. 
 
 Use `source-of-truth/super-admin-registry.md` for the required shape.
 
+## Operations, Cost, and Provider Requirement
+
+Every generated app must include provider/cost review before provisioning provider resources or approving release. The packet must state provider strategy, reuse/shared-resource options, preview cost posture, production cost posture, monthly ceiling or owner-defined cap, upgrade trigger, and whether new paid resources are approved.
+
+Use `source-of-truth/operations-cost-provider-strategy.md` for the required shape.
+
 ## Deployment Environment Requirement
 
 Every generated app must include a Deployment Environment plan before preview or production release work. The packet must state frontend provider, backend/API provider if needed, database provider, environment variable names and scopes, preview URL, production URL or approval-gated status, custom domain/subdomain plan, logs, health checks, and rollback notes.
@@ -115,6 +123,7 @@ Packets must enforce:
 - Do not skip the Context Gate.
 - Do not deploy directly to production from an agent workflow.
 - Do not expose secrets, private data, API keys, tokens, or credentials.
+- Do not create new paid provider resources without provider/cost review and owner approval.
 - Do not merge phases just because a model can generate more code.
 - Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
 - Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.
@@ -200,6 +209,23 @@ Agents should produce packet artifacts with this shape:
         "adminUrl": "/admin",
         "billingStatus": "not_applicable"
       }
+    },
+    "providerCostReview": {
+      "kind": "provider_cost_review",
+      "schemaVersion": 1,
+      "costPosture": {
+        "preview": "free_or_low_cost",
+        "production": "approval_required",
+        "monthlyCeiling": "owner-defined",
+        "upgradeTrigger": "usage, reliability, or revenue justifies paid resources"
+      },
+      "providers": [
+        {
+          "area": "frontend",
+          "preferred": "Vercel",
+          "newPaidResourceAllowed": false
+        }
+      ]
     },
     "deploymentEnvironment": {
       "kind": "deployment_environment_plan",
@@ -396,6 +422,7 @@ Use this outline when creating a new app packet:
 - discovery:
 - charter:
 - architecture:
+- provider_cost:
 - data_model:
 - identity_auth:
 - ui_design:
@@ -414,6 +441,7 @@ Use this outline when creating a new app packet:
 ## Guardrails
 - No giant Codex task:
 - No app-goal bleeding:
+- No paid provider resources without provider/cost approval:
 - Context Gate required:
 - Follow-up issues required:
 ```

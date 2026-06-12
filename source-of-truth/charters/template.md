@@ -57,6 +57,7 @@ Use this template when creating a charter for a new generated app or ecosystem p
 
 ## Deployment Environment
 
+- Provider/cost review:
 - Frontend provider:
 - API/backend provider if needed:
 - Database provider:
@@ -71,6 +72,7 @@ Use this template when creating a charter for a new generated app or ecosystem p
 ## Release Gate
 
 - Launch version:
+- Provider/cost review:
 - Designer review:
 - Customer Perspective review:
 - Compatibility plan:
@@ -110,6 +112,18 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - File uploads if used:
 - Payments if used:
 - Admin screens:
+
+## Improvement And vNext
+
+- Current version:
+- Target version:
+- Release history:
+- Known issues:
+- Monitoring data:
+- Current improvement request:
+- vNext packet path:
+- Provider/cost delta:
+- Improvement non-goals:
 
 ## Boundaries And Related Apps
 

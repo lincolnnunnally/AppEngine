@@ -34,11 +34,13 @@ source-of-truth/agent-enforcement.md
 source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
+source-of-truth/operations-cost-provider-strategy.md
 source-of-truth/deployment-environment-standard.md
 source-of-truth/design-quality-gate.md
 source-of-truth/ux-review-standard.md
 source-of-truth/compatibility-standard.md
 source-of-truth/release-gate-standard.md
+source-of-truth/app-improvement-vnext-packet.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
@@ -82,6 +84,7 @@ The packet defines:
 - Identity/Auth plan
 - Super Admin integration requirements
 - Super Admin registry entry
+- Provider/Cost review
 - Deployment Environment plan
 - Design Quality Gate plan
 - UX Review plan
@@ -97,6 +100,7 @@ Required packet phases:
 discovery
 charter
 architecture
+provider_cost
 data_model
 identity_auth
 ui_design
@@ -119,6 +123,8 @@ Generated apps must also define an Identity/Auth plan before build work begins. 
 
 Super Admin registry entries must declare the app lifecycle status, owner, repo, deployment, health, logs, admin path, user-management status, billing/status if needed, and allowed admin actions.
 
+Provider/Cost reviews must declare provider reuse, preview cost posture, production cost posture, cost ceiling or owner-defined cap, upgrade trigger, and whether new paid resources are approved. They block provider provisioning and release approval when cost ownership is unclear.
+
 Deployment Environment plans must declare Vercel frontend settings, Render/API backend settings when needed, database provider, environment variable names without values, preview URL, production URL or approval gate, custom domain/subdomain, logs, health checks, and rollback notes.
 
 Design Quality Gates require Designer and Customer Perspective review before Release Gate approval. The `design_review` artifact checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
@@ -126,6 +132,8 @@ Design Quality Gates require Designer and Customer Perspective review before Rel
 Compatibility Test Plans require mobile-first responsive checks and common platform coverage before Release Gate approval. The `compatibility_test_plan` artifact checks iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox where practical, common viewports, touch targets, forms, auth flows, file uploads if used, payments if used, admin screens, and Super Admin status.
 
 Release Gates move apps out of endless build mode. The first public MVP launch is `v1`; later improvements become `vNext`, `v2`, or focused follow-up issues. Production requires preview evidence, owner approval, rollback notes, post-launch monitoring, and Super Admin status update.
+
+Existing apps use vNext packets for improvements. A vNext packet loads the existing charter, current version, Super Admin registry entry, monitoring data, known issues, release history, and active request before planning changes. It prevents improvements from restarting the whole app or bleeding goals from other apps.
 
 Local packet verification:
 
@@ -137,6 +145,13 @@ Local identity/registry verification:
 
 ```bash
 npm run smoke:identity-registry
+```
+
+Local provider/cost and improvement verification:
+
+```bash
+npm run smoke:provider-cost
+npm run smoke:vnext-packet
 ```
 
 Local deployment/release verification:
@@ -212,7 +227,8 @@ Every agent workflow must load:
 - Life Produces Life product doctrine
 - App Charter
 - App Build Packet when the work is a generated app, major rebuild, or complex multi-phase workflow
-- Identity/Auth, Super Admin Registry, Deployment Environment, Design Quality Gate, UX Review, Compatibility, and Release Gate standards when the work moves toward launch
+- Identity/Auth, Super Admin Registry, Provider/Cost, Deployment Environment, Design Quality Gate, UX Review, Compatibility, and Release Gate standards when the work moves toward launch
+- App Improvement and vNext Packet standard when the work improves an existing app
 - Current Context
 - Active Task
 
@@ -247,11 +263,15 @@ It writes a Codex-ready prompt package without exposing secrets.
 
 `scripts/create-identity-registry-standard.js` creates an Identity/Auth plan, Super Admin registry entry, and focused follow-up tasks.
 
+`scripts/create-provider-cost-standard.js` creates a provider/cost review and focused provider approval follow-up tasks.
+
 `scripts/create-release-gate-standard.js` creates a Deployment Environment plan, Release Gate, and focused preview/release/monitor follow-up tasks.
 
 `scripts/create-design-quality-standard.js` creates a Design Quality Gate, UX Review, `design_review` artifact, and focused design follow-up tasks.
 
 `scripts/create-compatibility-standard.js` creates a Compatibility Test Plan, `compatibility_test_plan` artifact, and focused browser/mobile follow-up tasks.
+
+`scripts/create-vnext-packet.js` creates a vNext packet and phased follow-up tasks for improving existing apps.
 
 `scripts/monitor-ai-issues.js` scans open AI-labeled issues and records a monitor report.
 

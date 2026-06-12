@@ -38,10 +38,12 @@ Every agent workflow must load:
 - App Build Packet when planning or building a new app, generated app, major rebuild, or complex multi-phase workflow
 - Identity/Auth Standard when planning, building, reviewing, or launching a generated app
 - Super Admin Registry Standard when planning, building, reviewing, monitoring, or launching a generated app
+- Operations, Cost, and Provider Strategy Standard before provisioning provider resources, approving deployment environments, or launching generated apps
 - Deployment Environment Standard when planning, building, reviewing, deploying, or launching a generated app
 - Design Quality Gate when planning, designing, reviewing, testing, or releasing a generated app
 - UX Review Standard when reviewing user paths, mobile paths, empty states, error states, onboarding, admin screens, or release readiness
 - Compatibility Standard when reviewing mobile, Safari, Chrome, Edge, Firefox, viewport, touch, form, auth, upload, payment, admin, or release readiness
 - Release Gate Standard when moving a generated app from build to preview, production, monitoring, or vNext work
+- App Improvement and vNext Packet Standard when improving an existing app, adding features, fixing problems, responding to feedback, or planning v2
 - Current Context
 - Active Task
