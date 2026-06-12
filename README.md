@@ -9,6 +9,8 @@ It is designed for:
 - Auth.js sign-in
 - customer and admin protected areas
 - page and API-level authorization guards
+- generated-app Identity/Auth standard
+- generated-app Super Admin registry standard
 - reusable app templates
 - shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
 - typed agent artifacts for routes, APIs, roles, tables, workflows, QA checks, and deployment gates
@@ -127,6 +129,24 @@ AUTH_SECRET
 APP_ENGINE_OWNER_EMAIL
 AUTH_GOOGLE_ID
 AUTH_GOOGLE_SECRET
+```
+
+Generated apps must define an Identity/Auth plan before build or launch work begins. The standard lives in:
+
+```text
+source-of-truth/identity-auth-standard.md
+```
+
+Each generated app also needs a Super Admin registry entry or planned entry so AppEngine can track status, ownership, deployment, health, logs, users/admin, billing/status if needed, and support actions:
+
+```text
+source-of-truth/super-admin-registry.md
+```
+
+Verify the local generator and follow-up issue handoff with:
+
+```bash
+npm run smoke:identity-registry
 ```
 
 ## Generated App Databases

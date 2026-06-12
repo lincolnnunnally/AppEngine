@@ -32,6 +32,8 @@ source-of-truth/life-produces-life.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
 source-of-truth/app-build-packet.md
+source-of-truth/identity-auth-standard.md
+source-of-truth/super-admin-registry.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
@@ -72,7 +74,9 @@ The packet defines:
 - app charter, purpose, audience, and boundaries
 - success definition and MVP stages
 - deployment target
+- Identity/Auth plan
 - Super Admin integration requirements
+- Super Admin registry entry
 - phased work plan
 - app-goal bleed guardrails
 - issue-ready follow-up tasks
@@ -84,6 +88,7 @@ discovery
 charter
 architecture
 data_model
+identity_auth
 ui_design
 mvp_build
 testing
@@ -95,10 +100,20 @@ super_admin_registration
 
 Generated apps must register or plan registration with the central AppEngine Super Admin dashboard for management, monitoring, health, logs, users, billing/status if needed, and admin actions.
 
+Generated apps must also define an Identity/Auth plan before build work begins. The required plan covers provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
+
+Super Admin registry entries must declare the app lifecycle status, owner, repo, deployment, health, logs, admin path, user-management status, billing/status if needed, and allowed admin actions.
+
 Local packet verification:
 
 ```bash
 npm run smoke:app-build-packet
+```
+
+Local identity/registry verification:
+
+```bash
+npm run smoke:identity-registry
 ```
 
 ## GitHub Trigger Path
@@ -196,6 +211,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-follow-up-issues.js` turns structured agent `followUpTasks` into GitHub issues.
 
 `scripts/create-app-build-packet.js` creates an App Build Packet and phase-ready follow-up tasks for new or complex app work.
+
+`scripts/create-identity-registry-standard.js` creates an Identity/Auth plan, Super Admin registry entry, and focused follow-up tasks.
 
 `scripts/monitor-ai-issues.js` scans open AI-labeled issues and records a monitor report.
 
