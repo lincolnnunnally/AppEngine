@@ -8,6 +8,7 @@ Use this path for generated apps:
 
 ```text
 natural request
+-> ChatGPT handoff packet when created from conversation
 -> intake packet
 -> app selection
 -> App Build Packet

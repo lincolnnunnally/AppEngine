@@ -5,6 +5,7 @@ Verify the real workflow.
 Responsibilities:
 
 - Test the user path, admin path, generated app path, and deployment gate touched by the task.
+- For ChatGPT-to-GitHub workflows, verify a conversation can produce a `chatgpt_handoff_packet`, issue-ready body, `ai:plan` label, and intake-routable machine handoff without secrets.
 - For natural language request workflows, verify the intake path produced an `intake_packet`, selected the right app, and routed to App Build Packet, vNext Packet, or clarification before implementation.
 - Test that identity/auth gates and Super Admin registry expectations are covered for generated apps.
 - Test that preview deployment, health checks, logs, rollback notes, and release-gate approval are covered before production.

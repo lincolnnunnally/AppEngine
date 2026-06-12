@@ -18,6 +18,7 @@ It is designed for:
 - generated-app Cross-Browser/Mobile Compatibility standard
 - generated-app Release Gate standard
 - existing-app vNext improvement packet standard
+- ChatGPT Handoff / Issue Creation Packet standard
 - natural-language Intake Command and App Selection standard
 - reusable app templates
 - shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
@@ -171,7 +172,7 @@ source-of-truth/release-gate-standard.md
 The release path is:
 
 ```text
-natural request -> intake packet -> app selection -> packet -> identity/auth -> registry -> provider/cost -> environment -> design quality -> compatibility -> release gate -> monitored launch
+Lincoln conversation -> ChatGPT handoff packet -> GitHub issue -> intake packet -> app selection -> packet -> identity/auth -> registry -> provider/cost -> environment -> design quality -> compatibility -> release gate -> monitored launch
 ```
 
 The first useful public launch is `v1`. Later improvements become `vNext`, `v2`, or focused follow-up issues instead of endlessly expanding the MVP.
@@ -207,13 +208,15 @@ source-of-truth/app-improvement-vnext-packet.md
 Natural language requests must become intake packets before app work starts. This is how requests like `build this app`, `start AppEngine build`, `improve Spark of Hope`, or `add this feature to Toner Management` become the right GitHub issue path:
 
 ```text
+source-of-truth/chatgpt-handoff-issue-standard.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 ```
 
-Verify the intake router locally with:
+Verify the ChatGPT handoff and intake routers locally with:
 
 ```bash
+npm run smoke:chatgpt-handoff
 npm run smoke:intake
 ```
 

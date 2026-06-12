@@ -8,6 +8,7 @@ These rules apply to ChatGPT, Codex, GitHub Actions, future agents, and monitori
 - Load the manifest.
 - Load shared context files from the manifest.
 - Load the app charter.
+- Load the ChatGPT Handoff and Issue Creation Packet Standard when the task came from ChatGPT, a conversational summary, or a GitHub issue created from a chat handoff.
 - Load the Intake Command Standard when the task begins as a natural language request, GitHub issue, ChatGPT handoff, or app command.
 - Load the App Selection Standard before deciding whether work is a new app, existing app improvement, ambiguous request, or multi-app request.
 - Load the App Build Packet when the task is a new app, major rebuild, generated-app foundation, or complex multi-phase feature.
@@ -31,6 +32,9 @@ Stop and reconcile before editing when:
 - The local branch is stale.
 - The agent cannot find the referenced source-of-truth files.
 - The task contradicts the app charter.
+- A ChatGPT-created issue has no `chatgpt_handoff_packet` when it is supposed to represent a conversation handoff.
+- A ChatGPT handoff packet or issue body includes secrets, private API keys, tokens, passwords, private credentials, or unnecessary private user data.
+- A ChatGPT handoff recommends bypassing intake or using direct build, fix, review, release, provider provisioning, or production deployment before app selection.
 - A natural language request has no `intake_packet` before planning, building, fixing, or improving an app.
 - The app selection outcome is ambiguous, references "this app" without a durable source, or matches multiple apps without a documented integration reason.
 - A new app request is being implemented before an App Build Packet exists.
@@ -61,6 +65,14 @@ When structured `followUpTasks` are present in agent output, AppEngine may creat
 ## App Build Packets
 
 Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
+
+## ChatGPT Handoffs
+
+Use a ChatGPT Handoff Packet when a conversation becomes a GitHub issue. The packet must record the raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, source-of-truth files to load, and issue-ready title/body.
+
+ChatGPT handoff issues default to `ai:plan` so intake and app selection happen before any build, fix, review, release, provider provisioning, or production deployment work.
+
+Do not include secrets or private credentials in handoff packets or issue bodies. Redact secret-like values as `[REDACTED_SECRET]` and record that redaction in the packet security notes.
 
 ## Intake and App Selection
 

@@ -8,6 +8,7 @@ Responsibilities:
 - Make the smallest production-shaped change that satisfies the task.
 - Keep engine routes, UI state, readiness, agent artifacts, exports, and docs aligned when touched.
 - Run relevant verification and summarize changed files.
+- Do not build directly from a ChatGPT handoff packet or ChatGPT-created issue. Confirm the handoff routed through intake and app selection first.
 - Do not build directly from a raw natural language intake request. Confirm the request has an `intake_packet` and a selected App Build Packet or vNext Packet path.
 - For generated-app or complex app work, confirm the current phase comes from an App Build Packet.
 - Do not turn a packet phase into a full-app build.

@@ -7,6 +7,8 @@ Responsibilities:
 - Lead with findings ordered by severity.
 - Cite files and lines when possible.
 - Flag security, workflow, auth, persistence, prompt-injection, and deployment risks.
+- Verify ChatGPT-created GitHub issues include a `chatgpt_handoff_packet`, default to `ai:plan`, list source-of-truth files to load, and avoid secrets or private credentials.
+- Verify ChatGPT handoff issue bodies can be routed by intake before implementation work proceeds.
 - Verify natural language requests have an `intake_packet` with raw request, inferred app, request type, confidence, missing context, selected workflow, next labels, and guardrails before implementation work proceeds.
 - Verify new app intake routes to an App Build Packet and existing-app intake routes to a vNext Packet only after app charter, Super Admin registry, current version, release history, monitoring state, known issues, and open issues are loaded.
 - Verify generated apps have an Identity/Auth plan, server-side authorization, and a Super Admin registry entry or planned entry.

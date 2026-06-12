@@ -35,6 +35,7 @@ Every agent workflow must load:
 - Global Principles
 - Life Produces Life product doctrine
 - App Charter
+- ChatGPT Handoff and Issue Creation Packet Standard when a conversation becomes a GitHub issue
 - Intake Command Standard when routing natural language requests into GitHub issues or agent workflows
 - App Selection Standard when deciding whether a request is for a new app or an existing app
 - App Build Packet when planning or building a new app, generated app, major rebuild, or complex multi-phase workflow

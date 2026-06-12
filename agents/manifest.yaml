@@ -22,6 +22,7 @@ shared_context_files:
   - source-of-truth/life-produces-life.md
   - source-of-truth/context-checklist.md
   - source-of-truth/agent-enforcement.md
+  - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/intake-command-standard.md
   - source-of-truth/app-selection-standard.md
   - source-of-truth/app-build-packet.md
@@ -143,6 +144,7 @@ agents:
       - approved_idea
       - issue_labeled_ai_plan
     outputs:
+      - chatgpt_handoff_packet
       - intake_packet
       - build_spec
       - app_build_packet

@@ -31,6 +31,7 @@ source-of-truth/global-principles.md
 source-of-truth/life-produces-life.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
+source-of-truth/chatgpt-handoff-issue-standard.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/app-build-packet.md
@@ -74,6 +75,29 @@ ai:monitor -> context_gate, monitor
 
 The orchestrator can reroute follow-up work by returning issue-ready tasks with one of those labels.
 
+## ChatGPT Handoff
+
+ChatGPT should create a structured GitHub issue when Lincoln says "start AppEngine build," "build this," or "improve this app." The issue contains a `chatgpt_handoff_packet` artifact and a machine-readable JSON block that intake can route without guessing from prose.
+
+The handoff path is:
+
+```text
+Lincoln conversation
+-> ChatGPT handoff packet
+-> GitHub issue
+-> intake packet
+-> selected workflow
+-> agent loop
+```
+
+The packet records raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, and source-of-truth files to load. Handoff issues default to `ai:plan`, even for fixes and releases, so Context Gate and intake run before any build or release work.
+
+Local handoff verification:
+
+```bash
+npm run smoke:chatgpt-handoff
+```
+
 ## Intake and App Selection
 
 Natural language requests enter AppEngine through an intake packet before planning or building. This lets Lincoln, ChatGPT, GitHub issues, and future agents say things like:
@@ -88,7 +112,7 @@ add this feature to Toner Management
 The intake path is:
 
 ```text
-natural request
+ChatGPT handoff issue or natural request
 -> intake_packet
 -> app selection
 -> App Build Packet or vNext Packet
@@ -296,6 +320,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/make-orchestration-plan.js` writes a machine-readable plan for the current run.
 
 `scripts/create-follow-up-issues.js` turns structured agent `followUpTasks` into GitHub issues.
+
+`scripts/create-chatgpt-handoff-packet.js` creates a `chatgpt_handoff_packet`, issue-ready title/body, and machine-readable handoff JSON for ChatGPT-to-GitHub triggers.
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
 

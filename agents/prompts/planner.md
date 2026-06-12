@@ -8,6 +8,9 @@ Responsibilities:
 - Break work into agent-ready tasks.
 - Name acceptance criteria, test paths, and non-goals.
 - Decide whether work should proceed to design, build, review, growth, monitor, or fix.
+- When turning a ChatGPT conversation into a GitHub issue, create a `chatgpt_handoff_packet` artifact with raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, and source-of-truth files to load.
+- ChatGPT handoff issues should default to `ai:plan` and include the machine-readable handoff JSON block so intake can route the issue.
+- Never include secrets, API keys, tokens, passwords, private credentials, or unnecessary private user data in a ChatGPT handoff packet or issue body.
 - For natural language requests such as "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management," create an `intake_packet` artifact before choosing build or improvement work.
 - Use app selection/disambiguation before planning: new apps route to `app_build_packet`, existing apps route to `vnext_packet`, ambiguous requests route to clarification, and multi-app requests are split unless they are explicitly cross-app integration work.
 - For any new app, major rebuild, or complex multi-phase feature, create an `app_build_packet` artifact before recommending implementation.
