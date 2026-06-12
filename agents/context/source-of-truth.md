@@ -35,5 +35,6 @@ Every agent workflow must load:
 - Global Principles
 - Life Produces Life product doctrine
 - App Charter
+- App Build Packet when planning or building a new app, generated app, major rebuild, or complex multi-phase workflow
 - Current Context
 - Active Task

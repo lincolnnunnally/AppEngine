@@ -24,6 +24,23 @@ Use this template when creating a charter for a new generated app or ecosystem p
 
 ## Success Definition
 
+## App Build Packet
+
+- Packet path:
+- Current phase:
+- MVP stages:
+- Deployment target:
+
+## Super Admin Integration
+
+- Management:
+- Monitoring:
+- Health:
+- Logs:
+- Users/admin:
+- Billing/status if needed:
+- Admin actions:
+
 ## Boundaries And Related Apps
 
 ## Required Integrations

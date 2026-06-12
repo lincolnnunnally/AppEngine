@@ -31,6 +31,7 @@ source-of-truth/global-principles.md
 source-of-truth/life-produces-life.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
+source-of-truth/app-build-packet.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
@@ -61,6 +62,44 @@ ai:monitor -> context_gate, monitor
 ```
 
 The orchestrator can reroute follow-up work by returning issue-ready tasks with one of those labels.
+
+## App Build Packets
+
+New apps, generated-app foundations, major rebuilds, and complex app workflows must start with an App Build Packet before implementation. The packet keeps the work from becoming one giant Codex task.
+
+The packet defines:
+
+- app charter, purpose, audience, and boundaries
+- success definition and MVP stages
+- deployment target
+- Super Admin integration requirements
+- phased work plan
+- app-goal bleed guardrails
+- issue-ready follow-up tasks
+
+Required packet phases:
+
+```text
+discovery
+charter
+architecture
+data_model
+ui_design
+mvp_build
+testing
+review
+deployment
+monitoring
+super_admin_registration
+```
+
+Generated apps must register or plan registration with the central AppEngine Super Admin dashboard for management, monitoring, health, logs, users, billing/status if needed, and admin actions.
+
+Local packet verification:
+
+```bash
+npm run smoke:app-build-packet
+```
 
 ## GitHub Trigger Path
 
@@ -155,6 +194,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/make-orchestration-plan.js` writes a machine-readable plan for the current run.
 
 `scripts/create-follow-up-issues.js` turns structured agent `followUpTasks` into GitHub issues.
+
+`scripts/create-app-build-packet.js` creates an App Build Packet and phase-ready follow-up tasks for new or complex app work.
 
 `scripts/monitor-ai-issues.js` scans open AI-labeled issues and records a monitor report.
 
