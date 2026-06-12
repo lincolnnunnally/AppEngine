@@ -1,0 +1,240 @@
+name: AI Prompt Factory
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Prompt factory mode to run"
+        required: true
+        type: choice
+        options:
+          - mission
+          - visionary
+          - customer-perspective
+          - discovery
+          - connection
+          - systems
+          - planner
+          - builder
+          - designer
+          - workflow-tester
+          - code-reviewer
+          - fixer
+          - growth
+          - monitor
+      task:
+        description: "Task text to pass to Codex"
+        required: true
+        type: string
+      issue_number:
+        description: "Optional issue number to comment on"
+        required: false
+        type: string
+
+jobs:
+  codex:
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'ai:') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      has_patch: ${{ steps.diff.outputs.has_patch }}
+      issue_number: ${{ steps.mode.outputs.issue_number }}
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify source of truth
+        env:
+          SOURCE_CHECK_STRICT: "true"
+        run: npm run source:check
+
+      - name: Select prompt mode
+        id: mode
+        env:
+          DISPATCH_MODE: ${{ inputs.mode }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          LABEL_NAME: ${{ github.event.label.name }}
+        run: |
+          mode="$DISPATCH_MODE"
+
+          if [ -z "$mode" ]; then
+            case "$LABEL_NAME" in
+              ai:plan) mode="planner" ;;
+              ai:build) mode="builder" ;;
+              ai:review) mode="code-reviewer" ;;
+              ai:design) mode="designer" ;;
+              ai:fix) mode="fixer" ;;
+              ai:growth) mode="growth" ;;
+              ai:monitor) mode="monitor" ;;
+              ai:deploy-check) mode="monitor" ;;
+              *)
+                echo "Unsupported AI label: $LABEL_NAME" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Codex prompt
+        env:
+          AGENT_MODE: ${{ steps.mode.outputs.mode }}
+          GITHUB_LABEL: ${{ github.event.label.name }}
+          PROMPT_OUTPUT: ${{ runner.temp }}/generated-codex-prompt.md
+          TASK_BODY: ${{ github.event.issue.body || inputs.task }}
+          TASK_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', steps.mode.outputs.mode) }}
+          TASK_URL: ${{ github.event.issue.html_url || github.server_url }}
+        run: node scripts/make-codex-prompt.js
+
+      - name: Run Codex
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/generated-codex-prompt.md
+          output-file: ${{ runner.temp }}/codex-output.md
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral"]'
+
+      - name: Create patch artifact
+        id: diff
+        run: |
+          git add -N .
+          git diff --binary HEAD > "$RUNNER_TEMP/codex.patch"
+
+          if [ -s "$RUNNER_TEMP/codex.patch" ]; then
+            echo "has_patch=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_patch=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Codex artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-prompt-factory
+          path: |
+            ${{ runner.temp }}/generated-codex-prompt.md
+            ${{ runner.temp }}/codex-output.md
+            ${{ runner.temp }}/codex.patch
+          if-no-files-found: warn
+
+  publish:
+    needs: codex
+    if: ${{ needs.codex.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-prompt-factory
+          path: codex-artifacts
+
+      - name: Open pull request when Codex changed files
+        id: pr
+        env:
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          HAS_PATCH: ${{ needs.codex.outputs.has_patch }}
+          ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
+          MODE: ${{ needs.codex.outputs.mode }}
+          TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', needs.codex.outputs.mode) }}
+        run: |
+          if [ "$HAS_PATCH" != "true" ]; then
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git apply --index codex-artifacts/codex.patch
+
+          if git diff --cached --quiet; then
+            echo "pr_url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          safe_mode="$(printf "%s" "$MODE" | tr -c 'a-zA-Z0-9._-' '-')"
+          branch="codex/${safe_mode}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          title="${TASK_TITLE:-Prompt factory run}"
+          title="${title:0:90}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -m "Run ${MODE} prompt factory"
+          git push origin "$branch"
+
+          {
+            echo "Automated Codex prompt-factory run."
+            echo
+            echo "- Mode: \`$MODE\`"
+            if [ -n "$ISSUE_NUMBER" ]; then
+              echo "- Source issue: #$ISSUE_NUMBER"
+            fi
+            echo
+            echo "Review the changes before merging. This workflow does not deploy."
+            echo
+            echo "## Codex Final Message"
+            echo
+            if [ -f codex-artifacts/codex-output.md ]; then
+              head -c 12000 codex-artifacts/codex-output.md
+            else
+              echo "No Codex output file was captured."
+            fi
+          } > pr-body.md
+
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$branch" \
+            --title "AI ${MODE}: ${title}" \
+            --body-file pr-body.md
+
+          pr_url="$(gh pr view "$branch" --json url --jq .url)"
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on source issue
+        if: ${{ needs.codex.outputs.issue_number != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
+          MODE: ${{ needs.codex.outputs.mode }}
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+        run: |
+          {
+            echo "AI prompt factory finished for \`$MODE\`."
+            echo
+            if [ -n "$PR_URL" ]; then
+              echo "Pull request: $PR_URL"
+            else
+              echo "No file changes were produced, so no pull request was opened."
+            fi
+            echo
+            echo "## Codex Final Message"
+            echo
+            if [ -f codex-artifacts/codex-output.md ]; then
+              head -c 12000 codex-artifacts/codex-output.md
+            else
+              echo "No Codex output file was captured."
+            fi
+          } > issue-comment.md
+
+          gh issue comment "$ISSUE_NUMBER" --body-file issue-comment.md

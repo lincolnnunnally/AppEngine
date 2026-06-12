@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "db:setup": "node scripts/setup-database.mjs"
+    "db:setup": "node scripts/setup-database.mjs",
+    "prompt:make": "node scripts/make-codex-prompt.js",
+    "source:check": "node scripts/check-source-of-truth.js"
   },
   "dependencies": {
     "@auth/pg-adapter": "latest",

@@ -1,0 +1,26 @@
+name: Monitoring Incident
+description: Capture a broken deployment, failed job, usage signal, or recurring issue.
+title: "[Monitor]: "
+labels: ["ai:monitor"]
+body:
+  - type: textarea
+    id: signal
+    attributes:
+      label: Signal or incident
+      description: What changed, failed, or needs attention?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who or what is affected?
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include links, logs, screenshots, or run IDs without secrets.
+  - type: textarea
+    id: next
+    attributes:
+      label: Suspected next action

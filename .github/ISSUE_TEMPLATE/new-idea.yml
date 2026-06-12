@@ -1,0 +1,27 @@
+name: New Idea
+description: Capture a rough app, feature, or venture idea for planning.
+title: "[Idea]: "
+labels: ["ai:plan"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: Describe the messy first thought, problem, or opportunity.
+    validations:
+      required: true
+  - type: textarea
+    id: people
+    attributes:
+      label: Who should this help?
+      description: Name the person, customer, ministry, business, or community affected.
+  - type: textarea
+    id: principles
+    attributes:
+      label: Core principles to preserve
+      description: List anything ChatGPT or agents must not forget.
+  - type: textarea
+    id: success
+    attributes:
+      label: First useful outcome
+      description: What would make the first slice worth building?

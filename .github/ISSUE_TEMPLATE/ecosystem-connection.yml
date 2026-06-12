@@ -1,0 +1,21 @@
+name: Ecosystem Connection
+description: Identify links between products, audiences, data, or workflows.
+title: "[Connection]: "
+labels: ["ai:growth"]
+body:
+  - type: textarea
+    id: connection
+    attributes:
+      label: Possible connection
+      description: Which apps, people, data, or workflows may connect?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Why it could matter
+  - type: textarea
+    id: caution
+    attributes:
+      label: What not to force
+      description: Name boundaries or distractions to avoid.

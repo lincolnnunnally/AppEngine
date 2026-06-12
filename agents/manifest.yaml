@@ -6,15 +6,18 @@ purpose: >
   built, tested, reviewed, connected, marketed, and improved applications.
 
 operating_principles:
+  - GitHub main is the central source of truth before agents build.
   - Build tools that help people help people.
   - Favor empowerment over dependency.
   - Keep the user out of repetitive middleman work.
   - Turn messy ideas into structured issues, specs, prompts, pull requests, tests, and follow-up work.
   - Never expose secrets, credentials, API keys, tokens, or private user data.
   - Prefer pull requests, preview deployments, and human approval before production-impacting changes.
+  - Preserve mission, core principles, and prior decisions through repo-owned context files instead of chat memory alone.
 
 shared_context_files:
   - agents/context/mission.md
+  - agents/context/source-of-truth.md
   - agents/context/app-standards.md
   - agents/context/security-rules.md
   - agents/context/output-contracts.md
@@ -214,3 +217,28 @@ labels:
   ai:fix: Run fixer/Codex repair workflow.
   ai:growth: Run discovery, connection, and growth workflows.
   ai:monitor: Run monitor workflow.
+
+label_workflows:
+  ai:plan:
+    - mission
+    - visionary
+    - customer_perspective
+    - discovery
+    - connection
+    - systems
+    - planner
+  ai:build:
+    - designer
+    - builder
+  ai:review:
+    - customer_perspective
+    - workflow_tester
+    - code_reviewer
+  ai:fix:
+    - fixer
+  ai:growth:
+    - discovery
+    - connection
+    - growth
+  ai:monitor:
+    - monitor

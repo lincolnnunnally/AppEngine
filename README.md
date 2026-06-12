@@ -226,6 +226,61 @@ src/lib/deployment/deployment-plan.ts
 
 Those files contain the agent-produced routes, API routes, role matrix, protected route gates, database model, workflows, QA checks, deployment gates, and raw agent blueprint artifacts.
 
+## Prompt Factory
+
+The repo includes a prompt factory for turning rough issues, app ideas, and error reports into Codex-ready automation prompts.
+
+The source of truth is:
+
+```text
+agents/manifest.yaml
+```
+
+The manifest lists shared context files, agent prompt files, recommended flows, and label workflows. Before building or generating prompts, run:
+
+```bash
+npm run source:check
+```
+
+That checks live GitHub `main`, local `origin/main`, and every manifest-referenced context/prompt file. In GitHub Actions this runs in strict mode before Codex receives a prompt.
+
+Shared context currently lives in:
+
+```text
+agents/context/mission.md
+agents/context/source-of-truth.md
+agents/context/app-standards.md
+agents/context/security-rules.md
+agents/context/output-contracts.md
+```
+
+Generate a prompt locally with:
+
+```bash
+AGENT_MODE=builder TASK_BODY="Build the Spark of Hope story intake flow." npm run prompt:make
+```
+
+That writes `generated-prompt.md`, which is gitignored.
+
+GitHub automation is configured in:
+
+```text
+.github/workflows/ai-prompt-factory.yml
+```
+
+Add one of these labels to an issue to run the matching mode:
+
+```text
+ai:plan
+ai:build
+ai:review
+ai:fix
+ai:growth
+ai:monitor
+```
+
+The workflow generates a prompt from the issue, runs the Codex GitHub Action, captures Codex changes as a patch, opens a pull request when files changed, and comments the result back on the issue. It does not deploy. Keep `OPENAI_API_KEY` configured as a GitHub secret; do not expose it as a job-level environment variable.
+
 ## Deployment Workflow
 
 The cockpit records deployment attempts through:

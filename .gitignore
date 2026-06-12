@@ -4,3 +4,7 @@ node_modules
 .env*.local
 .app-engine
 *.tsbuildinfo
+generated-prompt.md
+generated-codex-prompt.md
+codex-output.md
+codex.patch
