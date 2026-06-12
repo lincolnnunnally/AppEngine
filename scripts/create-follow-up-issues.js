@@ -8,7 +8,18 @@ const repo = process.env.GITHUB_REPOSITORY || "lincolnnunnally/AppEngine";
 const sourceIssueNumber = process.env.SOURCE_ISSUE_NUMBER || "";
 const sourceIssueUrl = process.env.SOURCE_ISSUE_URL || "";
 const maxFollowUps = Number.parseInt(process.env.MAX_FOLLOW_UP_ISSUES || "5", 10);
+const dispatchWorkflows = process.env.FOLLOW_UP_DISPATCH_WORKFLOWS === "true";
+const dispatchRef = process.env.FOLLOW_UP_REF || process.env.GITHUB_REF_NAME || "main";
+const maxDispatches = Number.parseInt(process.env.MAX_FOLLOW_UP_WORKFLOW_DISPATCHES || "1", 10);
 const allowedLabels = new Set(["ai:plan", "ai:build", "ai:review", "ai:fix", "ai:growth", "ai:monitor"]);
+const labelModes = new Map([
+  ["ai:plan", "planner"],
+  ["ai:build", "builder"],
+  ["ai:review", "code-reviewer"],
+  ["ai:fix", "fixer"],
+  ["ai:growth", "growth"],
+  ["ai:monitor", "monitor"]
+]);
 const labelMetadata = new Map([
   ["ai:plan", { color: "5319e7", description: "Run planner workflow." }],
   ["ai:build", { color: "0e8a16", description: "Run builder/Codex workflow." }],
@@ -18,6 +29,7 @@ const labelMetadata = new Map([
   ["ai:monitor", { color: "006b75", description: "Run monitor workflow." }]
 ]);
 const ensuredLabels = new Set();
+let dispatchedCount = 0;
 
 if (!outputFile || !fs.existsSync(outputFile)) {
   console.log("No Codex output file found for follow-up issue creation.");
@@ -49,8 +61,9 @@ for (const task of tasks) {
   fs.writeFileSync(bodyPath, body);
 
   ensureLabel(label);
-  createIssue({ title, bodyPath, label });
+  const issueUrl = createIssue({ title, bodyPath, label });
   console.log(`Created follow-up issue: ${title} (${label})`);
+  dispatchFollowUpWorkflow({ issueUrl, title, body, label });
 }
 
 function extractFollowUpTasks(text) {
@@ -105,18 +118,72 @@ function ensureLabel(label) {
 
 function createIssue({ title, bodyPath, label }) {
   try {
-    execFileSync("gh", ["issue", "create", "--repo", repo, "--title", title, "--body-file", bodyPath, "--label", label], {
+    return execFileSync("gh", ["issue", "create", "--repo", repo, "--title", title, "--body-file", bodyPath, "--label", label], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
-    });
+    }).trim();
   } catch (caught) {
     const stderr = String(caught?.stderr || caught?.message || "");
     if (!/label.*not found|could not add label/i.test(stderr)) throw caught;
 
     console.warn(`GitHub label "${label}" was unavailable; creating follow-up issue without a label.`);
-    execFileSync("gh", ["issue", "create", "--repo", repo, "--title", title, "--body-file", bodyPath], {
+    return execFileSync("gh", ["issue", "create", "--repo", repo, "--title", title, "--body-file", bodyPath], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
-    });
+    }).trim();
   }
+}
+
+function dispatchFollowUpWorkflow({ issueUrl, title, body, label }) {
+  if (!dispatchWorkflows) return;
+  if (dispatchedCount >= maxDispatches) return;
+
+  const mode = labelModes.get(label);
+  const issueNumber = extractIssueNumber(issueUrl);
+
+  if (!mode || !issueNumber) {
+    console.warn(`Skipping follow-up workflow dispatch for "${title}" because mode or issue number was unavailable.`);
+    return;
+  }
+
+  const task = [
+    title,
+    "",
+    body,
+    "",
+    "## Follow-Up Trigger",
+    `- Created from source issue: ${sourceIssueNumber ? `#${sourceIssueNumber}` : "unknown"}`,
+    `- Recommended label: ${label}`
+  ].join("\n");
+
+  execFileSync(
+    "gh",
+    [
+      "workflow",
+      "run",
+      "ai-prompt-factory.yml",
+      "--repo",
+      repo,
+      "--ref",
+      dispatchRef,
+      "-f",
+      `mode=${mode}`,
+      "-f",
+      `task=${task}`,
+      "-f",
+      `issue_number=${issueNumber}`
+    ],
+    {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    }
+  );
+
+  dispatchedCount += 1;
+  console.log(`Dispatched follow-up workflow for issue #${issueNumber} in ${mode} mode.`);
+}
+
+function extractIssueNumber(issueUrl) {
+  const match = String(issueUrl || "").match(/\/issues\/(\d+)\s*$/);
+  return match ? match[1] : "";
 }
