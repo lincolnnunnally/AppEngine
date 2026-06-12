@@ -11,6 +11,8 @@ All agent workflows must load and answer this checklist before taking action.
 - Identity/Auth Standard for generated apps, major rebuilds, and launch work
 - Super Admin Registry Standard for generated apps, major rebuilds, and launch work
 - Deployment Environment Standard for generated apps, major rebuilds, preview deploys, and launch work
+- Design Quality Gate for generated apps, major rebuilds, and launch work
+- UX Review Standard for generated apps, user workflow testing, mobile testing, and launch work
 - Release Gate Standard for generated apps, preview deploys, production approval, monitoring, and vNext work
 - Current Context from GitHub issue, pull request, docs, or committed source
 - Active Task and triggering label
@@ -29,9 +31,11 @@ All agent workflows must load and answer this checklist before taking action.
 8. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
 9. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
 10. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
-11. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
-12. Are any core files, docs, prompts, context, or issue links missing?
-13. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+11. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
+12. Does the app have Designer and Customer Perspective review before Release Gate approval?
+13. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
+14. Are any core files, docs, prompts, context, or issue links missing?
+15. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 

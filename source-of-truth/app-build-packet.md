@@ -22,6 +22,8 @@ Each packet must define:
 - Super Admin integration requirements
 - Super Admin registry entry or planned entry
 - Deployment Environment plan
+- Design Quality Gate
+- UX Review
 - Release Gate plan
 - Phase plan with follow-up labels
 - Guardrails that prevent app-goal bleeding
@@ -38,6 +40,8 @@ Complicated apps must be split into these phases. Agents may add subphases, but 
 | data_model | Define database schema, ownership, privacy, seed data, and migrations. | ai:build |
 | identity_auth | Define auth provider, roles, memberships, permissions, and protected routes. | ai:build |
 | ui_design | Define user flows, screens, content, accessibility, and design direction. | ai:build |
+| design_quality | Review navigation, primary actions, mobile layout, copy, spacing, contrast, trust, and emotional fit. | ai:review |
+| ux_review | Review mobile, empty states, error states, onboarding, admin screens, and release-blocking UX confusion. | ai:review |
 | mvp_build | Build the smallest useful version without absorbing later phases. | ai:build |
 | testing | Verify workflows, acceptance criteria, permissions, and edge cases. | ai:review |
 | review | Review code, security, maintainability, scope, and app-boundary risks. | ai:review |
@@ -81,6 +85,12 @@ Every generated app must include a Deployment Environment plan before preview or
 
 Use `source-of-truth/deployment-environment-standard.md` for the required shape.
 
+## Design Quality Requirement
+
+Every generated app must include a Design Quality Gate and UX Review before Release Gate approval. The packet must state Designer review, Customer Perspective review, simple navigation, clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
+
+Use `source-of-truth/design-quality-gate.md` and `source-of-truth/ux-review-standard.md` for the required shape.
+
 ## Release Gate Requirement
 
 Every generated app must include a Release Gate before it leaves build mode. The packet must state the v1 launch path, vNext/follow-up rules, preview deploy contract, production approval requirement, post-launch monitoring, and Super Admin status update contract.
@@ -99,6 +109,7 @@ Packets must enforce:
 - Do not expose secrets, private data, API keys, tokens, or credentials.
 - Do not merge phases just because a model can generate more code.
 - Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
+- Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.
 
 ## Machine Shape
 
@@ -204,6 +215,23 @@ Agents should produce packet artifacts with this shape:
         "strategy": "generated-app branch or app-scoped database"
       }
     },
+    "designReview": {
+      "kind": "design_review",
+      "schemaVersion": 1,
+      "reviewers": {
+        "designerRequired": true,
+        "customerPerspectiveRequired": true,
+        "designerStatus": "required",
+        "customerPerspectiveStatus": "required"
+      },
+      "qualityChecks": [
+        {
+          "id": "clear_primary_action",
+          "status": "required"
+        }
+      ],
+      "stateChecks": ["mobile", "empty states", "error states", "onboarding", "admin screens"]
+    },
     "releaseGate": {
       "kind": "release_gate_plan",
       "schemaVersion": 1,
@@ -290,6 +318,8 @@ Use this outline when creating a new app packet:
 
 ## Release Gate
 - Launch version:
+- Designer review:
+- Customer Perspective review:
 - Preview deploy contract:
 - Production approval:
 - Post-launch monitoring:
@@ -324,6 +354,8 @@ Use this outline when creating a new app packet:
 - data_model:
 - identity_auth:
 - ui_design:
+- design_quality:
+- ux_review:
 - mvp_build:
 - testing:
 - review:

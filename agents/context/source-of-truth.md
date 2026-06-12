@@ -39,6 +39,8 @@ Every agent workflow must load:
 - Identity/Auth Standard when planning, building, reviewing, or launching a generated app
 - Super Admin Registry Standard when planning, building, reviewing, monitoring, or launching a generated app
 - Deployment Environment Standard when planning, building, reviewing, deploying, or launching a generated app
+- Design Quality Gate when planning, designing, reviewing, testing, or releasing a generated app
+- UX Review Standard when reviewing user paths, mobile paths, empty states, error states, onboarding, admin screens, or release readiness
 - Release Gate Standard when moving a generated app from build to preview, production, monitoring, or vNext work
 - Current Context
 - Active Task

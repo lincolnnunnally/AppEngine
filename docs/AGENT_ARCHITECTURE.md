@@ -35,6 +35,8 @@ source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
 source-of-truth/deployment-environment-standard.md
+source-of-truth/design-quality-gate.md
+source-of-truth/ux-review-standard.md
 source-of-truth/release-gate-standard.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
@@ -80,6 +82,8 @@ The packet defines:
 - Super Admin integration requirements
 - Super Admin registry entry
 - Deployment Environment plan
+- Design Quality Gate plan
+- UX Review plan
 - Release Gate plan
 - phased work plan
 - app-goal bleed guardrails
@@ -94,6 +98,8 @@ architecture
 data_model
 identity_auth
 ui_design
+design_quality
+ux_review
 mvp_build
 testing
 review
@@ -112,6 +118,8 @@ Super Admin registry entries must declare the app lifecycle status, owner, repo,
 
 Deployment Environment plans must declare Vercel frontend settings, Render/API backend settings when needed, database provider, environment variable names without values, preview URL, production URL or approval gate, custom domain/subdomain, logs, health checks, and rollback notes.
 
+Design Quality Gates require Designer and Customer Perspective review before Release Gate approval. The `design_review` artifact checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
+
 Release Gates move apps out of endless build mode. The first public MVP launch is `v1`; later improvements become `vNext`, `v2`, or focused follow-up issues. Production requires preview evidence, owner approval, rollback notes, post-launch monitoring, and Super Admin status update.
 
 Local packet verification:
@@ -129,6 +137,7 @@ npm run smoke:identity-registry
 Local deployment/release verification:
 
 ```bash
+npm run smoke:design-quality
 npm run smoke:release-gate
 ```
 
@@ -197,7 +206,7 @@ Every agent workflow must load:
 - Life Produces Life product doctrine
 - App Charter
 - App Build Packet when the work is a generated app, major rebuild, or complex multi-phase workflow
-- Identity/Auth, Super Admin Registry, Deployment Environment, and Release Gate standards when the work moves toward launch
+- Identity/Auth, Super Admin Registry, Deployment Environment, Design Quality Gate, UX Review, and Release Gate standards when the work moves toward launch
 - Current Context
 - Active Task
 
@@ -233,6 +242,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-identity-registry-standard.js` creates an Identity/Auth plan, Super Admin registry entry, and focused follow-up tasks.
 
 `scripts/create-release-gate-standard.js` creates a Deployment Environment plan, Release Gate, and focused preview/release/monitor follow-up tasks.
+
+`scripts/create-design-quality-standard.js` creates a Design Quality Gate, UX Review, `design_review` artifact, and focused design follow-up tasks.
 
 `scripts/monitor-ai-issues.js` scans open AI-labeled issues and records a monitor report.
 

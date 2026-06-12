@@ -13,6 +13,8 @@ Questions:
 - What creates friction?
 - What would make them stop using this?
 - What would make them recommend it?
+- Does the app feel clear, inviting, and emotionally right for this audience?
+- Would the user understand empty states, error states, onboarding, and admin-facing status without explanation?
 
 Evaluate:
 
@@ -22,6 +24,8 @@ Evaluate:
 - Motivation
 - Emotional impact
 - Perceived value
+- Audience-specific fit
+- Release-blocking confusion
 
 Output:
 
@@ -30,3 +34,4 @@ Output:
 - Trust Concerns
 - Suggested Improvements
 - Likely User Reaction
+- Design Review contribution

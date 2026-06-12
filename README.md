@@ -12,6 +12,8 @@ It is designed for:
 - generated-app Identity/Auth standard
 - generated-app Super Admin registry standard
 - generated-app Deployment Environment standard
+- generated-app Design Quality Gate standard
+- generated-app UX Review standard
 - generated-app Release Gate standard
 - reusable app templates
 - shared product, business, architecture, database, auth, design, frontend, backend, QA, fixer, and deployment agent roles
@@ -155,20 +157,25 @@ Generated apps must also define a Deployment Environment plan and Release Gate b
 
 ```text
 source-of-truth/deployment-environment-standard.md
+source-of-truth/design-quality-gate.md
+source-of-truth/ux-review-standard.md
 source-of-truth/release-gate-standard.md
 ```
 
 The release path is:
 
 ```text
-idea -> packet -> identity/auth -> registry -> environment -> release gate -> monitored launch
+idea -> packet -> identity/auth -> registry -> environment -> design quality -> release gate -> monitored launch
 ```
 
 The first useful public launch is `v1`. Later improvements become `vNext`, `v2`, or focused follow-up issues instead of endlessly expanding the MVP.
 
+Before release approval, the Designer and Customer Perspective agents must produce or approve a `design_review` artifact. That review checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens. Technically working but ugly or confusing apps do not pass the release gate.
+
 Verify the release generator and no-production-deploy follow-up handoff with:
 
 ```bash
+npm run smoke:design-quality
 npm run smoke:release-gate
 ```
 
@@ -298,6 +305,8 @@ source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
 source-of-truth/deployment-environment-standard.md
+source-of-truth/design-quality-gate.md
+source-of-truth/ux-review-standard.md
 source-of-truth/release-gate-standard.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
@@ -307,11 +316,12 @@ agents/context/security-rules.md
 agents/context/output-contracts.md
 ```
 
-For new generated apps or complicated app builds, create an App Build Packet before implementation. The packet defines the app charter, boundaries, audience, success definition, MVP stages, identity/auth, Super Admin registry, deployment environment, release gate, deployment target, and phased follow-up issues.
+For new generated apps or complicated app builds, create an App Build Packet before implementation. The packet defines the app charter, boundaries, audience, success definition, MVP stages, identity/auth, Super Admin registry, deployment environment, Design Quality Gate, UX Review, release gate, deployment target, and phased follow-up issues.
 
 ```bash
 npm run packet:create
 npm run smoke:app-build-packet
+npm run smoke:design-quality
 npm run smoke:release-gate
 ```
 

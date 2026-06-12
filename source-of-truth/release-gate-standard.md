@@ -12,6 +12,8 @@ idea
 -> Identity/Auth plan
 -> Super Admin registry entry
 -> Deployment environment plan
+-> Design Quality Gate
+-> UX review
 -> preview deploy
 -> production approval
 -> v1 launch
@@ -37,6 +39,10 @@ Each generated app must pass or explicitly block these gates:
 - Identity/Auth plan exists
 - Super Admin registry entry exists
 - Deployment environment plan exists
+- Design Quality Gate exists
+- Designer review is complete or explicitly blocked
+- Customer Perspective review is complete or explicitly blocked
+- UX review covers mobile, empty states, error states, onboarding, and admin screens
 - Preview deploy contract exists
 - Preview health check is defined
 - Preview logs are defined
@@ -52,6 +58,7 @@ Each generated app must pass or explicitly block these gates:
 Release gates should create issue-ready tasks for:
 
 - Preview deploy: create or update preview deployment, run smoke checks, and update Super Admin status to `preview`.
+- Design review: require Designer and Customer Perspective review before release approval.
 - Production approval: require owner approval before production deploy, custom domain activation, and production status.
 - Post-launch monitoring: schedule or trigger monitor checks for health, logs, incidents, and user/admin workflows.
 - Super Admin status update: update registry status as `planned`, `building`, `preview`, `production`, `paused`, or `retired`.
@@ -64,6 +71,9 @@ Agents must stop or create follow-up work when:
 
 - A generated app has no release gate.
 - A generated app keeps receiving build tasks but has no preview path.
+- Designer review or Customer Perspective review is missing before release approval.
+- Mobile, empty states, error states, onboarding, or admin screens have not been reviewed.
+- The app is technically working but ugly, confusing, unreadable, inaccessible, or emotionally mismatched to the audience.
 - Preview is marked ready without health checks and logs.
 - Production is marked ready without owner approval, rollback notes, and Super Admin status update.
 - Versioning is missing or post-v1 improvements are being folded into the MVP.
@@ -95,6 +105,16 @@ Agents should produce release gate artifacts with this shape:
       "evidence": "deployment_environment_plan"
     },
     {
+      "id": "design_quality",
+      "status": "required",
+      "evidence": "design_review"
+    },
+    {
+      "id": "customer_perspective_review",
+      "status": "required",
+      "evidence": "design_review"
+    },
+    {
       "id": "production_approval",
       "status": "blocked_until_owner_approval",
       "evidence": "owner approval comment or release issue"
@@ -105,6 +125,12 @@ Agents should produce release gate artifacts with this shape:
       "recommendedLabel": "ai:review",
       "deploysProduction": false,
       "updatesSuperAdminStatus": "preview"
+    },
+    "designReview": {
+      "recommendedLabel": "ai:review",
+      "requiresDesignerReview": true,
+      "requiresCustomerPerspectiveReview": true,
+      "blocksReleaseApproval": true
     },
     "productionApproval": {
       "recommendedLabel": "ai:review",
@@ -122,6 +148,7 @@ Agents should produce release gate artifacts with this shape:
   "guardrails": {
     "previewBeforeProduction": true,
     "ownerApprovalBeforeProduction": true,
+    "designReviewBeforeRelease": true,
     "postLaunchMonitoringRequired": true,
     "vNextAfterV1": true,
     "noSecretsInOutput": true
