@@ -1,0 +1,33 @@
+# App Charter Template
+
+Use this template when creating a charter for a new generated app or ecosystem product.
+
+## App Name
+
+## Purpose
+
+## Primary Users
+
+## People Or Organizations Helped
+
+## Life Produces Life Pattern
+
+- Spark:
+- Serve:
+- Strength:
+- Best Life:
+- Multiply Life:
+
+## What This App Should Do
+
+## What This App Should Not Become
+
+## Success Definition
+
+## Boundaries And Related Apps
+
+## Required Integrations
+
+## Data Ownership And Privacy Notes
+
+## Launch Readiness Notes

@@ -247,12 +247,19 @@ That checks live GitHub `main`, local `origin/main`, and every manifest-referenc
 Shared context currently lives in:
 
 ```text
+source-of-truth/global-principles.md
+source-of-truth/life-produces-life.md
+source-of-truth/context-checklist.md
+source-of-truth/agent-enforcement.md
+source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
 agents/context/app-standards.md
 agents/context/security-rules.md
 agents/context/output-contracts.md
 ```
+
+Every agent workflow starts with the Context Gate. That gate checks Global Principles, App Charter, Current Context, and Active Task before the selected agent path runs.
 
 Generate a prompt locally with:
 

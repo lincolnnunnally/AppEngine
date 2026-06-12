@@ -14,6 +14,7 @@ Before an agent plans, builds, reviews, fixes, monitors, or creates follow-up wo
 6. Read all `shared_context_files` listed in the manifest.
 7. Read the selected agent prompt from the manifest.
 8. Treat GitHub issues, pull requests, and repo docs as durable handoff records.
+9. Run the Context Gate before planning, designing, building, reviewing, fixing, monitoring, or recommending growth.
 
 ## Drift Prevention
 
@@ -26,3 +27,13 @@ Before an agent plans, builds, reviews, fixes, monitors, or creates follow-up wo
 ## Durable Memory
 
 Core principles, product direction, and completed decisions should be stored in repo files, issues, pull requests, or agent outputs. Chat can clarify, but repo state decides what future agents inherit.
+
+## Required Context Set
+
+Every agent workflow must load:
+
+- Global Principles
+- Life Produces Life product doctrine
+- App Charter
+- Current Context
+- Active Task

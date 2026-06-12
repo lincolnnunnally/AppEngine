@@ -27,6 +27,11 @@ GitHub Actions runs this in strict mode before Codex receives a generated prompt
 Shared context:
 
 ```text
+source-of-truth/global-principles.md
+source-of-truth/life-produces-life.md
+source-of-truth/context-checklist.md
+source-of-truth/agent-enforcement.md
+source-of-truth/charters/appengine.md
 agents/context/mission.md
 agents/context/source-of-truth.md
 agents/context/app-standards.md
@@ -47,15 +52,35 @@ Do not create a second prompt source without updating the manifest.
 Labels map to manifest `label_workflows`:
 
 ```text
-ai:plan    -> mission, visionary, customer_perspective, discovery, connection, systems, planner
-ai:build   -> designer, builder
-ai:review  -> customer_perspective, workflow_tester, code_reviewer
-ai:fix     -> fixer
-ai:growth  -> discovery, connection, growth
-ai:monitor -> monitor
+ai:plan    -> context_gate, mission, visionary, customer_perspective, discovery, connection, systems, planner
+ai:build   -> context_gate, designer, builder
+ai:review  -> context_gate, customer_perspective, workflow_tester, code_reviewer
+ai:fix     -> context_gate, fixer
+ai:growth  -> context_gate, discovery, connection, growth
+ai:monitor -> context_gate, monitor
 ```
 
 The orchestrator can reroute follow-up work by returning issue-ready tasks with one of those labels.
+
+## Context Gate
+
+The `context_gate` agent runs before label workflows. Its job is to prevent:
+
+- stale context
+- repository drift
+- app goal bleeding
+- forgotten principles
+- agents operating from incomplete information
+
+Every agent workflow must load:
+
+- Global Principles
+- Life Produces Life product doctrine
+- App Charter
+- Current Context
+- Active Task
+
+The Context Gate can return a go/no-go decision, missing context, boundary warnings, and a recommended next step.
 
 ## Adding A New Agent
 
