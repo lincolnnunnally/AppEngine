@@ -8,6 +8,8 @@ const repo = process.env.GITHUB_REPOSITORY || "lincolnnunnally/AppEngine";
 const sourceIssueNumber = process.env.SOURCE_ISSUE_NUMBER || "";
 const sourceIssueUrl = process.env.SOURCE_ISSUE_URL || "";
 const maxFollowUps = Number.parseInt(process.env.MAX_FOLLOW_UP_ISSUES || "5", 10);
+const dryRun = process.env.FOLLOW_UP_DRY_RUN === "true";
+const dryRunOutput = process.env.FOLLOW_UP_OUTPUT || "";
 const dispatchWorkflows = process.env.FOLLOW_UP_DISPATCH_WORKFLOWS === "true";
 const dispatchRef = process.env.FOLLOW_UP_REF || process.env.GITHUB_REF_NAME || "main";
 const maxDispatches = Number.parseInt(process.env.MAX_FOLLOW_UP_WORKFLOW_DISPATCHES || "1", 10);
@@ -44,6 +46,8 @@ if (!tasks.length) {
   process.exit(0);
 }
 
+const preparedIssues = [];
+
 for (const task of tasks) {
   const title = normalizeTitle(task.title);
   const label = normalizeLabel(task.recommendedLabel || task.label || task.labels?.[0] || "ai:plan");
@@ -57,6 +61,13 @@ for (const task of tasks) {
   ]
     .filter(Boolean)
     .join("\n");
+
+  if (dryRun) {
+    preparedIssues.push({ title, label, body });
+    console.log(`Dry run follow-up issue: ${title} (${label})`);
+    continue;
+  }
+
   const bodyPath = path.join(os.tmpdir(), `appengine-follow-up-${Date.now()}-${Math.random().toString(16).slice(2)}.md`);
   fs.writeFileSync(bodyPath, body);
 
@@ -64,6 +75,11 @@ for (const task of tasks) {
   const issueUrl = createIssue({ title, bodyPath, label });
   console.log(`Created follow-up issue: ${title} (${label})`);
   dispatchFollowUpWorkflow({ issueUrl, title, body, label });
+}
+
+if (dryRun && dryRunOutput) {
+  fs.mkdirSync(path.dirname(path.resolve(dryRunOutput)), { recursive: true });
+  fs.writeFileSync(path.resolve(dryRunOutput), `${JSON.stringify({ issues: preparedIssues }, null, 2)}\n`);
 }
 
 function extractFollowUpTasks(text) {
