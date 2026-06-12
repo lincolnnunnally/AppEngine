@@ -2,6 +2,7 @@ import type { AgentRole } from "./agent-roles";
 import type { EngineTask } from "./tasks";
 
 export type AgentArtifactKind =
+  | "intake_packet"
   | "product_brief"
   | "business_model"
   | "system_architecture"

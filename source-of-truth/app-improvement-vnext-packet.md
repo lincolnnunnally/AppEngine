@@ -2,6 +2,8 @@
 
 Existing apps must be improved with a vNext Packet instead of restarting the app as a new build.
 
+Natural language improvement requests must pass through the Intake Command Standard and App Selection Standard before a vNext Packet is created. The intake packet should prove that the app was identified and that the existing-app context was loaded.
+
 Use this standard for requests such as:
 
 - Improve this app

@@ -31,6 +31,8 @@ source-of-truth/global-principles.md
 source-of-truth/life-produces-life.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
+source-of-truth/intake-command-standard.md
+source-of-truth/app-selection-standard.md
 source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
@@ -71,6 +73,42 @@ ai:monitor -> context_gate, monitor
 ```
 
 The orchestrator can reroute follow-up work by returning issue-ready tasks with one of those labels.
+
+## Intake and App Selection
+
+Natural language requests enter AppEngine through an intake packet before planning or building. This lets Lincoln, ChatGPT, GitHub issues, and future agents say things like:
+
+```text
+build this app
+start AppEngine build
+improve Spark of Hope
+add this feature to Toner Management
+```
+
+The intake path is:
+
+```text
+natural request
+-> intake_packet
+-> app selection
+-> App Build Packet or vNext Packet
+-> agent loop
+```
+
+The `intake_packet` artifact records raw request, inferred app, request type, confidence, missing context, selected workflow, next labels, and guardrails.
+
+Routing rules:
+
+- New app requests create an App Build Packet before implementation.
+- Existing app requests create a vNext Packet only after loading charter, Super Admin registry, current version, release history, monitoring state, known issues, and open issues.
+- Ambiguous app names pause for clarification.
+- Multi-app requests split into one scoped issue per app unless the task is explicitly cross-app integration work.
+
+Local intake verification:
+
+```bash
+npm run smoke:intake
+```
 
 ## App Build Packets
 
@@ -258,6 +296,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/make-orchestration-plan.js` writes a machine-readable plan for the current run.
 
 `scripts/create-follow-up-issues.js` turns structured agent `followUpTasks` into GitHub issues.
+
+`scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
 
 `scripts/create-app-build-packet.js` creates an App Build Packet and phase-ready follow-up tasks for new or complex app work.
 

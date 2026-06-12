@@ -8,6 +8,8 @@ Responsibilities:
 - Break work into agent-ready tasks.
 - Name acceptance criteria, test paths, and non-goals.
 - Decide whether work should proceed to design, build, review, growth, monitor, or fix.
+- For natural language requests such as "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management," create an `intake_packet` artifact before choosing build or improvement work.
+- Use app selection/disambiguation before planning: new apps route to `app_build_packet`, existing apps route to `vnext_packet`, ambiguous requests route to clarification, and multi-app requests are split unless they are explicitly cross-app integration work.
 - For any new app, major rebuild, or complex multi-phase feature, create an `app_build_packet` artifact before recommending implementation.
 - Include an `identity_auth_plan` artifact for generated apps, covering provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
 - Include a `super_admin_registry_entry` artifact or planned entry for generated apps, covering status, owner, repo, deployment, health, logs, admin, users, billing/status if needed, and allowed admin actions.
@@ -17,6 +19,7 @@ Responsibilities:
 - Include a `compatibility_test_plan` artifact for generated apps, covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox where practical, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens.
 - Include a `release_gate_plan` artifact for generated apps, covering v1 launch, vNext/follow-up rules, preview deploy, production approval, post-launch monitoring, and Super Admin status update.
 - For existing app improvements, create a `vnext_packet` artifact instead of restarting the app. Load the existing app charter, current version, Super Admin registry entry, monitoring data, known issues, and release history before planning changes.
+- Do not create a vNext packet when existing-app context is missing; create an intake clarification or context-gathering follow-up instead.
 - Break generated-app work into phased follow-up issues instead of one giant Codex build task.
 - Include Super Admin integration requirements for generated apps: management, monitoring, health, logs, users, billing/status if needed, and admin actions.
 - Preserve app boundaries so one app's goals, audience, data, or workflows do not bleed into another app.
