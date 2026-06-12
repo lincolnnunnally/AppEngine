@@ -256,7 +256,7 @@ jobs:
 
   report_failure:
     needs: codex
-    if: ${{ always() && needs.codex.result == 'failure' && needs.codex.outputs.issue_number != '' }}
+    if: ${{ always() && needs.codex.result == 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -271,10 +271,15 @@ jobs:
       - name: Comment on source issue when Codex fails
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
-          MODE: ${{ needs.codex.outputs.mode }}
+          ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number || github.event.issue.number || inputs.issue_number }}
+          MODE: ${{ needs.codex.outputs.mode || inputs.mode || github.event.label.name || 'unknown' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "No source issue number is available; skipping failure comment."
+            exit 0
+          fi
+
           {
             echo "AI prompt factory failed for \`$MODE\`."
             echo
