@@ -301,6 +301,55 @@ jobs:
           name: agent-run
           path: agent-run
 
+      - name: Summarize Codex failure log
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p agent-run
+
+          jobs_json="$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" || true)"
+          codex_job_id="$(printf "%s" "$jobs_json" | node -e "let input='';process.stdin.on('data',c=>input+=c);process.stdin.on('end',()=>{try{const data=JSON.parse(input);const job=(data.jobs||[]).find((item)=>item.name==='codex');process.stdout.write(job?.id ? String(job.id) : '');}catch{}});")"
+
+          if [ -z "$codex_job_id" ]; then
+            exit 0
+          fi
+
+          gh api "repos/$GH_REPO/actions/jobs/$codex_job_id/logs" > agent-run/codex-job.log || exit 0
+
+          node <<'NODE'
+          const fs = require("node:fs");
+          const logPath = "agent-run/codex-job.log";
+          const outputPath = "agent-run/codex-job-summary.md";
+
+          if (!fs.existsSync(logPath)) process.exit(0);
+
+          const raw = fs.readFileSync(logPath, "utf8");
+          const lines = raw
+            .replace(/\u001b\[[0-9;]*m/g, "")
+            .split(/\r?\n/)
+            .map((line) => line.replace(/^\d{4}-\d{2}-\d{2}T[^\s]+\s+/, "").trim())
+            .filter(Boolean);
+
+          const interesting = lines.filter((line) =>
+            /(::error::|##\[error\]|\bERROR:|\bError:|quota exceeded|insufficient_quota|billing|rate limit|unauthorized|forbidden|codex exited)/i.test(line)
+          );
+
+          const selected = interesting.slice(-16).map((line) => line.slice(0, 900));
+          if (selected.length === 0) process.exit(0);
+
+          const body = [
+            "## Codex failure log summary",
+            "",
+            ...selected.map((line) => `- ${line}`),
+            ""
+          ].join("\n");
+
+          fs.writeFileSync(outputPath, body);
+          NODE
+
       - name: Comment on source issue when Codex fails
         env:
           GH_TOKEN: ${{ github.token }}
@@ -323,6 +372,10 @@ jobs:
             echo
             if [ -f agent-run/failure-diagnostics.md ]; then
               cat agent-run/failure-diagnostics.md
+              echo
+            fi
+            if [ -f agent-run/codex-job-summary.md ]; then
+              cat agent-run/codex-job-summary.md
               echo
             fi
             if [ -f agent-run/codex-output.md ]; then

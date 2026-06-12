@@ -25,6 +25,7 @@ if (!dispatchMode && !selectedLabel) {
 }
 
 writeOutput("mode", normalizeMode(mode));
+writeOutput("issue_number", process.env.ISSUE_NUMBER || "");
 writeOutput("trigger_label", selectedLabel);
 writeOutput("workflow_agents", workflow.join(","));
 console.log(`Selected ${normalizeMode(mode)} for ${selectedLabel || "manual dispatch"}.`);
