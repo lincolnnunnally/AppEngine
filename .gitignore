@@ -3,6 +3,7 @@ node_modules
 .env.local
 .env*.local
 .app-engine
+agent-run
 *.tsbuildinfo
 generated-prompt.md
 generated-codex-prompt.md
