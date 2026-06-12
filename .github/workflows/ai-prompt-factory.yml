@@ -220,6 +220,7 @@ jobs:
         if: ${{ needs.codex.outputs.issue_number != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
           MODE: ${{ needs.codex.outputs.mode }}
           PR_URL: ${{ steps.pr.outputs.pr_url }}
@@ -242,7 +243,7 @@ jobs:
             fi
           } > issue-comment.md
 
-          gh issue comment "$ISSUE_NUMBER" --body-file issue-comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GH_REPO" --body-file issue-comment.md
 
       - name: Create follow-up issues from structured output
         if: ${{ needs.codex.outputs.issue_number != '' }}
@@ -271,6 +272,7 @@ jobs:
       - name: Comment on source issue when Codex fails
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number || github.event.issue.number || inputs.issue_number }}
           MODE: ${{ needs.codex.outputs.mode || inputs.mode || github.event.label.name || 'unknown' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -296,4 +298,4 @@ jobs:
             fi
           } > issue-comment.md
 
-          gh issue comment "$ISSUE_NUMBER" --body-file issue-comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GH_REPO" --body-file issue-comment.md
