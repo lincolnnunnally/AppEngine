@@ -13,6 +13,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Deployment Environment Standard for generated apps, major rebuilds, preview deploys, and launch work
 - Design Quality Gate for generated apps, major rebuilds, and launch work
 - UX Review Standard for generated apps, user workflow testing, mobile testing, and launch work
+- Compatibility Standard for generated apps, Safari/mobile readiness, common browser testing, and launch work
 - Release Gate Standard for generated apps, preview deploys, production approval, monitoring, and vNext work
 - Current Context from GitHub issue, pull request, docs, or committed source
 - Active Task and triggering label
@@ -33,9 +34,10 @@ All agent workflows must load and answer this checklist before taking action.
 10. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
 11. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
 12. Does the app have Designer and Customer Perspective review before Release Gate approval?
-13. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
-14. Are any core files, docs, prompts, context, or issue links missing?
-15. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+13. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
+14. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
+15. Are any core files, docs, prompts, context, or issue links missing?
+16. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 

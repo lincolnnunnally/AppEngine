@@ -24,6 +24,7 @@ Each packet must define:
 - Deployment Environment plan
 - Design Quality Gate
 - UX Review
+- Compatibility Test Plan
 - Release Gate plan
 - Phase plan with follow-up labels
 - Guardrails that prevent app-goal bleeding
@@ -42,6 +43,7 @@ Complicated apps must be split into these phases. Agents may add subphases, but 
 | ui_design | Define user flows, screens, content, accessibility, and design direction. | ai:build |
 | design_quality | Review navigation, primary actions, mobile layout, copy, spacing, contrast, trust, and emotional fit. | ai:review |
 | ux_review | Review mobile, empty states, error states, onboarding, admin screens, and release-blocking UX confusion. | ai:review |
+| compatibility | Test mobile-first responsiveness, Safari, Chrome, Edge, Firefox, touch targets, forms, auth, uploads/payments if used, and admin screens. | ai:review |
 | mvp_build | Build the smallest useful version without absorbing later phases. | ai:build |
 | testing | Verify workflows, acceptance criteria, permissions, and edge cases. | ai:review |
 | review | Review code, security, maintainability, scope, and app-boundary risks. | ai:review |
@@ -91,6 +93,12 @@ Every generated app must include a Design Quality Gate and UX Review before Rele
 
 Use `source-of-truth/design-quality-gate.md` and `source-of-truth/ux-review-standard.md` for the required shape.
 
+## Compatibility Requirement
+
+Every generated app must include a Compatibility Test Plan before Release Gate approval. The packet must state required browser/platform coverage, mobile-first responsive checks, common viewport checks, touch-target checks, forms, auth flows, file uploads if used, payments if used, admin screens, and Super Admin status surfaces.
+
+Use `source-of-truth/compatibility-standard.md` for the required shape.
+
 ## Release Gate Requirement
 
 Every generated app must include a Release Gate before it leaves build mode. The packet must state the v1 launch path, vNext/follow-up rules, preview deploy contract, production approval requirement, post-launch monitoring, and Super Admin status update contract.
@@ -110,6 +118,7 @@ Packets must enforce:
 - Do not merge phases just because a model can generate more code.
 - Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
 - Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.
+- Do not approve release with unresolved Safari, mobile, common browser, touch-target, form, auth, upload, payment, or admin compatibility issues.
 
 ## Machine Shape
 
@@ -232,6 +241,25 @@ Agents should produce packet artifacts with this shape:
       ],
       "stateChecks": ["mobile", "empty states", "error states", "onboarding", "admin screens"]
     },
+    "compatibilityTestPlan": {
+      "kind": "compatibility_test_plan",
+      "schemaVersion": 1,
+      "browserSupport": [
+        {
+          "id": "iphone_safari",
+          "browser": "Safari",
+          "platform": "iPhone",
+          "required": true
+        }
+      ],
+      "viewports": ["390x844", "768x1024", "1440x900"],
+      "checks": [
+        {
+          "id": "touch_targets",
+          "status": "required"
+        }
+      ]
+    },
     "releaseGate": {
       "kind": "release_gate_plan",
       "schemaVersion": 1,
@@ -320,11 +348,28 @@ Use this outline when creating a new app packet:
 - Launch version:
 - Designer review:
 - Customer Perspective review:
+- Compatibility plan:
 - Preview deploy contract:
 - Production approval:
 - Post-launch monitoring:
 - Super Admin status update:
 - vNext/follow-up rules:
+
+## Compatibility
+- iPhone Safari:
+- iPad Safari:
+- Desktop Safari:
+- Chrome mobile:
+- Chrome desktop:
+- Edge desktop:
+- Firefox desktop:
+- Required viewports:
+- Touch targets:
+- Forms and validation:
+- Auth flows:
+- File uploads if used:
+- Payments if used:
+- Admin screens:
 
 ## Super Admin Integration
 - Management:
@@ -356,6 +401,7 @@ Use this outline when creating a new app packet:
 - ui_design:
 - design_quality:
 - ux_review:
+- compatibility:
 - mvp_build:
 - testing:
 - review:

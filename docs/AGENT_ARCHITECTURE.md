@@ -37,6 +37,7 @@ source-of-truth/super-admin-registry.md
 source-of-truth/deployment-environment-standard.md
 source-of-truth/design-quality-gate.md
 source-of-truth/ux-review-standard.md
+source-of-truth/compatibility-standard.md
 source-of-truth/release-gate-standard.md
 source-of-truth/charters/appengine.md
 agents/context/mission.md
@@ -84,6 +85,7 @@ The packet defines:
 - Deployment Environment plan
 - Design Quality Gate plan
 - UX Review plan
+- Compatibility Test Plan
 - Release Gate plan
 - phased work plan
 - app-goal bleed guardrails
@@ -100,6 +102,7 @@ identity_auth
 ui_design
 design_quality
 ux_review
+compatibility
 mvp_build
 testing
 review
@@ -120,6 +123,8 @@ Deployment Environment plans must declare Vercel frontend settings, Render/API b
 
 Design Quality Gates require Designer and Customer Perspective review before Release Gate approval. The `design_review` artifact checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
 
+Compatibility Test Plans require mobile-first responsive checks and common platform coverage before Release Gate approval. The `compatibility_test_plan` artifact checks iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox where practical, common viewports, touch targets, forms, auth flows, file uploads if used, payments if used, admin screens, and Super Admin status.
+
 Release Gates move apps out of endless build mode. The first public MVP launch is `v1`; later improvements become `vNext`, `v2`, or focused follow-up issues. Production requires preview evidence, owner approval, rollback notes, post-launch monitoring, and Super Admin status update.
 
 Local packet verification:
@@ -138,6 +143,7 @@ Local deployment/release verification:
 
 ```bash
 npm run smoke:design-quality
+npm run smoke:compatibility
 npm run smoke:release-gate
 ```
 
@@ -206,7 +212,7 @@ Every agent workflow must load:
 - Life Produces Life product doctrine
 - App Charter
 - App Build Packet when the work is a generated app, major rebuild, or complex multi-phase workflow
-- Identity/Auth, Super Admin Registry, Deployment Environment, Design Quality Gate, UX Review, and Release Gate standards when the work moves toward launch
+- Identity/Auth, Super Admin Registry, Deployment Environment, Design Quality Gate, UX Review, Compatibility, and Release Gate standards when the work moves toward launch
 - Current Context
 - Active Task
 
@@ -244,6 +250,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-release-gate-standard.js` creates a Deployment Environment plan, Release Gate, and focused preview/release/monitor follow-up tasks.
 
 `scripts/create-design-quality-standard.js` creates a Design Quality Gate, UX Review, `design_review` artifact, and focused design follow-up tasks.
+
+`scripts/create-compatibility-standard.js` creates a Compatibility Test Plan, `compatibility_test_plan` artifact, and focused browser/mobile follow-up tasks.
 
 `scripts/monitor-ai-issues.js` scans open AI-labeled issues and records a monitor report.
 

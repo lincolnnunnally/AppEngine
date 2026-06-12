@@ -41,6 +41,7 @@ Every agent workflow must load:
 - Deployment Environment Standard when planning, building, reviewing, deploying, or launching a generated app
 - Design Quality Gate when planning, designing, reviewing, testing, or releasing a generated app
 - UX Review Standard when reviewing user paths, mobile paths, empty states, error states, onboarding, admin screens, or release readiness
+- Compatibility Standard when reviewing mobile, Safari, Chrome, Edge, Firefox, viewport, touch, form, auth, upload, payment, admin, or release readiness
 - Release Gate Standard when moving a generated app from build to preview, production, monitoring, or vNext work
 - Current Context
 - Active Task

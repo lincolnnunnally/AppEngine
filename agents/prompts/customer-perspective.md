@@ -15,6 +15,7 @@ Questions:
 - What would make them recommend it?
 - Does the app feel clear, inviting, and emotionally right for this audience?
 - Would the user understand empty states, error states, onboarding, and admin-facing status without explanation?
+- Would the experience still feel clear and trustworthy on a phone, iPad, Safari, Chrome, and common browsers?
 
 Evaluate:
 
@@ -26,6 +27,7 @@ Evaluate:
 - Perceived value
 - Audience-specific fit
 - Release-blocking confusion
+- Mobile and browser trust issues
 
 Output:
 

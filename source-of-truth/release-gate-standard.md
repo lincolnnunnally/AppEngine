@@ -14,6 +14,7 @@ idea
 -> Deployment environment plan
 -> Design Quality Gate
 -> UX review
+-> Compatibility Test Plan
 -> preview deploy
 -> production approval
 -> v1 launch
@@ -43,6 +44,10 @@ Each generated app must pass or explicitly block these gates:
 - Designer review is complete or explicitly blocked
 - Customer Perspective review is complete or explicitly blocked
 - UX review covers mobile, empty states, error states, onboarding, and admin screens
+- Compatibility Test Plan exists
+- iPhone/iPad Safari and desktop Safari have no unresolved release blockers
+- Chrome mobile/desktop and common desktop browser issues are recorded or resolved
+- Touch targets, forms, auth flows, uploads/payments if used, and admin screens are checked
 - Preview deploy contract exists
 - Preview health check is defined
 - Preview logs are defined
@@ -59,6 +64,7 @@ Release gates should create issue-ready tasks for:
 
 - Preview deploy: create or update preview deployment, run smoke checks, and update Super Admin status to `preview`.
 - Design review: require Designer and Customer Perspective review before release approval.
+- Compatibility testing: require mobile-first, Safari, Chrome, Edge, Firefox, viewport, touch-target, form, auth, upload/payment if used, and admin checks before release approval.
 - Production approval: require owner approval before production deploy, custom domain activation, and production status.
 - Post-launch monitoring: schedule or trigger monitor checks for health, logs, incidents, and user/admin workflows.
 - Super Admin status update: update registry status as `planned`, `building`, `preview`, `production`, `paused`, or `retired`.
@@ -74,6 +80,7 @@ Agents must stop or create follow-up work when:
 - Designer review or Customer Perspective review is missing before release approval.
 - Mobile, empty states, error states, onboarding, or admin screens have not been reviewed.
 - The app is technically working but ugly, confusing, unreadable, inaccessible, or emotionally mismatched to the audience.
+- Safari, mobile, touch-target, form, auth, upload, payment, admin, or common browser issues remain unresolved.
 - Preview is marked ready without health checks and logs.
 - Production is marked ready without owner approval, rollback notes, and Super Admin status update.
 - Versioning is missing or post-v1 improvements are being folded into the MVP.
@@ -115,6 +122,16 @@ Agents should produce release gate artifacts with this shape:
       "evidence": "design_review"
     },
     {
+      "id": "compatibility",
+      "status": "required",
+      "evidence": "compatibility_test_plan"
+    },
+    {
+      "id": "safari_mobile",
+      "status": "required",
+      "evidence": "iPhone Safari, iPad Safari, desktop Safari"
+    },
+    {
       "id": "production_approval",
       "status": "blocked_until_owner_approval",
       "evidence": "owner approval comment or release issue"
@@ -130,6 +147,12 @@ Agents should produce release gate artifacts with this shape:
       "recommendedLabel": "ai:review",
       "requiresDesignerReview": true,
       "requiresCustomerPerspectiveReview": true,
+      "blocksReleaseApproval": true
+    },
+    "compatibilityTesting": {
+      "recommendedLabel": "ai:review",
+      "requiresSafariMobile": true,
+      "requiresCommonBrowsers": true,
       "blocksReleaseApproval": true
     },
     "productionApproval": {
@@ -149,6 +172,7 @@ Agents should produce release gate artifacts with this shape:
     "previewBeforeProduction": true,
     "ownerApprovalBeforeProduction": true,
     "designReviewBeforeRelease": true,
+    "compatibilityBeforeRelease": true,
     "postLaunchMonitoringRequired": true,
     "vNextAfterV1": true,
     "noSecretsInOutput": true
