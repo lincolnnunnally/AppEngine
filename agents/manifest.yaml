@@ -25,11 +25,13 @@ shared_context_files:
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
   - source-of-truth/super-admin-registry.md
+  - source-of-truth/operations-cost-provider-strategy.md
   - source-of-truth/deployment-environment-standard.md
   - source-of-truth/design-quality-gate.md
   - source-of-truth/ux-review-standard.md
   - source-of-truth/compatibility-standard.md
   - source-of-truth/release-gate-standard.md
+  - source-of-truth/app-improvement-vnext-packet.md
   - source-of-truth/charters/appengine.md
   - agents/context/mission.md
   - agents/context/source-of-truth.md
@@ -130,6 +132,7 @@ agents:
       - root_cause_analysis
       - reusable_solution_candidates
       - simplification_opportunities
+      - provider_cost_review
 
   planner:
     prompt: agents/prompts/planner.md
@@ -139,6 +142,8 @@ agents:
       - issue_labeled_ai_plan
     outputs:
       - build_spec
+      - app_build_packet
+      - vnext_packet
       - acceptance_criteria
       - implementation_steps
       - codex_ready_prompt

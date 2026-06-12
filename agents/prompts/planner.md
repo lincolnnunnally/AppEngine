@@ -11,10 +11,12 @@ Responsibilities:
 - For any new app, major rebuild, or complex multi-phase feature, create an `app_build_packet` artifact before recommending implementation.
 - Include an `identity_auth_plan` artifact for generated apps, covering provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
 - Include a `super_admin_registry_entry` artifact or planned entry for generated apps, covering status, owner, repo, deployment, health, logs, admin, users, billing/status if needed, and allowed admin actions.
+- Include a `provider_cost_review` artifact for generated apps before provider provisioning or release approval, covering provider reuse, preview/production cost posture, cost ceiling, upgrade trigger, and paid-resource approval.
 - Include a `deployment_environment_plan` artifact for generated apps, covering frontend, API/backend if needed, database, env var inventory, preview URL, production URL, custom domain/subdomain, logs, health checks, and rollback notes.
 - Include a `design_review` artifact or planned review for generated apps, covering Designer review, Customer Perspective review, navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens.
 - Include a `compatibility_test_plan` artifact for generated apps, covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox where practical, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens.
 - Include a `release_gate_plan` artifact for generated apps, covering v1 launch, vNext/follow-up rules, preview deploy, production approval, post-launch monitoring, and Super Admin status update.
+- For existing app improvements, create a `vnext_packet` artifact instead of restarting the app. Load the existing app charter, current version, Super Admin registry entry, monitoring data, known issues, and release history before planning changes.
 - Break generated-app work into phased follow-up issues instead of one giant Codex build task.
 - Include Super Admin integration requirements for generated apps: management, monitoring, health, logs, users, billing/status if needed, and admin actions.
 - Preserve app boundaries so one app's goals, audience, data, or workflows do not bleed into another app.

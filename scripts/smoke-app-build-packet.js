@@ -14,6 +14,7 @@ const requiredPhaseIds = [
   "discovery",
   "charter",
   "architecture",
+  "provider_cost",
   "data_model",
   "identity_auth",
   "ui_design",
@@ -65,6 +66,12 @@ runStep("packet creation", () => {
   assertEqual(packet.app.superAdminRegistry.status, "planned", "packet registry status");
   assertEqual(packet.app.superAdminRegistry.release.version, "v1", "packet registry release version");
   assertArrayIncludes(packet.app.superAdminRegistry.superAdminActions, "view logs", "packet registry logs action");
+  assertEqual(packet.app.providerCostReview.kind, "provider_cost_review", "packet embeds provider cost artifact");
+  assertEqual(packet.app.providerCostReview.costPosture.preview, "free_or_low_cost", "packet preview cost posture");
+  assertEqual(packet.app.providerCostReview.costPosture.production, "approval_required", "packet production cost posture");
+  assertArrayIncludes(packet.app.providerCostReview.providers.map((item) => item.area), "frontend", "packet provider frontend");
+  assertArrayIncludes(packet.app.providerCostReview.providers.map((item) => item.area), "database", "packet provider database");
+  assertEqual(packet.app.providerCostReview.guardrails.noPaidResourcesWithoutApproval, true, "packet paid provider guardrail");
   assertEqual(packet.app.deploymentEnvironment.kind, "deployment_environment_plan", "packet embeds deployment environment artifact");
   assertEqual(packet.app.deploymentEnvironment.frontend.provider, "Vercel", "packet frontend provider");
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL is gated");
@@ -89,7 +96,9 @@ runStep("packet creation", () => {
   assertEqual(packet.app.releaseGate.kind, "release_gate_plan", "packet embeds release gate artifact");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet launch version");
   assertEqual(packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction, true, "packet owner approval guardrail");
+  assertEqual(packet.app.releaseGate.guardrails.costReviewBeforeProvisioning, true, "packet provider/cost release guardrail");
   assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "provider_cost_review", "packet provider cost gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design quality gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "compatibility", "packet compatibility gate");
@@ -161,13 +170,16 @@ runStep("phased follow-up dry run", () => {
   assertIncludes(dryRun.issues[0].body, "App Build Packet", "dry-run issue includes packet context");
   assertIncludes(dryRun.issues[0].body, "Identity/Auth", "dry-run issue includes identity/auth requirements");
   assertIncludes(dryRun.issues[0].body, "Super Admin", "dry-run issue includes Super Admin requirements");
+  assertIncludes(dryRun.issues[0].body, "Provider/Cost", "dry-run issue includes provider/cost requirements");
   assertIncludes(dryRun.issues[0].body, "Deployment Environment", "dry-run issue includes deployment environment requirements");
   assertIncludes(dryRun.issues[0].body, "Design Quality", "dry-run issue includes design quality requirements");
   assertIncludes(dryRun.issues[0].body, "Compatibility", "dry-run issue includes compatibility requirements");
   assertIncludes(dryRun.issues[0].body, "Release Gate", "dry-run issue includes release gate requirements");
   assertIncludes(dryRun.issues[0].body, "Do not turn this phase into a full-app build.", "dry-run issue includes phase guardrail");
   assertIncludes(dryRun.issues[0].body, "Do not invent auth outside the Identity/Auth Standard.", "dry-run issue includes auth guardrail");
+  assertIncludes(dryRun.issues[0].body, "Do not create new paid provider resources", "dry-run issue includes provider cost guardrail");
   assertIncludes(dryRun.issues[0].body, "Launch MVP as v1", "dry-run issue includes v1 guardrail");
+  assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: Provider/Cost", "dry-run creates provider cost issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: Design Quality", "dry-run creates design quality issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: UX Review", "dry-run creates UX review issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[kind-help-desk] Phase: Compatibility", "dry-run creates compatibility issue");

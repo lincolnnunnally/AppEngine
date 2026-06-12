@@ -20,6 +20,8 @@ const mvpStages = input.mvpStages || defaultMvpStages(appName);
 const releaseVersion = input.version || process.env.APP_RELEASE_VERSION || "v1";
 const fileUploadsUsed = booleanFrom(input.fileUploadsUsed, process.env.APP_FILE_UPLOADS_USED, false);
 const paymentsUsed = booleanFrom(input.paymentsUsed, process.env.APP_PAYMENTS_USED, false);
+const aiUsed = booleanFrom(input.aiUsed, process.env.APP_AI_USED, false);
+const monthlyCostCeiling = input.monthlyCeiling || process.env.APP_MONTHLY_COST_CEILING || "owner-defined";
 const identityAuth =
   input.identityAuth ||
   buildIdentityAuthPlan({
@@ -71,6 +73,17 @@ const superAdminRegistry =
     roles: identityAuth.roles.map((role) => role.role),
     version: releaseVersion
   });
+const providerCostReview =
+  input.providerCostReview ||
+  buildProviderCostReview({
+    appName,
+    slug,
+    monthlyCeiling: monthlyCostCeiling,
+    backendRequired: process.env.APP_BACKEND_REQUIRED === "true",
+    fileUploadsUsed,
+    paymentsUsed,
+    aiUsed
+  });
 const deploymentEnvironment =
   input.deploymentEnvironment ||
   buildDeploymentEnvironment({
@@ -111,6 +124,7 @@ const releaseGate =
     appName,
     slug,
     version: deploymentEnvironment.app.version,
+    providerCostReview,
     deploymentEnvironment,
     designReview,
     compatibilityTestPlan
@@ -138,6 +152,7 @@ const packet = {
       requirements: superAdminRequirements
     },
     superAdminRegistry,
+    providerCostReview,
     deploymentEnvironment,
     designReview,
     compatibilityTestPlan,
@@ -154,6 +169,7 @@ const packet = {
       "Create phased follow-up issues instead of one giant Codex task.",
       "Define identity/auth before app build or launch work.",
       "Register management, monitoring, health, logs, users, billing/status if needed, and admin actions with Super Admin.",
+      "Review provider strategy and cost before creating new paid resources.",
       "Define deployment environment and release gates before preview or production launch.",
       "Require Designer and Customer Perspective review before release approval.",
       "Block technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.",
@@ -236,6 +252,10 @@ function buildPhases(slug) {
     phase("architecture", "Architecture", "systems", "ai:plan", "Define stack, routes, permissions, integrations, and Super Admin registration plan.", [
       "Architecture identifies generated-app services and central AppEngine touchpoints.",
       "No production deploy path is enabled without approval."
+    ]),
+    phase("provider_cost", "Provider/Cost", "systems", "ai:plan", "Review operations, provider reuse, estimated cost tier, new paid resources, and upgrade triggers before provisioning.", [
+      "Provider/cost review exists or blockers are recorded.",
+      "No new paid provider resource is approved without owner approval, cost posture, and upgrade trigger."
     ]),
     phase("data_model", "Data Model", "builder", "ai:build", "Define database schema, ownership, privacy, seed data, and migrations.", [
       "Data ownership and privacy notes are explicit.",
@@ -351,6 +371,13 @@ function toFollowUpTask(packet, phase) {
       `- Roles: ${app.identityAuth.roles.map((role) => role.role).join(", ")}`,
       `- Protected routes: ${app.identityAuth.protectedRoutes.map((route) => route.path).join(", ")}`,
       "",
+      "## Provider/Cost",
+      `- Preview cost posture: ${app.providerCostReview.costPosture.preview}`,
+      `- Production cost posture: ${app.providerCostReview.costPosture.production}`,
+      `- Monthly ceiling: ${app.providerCostReview.costPosture.monthlyCeiling}`,
+      `- Upgrade trigger: ${app.providerCostReview.costPosture.upgradeTrigger}`,
+      `- Providers: ${app.providerCostReview.providers.map((item) => `${item.area}:${item.preferred}`).join(", ")}`,
+      "",
       "## Deployment Environment",
       `- Frontend: ${app.deploymentEnvironment.frontend.provider}`,
       `- API/backend required: ${app.deploymentEnvironment.apiBackend.required}`,
@@ -386,6 +413,7 @@ function toFollowUpTask(packet, phase) {
       "- Do not import unrelated app goals, audiences, data, or features.",
       "- Do not invent auth outside the Identity/Auth Standard.",
       "- Do not skip Super Admin registry planning.",
+      "- Do not create new paid provider resources without provider/cost review and owner approval.",
       "- Do not include secret values in deployment environment output.",
       "- Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched UX.",
       "- Require Designer and Customer Perspective review before Release Gate approval.",
@@ -402,6 +430,7 @@ function validatePacket(packet) {
     "discovery",
     "charter",
     "architecture",
+    "provider_cost",
     "data_model",
     "identity_auth",
     "ui_design",
@@ -428,6 +457,7 @@ function validatePacket(packet) {
     ["app.deploymentTarget", packet.app.deploymentTarget],
     ["app.identityAuth.auth.provider", packet.app.identityAuth?.auth?.provider],
     ["app.superAdminRegistry.status", packet.app.superAdminRegistry?.status],
+    ["app.providerCostReview.costPosture.preview", packet.app.providerCostReview?.costPosture?.preview],
     ["app.deploymentEnvironment.frontend.provider", packet.app.deploymentEnvironment?.frontend?.provider],
     ["app.deploymentEnvironment.frontend.previewUrl", packet.app.deploymentEnvironment?.frontend?.previewUrl],
     ["app.designReview.reviewers.designerStatus", packet.app.designReview?.reviewers?.designerStatus],
@@ -446,6 +476,8 @@ function validatePacket(packet) {
     ["app.identityAuth.roles", packet.app.identityAuth?.roles],
     ["app.identityAuth.protectedRoutes", packet.app.identityAuth?.protectedRoutes],
     ["app.superAdminRegistry.superAdminActions", packet.app.superAdminRegistry?.superAdminActions],
+    ["app.providerCostReview.providers", packet.app.providerCostReview?.providers],
+    ["app.providerCostReview.checks", packet.app.providerCostReview?.checks],
     ["app.deploymentEnvironment.environmentVariables", packet.app.deploymentEnvironment?.environmentVariables],
     ["app.designReview.qualityChecks", packet.app.designReview?.qualityChecks],
     ["app.designReview.stateChecks", packet.app.designReview?.stateChecks],
@@ -482,6 +514,10 @@ function validatePacket(packet) {
     throw new Error("App Build Packet must require a Super Admin registry entry connected to Identity/Auth.");
   }
 
+  if (!packet.app.providerCostReview.guardrails.blocksProvisioning || !packet.app.providerCostReview.guardrails.noPaidResourcesWithoutApproval) {
+    throw new Error("App Build Packet must require provider/cost review before provisioning.");
+  }
+
   if (!packet.app.deploymentEnvironment.guardrails.previewBeforeProduction || !packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate) {
     throw new Error("App Build Packet must require a Deployment Environment plan with preview-before-production guardrails.");
   }
@@ -497,6 +533,7 @@ function validatePacket(packet) {
   if (
     !packet.app.releaseGate.guardrails.previewBeforeProduction ||
     !packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction ||
+    !packet.app.releaseGate.guardrails.costReviewBeforeProvisioning ||
     !packet.app.releaseGate.guardrails.designReviewBeforeRelease ||
     !packet.app.releaseGate.guardrails.compatibilityBeforeRelease
   ) {
@@ -658,6 +695,64 @@ function buildSuperAdminRegistry({
   };
 }
 
+function buildProviderCostReview({ appName, slug, monthlyCeiling, backendRequired, fileUploadsUsed, paymentsUsed, aiUsed }) {
+  return {
+    kind: "provider_cost_review",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug
+    },
+    costPosture: {
+      preview: "free_or_low_cost",
+      production: "approval_required",
+      monthlyCeiling,
+      upgradeTrigger: "Usage, reliability, customer value, or revenue justifies paid resources."
+    },
+    providers: [
+      provider("frontend", "Vercel", "Reuse existing Vercel account/project where practical; preview first.", false),
+      provider("api_backend", backendRequired ? "Render or Vercel Functions" : "not_required_initially", backendRequired ? "Prefer serverless or free/low-cost preview before always-on services." : "Do not create backend service until required.", backendRequired),
+      provider("database", "Neon", "Use branch or app-scoped database before creating separate paid projects.", false),
+      provider("storage", fileUploadsUsed ? "Vercel Blob or approved storage" : "not_required_initially", fileUploadsUsed ? "Add storage only after upload scope is approved." : "Do not create storage provider until uploads are used.", fileUploadsUsed),
+      provider("payments", paymentsUsed ? "Stripe" : "not_required_initially", paymentsUsed ? "Create payment resources only after billing scope and test mode are approved." : "Do not create payment provider until billing is used.", paymentsUsed),
+      provider("ai_models", aiUsed ? "OpenAI or approved model provider" : "not_required_initially", aiUsed ? "Use existing approved project/key routing and cap usage during preview." : "Do not add model costs until model calls are required.", aiUsed),
+      provider("monitoring_logs", "Vercel/Render/Super Admin", "Use built-in logs and health checks before adding paid observability.", false)
+    ],
+    checks: [
+      costCheck("reuse_before_create", "Can this app reuse an existing approved provider resource?"),
+      costCheck("preview_before_paid", "Can preview run free or low-cost before production resources are approved?"),
+      costCheck("database_branch_before_project", "Can the app use a branch or app-scoped database instead of a new paid project?"),
+      costCheck("backend_only_if_required", "Is an always-on backend truly required for this version?"),
+      costCheck("storage_email_payments_ai_only_if_used", "Are paid add-ons only included when the app uses them?"),
+      costCheck("owner_approval_before_paid", "Is owner approval required before paid production resources are created?")
+    ],
+    guardrails: {
+      blocksProvisioning: true,
+      blocksReleaseGateApproval: true,
+      noPaidResourcesWithoutApproval: true,
+      reuseBeforeCreate: true,
+      noSecretsInOutput: true
+    }
+  };
+}
+
+function provider(area, preferred, strategy, newPaidResourceAllowed) {
+  return {
+    area,
+    preferred,
+    strategy,
+    newPaidResourceAllowed
+  };
+}
+
+function costCheck(id, question) {
+  return {
+    id,
+    status: "required",
+    question
+  };
+}
+
 function buildDeploymentEnvironment({
   appName,
   slug,
@@ -746,7 +841,7 @@ function variable(name, scope, target, required, secret, purpose) {
   };
 }
 
-function buildReleaseGate({ appName, slug, version, deploymentEnvironment, designReview, compatibilityTestPlan }) {
+function buildReleaseGate({ appName, slug, version, providerCostReview, deploymentEnvironment, designReview, compatibilityTestPlan }) {
   return {
     kind: "release_gate_plan",
     schemaVersion: 1,
@@ -764,6 +859,8 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
       gate("app_build_packet", "required", "app_build_packet"),
       gate("identity_auth", "required", "identity_auth_plan"),
       gate("super_admin_registry", "required", "super_admin_registry_entry"),
+      gate("provider_cost_review", "required", providerCostReview.kind),
+      gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
       gate("design_quality", "required", designReview.kind),
       gate("designer_review", "required", designReview.reviewers.designerStatus),
@@ -791,6 +888,12 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
         requiresCustomerPerspectiveReview: true,
         blocksReleaseApproval: true
       },
+      providerCostReview: {
+        recommendedLabel: "ai:plan",
+        blocksProvisioning: true,
+        noPaidResourcesWithoutApproval: true,
+        costPosture: providerCostReview.costPosture
+      },
       compatibilityTesting: {
         recommendedLabel: "ai:review",
         requiresSafariMobile: true,
@@ -814,6 +917,7 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
     guardrails: {
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
+      costReviewBeforeProvisioning: true,
       designReviewBeforeRelease: true,
       compatibilityBeforeRelease: true,
       postLaunchMonitoringRequired: true,

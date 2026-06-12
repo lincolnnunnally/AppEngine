@@ -27,7 +27,20 @@ const emotionalFit =
   "Clear, trustworthy, calm, and fitted to the audience's real-life context.";
 const fileUploadsUsed = booleanFrom(input.fileUploadsUsed, process.env.APP_FILE_UPLOADS_USED, false);
 const paymentsUsed = booleanFrom(input.paymentsUsed, process.env.APP_PAYMENTS_USED, false);
+const aiUsed = booleanFrom(input.aiUsed, process.env.APP_AI_USED, false);
+const monthlyCostCeiling = input.monthlyCeiling || process.env.APP_MONTHLY_COST_CEILING || "owner-defined";
 
+const providerCostReview =
+  input.providerCostReview ||
+  buildProviderCostReview({
+    appName,
+    slug,
+    monthlyCeiling: monthlyCostCeiling,
+    backendRequired,
+    fileUploadsUsed,
+    paymentsUsed,
+    aiUsed
+  });
 const deploymentEnvironment =
   input.deploymentEnvironment ||
   buildDeploymentEnvironment({
@@ -67,17 +80,23 @@ const releaseGate =
     appName,
     slug,
     version,
+    providerCostReview,
     deploymentEnvironment,
     designReview,
     compatibilityTestPlan
   });
 
-const followUpTasks = buildFollowUpTasks({ appName, slug, deploymentEnvironment, compatibilityTestPlan, releaseGate });
+const followUpTasks = buildFollowUpTasks({ appName, slug, providerCostReview, deploymentEnvironment, compatibilityTestPlan, releaseGate });
 const output = {
   agent: "planner",
   status: "needs_follow_up",
   summary: `Created Deployment Environment and Release Gate plans for ${appName}.`,
   artifacts: [
+    {
+      kind: "provider_cost_review",
+      title: `${appName} Provider and Cost Review`,
+      content: providerCostReview
+    },
     {
       kind: "deployment_environment_plan",
       title: `${appName} Deployment Environment Plan`,
@@ -104,6 +123,7 @@ const output = {
   handoffTo: ["builder", "workflow_tester", "monitor"]
 };
 
+validateProviderCostReview(providerCostReview);
 validateDeploymentEnvironment(deploymentEnvironment);
 validateCompatibilityTestPlan(compatibilityTestPlan);
 validateReleaseGate(releaseGate);
@@ -278,7 +298,65 @@ function qualityCheck(id, question) {
   };
 }
 
-function buildReleaseGate({ appName, slug, version, deploymentEnvironment, designReview, compatibilityTestPlan }) {
+function buildProviderCostReview({ appName, slug, monthlyCeiling, backendRequired, fileUploadsUsed, paymentsUsed, aiUsed }) {
+  return {
+    kind: "provider_cost_review",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug
+    },
+    costPosture: {
+      preview: "free_or_low_cost",
+      production: "approval_required",
+      monthlyCeiling,
+      upgradeTrigger: "Usage, reliability, customer value, or revenue justifies paid resources."
+    },
+    providers: [
+      provider("frontend", "Vercel", "Reuse existing Vercel account/project where practical; preview first.", false),
+      provider("api_backend", backendRequired ? "Render or Vercel Functions" : "not_required_initially", backendRequired ? "Prefer serverless or free/low-cost preview before always-on services." : "Do not create backend service until required.", backendRequired),
+      provider("database", "Neon", "Use branch or app-scoped database before creating separate paid projects.", false),
+      provider("storage", fileUploadsUsed ? "Vercel Blob or approved storage" : "not_required_initially", fileUploadsUsed ? "Add storage only after upload scope is approved." : "Do not create storage provider until uploads are used.", fileUploadsUsed),
+      provider("payments", paymentsUsed ? "Stripe" : "not_required_initially", paymentsUsed ? "Create payment resources only after billing scope and test mode are approved." : "Do not create payment provider until billing is used.", paymentsUsed),
+      provider("ai_models", aiUsed ? "OpenAI or approved model provider" : "not_required_initially", aiUsed ? "Use existing approved project/key routing and cap usage during preview." : "Do not add model costs until model calls are required.", aiUsed),
+      provider("monitoring_logs", "Vercel/Render/Super Admin", "Use built-in logs and health checks before adding paid observability.", false)
+    ],
+    checks: [
+      costCheck("reuse_before_create", "Can this app reuse an existing approved provider resource?"),
+      costCheck("preview_before_paid", "Can preview run free or low-cost before production resources are approved?"),
+      costCheck("database_branch_before_project", "Can the app use a branch or app-scoped database instead of a new paid project?"),
+      costCheck("backend_only_if_required", "Is an always-on backend truly required for this version?"),
+      costCheck("storage_email_payments_ai_only_if_used", "Are paid add-ons only included when the app uses them?"),
+      costCheck("owner_approval_before_paid", "Is owner approval required before paid production resources are created?")
+    ],
+    guardrails: {
+      blocksProvisioning: true,
+      blocksReleaseGateApproval: true,
+      noPaidResourcesWithoutApproval: true,
+      reuseBeforeCreate: true,
+      noSecretsInOutput: true
+    }
+  };
+}
+
+function provider(area, preferred, strategy, newPaidResourceAllowed) {
+  return {
+    area,
+    preferred,
+    strategy,
+    newPaidResourceAllowed
+  };
+}
+
+function costCheck(id, question) {
+  return {
+    id,
+    status: "required",
+    question
+  };
+}
+
+function buildReleaseGate({ appName, slug, version, providerCostReview, deploymentEnvironment, designReview, compatibilityTestPlan }) {
   return {
     kind: "release_gate_plan",
     schemaVersion: 1,
@@ -296,6 +374,8 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
       gate("app_build_packet", "required", "app_build_packet"),
       gate("identity_auth", "required", "identity_auth_plan"),
       gate("super_admin_registry", "required", "super_admin_registry_entry"),
+      gate("provider_cost_review", "required", providerCostReview.kind),
+      gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
       gate("design_quality", "required", designReview.kind),
       gate("designer_review", "required", designReview.reviewers.designerStatus),
@@ -316,6 +396,12 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
         recommendedLabel: "ai:review",
         deploysProduction: false,
         updatesSuperAdminStatus: "preview"
+      },
+      providerCostReview: {
+        recommendedLabel: "ai:plan",
+        blocksProvisioning: true,
+        noPaidResourcesWithoutApproval: true,
+        costPosture: providerCostReview.costPosture
       },
       designReview: {
         recommendedLabel: "ai:review",
@@ -346,6 +432,7 @@ function buildReleaseGate({ appName, slug, version, deploymentEnvironment, desig
     guardrails: {
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
+      costReviewBeforeProvisioning: true,
       designReviewBeforeRelease: true,
       compatibilityBeforeRelease: true,
       postLaunchMonitoringRequired: true,
@@ -428,8 +515,26 @@ function compatibilityCheck(id, question) {
   };
 }
 
-function buildFollowUpTasks({ appName, slug, deploymentEnvironment, compatibilityTestPlan, releaseGate }) {
+function buildFollowUpTasks({ appName, slug, providerCostReview, deploymentEnvironment, compatibilityTestPlan, releaseGate }) {
   return [
+    {
+      title: `[${slug}] Provider and cost review`,
+      recommendedLabel: "ai:plan",
+      body: [
+        `Review provider strategy and cost posture for ${appName}.`,
+        "",
+        "## Cost Posture",
+        `- Preview: ${providerCostReview.costPosture.preview}`,
+        `- Production: ${providerCostReview.costPosture.production}`,
+        `- Monthly ceiling: ${providerCostReview.costPosture.monthlyCeiling}`,
+        `- Upgrade trigger: ${providerCostReview.costPosture.upgradeTrigger}`,
+        "",
+        "## Guardrails",
+        "- Do not create paid provider resources without owner approval.",
+        "- Prefer reuse, branches, preview resources, and free/low-cost defaults before new services.",
+        "- Keep production deployment blocked until provider/cost review passes."
+      ].join("\n")
+    },
     {
       title: `[${slug}] Deployment Environment plan`,
       recommendedLabel: "ai:build",
@@ -540,6 +645,31 @@ function buildFollowUpTasks({ appName, slug, deploymentEnvironment, compatibilit
   ];
 }
 
+function validateProviderCostReview(review) {
+  const missing = [];
+
+  for (const [label, value] of [
+    ["kind", review.kind],
+    ["app.name", review.app?.name],
+    ["app.slug", review.app?.slug],
+    ["costPosture.preview", review.costPosture?.preview],
+    ["costPosture.production", review.costPosture?.production],
+    ["costPosture.monthlyCeiling", review.costPosture?.monthlyCeiling],
+    ["costPosture.upgradeTrigger", review.costPosture?.upgradeTrigger]
+  ]) {
+    if (!value) missing.push(label);
+  }
+
+  if (!Array.isArray(review.providers) || review.providers.length === 0) missing.push("providers");
+  if (!Array.isArray(review.checks) || review.checks.length === 0) missing.push("checks");
+
+  if (!review.guardrails?.blocksProvisioning || !review.guardrails?.blocksReleaseGateApproval || !review.guardrails?.noPaidResourcesWithoutApproval) {
+    missing.push("guardrails");
+  }
+
+  if (missing.length) throw new Error(`Provider/cost review is missing required fields: ${missing.join(", ")}`);
+}
+
 function validateDeploymentEnvironment(plan) {
   const missing = [];
 
@@ -627,17 +757,19 @@ function validateReleaseGate(plan) {
   if (!Array.isArray(plan.gates) || plan.gates.length === 0) missing.push("gates");
   if (!plan.gates?.some((gate) => gate.id === "design_quality")) missing.push("gates.design_quality");
   if (!plan.gates?.some((gate) => gate.id === "customer_perspective_review")) missing.push("gates.customer_perspective_review");
+  if (!plan.gates?.some((gate) => gate.id === "provider_cost_review")) missing.push("gates.provider_cost_review");
   if (!plan.gates?.some((gate) => gate.id === "compatibility")) missing.push("gates.compatibility");
   if (!plan.gates?.some((gate) => gate.id === "safari_mobile")) missing.push("gates.safari_mobile");
   if (!plan.gates?.some((gate) => gate.id === "common_browsers")) missing.push("gates.common_browsers");
   if (!plan.gates?.some((gate) => gate.id === "production_approval")) missing.push("gates.production_approval");
-  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.designReview || !plan.automationContracts?.compatibilityTesting || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
+  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.providerCostReview || !plan.automationContracts?.designReview || !plan.automationContracts?.compatibilityTesting || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
     missing.push("automationContracts");
   }
 
   if (
     !plan.guardrails?.previewBeforeProduction ||
     !plan.guardrails?.ownerApprovalBeforeProduction ||
+    !plan.guardrails?.costReviewBeforeProvisioning ||
     !plan.guardrails?.designReviewBeforeRelease ||
     !plan.guardrails?.compatibilityBeforeRelease ||
     !plan.guardrails?.postLaunchMonitoringRequired

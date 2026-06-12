@@ -11,6 +11,7 @@ idea
 -> App Build Packet
 -> Identity/Auth plan
 -> Super Admin registry entry
+-> Provider/cost review
 -> Deployment environment plan
 -> Design Quality Gate
 -> UX review
@@ -39,6 +40,8 @@ Each generated app must pass or explicitly block these gates:
 - App Build Packet exists
 - Identity/Auth plan exists
 - Super Admin registry entry exists
+- Provider/cost review exists
+- New paid provider resources are blocked until owner approval
 - Deployment environment plan exists
 - Design Quality Gate exists
 - Designer review is complete or explicitly blocked
@@ -63,6 +66,7 @@ Each generated app must pass or explicitly block these gates:
 Release gates should create issue-ready tasks for:
 
 - Preview deploy: create or update preview deployment, run smoke checks, and update Super Admin status to `preview`.
+- Provider/cost review: confirm provider reuse, cost posture, paid-resource approval, and upgrade triggers before provisioning or production release.
 - Design review: require Designer and Customer Perspective review before release approval.
 - Compatibility testing: require mobile-first, Safari, Chrome, Edge, Firefox, viewport, touch-target, form, auth, upload/payment if used, and admin checks before release approval.
 - Production approval: require owner approval before production deploy, custom domain activation, and production status.
@@ -77,6 +81,8 @@ Agents must stop or create follow-up work when:
 
 - A generated app has no release gate.
 - A generated app keeps receiving build tasks but has no preview path.
+- Provider/cost review is missing before provider provisioning or release approval.
+- New paid provider resources are being created without owner approval.
 - Designer review or Customer Perspective review is missing before release approval.
 - Mobile, empty states, error states, onboarding, or admin screens have not been reviewed.
 - The app is technically working but ugly, confusing, unreadable, inaccessible, or emotionally mismatched to the audience.
@@ -106,6 +112,11 @@ Agents should produce release gate artifacts with this shape:
     "futureWork": "vNext packets or follow-up issues after v1 launch"
   },
   "gates": [
+    {
+      "id": "provider_cost_review",
+      "status": "required",
+      "evidence": "provider_cost_review"
+    },
     {
       "id": "deployment_environment",
       "status": "required",
@@ -143,6 +154,11 @@ Agents should produce release gate artifacts with this shape:
       "deploysProduction": false,
       "updatesSuperAdminStatus": "preview"
     },
+    "providerCostReview": {
+      "recommendedLabel": "ai:plan",
+      "blocksProvisioning": true,
+      "noPaidResourcesWithoutApproval": true
+    },
     "designReview": {
       "recommendedLabel": "ai:review",
       "requiresDesignerReview": true,
@@ -171,6 +187,7 @@ Agents should produce release gate artifacts with this shape:
   "guardrails": {
     "previewBeforeProduction": true,
     "ownerApprovalBeforeProduction": true,
+    "costReviewBeforeProvisioning": true,
     "designReviewBeforeRelease": true,
     "compatibilityBeforeRelease": true,
     "postLaunchMonitoringRequired": true,
