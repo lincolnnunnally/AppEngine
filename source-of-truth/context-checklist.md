@@ -8,6 +8,8 @@ All agent workflows must load and answer this checklist before taking action.
 - Life Produces Life product doctrine
 - App Charter
 - App Build Packet for new apps, major rebuilds, or complex multi-phase work
+- Identity/Auth Standard for generated apps, major rebuilds, and launch work
+- Super Admin Registry Standard for generated apps, major rebuilds, and launch work
 - Current Context from GitHub issue, pull request, docs, or committed source
 - Active Task and triggering label
 - Relevant manifest agent prompt
@@ -22,8 +24,10 @@ All agent workflows must load and answer this checklist before taking action.
 5. Does the task risk app-goal bleeding between unrelated apps?
 6. Is this a new app or complex build that needs an App Build Packet before implementation?
 7. If an App Build Packet exists, does the active task stay inside its current phase?
-8. Are any core files, docs, prompts, context, or issue links missing?
-9. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+8. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
+9. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
+10. Are any core files, docs, prompts, context, or issue links missing?
+11. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 

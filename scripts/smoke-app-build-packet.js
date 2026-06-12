@@ -15,6 +15,7 @@ const requiredPhaseIds = [
   "charter",
   "architecture",
   "data_model",
+  "identity_auth",
   "ui_design",
   "mvp_build",
   "testing",
@@ -46,7 +47,18 @@ runStep("packet creation", () => {
   assertIncludes(packet.app.boundaries.join(" "), "do not become a full CRM", "packet boundaries");
   assertEqual(packet.guardrails.noGiantCodexTask, true, "packet forbids giant Codex task");
   assertEqual(packet.guardrails.preventGoalBleed, true, "packet prevents app-goal bleeding");
+  assertEqual(packet.app.identityAuth.required, true, "packet requires Identity/Auth plan");
+  assertEqual(packet.app.identityAuth.kind, "identity_auth_plan", "packet embeds identity artifact");
+  assertEqual(packet.app.identityAuth.auth.provider, "Auth.js", "packet identity provider");
+  assertArrayIncludes(packet.app.identityAuth.roles.map((role) => role.role), "owner", "packet owner role");
+  assertArrayIncludes(packet.app.identityAuth.roles.map((role) => role.role), "admin", "packet admin role");
+  assertArrayIncludes(packet.app.identityAuth.roles.map((role) => role.role), "customer", "packet customer role");
+  assertArrayIncludes(packet.app.identityAuth.protectedRoutes.map((route) => route.path), "/admin", "packet protected admin route");
   assertEqual(packet.app.superAdminIntegration.required, true, "packet requires Super Admin integration");
+  assertEqual(packet.app.superAdminRegistry.required, true, "packet requires Super Admin registry");
+  assertEqual(packet.app.superAdminRegistry.kind, "super_admin_registry_entry", "packet embeds registry artifact");
+  assertEqual(packet.app.superAdminRegistry.status, "planned", "packet registry status");
+  assertArrayIncludes(packet.app.superAdminRegistry.superAdminActions, "view logs", "packet registry logs action");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "management", "Super Admin management requirement");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "monitoring", "Super Admin monitoring requirement");
   assertArrayIncludes(packet.app.superAdminIntegration.requirements, "health", "Super Admin health requirement");
@@ -110,8 +122,10 @@ runStep("phased follow-up dry run", () => {
   const dryRun = readJson(issuesOutput);
   assertEqual(dryRun.issues.length, requiredPhaseIds.length, "dry run creates one issue per packet phase");
   assertIncludes(dryRun.issues[0].body, "App Build Packet", "dry-run issue includes packet context");
+  assertIncludes(dryRun.issues[0].body, "Identity/Auth", "dry-run issue includes identity/auth requirements");
   assertIncludes(dryRun.issues[0].body, "Super Admin", "dry-run issue includes Super Admin requirements");
   assertIncludes(dryRun.issues[0].body, "Do not turn this phase into a full-app build.", "dry-run issue includes phase guardrail");
+  assertIncludes(dryRun.issues[0].body, "Do not invent auth outside the Identity/Auth Standard.", "dry-run issue includes auth guardrail");
   assertIncludes(dryRun.issues[0].body, "Source issue: #999", "dry-run issue includes source issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:build", "dry-run issues include build label");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:review", "dry-run issues include review label");

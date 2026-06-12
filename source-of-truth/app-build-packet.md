@@ -18,7 +18,9 @@ Each packet must define:
 - MVP stages
 - Deployment target
 - Data ownership and privacy notes
+- Identity/Auth plan
 - Super Admin integration requirements
+- Super Admin registry entry or planned entry
 - Phase plan with follow-up labels
 - Guardrails that prevent app-goal bleeding
 
@@ -32,6 +34,7 @@ Complicated apps must be split into these phases. Agents may add subphases, but 
 | charter | Create or update the app charter, boundaries, and success definition. | ai:plan |
 | architecture | Define stack, services, routes, permissions, and integration plan. | ai:plan |
 | data_model | Define database schema, ownership, privacy, seed data, and migrations. | ai:build |
+| identity_auth | Define auth provider, roles, memberships, permissions, and protected routes. | ai:build |
 | ui_design | Define user flows, screens, content, accessibility, and design direction. | ai:build |
 | mvp_build | Build the smallest useful version without absorbing later phases. | ai:build |
 | testing | Verify workflows, acceptance criteria, permissions, and edge cases. | ai:review |
@@ -52,8 +55,21 @@ Every generated app must integrate with the central AppEngine Super Admin dashbo
 - Billing/status link if the app has billing or paid services
 - Admin actions needed for support
 - Deployment and environment status
+- Identity/auth provider, required roles, and user-management status
 
 This does not mean every app needs a large admin panel in its first MVP. It means the packet must state what the Super Admin needs now, what can be a placeholder, and what must be built before launch.
+
+## Identity/Auth Requirement
+
+Every generated app must include an Identity/Auth plan before implementation. The packet must state the provider, session strategy, identity objects, roles, permissions, protected routes, local setup behavior, and production auth gate.
+
+Use `source-of-truth/identity-auth-standard.md` for the required shape.
+
+## Super Admin Registry Requirement
+
+Every generated app must include a Super Admin registry entry or planned entry. The packet must state how the app will appear in AppEngine Super Admin, including lifecycle status, deployment, health, logs, admin URL, user management, billing/status if needed, allowed admin actions, and identity/auth roles.
+
+Use `source-of-truth/super-admin-registry.md` for the required shape.
 
 ## Guardrails
 
@@ -96,6 +112,52 @@ Agents should produce packet artifacts with this shape:
       "required": true,
       "dashboard": "AppEngine Super Admin",
       "requirements": ["management", "monitoring", "health", "logs", "users", "billing/status if needed", "admin actions"]
+    },
+    "identityAuth": {
+      "kind": "identity_auth_plan",
+      "schemaVersion": 1,
+      "required": true,
+      "auth": {
+        "provider": "Auth.js",
+        "sessionStrategy": "Server-side session checks with app-scoped roles and memberships.",
+        "ownerSource": "APP_ENGINE_OWNER_EMAIL"
+      },
+      "identityObjects": ["user", "profile", "organization/account", "membership", "role", "permission"],
+      "roles": [
+        {
+          "role": "owner",
+          "scope": "ecosystem",
+          "can": ["manage app registry", "approve production deployment"]
+        }
+      ],
+      "protectedRoutes": [
+        {
+          "path": "/admin",
+          "access": ["owner", "admin"]
+        }
+      ]
+    },
+    "superAdminRegistry": {
+      "kind": "super_admin_registry_entry",
+      "schemaVersion": 1,
+      "required": true,
+      "app": {
+        "status": "planned",
+        "owner": "APP_ENGINE_OWNER_EMAIL",
+        "repo": "owner/repo",
+        "environment": "preview"
+      },
+      "deployment": {
+        "provider": "Vercel",
+        "previewUrl": "planned",
+        "productionUrl": "approval-gated"
+      },
+      "operations": {
+        "healthUrl": "/api/health",
+        "logsUrl": "planned",
+        "adminUrl": "/admin",
+        "billingStatus": "not_applicable"
+      }
     }
   },
   "guardrails": {
@@ -163,12 +225,25 @@ Use this outline when creating a new app packet:
 - Users/admin:
 - Billing/status if needed:
 - Admin actions:
+- Registry status:
+- Registry health/logs/admin links:
+
+## Identity/Auth
+- Provider:
+- Session strategy:
+- Owner source:
+- Roles:
+- Membership model:
+- Protected routes/APIs:
+- Local setup behavior:
+- Production auth gate:
 
 ## Phases
 - discovery:
 - charter:
 - architecture:
 - data_model:
+- identity_auth:
 - ui_design:
 - mvp_build:
 - testing:

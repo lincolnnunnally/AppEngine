@@ -36,5 +36,7 @@ Every agent workflow must load:
 - Life Produces Life product doctrine
 - App Charter
 - App Build Packet when planning or building a new app, generated app, major rebuild, or complex multi-phase workflow
+- Identity/Auth Standard when planning, building, reviewing, or launching a generated app
+- Super Admin Registry Standard when planning, building, reviewing, monitoring, or launching a generated app
 - Current Context
 - Active Task

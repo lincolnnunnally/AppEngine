@@ -31,6 +31,17 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - MVP stages:
 - Deployment target:
 
+## Identity/Auth
+
+- Provider:
+- Session strategy:
+- Owner source:
+- Roles:
+- Membership model:
+- Protected routes/APIs:
+- Local setup behavior:
+- Production auth gate:
+
 ## Super Admin Integration
 
 - Management:
@@ -40,6 +51,8 @@ Use this template when creating a charter for a new generated app or ecosystem p
 - Users/admin:
 - Billing/status if needed:
 - Admin actions:
+- Registry status:
+- Registry entry path or source:
 
 ## Boundaries And Related Apps
 
