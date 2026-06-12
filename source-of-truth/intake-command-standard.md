@@ -22,7 +22,7 @@ The intake layer decides what the request is, which app it belongs to, and which
 Use this path for every natural language request:
 
 ```text
-natural request
+ChatGPT handoff issue or natural request
 -> intake packet
 -> app selection
 -> correct workflow
@@ -78,6 +78,7 @@ When intake creates or recommends a GitHub issue, the issue must include:
 - Missing context
 - Selected workflow
 - Next labels
+- ChatGPT handoff packet when the issue was created from a conversation
 - Guardrails
 - Source issue or source URL when available
 

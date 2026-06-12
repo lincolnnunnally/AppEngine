@@ -6,12 +6,15 @@ const followUpsOutput = process.env.INTAKE_FOLLOWUPS_OUTPUT || "";
 const inputPath = process.env.INTAKE_INPUT || "";
 
 const input = readInput(inputPath);
-const rawRequest = input.rawRequest || input.request || process.env.INTAKE_REQUEST || process.env.REQUEST_TEXT || "";
+const rawIssueText = input.rawRequest || input.request || process.env.INTAKE_REQUEST || process.env.REQUEST_TEXT || "";
+const embeddedHandoff = extractChatGptHandoff(rawIssueText);
+const rawRequest = embeddedHandoff?.rawRequest || rawIssueText;
 const source = {
-  type: input.source?.type || process.env.INTAKE_SOURCE_TYPE || "github_issue_or_chat",
+  type: input.source?.type || process.env.INTAKE_SOURCE_TYPE || (embeddedHandoff ? "chatgpt_handoff_issue" : "github_issue_or_chat"),
   issueNumber: input.source?.issueNumber || process.env.SOURCE_ISSUE_NUMBER || "",
   issueUrl: input.source?.issueUrl || process.env.SOURCE_ISSUE_URL || "",
-  author: input.source?.author || process.env.INTAKE_SOURCE_AUTHOR || ""
+  author: input.source?.author || process.env.INTAKE_SOURCE_AUTHOR || "",
+  handoffKind: embeddedHandoff?.kind || ""
 };
 const knownApps = normalizeKnownApps(input.knownApps || parseKnownApps(process.env.INTAKE_KNOWN_APPS || ""));
 
@@ -19,8 +22,8 @@ const packet = buildIntakePacket({
   rawRequest,
   source,
   knownApps,
-  requestedAppName: input.appName || process.env.APP_NAME || "",
-  requestedSlug: input.slug || process.env.APP_SLUG || ""
+  requestedAppName: input.appName || embeddedHandoff?.selectedApp?.name || process.env.APP_NAME || "",
+  requestedSlug: input.slug || embeddedHandoff?.selectedApp?.slug || embeddedHandoff?.newAppSlug || process.env.APP_SLUG || ""
 });
 
 validateIntakePacket(packet);
@@ -553,6 +556,21 @@ function readInput(filePath) {
   const resolved = path.resolve(filePath);
   if (!fs.existsSync(resolved)) return {};
   return JSON.parse(fs.readFileSync(resolved, "utf8"));
+}
+
+function extractChatGptHandoff(text) {
+  const blocks = [...String(text || "").matchAll(/```json\s*([\s\S]*?)```/gi)].map((match) => match[1]);
+
+  for (const block of blocks) {
+    try {
+      const parsed = JSON.parse(block);
+      if (parsed?.kind === "chatgpt_handoff_packet") return parsed;
+    } catch {
+      // Keep looking for a valid handoff block.
+    }
+  }
+
+  return null;
 }
 
 function writeJson(filePath, value) {
