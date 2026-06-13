@@ -35,6 +35,7 @@
     "smoke:release-gate": "node scripts/smoke-release-gate.js",
     "smoke:planner-loop": "node scripts/smoke-planner-loop.js",
     "monitor:issues": "node scripts/monitor-ai-issues.js",
+    "generated-apps:guard": "node scripts/check-generated-app-migration-guard.js",
     "source:check": "node scripts/check-source-of-truth.js"
   },
   "dependencies": {

@@ -1,0 +1,48 @@
+name: PR Verification
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENGINE_LOCAL_MODE: "true"
+      AUTH_SECRET: "ci-auth-secret"
+      AUTH_URL: "http://localhost:3000"
+      npm_config_fetch_retries: "5"
+      npm_config_fetch_retry_factor: "2"
+      npm_config_fetch_retry_mintimeout: "20000"
+      npm_config_fetch_retry_maxtimeout: "120000"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit
+
+      - name: Verify source of truth
+        env:
+          SOURCE_CHECK_OFFLINE: "true"
+        run: npm run source:check
+
+      - name: Confirm generated app schemas are inert
+        run: npm run generated-apps:guard
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
