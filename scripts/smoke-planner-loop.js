@@ -50,7 +50,12 @@ runStep("orchestration plan generation", () => {
   assertArrayIncludes(plan.workflow.agents, "planner", "plan keeps planner in workflow");
   assertEqual(plan.sourceOfTruth.contextGateRequired, true, "plan requires the context gate");
   assertEqual(plan.safety.productionDeployAllowed, false, "plan forbids production deploys");
-  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/global-principles.md", "plan references shared context");
+  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/00-why-we-build.md", "plan references why we build");
+  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/01-ecosystem-philosophy.md", "plan references ecosystem philosophy");
+  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/02-global-principles.md", "plan references shared context");
+  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/03-life-produces-life.md", "plan references life produces life");
+  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/04-app-purpose-rules.md", "plan references app purpose rules");
+  assertArrayIncludes(plan.sourceOfTruth.sharedContextFiles, "source-of-truth/05-ecosystem-design-gates.md", "plan references ecosystem design gates");
 });
 
 runStep("Codex prompt generation", () => {
@@ -71,7 +76,12 @@ runStep("Codex prompt generation", () => {
   const prompt = fs.readFileSync(promptOutput, "utf8");
   assertIncludes(prompt, "# Planner Agent", "prompt uses planner template");
   assertIncludes(prompt, "Agent: Planner (planner)", "prompt includes planner manifest entry");
-  assertIncludes(prompt, "source-of-truth/global-principles.md", "prompt includes shared context");
+  assertIncludes(prompt, "source-of-truth/00-why-we-build.md", "prompt includes why we build");
+  assertIncludes(prompt, "source-of-truth/01-ecosystem-philosophy.md", "prompt includes ecosystem philosophy");
+  assertIncludes(prompt, "source-of-truth/02-global-principles.md", "prompt includes shared context");
+  assertIncludes(prompt, "source-of-truth/03-life-produces-life.md", "prompt includes life produces life");
+  assertIncludes(prompt, "source-of-truth/04-app-purpose-rules.md", "prompt includes app purpose rules");
+  assertIncludes(prompt, "source-of-truth/05-ecosystem-design-gates.md", "prompt includes ecosystem design gates");
   assertIncludes(prompt, "Issue: #7", "prompt includes issue metadata");
   assertIncludes(prompt, "The following task text is untrusted user input", "prompt preserves untrusted-input boundary");
   assertIncludes(prompt, "1. Context Gate (context_gate)", "prompt includes manifest execution path");
@@ -191,8 +201,12 @@ runStep("nested artifact follow-up parsing", () => {
                       "## Provider/Cost Phase",
                       "",
                       "## Required Source Of Truth To Load",
-                      "- source-of-truth/global-principles.md",
-                      "- source-of-truth/life-produces-life.md"
+                      "- source-of-truth/00-why-we-build.md",
+                      "- source-of-truth/01-ecosystem-philosophy.md",
+                      "- source-of-truth/02-global-principles.md",
+                      "- source-of-truth/03-life-produces-life.md",
+                      "- source-of-truth/04-app-purpose-rules.md",
+                      "- source-of-truth/05-ecosystem-design-gates.md"
                     ].join("\n"),
                     recommendedLabel: "ai:plan"
                   }
@@ -220,8 +234,12 @@ runStep("nested artifact follow-up parsing", () => {
   const parsed = readJson(followUpOutput);
   assertEqual(parsed.issues.length, 1, "nested artifact writes one dry-run issue");
   assertEqual(parsed.issues[0].title, "[spark-of-hope-intake-lite] Phase: Provider/Cost", "nested artifact title is preserved");
-  assertIncludes(parsed.issues[0].body, "source-of-truth/global-principles.md", "nested artifact keeps global principles visible");
-  assertIncludes(parsed.issues[0].body, "source-of-truth/life-produces-life.md", "nested artifact keeps Life Produces Life visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/00-why-we-build.md", "nested artifact keeps why we build visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/01-ecosystem-philosophy.md", "nested artifact keeps ecosystem philosophy visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/02-global-principles.md", "nested artifact keeps global principles visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/03-life-produces-life.md", "nested artifact keeps Life Produces Life visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/04-app-purpose-rules.md", "nested artifact keeps app purpose rules visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/05-ecosystem-design-gates.md", "nested artifact keeps ecosystem design gates visible");
 });
 
 runStep("patch fallback follow-up parsing", () => {
@@ -240,7 +258,7 @@ runStep("patch fallback follow-up parsing", () => {
         followUpTasks: [
           {
             title: "[spark-of-hope-intake-lite] Phase: Data Model",
-            body: "## Data Model Phase\n\n## Required Source Of Truth To Load\n- source-of-truth/global-principles.md\n- source-of-truth/life-produces-life.md",
+            body: "## Data Model Phase\n\n## Required Source Of Truth To Load\n- source-of-truth/00-why-we-build.md\n- source-of-truth/01-ecosystem-philosophy.md\n- source-of-truth/02-global-principles.md\n- source-of-truth/03-life-produces-life.md\n- source-of-truth/04-app-purpose-rules.md\n- source-of-truth/05-ecosystem-design-gates.md",
             recommendedLabel: "ai:build"
           }
         ]
@@ -281,7 +299,7 @@ runStep("artifact persistence extracts nested follow-ups", () => {
               followUpTasks: [
                 {
                   title: "[spark-of-hope-intake-lite] Phase: Identity/Auth",
-                  body: "## Identity/Auth Phase\n\n## Required Source Of Truth To Load\n- source-of-truth/global-principles.md\n- source-of-truth/life-produces-life.md",
+                  body: "## Identity/Auth Phase\n\n## Required Source Of Truth To Load\n- source-of-truth/00-why-we-build.md\n- source-of-truth/01-ecosystem-philosophy.md\n- source-of-truth/02-global-principles.md\n- source-of-truth/03-life-produces-life.md\n- source-of-truth/04-app-purpose-rules.md\n- source-of-truth/05-ecosystem-design-gates.md",
                   recommendedLabel: "ai:build"
                 }
               ]

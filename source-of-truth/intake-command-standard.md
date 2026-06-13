@@ -45,6 +45,9 @@ The intake packet must classify the request as one of:
 
 ## Routing Rules
 
+- All requests must load Ecosystem Philosophy, Global Principles, Life Produces Life, App Purpose Rules, and Ecosystem Design Gates before routing to build or improvement work.
+- New-app and existing-app requests must preserve the difference between shared philosophy and app-specific purpose.
+- Intake should challenge requests that cannot name the barrier removed, need addressed, movement toward life, and transformation outcome.
 - New app requests must route to an `app_build_packet` before implementation.
 - Existing app requests must route to a `vnext_packet` only after loading existing app context.
 - Ambiguous app names must route to clarification.

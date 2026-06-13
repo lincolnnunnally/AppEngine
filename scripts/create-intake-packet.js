@@ -4,6 +4,14 @@ import path from "node:path";
 const packetOutput = process.env.INTAKE_PACKET_OUTPUT || "";
 const followUpsOutput = process.env.INTAKE_FOLLOWUPS_OUTPUT || "";
 const inputPath = process.env.INTAKE_INPUT || "";
+const coreSourceOfTruthFiles = [
+  "source-of-truth/00-why-we-build.md",
+  "source-of-truth/01-ecosystem-philosophy.md",
+  "source-of-truth/02-global-principles.md",
+  "source-of-truth/03-life-produces-life.md",
+  "source-of-truth/04-app-purpose-rules.md",
+  "source-of-truth/05-ecosystem-design-gates.md"
+];
 
 const input = readInput(inputPath);
 const rawIssueText = input.rawRequest || input.request || process.env.INTAKE_REQUEST || process.env.REQUEST_TEXT || "";
@@ -166,6 +174,13 @@ function buildNewAppPacket({ rawRequest, source, appName, slug, confidence, miss
         `- Missing context: ${missingContext.join("; ") || "none"}`,
         "- Selected workflow: app_build_packet",
         "",
+        "## Required Source Of Truth To Load",
+        ...coreSourceOfTruthFiles.map((filePath) => `- ${filePath}`),
+        "- source-of-truth/app-build-packet.md",
+        "- source-of-truth/context-checklist.md",
+        "- agents/manifest.yaml",
+        "- agents/context/output-contracts.md",
+        "",
         "## Required Next Step",
         "- Create an App Build Packet before implementation.",
         "- Break the app into phased follow-up issues.",
@@ -245,6 +260,14 @@ function buildExistingAppPacket({ rawRequest, source, app, requestType, confiden
         `- Known issues: ${app.knownIssues.join("; ") || "none recorded"}`,
         `- Open issues: ${app.openIssuesSource}`,
         "",
+        "## Required Source Of Truth To Load",
+        ...coreSourceOfTruthFiles.map((filePath) => `- ${filePath}`),
+        `- ${app.charterPath}`,
+        "- source-of-truth/app-improvement-vnext-packet.md",
+        "- source-of-truth/context-checklist.md",
+        "- agents/manifest.yaml",
+        "- agents/context/output-contracts.md",
+        "",
         "## Required Next Step",
         "- Create a vNext Packet before implementation.",
         "- Preserve the current app charter, version, release history, registry, monitoring state, and open issues.",
@@ -302,6 +325,13 @@ function buildClarificationPacket({ rawRequest, source, requestType, confidence,
         `- Missing context: ${missingContext.join("; ") || "none"}`,
         "- Selected workflow: intake_clarification",
         "",
+        "## Required Source Of Truth To Load",
+        ...coreSourceOfTruthFiles.map((filePath) => `- ${filePath}`),
+        "- source-of-truth/app-selection-standard.md",
+        "- source-of-truth/context-checklist.md",
+        "- agents/manifest.yaml",
+        "- agents/context/output-contracts.md",
+        "",
         "## Required Next Step",
         "- Identify exactly one app or confirm this is a new app.",
         "- If this is a multi-app integration, create one integration issue plus one scoped issue per affected app.",
@@ -326,6 +356,7 @@ function basePacket({ rawRequest, source, inferredApp, requestType, confidence, 
     missingContext,
     selectedWorkflow,
     nextIssueLabels: selectedWorkflow.recommendedLabels,
+    sourceOfTruthFiles: coreSourceOfTruthFiles,
     requiredExistingAppContext: [
       "app charter",
       "Super Admin registry entry",

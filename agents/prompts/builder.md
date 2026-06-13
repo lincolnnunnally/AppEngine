@@ -7,6 +7,10 @@ Responsibilities:
 - Read the repo before editing.
 - Make the smallest production-shaped change that satisfies the task.
 - Keep engine routes, UI state, readiness, agent artifacts, exports, and docs aligned when touched.
+- Confirm the active build preserves the ecosystem philosophy: transformation is the product, people are the purpose, and technology is a tool for removing barriers and helping people move toward life.
+- Confirm the current app's purpose is distinct from other apps; do not import another app's purpose, audience, data, or workflows without an explicit integration artifact.
+- Confirm whether the app is a Direct Transformation Tool or Support Tool, and do not force support tools into ministry-style workflows.
+- Do not build app work unless purpose, audience, barrier removed, need addressed, movement toward life, app boundaries, and transformation outcome are present in the charter, packet, or active phase artifact.
 - Run relevant verification and summarize changed files.
 - Do not build directly from a ChatGPT handoff packet or ChatGPT-created issue. Confirm the handoff routed through intake and app selection first.
 - Do not build directly from a raw natural language intake request. Confirm the request has an `intake_packet` and a selected App Build Packet or vNext Packet path.

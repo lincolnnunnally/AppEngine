@@ -66,6 +66,10 @@ runStep("new app intake routes to App Build Packet", () => {
   const followUps = readJson(newFollowUpsOutput);
 
   assertEqual(packet.kind, "intake_packet", "new app intake kind");
+  assertArrayIncludes(packet.sourceOfTruthFiles, "source-of-truth/00-why-we-build.md", "intake packet source includes why we build");
+  assertArrayIncludes(packet.sourceOfTruthFiles, "source-of-truth/01-ecosystem-philosophy.md", "intake packet source includes ecosystem philosophy");
+  assertArrayIncludes(packet.sourceOfTruthFiles, "source-of-truth/04-app-purpose-rules.md", "intake packet source includes app purpose rules");
+  assertArrayIncludes(packet.sourceOfTruthFiles, "source-of-truth/05-ecosystem-design-gates.md", "intake packet source includes ecosystem design gates");
   assertEqual(packet.requestType, "new_app", "new app request type");
   assertEqual(packet.inferredApp.status, "new", "new app selection status");
   assertEqual(packet.selectedWorkflow.packetKind, "app_build_packet", "new app routes to app build packet");
@@ -73,6 +77,10 @@ runStep("new app intake routes to App Build Packet", () => {
   assertArrayIncludes(packet.nextIssueLabels, "ai:plan", "new app next label");
   assertEqual(packet.guardrails.newAppsRequireAppBuildPacket, true, "new app requires packet guardrail");
   assertIncludes(followUps.followUpTasks[0].title, "App Build Packet", "new app follow-up title");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/00-why-we-build.md", "new app follow-up loads why we build");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/01-ecosystem-philosophy.md", "new app follow-up loads ecosystem philosophy");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/04-app-purpose-rules.md", "new app follow-up loads app purpose rules");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/05-ecosystem-design-gates.md", "new app follow-up loads ecosystem design gates");
   assertIncludes(followUps.followUpTasks[0].body, "Do not build the app directly from this raw request.", "new app follow-up blocks raw build");
 });
 
@@ -111,6 +119,10 @@ runStep("existing app intake routes to vNext Packet after context load", () => {
   assertEqual(packet.appContext.openIssuesLoaded, true, "existing app open issues loaded");
   assertArrayIncludes(packet.requiredExistingAppContext, "open issues", "existing app requires open issues");
   assertIncludes(followUps.followUpTasks[0].title, "vNext Packet", "existing app follow-up title");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/00-why-we-build.md", "existing app follow-up loads why we build");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/01-ecosystem-philosophy.md", "existing app follow-up loads ecosystem philosophy");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/04-app-purpose-rules.md", "existing app follow-up loads app purpose rules");
+  assertIncludes(followUps.followUpTasks[0].body, "source-of-truth/05-ecosystem-design-gates.md", "existing app follow-up loads ecosystem design gates");
   assertIncludes(followUps.followUpTasks[0].body, "Do not restart the whole app.", "existing app follow-up blocks restart");
 });
 
@@ -208,6 +220,8 @@ runStep("intake follow-up dry run creates packet issues", () => {
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[hope-stories] Intake: Create App Build Packet", "dry run creates app build packet issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[spark-of-hope] Intake: Create vNext Packet", "dry run creates vNext issue");
   assertArrayIncludes(dryRun.issues.map((issue) => issue.label), "ai:plan", "dry run labels intake follow-ups");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/00-why-we-build.md", "dry run includes why we build");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/01-ecosystem-philosophy.md", "dry run includes ecosystem philosophy");
   assertIncludes(dryRun.issues[0].body, "Source issue: #2000", "dry run includes source issue");
 });
 

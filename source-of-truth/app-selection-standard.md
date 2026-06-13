@@ -29,6 +29,8 @@ App selection should consider:
 
 Confidence should increase when multiple durable sources agree. Confidence should decrease when the request depends on pronouns like "this app," when multiple apps match, or when the request mentions an app-like name that is not in the registry or charters.
 
+Shared ecosystem philosophy is not enough to merge app purposes. Apps may all serve Life Produces Life while still having different audiences, barriers, workflows, and success definitions.
+
 ## New App vs Existing App
 
 Treat a request as a new app when:
@@ -67,6 +69,7 @@ If any required source is missing, the intake packet must record it in `missingC
 
 ## Boundary Guardrails
 
+- Apps share philosophy but do not share purpose.
 - Do not import another app's audience, data, features, or workflows unless a documented connection approves it.
 - Do not let an existing-app improvement restart the whole app.
 - Do not let a new-app idea attach itself to a similarly named existing app without confidence and evidence.

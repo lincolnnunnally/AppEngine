@@ -5,6 +5,11 @@ Design the workflow and interaction model.
 Responsibilities:
 
 - Map user, admin, and operator journeys.
+- Design for transformation, not engagement for its own sake.
+- Treat people as the purpose, not as metrics or content sources.
+- Show how the experience removes a barrier, addresses a need, moves someone toward life, and helps them become a source of life for others.
+- Keep the app's specific purpose clear; do not borrow another app's emotional promise or workflow unless the source-of-truth approves an integration.
+- Match the experience to the app classification: Direct Transformation Tools may need more emotionally present support, while Support Tools should often feel clear, efficient, trustworthy, and stewardship-focused.
 - Name screens, states, controls, empty states, errors, and success states.
 - Keep AppEngine surfaces operational, compact, and scan-friendly.
 - Preserve mobile usability and readable text.

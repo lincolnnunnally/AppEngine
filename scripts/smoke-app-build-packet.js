@@ -40,6 +40,11 @@ runStep("packet creation", () => {
     APP_PURPOSE: "Help small service teams receive requests, organize follow-up, and serve people clearly.",
     APP_AUDIENCE: "small nonprofit teams|church staff|service coordinators",
     APP_HELPED: "people asking for help|teams coordinating service",
+    APP_BARRIER_REMOVED: "Remove scattered request intake and unclear follow-up ownership.",
+    APP_NEED_ADDRESSED: "Small service teams need a simple way to receive, triage, assign, and resolve help requests.",
+    APP_MOVEMENT_TOWARD_LIFE: "People asking for help move from confusion toward being heard, assigned, and served.",
+    APP_TRANSFORMATION_OUTCOME: "Service teams become more capable of helping people consistently.",
+    APP_TOOL_CLASSIFICATION: "support_tool",
     APP_BOUNDARIES: "do not become a full CRM|do not absorb unrelated ministry apps|do not store private notes without privacy rules",
     APP_SUCCESS_DEFINITION: "A coordinator can receive, triage, assign, resolve, and monitor one request from the Super Admin surface.",
     APP_DEPLOYMENT_TARGET: "Vercel preview first; production only after owner approval."
@@ -50,7 +55,16 @@ runStep("packet creation", () => {
   assertEqual(packet.kind, "app_build_packet", "packet kind");
   assertEqual(packet.schemaVersion, 1, "packet schema version");
   assertEqual(packet.app.slug, "kind-help-desk", "packet slug");
+  assertEqual(packet.app.barrierRemoved, "Remove scattered request intake and unclear follow-up ownership.", "packet barrier removed");
+  assertEqual(packet.app.needAddressed, "Small service teams need a simple way to receive, triage, assign, and resolve help requests.", "packet need addressed");
+  assertEqual(packet.app.movementTowardLife, "People asking for help move from confusion toward being heard, assigned, and served.", "packet movement toward life");
+  assertEqual(packet.app.transformationOutcome, "Service teams become more capable of helping people consistently.", "packet transformation outcome");
+  assertEqual(packet.app.toolClassification, "support_tool", "packet tool classification");
   assertIncludes(packet.app.boundaries.join(" "), "do not become a full CRM", "packet boundaries");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/00-why-we-build.md", "packet requires why we build");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/01-ecosystem-philosophy.md", "packet requires ecosystem philosophy");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/04-app-purpose-rules.md", "packet requires app purpose rules");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/05-ecosystem-design-gates.md", "packet requires ecosystem design gates");
   assertEqual(packet.guardrails.noGiantCodexTask, true, "packet forbids giant Codex task");
   assertEqual(packet.guardrails.preventGoalBleed, true, "packet prevents app-goal bleeding");
   assertEqual(packet.app.identityAuth.required, true, "packet requires Identity/Auth plan");
@@ -168,6 +182,11 @@ runStep("phased follow-up dry run", () => {
   const dryRun = readJson(issuesOutput);
   assertEqual(dryRun.issues.length, requiredPhaseIds.length, "dry run creates one issue per packet phase");
   assertIncludes(dryRun.issues[0].body, "App Build Packet", "dry-run issue includes packet context");
+  assertIncludes(dryRun.issues[0].body, "## Required Source Of Truth To Load", "dry-run issue lists required source of truth");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/00-why-we-build.md", "dry-run issue includes why we build");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/01-ecosystem-philosophy.md", "dry-run issue includes ecosystem philosophy");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/04-app-purpose-rules.md", "dry-run issue includes app purpose rules");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/05-ecosystem-design-gates.md", "dry-run issue includes ecosystem design gates");
   assertIncludes(dryRun.issues[0].body, "Identity/Auth", "dry-run issue includes identity/auth requirements");
   assertIncludes(dryRun.issues[0].body, "Super Admin", "dry-run issue includes Super Admin requirements");
   assertIncludes(dryRun.issues[0].body, "Provider/Cost", "dry-run issue includes provider/cost requirements");

@@ -8,7 +8,11 @@ purpose: >
 operating_principles:
   - GitHub main is the central source of truth before agents build.
   - Every agent must pass the Context Gate before taking action.
-  - Every agent workflow must load Global Principles, App Charter, Current Context, and Active Task.
+  - Every agent workflow must load Why We Build, Ecosystem Philosophy, Global Principles, Life Produces Life, App Purpose Rules, Ecosystem Design Gates, App Charter, Current Context, and Active Task.
+  - Transformation is the product; apps, sites, ministries, services, workflows, and automation are tools.
+  - People are the purpose; technology exists to help people discover and participate in life.
+  - Apps share philosophy but do not share purpose.
+  - Prevent purpose bleed between apps.
   - Build tools that help people help people.
   - Favor empowerment over dependency.
   - Keep the user out of repetitive middleman work.
@@ -18,8 +22,12 @@ operating_principles:
   - Preserve mission, core principles, and prior decisions through repo-owned context files instead of chat memory alone.
 
 shared_context_files:
-  - source-of-truth/global-principles.md
-  - source-of-truth/life-produces-life.md
+  - source-of-truth/00-why-we-build.md
+  - source-of-truth/01-ecosystem-philosophy.md
+  - source-of-truth/02-global-principles.md
+  - source-of-truth/03-life-produces-life.md
+  - source-of-truth/04-app-purpose-rules.md
+  - source-of-truth/05-ecosystem-design-gates.md
   - source-of-truth/context-checklist.md
   - source-of-truth/agent-enforcement.md
   - source-of-truth/chatgpt-handoff-issue-standard.md

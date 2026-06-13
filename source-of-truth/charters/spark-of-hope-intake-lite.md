@@ -20,6 +20,27 @@ This pilot exists to prove the AppEngine handoff path in a real, bounded, missio
 - Volunteers who need enough context to encourage someone without being overwhelmed by private or unnecessary data.
 - AppEngine operators proving that a generated app can move through intake, planning, review, and release gates safely.
 
+## Barrier Removed
+
+Spark of Hope Intake Lite removes the barrier of scattered, informal, or unsafe story collection by giving story sharers and church teams a simple, bounded, private intake and response path.
+
+## Need Addressed
+
+Story sharers need a trusted way to share hopeful experiences without feeling exposed, and church teams need a responsible way to review stories, protect privacy, and prepare encouragement.
+
+## Movement Toward Life
+
+The app helps a person move from holding a story alone toward being heard, stewarded, and encouraged, while helping a church team move from vague intention to concrete care.
+
+## Transformation Outcome
+
+The intended transformation is a calm, trusted story-intake workflow where hope is received responsibly, encouragement can be prepared safely, and the pilot proves AppEngine can create bounded life-giving apps without scope bleed.
+
+## Tool Classification
+
+- Direct Transformation Tool.
+- Reason: Spark of Hope Intake Lite directly helps people share hope, be heard, and receive encouragement while helping churches steward stories responsibly.
+
 ## Life Produces Life Pattern
 
 - Spark: A person has a hopeful story, testimony, encouragement, or small sign of life worth preserving.
@@ -219,4 +240,3 @@ This scope should proceed to design and architecture before build. It should not
 ## Charter Handoff Summary
 
 The Charter phase is complete when this file is committed or attached to a PR. The recommended next step is the `architecture` phase, followed by `provider_cost`, `data_model`, `identity_auth`, `ui_design`, and later review/build phases from the App Build Packet. Later agents should treat this charter as the app boundary and should create scoped follow-up issues rather than expanding this Charter phase into a full app build.
-

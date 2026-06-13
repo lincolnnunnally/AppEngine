@@ -32,8 +32,12 @@ Core principles, product direction, and completed decisions should be stored in 
 
 Every agent workflow must load:
 
+- Why We Build
+- Ecosystem Philosophy
 - Global Principles
 - Life Produces Life product doctrine
+- App Purpose Rules
+- Ecosystem Design Gates
 - App Charter
 - ChatGPT Handoff and Issue Creation Packet Standard when a conversation becomes a GitHub issue
 - Intake Command Standard when routing natural language requests into GitHub issues or agent workflows
@@ -52,3 +56,12 @@ Every agent workflow must load:
 - App Improvement and vNext Packet Standard when improving an existing app, adding features, fixing problems, responding to feedback, or planning v2
 - Current Context
 - Active Task
+
+Every app-specific workflow must also answer the ecosystem design gates:
+
+1. What barrier does this remove?
+2. What need does this address?
+3. How does this help someone move toward life?
+4. How does this help someone become a source of life for others?
+
+Agents must remember that transformation is the product, people are the purpose, and apps share philosophy without sharing purpose.
