@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -15,9 +16,10 @@ fs.mkdirSync(agentRunDir, { recursive: true });
 
 const pilotPath = path.join(pilotDir, "pilot-app-build.json");
 const dryRunPath = path.join(pilotDir, "follow-up-issues.json");
+const codexOutputPath = path.join(agentRunDir, "codex-output.md");
 const pilot = readJsonIfExists(pilotPath);
 const dryRun = readJsonIfExists(dryRunPath);
-const followUpTasks = normalizeFollowUpTasks(dryRun, pilot);
+const followUpTasks = normalizeFollowUpTasks(dryRun, pilot, extractNestedFollowUpTasks());
 
 if (followUpTasks.length) {
   writeJson(followUpTasksOutput, {
@@ -96,7 +98,7 @@ function renderSummary({ pilot, followUpTasks }) {
   return `${lines.join("\n")}\n`;
 }
 
-function normalizeFollowUpTasks(dryRun, pilot) {
+function normalizeFollowUpTasks(dryRun, pilot, nestedTasks = []) {
   const issues = Array.isArray(dryRun?.issues) ? dryRun.issues : [];
   if (issues.length) {
     return issues.map((issue) => ({
@@ -106,12 +108,123 @@ function normalizeFollowUpTasks(dryRun, pilot) {
     }));
   }
 
+  if (nestedTasks.length) return nestedTasks;
+
   const pilotIssues = Array.isArray(pilot?.workflow?.followUpIssues) ? pilot.workflow.followUpIssues : [];
   return pilotIssues.map((issue) => ({
     title: String(issue.title || "AppEngine follow-up task"),
     body: "Follow-up task created from an AppEngine dry-run pilot.",
     recommendedLabel: String(issue.label || issue.recommendedLabel || "ai:plan")
   }));
+}
+
+function extractNestedFollowUpTasks() {
+  const tasks = [];
+
+  if (fs.existsSync(codexOutputPath)) {
+    tasks.push(...extractFollowUpTasksFromText(fs.readFileSync(codexOutputPath, "utf8")));
+  }
+
+  for (const filePath of listChangedArtifactFiles()) {
+    tasks.push(...extractFollowUpTasksFromText(fs.readFileSync(filePath, "utf8")));
+  }
+
+  return dedupeTasks(tasks);
+}
+
+function listChangedArtifactFiles() {
+  if (process.env.FOLLOW_UP_SCAN_CHANGED_FILES === "false") return [];
+
+  let status = "";
+  try {
+    status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+  } catch {
+    return [];
+  }
+
+  return status
+    .split(/\r?\n/)
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean)
+    .map((filePath) => filePath.split(" -> ").pop())
+    .map((filePath) => filePath.replace(/^"|"$/g, ""))
+    .filter((filePath) => /\.(md|json)$/i.test(filePath))
+    .filter((filePath) => !filePath.startsWith("agent-run/") && !filePath.includes("/node_modules/"))
+    .map((filePath) => path.resolve(repoRoot, filePath))
+    .filter((filePath) => fs.existsSync(filePath) && fs.statSync(filePath).isFile());
+}
+
+function extractFollowUpTasksFromText(text) {
+  const tasks = [];
+  const jsonBlocks = [...String(text || "").matchAll(/```json\s*([\s\S]*?)```/gi)].map((match) => match[1]);
+
+  for (const block of jsonBlocks) {
+    try {
+      tasks.push(...collectFollowUpTasks(JSON.parse(block)));
+    } catch {
+      // Keep looking for the next structured block.
+    }
+  }
+
+  return dedupeTasks(tasks);
+}
+
+function collectFollowUpTasks(value, tasks = []) {
+  if (Array.isArray(value)) {
+    collectTaskArray(value, tasks);
+    for (const item of value) collectFollowUpTasks(item, tasks);
+    return dedupeTasks(tasks);
+  }
+
+  if (!value || typeof value !== "object") return dedupeTasks(tasks);
+
+  for (const key of ["followUpTasks", "follow_up_tasks", "followups", "issues"]) {
+    if (Array.isArray(value[key])) collectTaskArray(value[key], tasks);
+  }
+
+  for (const child of Object.values(value)) {
+    if (child && typeof child === "object") collectFollowUpTasks(child, tasks);
+  }
+
+  return dedupeTasks(tasks);
+}
+
+function collectTaskArray(values, tasks) {
+  for (const item of values) {
+    if (isFollowUpTask(item)) tasks.push(normalizeTask(item));
+  }
+}
+
+function isFollowUpTask(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return "title" in value && ("body" in value || "details" in value);
+}
+
+function normalizeTask(task) {
+  return {
+    title: String(task.title || "AppEngine follow-up task"),
+    body: String(task.body || task.details || "Follow-up task created from an AppEngine agent run."),
+    recommendedLabel: String(task.recommendedLabel || task.label || task.labels?.[0] || "ai:plan")
+  };
+}
+
+function dedupeTasks(tasks) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const task of tasks) {
+    const normalized = normalizeTask(task);
+    const key = `${normalized.title}\n${normalized.body}`;
+    if (!normalized.title || !normalized.body || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(normalized);
+  }
+
+  return unique;
 }
 
 function readJsonIfExists(filePath) {

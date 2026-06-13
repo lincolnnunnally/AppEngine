@@ -37,6 +37,8 @@ Required structure:
 
 Agents should keep prose concise and make follow-up work issue-ready when possible.
 
+Every phase handoff and `followUpTasks[].body` must include a `## Required Source Of Truth To Load` section. That section must explicitly list `source-of-truth/global-principles.md`, `source-of-truth/life-produces-life.md`, the relevant app charter, the current phase artifact when one exists, and any phase-specific standards needed for the task. Do not rely on the prompt factory's shared context list as an invisible substitute for issue-visible source-of-truth files.
+
 ## Known Artifact Kinds
 
 Agents may return these artifact kinds when relevant:

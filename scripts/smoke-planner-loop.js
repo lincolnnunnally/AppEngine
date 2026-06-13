@@ -10,7 +10,11 @@ const planOutput = path.join(smokeRoot, "orchestration-plan.json");
 const promptOutput = path.join(smokeRoot, "generated-codex-prompt.md");
 const codexOutput = path.join(smokeRoot, "codex-output.md");
 const followUpOutput = path.join(smokeRoot, "follow-ups.json");
+const patchFollowUpOutput = path.join(smokeRoot, "patch-follow-ups.json");
+const patchFile = path.join(smokeRoot, "codex.patch");
 const followUpTasksFile = path.join(smokeRoot, "follow-up-tasks.json");
+const nestedCodexOutput = path.join(smokeRoot, "nested-codex-output.md");
+const persistAgentRunDir = path.join(smokeRoot, "agent-run");
 
 runStep("planner selection", () => {
   runNode("scripts/select-agent-mode.js", {
@@ -164,6 +168,149 @@ runStep("structured follow-up task file parsing", () => {
   assertEqual(parsed.issues[0].label, "ai:plan", "structured task file label is preserved");
   assertIncludes(parsed.issues[0].body, "Source issue: #32", "structured task file output includes source issue");
   assertEqual(countOccurrences(parsed.issues[0].body, "## Source"), 1, "structured task file output deduplicates source section");
+});
+
+runStep("nested artifact follow-up parsing", () => {
+  fs.writeFileSync(
+    codexOutput,
+    [
+      "Architecture output",
+      "",
+      "```json",
+      JSON.stringify(
+        {
+          agent: "planner",
+          artifacts: [
+            {
+              kind: "architecture_plan",
+              content: {
+                followUpTasks: [
+                  {
+                    title: "[spark-of-hope-intake-lite] Phase: Provider/Cost",
+                    body: [
+                      "## Provider/Cost Phase",
+                      "",
+                      "## Required Source Of Truth To Load",
+                      "- source-of-truth/global-principles.md",
+                      "- source-of-truth/life-produces-life.md"
+                    ].join("\n"),
+                    recommendedLabel: "ai:plan"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        null,
+        2
+      ),
+      "```",
+      ""
+    ].join("\n")
+  );
+
+  runNode("scripts/create-follow-up-issues.js", {
+    CODEX_OUTPUT_FILE: codexOutput,
+    FOLLOW_UP_MODE: "dry-run",
+    FOLLOW_UP_OUTPUT: followUpOutput,
+    SOURCE_ISSUE_NUMBER: "40",
+    SOURCE_ISSUE_URL: "https://github.com/lincolnnunnally/AppEngine/issues/40"
+  });
+
+  const parsed = readJson(followUpOutput);
+  assertEqual(parsed.issues.length, 1, "nested artifact writes one dry-run issue");
+  assertEqual(parsed.issues[0].title, "[spark-of-hope-intake-lite] Phase: Provider/Cost", "nested artifact title is preserved");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/global-principles.md", "nested artifact keeps global principles visible");
+  assertIncludes(parsed.issues[0].body, "source-of-truth/life-produces-life.md", "nested artifact keeps Life Produces Life visible");
+});
+
+runStep("patch fallback follow-up parsing", () => {
+  fs.writeFileSync(codexOutput, "Architecture output points to a generated source-of-truth file.");
+  fs.writeFileSync(
+    patchFile,
+    [
+      "diff --git a/source-of-truth/architecture/spark-of-hope-intake-lite.md b/source-of-truth/architecture/spark-of-hope-intake-lite.md",
+      "new file mode 100644",
+      "index 0000000..1111111",
+      "--- /dev/null",
+      "+++ b/source-of-truth/architecture/spark-of-hope-intake-lite.md",
+      "@@ -0,0 +1,20 @@",
+      "+```json",
+      `+${JSON.stringify({
+        followUpTasks: [
+          {
+            title: "[spark-of-hope-intake-lite] Phase: Data Model",
+            body: "## Data Model Phase\n\n## Required Source Of Truth To Load\n- source-of-truth/global-principles.md\n- source-of-truth/life-produces-life.md",
+            recommendedLabel: "ai:build"
+          }
+        ]
+      })}`,
+      "+```",
+      ""
+    ].join("\n")
+  );
+
+  runNode("scripts/create-follow-up-issues.js", {
+    CODEX_OUTPUT_FILE: codexOutput,
+    CODEX_PATCH_FILE: patchFile,
+    FOLLOW_UP_MODE: "dry-run",
+    FOLLOW_UP_OUTPUT: patchFollowUpOutput,
+    SOURCE_ISSUE_NUMBER: "40",
+    SOURCE_ISSUE_URL: "https://github.com/lincolnnunnally/AppEngine/issues/40"
+  });
+
+  const parsed = readJson(patchFollowUpOutput);
+  assertEqual(parsed.issues.length, 1, "patch fallback writes one dry-run issue");
+  assertEqual(parsed.issues[0].title, "[spark-of-hope-intake-lite] Phase: Data Model", "patch fallback title is preserved");
+  assertEqual(parsed.issues[0].label, "ai:build", "patch fallback label is preserved");
+});
+
+runStep("artifact persistence extracts nested follow-ups", () => {
+  fs.mkdirSync(persistAgentRunDir, { recursive: true });
+  fs.writeFileSync(
+    nestedCodexOutput,
+    [
+      "Nested phase artifact",
+      "",
+      "```json",
+      JSON.stringify({
+        artifacts: [
+          {
+            kind: "architecture_plan",
+            content: {
+              followUpTasks: [
+                {
+                  title: "[spark-of-hope-intake-lite] Phase: Identity/Auth",
+                  body: "## Identity/Auth Phase\n\n## Required Source Of Truth To Load\n- source-of-truth/global-principles.md\n- source-of-truth/life-produces-life.md",
+                  recommendedLabel: "ai:build"
+                }
+              ]
+            }
+          }
+        ]
+      }),
+      "```",
+      ""
+    ].join("\n")
+  );
+  fs.copyFileSync(nestedCodexOutput, path.join(persistAgentRunDir, "codex-output.md"));
+
+  runNode("scripts/persist-agent-run-artifacts.js", {
+    AGENT_RUN_DIR: persistAgentRunDir,
+    FOLLOW_UP_TASKS_OUTPUT: path.join(persistAgentRunDir, "follow-up-tasks.json"),
+    FOLLOW_UP_DRY_RUN_OUTPUT: path.join(persistAgentRunDir, "follow-up-issues-dry-run.json"),
+    AGENT_RUN_SUMMARY_OUTPUT: path.join(persistAgentRunDir, "artifact-summary.md"),
+    FOLLOW_UP_SCAN_CHANGED_FILES: "false",
+    SOURCE_ISSUE_NUMBER: "40",
+    SOURCE_ISSUE_URL: "https://github.com/lincolnnunnally/AppEngine/issues/40"
+  });
+
+  const tasks = readJson(path.join(persistAgentRunDir, "follow-up-tasks.json"));
+  const dryRun = readJson(path.join(persistAgentRunDir, "follow-up-issues-dry-run.json"));
+  const summary = fs.readFileSync(path.join(persistAgentRunDir, "artifact-summary.md"), "utf8");
+  assertEqual(tasks.followUpTasks.length, 1, "persisted nested task count");
+  assertEqual(dryRun.issues.length, 1, "persisted dry-run issue count");
+  assertIncludes(summary, "[spark-of-hope-intake-lite] Phase: Identity/Auth", "artifact summary includes nested follow-up");
 });
 
 console.log(`planner-loop smoke ok (${smokeRoot})`);

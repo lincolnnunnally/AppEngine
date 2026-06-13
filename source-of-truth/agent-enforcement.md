@@ -67,6 +67,8 @@ When structured `followUpTasks` are present in agent output, AppEngine may creat
 
 Follow-up creation is dry-run by default. Real GitHub follow-up issue creation requires the explicit workflow mode `create` or the repository variable `APPENGINE_FOLLOW_UP_MODE=create`.
 
+Every generated phase handoff must make its source-of-truth load list visible in the issue body. Include `source-of-truth/global-principles.md`, `source-of-truth/life-produces-life.md`, the app charter, the current phase artifact when one exists, and phase-specific standards. This prevents later agents from depending on hidden prompt context or drifting away from the Life Produces Life doctrine.
+
 ## App Build Packets
 
 Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
