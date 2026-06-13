@@ -54,16 +54,7 @@ const createdIssues = [];
 for (const task of tasks) {
   const title = normalizeTitle(task.title);
   const label = normalizeLabel(task.recommendedLabel || task.label || task.labels?.[0] || "ai:plan");
-  const body = [
-    task.body || task.details || "Follow-up task created from an AppEngine agent run.",
-    "",
-    "## Source",
-    sourceIssueNumber ? `- Source issue: #${sourceIssueNumber}` : "",
-    sourceIssueUrl ? `- Source URL: ${sourceIssueUrl}` : "",
-    "- Created by AppEngine orchestration follow-up parser."
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const body = buildIssueBody(task);
 
   if (dryRun) {
     preparedIssues.push({ title, label, body });
@@ -100,6 +91,49 @@ function normalizeFollowUpMode() {
   if (process.env.FOLLOW_UP_CREATE_ISSUES === "true") return "create";
   if (process.env.FOLLOW_UP_DRY_RUN === "false") return "create";
   return "dry-run";
+}
+
+function buildIssueBody(task) {
+  const baseBody = stripGeneratedSourceSections(
+    task.body || task.details || "Follow-up task created from an AppEngine agent run."
+  );
+  const sourceSection = [
+    "## Source",
+    sourceIssueNumber ? `- Source issue: #${sourceIssueNumber}` : "",
+    sourceIssueUrl ? `- Source URL: ${sourceIssueUrl}` : "",
+    "- Created by AppEngine orchestration follow-up parser."
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return [baseBody, "", sourceSection].filter(Boolean).join("\n");
+}
+
+function stripGeneratedSourceSections(body) {
+  const lines = String(body || "").split(/\r?\n/);
+  const kept = [];
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index];
+
+    if (line.trim() === "## Source") {
+      let nextIndex = index + 1;
+      while (nextIndex < lines.length && !/^##\s+/.test(lines[nextIndex])) {
+        nextIndex += 1;
+      }
+
+      const section = lines.slice(index, nextIndex).join("\n");
+      if (section.includes("Created by AppEngine orchestration follow-up parser.")) {
+        index = nextIndex;
+        continue;
+      }
+    }
+
+    kept.push(line);
+    index += 1;
+  }
+
+  return kept.join("\n").trimEnd();
 }
 
 function loadFollowUpTasks({ output, tasksFile }) {
