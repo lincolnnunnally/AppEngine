@@ -52,7 +52,13 @@ runStep("new app handoff creates issue body intake can route", () => {
   assertEqual(result.packet.requestType, "new_app", "new handoff request type");
   assertEqual(result.packet.recommendedLabel, "ai:plan", "new handoff label");
   assertIncludes(result.packet.issue.title, "New app: Hope Stories", "new issue title");
+  assertArrayIncludes(result.packet.sourceOfTruthFilesToLoad, "source-of-truth/00-why-we-build.md", "handoff includes why we build");
+  assertArrayIncludes(result.packet.sourceOfTruthFilesToLoad, "source-of-truth/01-ecosystem-philosophy.md", "handoff includes ecosystem philosophy");
+  assertArrayIncludes(result.packet.sourceOfTruthFilesToLoad, "source-of-truth/04-app-purpose-rules.md", "handoff includes app purpose rules");
+  assertArrayIncludes(result.packet.sourceOfTruthFilesToLoad, "source-of-truth/05-ecosystem-design-gates.md", "handoff includes ecosystem design gates");
   assertIncludes(result.issueBody, "## Machine Handoff", "new issue has machine handoff");
+  assertIncludes(result.issueBody, "source-of-truth/00-why-we-build.md", "new issue loads why we build");
+  assertIncludes(result.issueBody, "source-of-truth/01-ecosystem-philosophy.md", "new issue loads ecosystem philosophy");
   assertIncludes(result.issueBody, "source-of-truth/app-build-packet.md", "new issue loads app build packet standard");
 
   const intake = routeIssueBodyThroughIntake("new-app", result.issueBody, []);
@@ -246,5 +252,11 @@ function assertIncludes(value, expected, message) {
 function assertDoesNotInclude(value, expected, message) {
   if (String(value).includes(expected)) {
     throw new Error(`${message}: expected ${JSON.stringify(value)} not to include ${JSON.stringify(expected)}`);
+  }
+}
+
+function assertArrayIncludes(values, expected, message) {
+  if (!Array.isArray(values) || !values.includes(expected)) {
+    throw new Error(`${message}: expected ${JSON.stringify(values)} to include ${JSON.stringify(expected)}`);
   }
 }

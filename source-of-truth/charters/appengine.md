@@ -8,6 +8,27 @@ AppEngine is an autonomous venture-building command center. It turns ideas, GitH
 
 Lincoln, acting as visionary, builder, operator, and steward of multiple apps and ventures.
 
+## Barrier Removed
+
+AppEngine removes the barrier of repetitive manual handoff between conversation, source-of-truth, GitHub issues, Codex prompts, pull requests, QA, release gates, and follow-up work.
+
+## Need Addressed
+
+Lincoln needs a durable coordination system that helps ChatGPT, Codex, GitHub, and future agents work from the same philosophy, app boundaries, current context, and active task.
+
+## Movement Toward Life
+
+AppEngine helps Lincoln spend less time acting as the messenger between tools and more time stewarding ideas, helping people directly, exploring, building relationships, and choosing the next meaningful action.
+
+## Transformation Outcome
+
+The intended transformation is a trustworthy app-building engine that turns rough ideas into reviewable, bounded, launchable work while preserving mission, privacy, app purpose, and human approval.
+
+## Tool Classification
+
+- Support Tool.
+- Reason: AppEngine supports the creation, coordination, review, launch, monitoring, and improvement of transformation-focused and support-focused apps. It does not directly become each app's ministry, business, or community purpose.
+
 ## What AppEngine Should Do
 
 - Preserve source-of-truth context across ChatGPT, Codex, GitHub, and future agents.

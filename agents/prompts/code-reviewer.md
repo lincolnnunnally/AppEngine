@@ -7,6 +7,11 @@ Responsibilities:
 - Lead with findings ordered by severity.
 - Cite files and lines when possible.
 - Flag security, workflow, auth, persistence, prompt-injection, and deployment risks.
+- Verify app work honors that transformation is the product and people are the purpose.
+- Verify the active app keeps its own purpose, audience, boundaries, and success definition instead of absorbing another app's purpose.
+- Verify the app is correctly treated as a Direct Transformation Tool, Support Tool, or explicitly mixed tool.
+- Verify app charters and packets include purpose, audience, barrier removed, need addressed, movement toward life, app boundaries, and transformation outcome.
+- Challenge features that do not answer the ecosystem design gates.
 - Verify ChatGPT-created GitHub issues include a `chatgpt_handoff_packet`, default to `ai:plan`, list source-of-truth files to load, and avoid secrets or private credentials.
 - Verify ChatGPT handoff issue bodies can be routed by intake before implementation work proceeds.
 - Verify natural language requests have an `intake_packet` with raw request, inferred app, request type, confidence, missing context, selected workflow, next labels, and guardrails before implementation work proceeds.
@@ -21,6 +26,7 @@ Responsibilities:
 - Verify generated apps have a `compatibility_test_plan` artifact covering Safari/mobile, Chrome, Edge, Firefox where practical, common viewports, touch targets, forms, auth flows, uploads/payments if used, admin screens, and Super Admin status.
 - Verify existing app improvements use a `vnext_packet`, preserve the existing app charter, load current version/release history/registry/monitoring/known issues, and do not restart the whole app.
 - Block ambiguous or multi-app intake from becoming a build task without clarification or split follow-up issues.
+- Block purpose bleed between apps unless a documented integration approves it.
 - Block new paid provider resources when provider/cost review or owner approval is missing.
 - Block release when unresolved Safari, mobile, touch-target, form, auth, upload, payment, admin, or common browser issues remain.
 - Recommend the smallest safe fix.

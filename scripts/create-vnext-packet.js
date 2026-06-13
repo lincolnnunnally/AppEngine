@@ -4,6 +4,14 @@ import path from "node:path";
 const packetOutput = process.env.VNEXT_PACKET_OUTPUT || "";
 const followUpsOutput = process.env.VNEXT_FOLLOWUPS_OUTPUT || "";
 const inputPath = process.env.VNEXT_INPUT || "";
+const coreSourceOfTruthFiles = [
+  "source-of-truth/00-why-we-build.md",
+  "source-of-truth/01-ecosystem-philosophy.md",
+  "source-of-truth/02-global-principles.md",
+  "source-of-truth/03-life-produces-life.md",
+  "source-of-truth/04-app-purpose-rules.md",
+  "source-of-truth/05-ecosystem-design-gates.md"
+];
 
 const input = readInput(inputPath);
 const appName = input.name || process.env.APP_NAME || "Existing App";
@@ -13,6 +21,11 @@ const targetVersion = input.targetVersion || process.env.APP_TARGET_VERSION || n
 const requestType = input.requestType || process.env.APP_IMPROVEMENT_TYPE || "feature";
 const summary = input.summary || process.env.APP_IMPROVEMENT_SUMMARY || "Improve the existing app without restarting the whole build.";
 const feedbackSource = input.feedbackSource || process.env.APP_FEEDBACK_SOURCE || "Lincoln request or GitHub issue";
+const barrierRemoved = input.barrierRemoved || process.env.APP_BARRIER_REMOVED || "Name the barrier this improvement removes.";
+const needAddressed = input.needAddressed || process.env.APP_NEED_ADDRESSED || "Name the need this improvement addresses.";
+const movementTowardLife = input.movementTowardLife || process.env.APP_MOVEMENT_TOWARD_LIFE || "Describe how this improvement helps someone move toward life.";
+const transformationOutcome = input.transformationOutcome || process.env.APP_TRANSFORMATION_OUTCOME || "Describe the transformation this improvement supports.";
+const toolClassification = input.toolClassification || process.env.APP_TOOL_CLASSIFICATION || "unclassified";
 const charterPath = input.charterPath || process.env.APP_CHARTER_PATH || `source-of-truth/charters/${slug}.md`;
 const registrySource = input.registrySource || process.env.APP_REGISTRY_SOURCE || "Super Admin registry";
 const monitoringSource = input.monitoringSource || process.env.APP_MONITORING_SOURCE || "monitoring data or known issue list";
@@ -29,6 +42,11 @@ const packet = buildVNextPacket({
   requestType,
   summary,
   feedbackSource,
+  barrierRemoved,
+  needAddressed,
+  movementTowardLife,
+  transformationOutcome,
+  toolClassification,
   charterPath,
   registrySource,
   monitoringSource,
@@ -79,6 +97,11 @@ function buildVNextPacket({
   requestType,
   summary,
   feedbackSource,
+  barrierRemoved,
+  needAddressed,
+  movementTowardLife,
+  transformationOutcome,
+  toolClassification,
   charterPath,
   registrySource,
   monitoringSource,
@@ -108,10 +131,18 @@ function buildVNextPacket({
       releaseHistorySource,
       knownIssues
     },
+    sourceOfTruth: {
+      requiredFiles: [...coreSourceOfTruthFiles, charterPath]
+    },
     change: {
       requestType,
       summary,
       feedbackSource,
+      barrierRemoved,
+      needAddressed,
+      movementTowardLife,
+      transformationOutcome,
+      toolClassification,
       nonGoals
     },
     providerCostDelta: {
@@ -124,6 +155,7 @@ function buildVNextPacket({
     guardrails: {
       doNotRestartWholeApp: true,
       preventGoalBleed: true,
+      preserveAppPurpose: true,
       preserveExistingCharter: true,
       releaseGateRequired: true,
       monitoringUpdateRequired: true
@@ -174,8 +206,19 @@ function toFollowUpTask(packet, phase) {
       `- Request type: ${packet.change.requestType}`,
       `- Summary: ${packet.change.summary}`,
       `- Feedback source: ${packet.change.feedbackSource}`,
+      `- Barrier removed: ${packet.change.barrierRemoved}`,
+      `- Need addressed: ${packet.change.needAddressed}`,
+      `- Movement toward life: ${packet.change.movementTowardLife}`,
+      `- Transformation outcome: ${packet.change.transformationOutcome}`,
+      `- Tool classification: ${packet.change.toolClassification}`,
       `- Known issues: ${packet.context.knownIssues.join("; ")}`,
       `- Non-goals: ${packet.change.nonGoals.join("; ")}`,
+      "",
+      "## Required Source Of Truth To Load",
+      ...packet.sourceOfTruth.requiredFiles.map((filePath) => `- ${filePath}`),
+      "- source-of-truth/app-improvement-vnext-packet.md",
+      "- agents/manifest.yaml",
+      "- agents/context/output-contracts.md",
       "",
       "## Required Loaded Context",
       `- Registry: ${packet.context.registrySource}`,
@@ -188,6 +231,8 @@ function toFollowUpTask(packet, phase) {
       "",
       "## Guardrails",
       "- Do not restart the whole app.",
+      "- Treat transformation as the product and people as the purpose.",
+      "- Preserve the app's specific purpose; apps share philosophy but do not share purpose.",
       "- Do not import unrelated app goals, audiences, data, or workflows.",
       "- Preserve the existing charter and current version history.",
       "- Route broad rebuilds into a separate App Build Packet or explicit v2 packet.",
@@ -207,7 +252,12 @@ function validateVNextPacket(packet) {
     ["app.currentVersion", packet.app?.currentVersion],
     ["app.targetVersion", packet.app?.targetVersion],
     ["change.requestType", packet.change?.requestType],
-    ["change.summary", packet.change?.summary]
+    ["change.summary", packet.change?.summary],
+    ["change.barrierRemoved", packet.change?.barrierRemoved],
+    ["change.needAddressed", packet.change?.needAddressed],
+    ["change.movementTowardLife", packet.change?.movementTowardLife],
+    ["change.transformationOutcome", packet.change?.transformationOutcome],
+    ["change.toolClassification", packet.change?.toolClassification]
   ]) {
     if (!value) missing.push(label);
   }
@@ -229,6 +279,10 @@ function validateVNextPacket(packet) {
 
   if (!packet.guardrails?.doNotRestartWholeApp || !packet.guardrails?.preventGoalBleed || !packet.guardrails?.releaseGateRequired) {
     missing.push("guardrails");
+  }
+
+  for (const filePath of coreSourceOfTruthFiles) {
+    if (!packet.sourceOfTruth?.requiredFiles?.includes(filePath)) missing.push(`sourceOfTruth.${filePath}`);
   }
 
   if (missing.length) throw new Error(`vNext packet is missing required fields: ${missing.join(", ")}`);

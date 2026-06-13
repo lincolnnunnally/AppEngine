@@ -7,6 +7,10 @@ These rules apply to ChatGPT, Codex, GitHub Actions, future agents, and monitori
 - Check GitHub source of truth.
 - Load the manifest.
 - Load shared context files from the manifest.
+- Load Why We Build.
+- Load Ecosystem Philosophy.
+- Load App Purpose Rules.
+- Load Ecosystem Design Gates.
 - Load the app charter.
 - Load the ChatGPT Handoff and Issue Creation Packet Standard when the task came from ChatGPT, a conversational summary, or a GitHub issue created from a chat handoff.
 - Load the Intake Command Standard when the task begins as a natural language request, GitHub issue, ChatGPT handoff, or app command.
@@ -33,6 +37,7 @@ Stop and reconcile before editing when:
 - The local branch is stale.
 - The agent cannot find the referenced source-of-truth files.
 - The task contradicts the app charter.
+- The task cannot answer what barrier it removes, what need it addresses, how it moves someone toward life, and how it helps someone become a source of life for others.
 - A ChatGPT-created issue has no `chatgpt_handoff_packet` when it is supposed to represent a conversation handoff.
 - A ChatGPT handoff packet or issue body includes secrets, private API keys, tokens, passwords, private credentials, or unnecessary private user data.
 - A ChatGPT handoff recommends bypassing intake or using direct build, fix, review, release, provider provisioning, or production deployment before app selection.
@@ -67,11 +72,11 @@ When structured `followUpTasks` are present in agent output, AppEngine may creat
 
 Follow-up creation is dry-run by default. Real GitHub follow-up issue creation requires the explicit workflow mode `create` or the repository variable `APPENGINE_FOLLOW_UP_MODE=create`.
 
-Every generated phase handoff must make its source-of-truth load list visible in the issue body. Include `source-of-truth/global-principles.md`, `source-of-truth/life-produces-life.md`, the app charter, the current phase artifact when one exists, and phase-specific standards. This prevents later agents from depending on hidden prompt context or drifting away from the Life Produces Life doctrine.
+Every generated phase handoff must make its source-of-truth load list visible in the issue body. Include `source-of-truth/00-why-we-build.md`, `source-of-truth/01-ecosystem-philosophy.md`, `source-of-truth/02-global-principles.md`, `source-of-truth/03-life-produces-life.md`, `source-of-truth/04-app-purpose-rules.md`, `source-of-truth/05-ecosystem-design-gates.md`, the app charter, the current phase artifact when one exists, and phase-specific standards. This prevents later agents from depending on hidden prompt context or drifting away from the Life Produces Life doctrine.
 
 ## App Build Packets
 
-Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
+Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
 
 ## ChatGPT Handoffs
 

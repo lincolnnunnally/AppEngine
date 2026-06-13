@@ -15,6 +15,11 @@ Each packet must define:
 - Purpose
 - Primary audience
 - People or organizations helped
+- Barrier removed
+- Need addressed
+- Movement toward life
+- Transformation outcome
+- Tool classification: Direct Transformation Tool, Support Tool, or explicitly mixed
 - Boundaries and related apps
 - Success definition
 - MVP stages
@@ -119,6 +124,9 @@ Use `source-of-truth/release-gate-standard.md` for the required shape.
 
 Packets must enforce:
 
+- Transformation is the product; the app is a tool that removes barriers and helps people move toward life.
+- People are the purpose; do not optimize for engagement, data capture, or technology over actual human flourishing.
+- Apps share philosophy but do not share purpose.
 - Do not build a whole app as one giant Codex task.
 - Do not let one app import another app's audience, features, data, or purpose without a documented integration reason.
 - Do not skip the app charter.
@@ -130,6 +138,17 @@ Packets must enforce:
 - Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
 - Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.
 - Do not approve release with unresolved Safari, mobile, common browser, touch-target, form, auth, upload, payment, or admin compatibility issues.
+
+## Ecosystem Design Gates
+
+Every packet must answer:
+
+1. What barrier does this remove?
+2. What need does this address?
+3. How does this help someone move toward life?
+4. How does this help someone become a source of life for others?
+
+If these answers are missing or weak, agents should clarify, reduce, postpone, or reject implementation work.
 
 ## Machine Shape
 
@@ -146,6 +165,11 @@ Agents should produce packet artifacts with this shape:
     "purpose": "Why this app exists.",
     "audience": ["Primary user group"],
     "helped": ["People or organizations helped"],
+    "barrierRemoved": "The barrier this app removes.",
+    "needAddressed": "The human, ministry, business, or workflow need this app addresses.",
+    "movementTowardLife": "How this app helps someone move toward life.",
+    "transformationOutcome": "The transformation this app exists to support.",
+    "toolClassification": "direct_transformation | support_tool | mixed",
     "boundaries": ["What this app must not become"],
     "successDefinition": "How we know this app works.",
     "deploymentTarget": "Vercel preview, Vercel production after approval, Render, or other target",

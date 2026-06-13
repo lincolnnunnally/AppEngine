@@ -17,6 +17,12 @@ Use this standard for requests such as:
 
 Before planning an improvement, agents must load:
 
+- Why We Build
+- Ecosystem Philosophy
+- Global Principles
+- Life Produces Life product doctrine
+- App Purpose Rules
+- Ecosystem Design Gates
 - Existing app charter
 - Current version
 - Super Admin registry entry
@@ -29,6 +35,14 @@ Before planning an improvement, agents must load:
 - Current source-of-truth docs and active task
 
 If this context is missing, the agent should create a context-gathering follow-up instead of inventing the current app state.
+
+The vNext Packet must preserve the existing app's purpose and answer:
+
+- What barrier does this improvement remove?
+- What need does this improvement address?
+- How does this help someone move toward life?
+- How does this help someone become a source of life for others?
+- Is this app a Direct Transformation Tool, Support Tool, or explicitly mixed tool?
 
 ## Improvement Path
 
@@ -51,6 +65,7 @@ existing app
 - Improvements must state whether they are bug fixes, feature additions, UX improvements, operations fixes, growth changes, or monitoring responses.
 - Improvements must not restart the whole app unless the vNext packet explicitly calls for a rebuild and explains why.
 - Improvements must not pull in another app's goals, audience, data, or workflows without a documented integration reason.
+- Improvements must optimize for transformation over engagement and people over technology.
 
 ## Guardrails
 
@@ -80,6 +95,7 @@ Agents should produce vNext packet artifacts with this shape:
     "targetVersion": "v1.1"
   },
   "context": {
+    "ecosystemPhilosophyLoaded": true,
     "charterLoaded": true,
     "registryLoaded": true,
     "monitoringLoaded": true,
@@ -89,6 +105,11 @@ Agents should produce vNext packet artifacts with this shape:
   "change": {
     "requestType": "feature | fix | ux | operations | growth | monitoring | v2",
     "summary": "What should improve",
+    "barrierRemoved": "The barrier this improvement removes",
+    "needAddressed": "The need this improvement addresses",
+    "movementTowardLife": "How this improvement moves someone toward life",
+    "transformationOutcome": "The transformation this improvement supports",
+    "toolClassification": "direct_transformation | support_tool | mixed",
     "nonGoals": ["What this improvement must not become"]
   },
   "providerCostDelta": {

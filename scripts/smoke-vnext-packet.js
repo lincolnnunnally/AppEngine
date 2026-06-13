@@ -32,6 +32,11 @@ runStep("vNext packet creation", () => {
     APP_IMPROVEMENT_TYPE: "ux",
     APP_IMPROVEMENT_SUMMARY: "Make the story intake flow easier for churches to use.",
     APP_FEEDBACK_SOURCE: "Lincoln request",
+    APP_BARRIER_REMOVED: "Remove mobile friction in the story intake path.",
+    APP_NEED_ADDRESSED: "Church teams need a clearer story intake flow for people using phones.",
+    APP_MOVEMENT_TOWARD_LIFE: "Story sharers can move from hesitation toward being heard and encouraged.",
+    APP_TRANSFORMATION_OUTCOME: "Church teams become more capable of receiving hope-filled stories with care.",
+    APP_TOOL_CLASSIFICATION: "direct_transformation",
     APP_KNOWN_ISSUES: "mobile intake friction|church admin needs clearer next action",
     APP_IMPROVEMENT_NON_GOALS: "do not rebuild the whole app|do not add unrelated church CRM features"
   });
@@ -47,6 +52,9 @@ runStep("vNext packet creation", () => {
   assertEqual(packet.context.knownIssuesLoaded, true, "known issues loaded");
   assertEqual(packet.context.releaseHistoryLoaded, true, "release history loaded");
   assertEqual(packet.providerCostDelta.costReviewRequired, true, "cost delta required");
+  assertEqual(packet.change.barrierRemoved, "Remove mobile friction in the story intake path.", "vNext barrier removed");
+  assertEqual(packet.change.toolClassification, "direct_transformation", "vNext tool classification");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/00-why-we-build.md", "vNext requires why we build");
   assertEqual(packet.guardrails.doNotRestartWholeApp, true, "does not restart app");
   assertEqual(packet.guardrails.preventGoalBleed, true, "prevents goal bleed");
   assertIncludes(packet.change.nonGoals.join(" "), "do not rebuild the whole app", "non-goal prevents rebuild");
@@ -108,6 +116,8 @@ runStep("vNext follow-up dry run creates issues", () => {
   assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[spark-of-hope] vNext: Build Update", "dry run creates build issue");
   assertIncludes(dryRun.issues[0].body, "Current version: v1", "dry run includes current version");
   assertIncludes(dryRun.issues[0].body, "Target version: v1.1", "dry run includes target version");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/00-why-we-build.md", "dry run includes why we build");
+  assertIncludes(dryRun.issues[0].body, "Tool classification: direct_transformation", "dry run includes classification");
   assertIncludes(dryRun.issues[0].body, "Do not restart the whole app.", "dry run includes restart guardrail");
   assertIncludes(dryRun.issues[0].body, "Source issue: #1006", "dry run includes source issue");
 });

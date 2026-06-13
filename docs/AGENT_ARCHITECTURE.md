@@ -27,8 +27,12 @@ GitHub Actions runs this in strict mode before Codex receives a generated prompt
 Shared context:
 
 ```text
-source-of-truth/global-principles.md
-source-of-truth/life-produces-life.md
+source-of-truth/00-why-we-build.md
+source-of-truth/01-ecosystem-philosophy.md
+source-of-truth/02-global-principles.md
+source-of-truth/03-life-produces-life.md
+source-of-truth/04-app-purpose-rules.md
+source-of-truth/05-ecosystem-design-gates.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
 source-of-truth/chatgpt-handoff-issue-standard.md

@@ -10,6 +10,19 @@ Use this template when creating a charter for a new generated app or ecosystem p
 
 ## People Or Organizations Helped
 
+## Barrier Removed
+
+## Need Addressed
+
+## Movement Toward Life
+
+## Transformation Outcome
+
+## Tool Classification
+
+- Direct Transformation Tool, Support Tool, or mixed:
+- Reason:
+
 ## Life Produces Life Pattern
 
 - Spark:

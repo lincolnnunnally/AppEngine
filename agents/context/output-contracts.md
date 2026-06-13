@@ -37,7 +37,18 @@ Required structure:
 
 Agents should keep prose concise and make follow-up work issue-ready when possible.
 
-Every phase handoff and `followUpTasks[].body` must include a `## Required Source Of Truth To Load` section. That section must explicitly list `source-of-truth/global-principles.md`, `source-of-truth/life-produces-life.md`, the relevant app charter, the current phase artifact when one exists, and any phase-specific standards needed for the task. Do not rely on the prompt factory's shared context list as an invisible substitute for issue-visible source-of-truth files.
+Every phase handoff and `followUpTasks[].body` must include a `## Required Source Of Truth To Load` section. That section must explicitly list `source-of-truth/00-why-we-build.md`, `source-of-truth/01-ecosystem-philosophy.md`, `source-of-truth/02-global-principles.md`, `source-of-truth/03-life-produces-life.md`, `source-of-truth/04-app-purpose-rules.md`, `source-of-truth/05-ecosystem-design-gates.md`, the relevant app charter, the current phase artifact when one exists, and any phase-specific standards needed for the task. Do not rely on the prompt factory's shared context list as an invisible substitute for issue-visible source-of-truth files.
+
+Every app charter, App Build Packet, vNext Packet, architecture plan, design brief, release gate, and implementation handoff should preserve these philosophy fields when the task affects app scope:
+
+- purpose
+- audience
+- barrier removed
+- need addressed
+- movement toward life
+- app boundaries
+- transformation outcome
+- tool classification: Direct Transformation Tool, Support Tool, or mixed
 
 ## Known Artifact Kinds
 
@@ -60,7 +71,7 @@ Agents may return these artifact kinds when relevant:
 - `workflow_test_plan`: end-to-end journey checks.
 - `review_report`: code, security, quality, and deployment-risk review.
 
-An `app_build_packet` artifact must include app charter path, boundaries, audience, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration requirements, Super Admin registry entry, Provider/Cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate plan, guardrails, phases, and phase-ready `followUpTasks`.
+An `app_build_packet` artifact must include app charter path, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, tool classification, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration requirements, Super Admin registry entry, Provider/Cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate plan, guardrails, phases, and phase-ready `followUpTasks`.
 
 An `identity_auth_plan` artifact must not contain secrets, OAuth credentials, API keys, session secrets, provider tokens, private user data, or production bypass values.
 

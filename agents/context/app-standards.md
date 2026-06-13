@@ -6,6 +6,8 @@ Use these standards for AppEngine and generated apps.
 - Keep AppEngine as the orchestration and handoff layer for Codex-built work.
 - Use GitHub issues, labels, branches, pull requests, and comments as durable collaboration records.
 - Use ChatGPT handoff packets when conversations become GitHub issues so the raw request, selected app, missing context, recommended label, and source-of-truth files are durable.
+- Treat transformation as the product and people as the purpose; every app or feature should name the barrier removed, need addressed, movement toward life, and transformation outcome before implementation.
+- Apps share philosophy but not purpose. Keep each app inside its own charter and create explicit integration follow-ups when a cross-app connection is useful.
 - Convert natural language requests into intake packets before planning so "build this," "start AppEngine build," "improve this app," and feature requests route to the correct app workflow.
 - Prove command paths with dry-run end-to-end pilot artifacts before relying on them for real app work.
 - Persist live pilot artifacts under the durable `agent-run` artifact and keep real follow-up issue creation behind an explicit `create` mode.

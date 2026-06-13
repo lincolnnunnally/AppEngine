@@ -6,12 +6,25 @@ const followUpsOutput = process.env.APP_BUILD_PACKET_FOLLOWUPS_OUTPUT || "";
 const inputPath = process.env.APP_BUILD_PACKET_INPUT || "";
 
 const input = readInput(inputPath);
+const coreSourceOfTruthFiles = [
+  "source-of-truth/00-why-we-build.md",
+  "source-of-truth/01-ecosystem-philosophy.md",
+  "source-of-truth/02-global-principles.md",
+  "source-of-truth/03-life-produces-life.md",
+  "source-of-truth/04-app-purpose-rules.md",
+  "source-of-truth/05-ecosystem-design-gates.md"
+];
 const appName = input.name || process.env.APP_NAME || "Example App";
 const slug = input.slug || process.env.APP_SLUG || slugify(appName);
 const charterPath = input.charterPath || process.env.APP_CHARTER_PATH || `source-of-truth/charters/${slug}.md`;
 const purpose = input.purpose || process.env.APP_PURPOSE || "Describe why this app exists.";
 const audience = input.audience || listFromEnv("APP_AUDIENCE", ["Primary users"]);
 const helped = input.helped || listFromEnv("APP_HELPED", ["People or organizations helped by this app"]);
+const barrierRemoved = input.barrierRemoved || process.env.APP_BARRIER_REMOVED || "Name the barrier this app removes.";
+const needAddressed = input.needAddressed || process.env.APP_NEED_ADDRESSED || "Name the human, ministry, business, or workflow need this app addresses.";
+const movementTowardLife = input.movementTowardLife || process.env.APP_MOVEMENT_TOWARD_LIFE || "Describe how this app helps someone move from survival toward life.";
+const transformationOutcome = input.transformationOutcome || process.env.APP_TRANSFORMATION_OUTCOME || "Describe the transformation this app exists to support.";
+const toolClassification = input.toolClassification || process.env.APP_TOOL_CLASSIFICATION || "unclassified";
 const boundaries = input.boundaries || listFromEnv("APP_BOUNDARIES", ["Do not absorb unrelated app goals or audiences."]);
 const successDefinition = input.successDefinition || process.env.APP_SUCCESS_DEFINITION || "Define the measurable outcome that proves the app is useful.";
 const deploymentTarget = input.deploymentTarget || process.env.APP_DEPLOYMENT_TARGET || "Vercel preview first; production only after human approval.";
@@ -140,6 +153,11 @@ const packet = {
     purpose,
     audience,
     helped,
+    barrierRemoved,
+    needAddressed,
+    movementTowardLife,
+    transformationOutcome,
+    toolClassification,
     boundaries,
     successDefinition,
     deploymentTarget,
@@ -158,6 +176,9 @@ const packet = {
     compatibilityTestPlan,
     releaseGate
   },
+  sourceOfTruth: {
+    requiredFiles: [...coreSourceOfTruthFiles, charterPath]
+  },
   guardrails: {
     noGiantCodexTask: true,
     preventGoalBleed: true,
@@ -166,6 +187,9 @@ const packet = {
     noProductionDeployWithoutApproval: true,
     notes: [
       "Keep this app inside its charter.",
+      "Treat transformation as the product and people as the purpose.",
+      "Apps share philosophy but do not share purpose.",
+      "Answer the ecosystem design gates before implementation: barrier removed, need addressed, movement toward life, and source-of-life multiplication.",
       "Create phased follow-up issues instead of one giant Codex task.",
       "Define identity/auth before app build or launch work.",
       "Register management, monitoring, health, logs, users, billing/status if needed, and admin actions with Super Admin.",
@@ -174,6 +198,7 @@ const packet = {
       "Require Designer and Customer Perspective review before release approval.",
       "Block technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.",
       "Block release when Safari, mobile, touch, form, auth, upload, payment, or common browser issues remain unresolved.",
+      "Block purpose bleed between apps unless a documented integration approves it.",
       "Launch MVP as v1 and route later improvements to vNext packets or follow-up issues."
     ]
   },
@@ -346,8 +371,16 @@ function toFollowUpTask(packet, phase) {
       `- Charter: ${app.charterPath}`,
       `- Purpose: ${app.purpose}`,
       `- Audience: ${app.audience.join(", ")}`,
+      `- Barrier removed: ${app.barrierRemoved}`,
+      `- Need addressed: ${app.needAddressed}`,
+      `- Movement toward life: ${app.movementTowardLife}`,
+      `- Transformation outcome: ${app.transformationOutcome}`,
+      `- Tool classification: ${app.toolClassification}`,
       `- Success: ${app.successDefinition}`,
       `- Deployment target: ${app.deploymentTarget}`,
+      "",
+      "## Required Source Of Truth To Load",
+      ...packet.sourceOfTruth.requiredFiles.map((filePath) => `- ${filePath}`),
       "",
       "## Phase",
       `- Phase id: ${phase.id}`,
@@ -410,6 +443,8 @@ function toFollowUpTask(packet, phase) {
       "",
       "## Guardrails",
       "- Do not turn this phase into a full-app build.",
+      "- Treat transformation as the product and people as the purpose.",
+      "- Preserve this app's specific purpose; apps share philosophy but do not share purpose.",
       "- Do not import unrelated app goals, audiences, data, or features.",
       "- Do not invent auth outside the Identity/Auth Standard.",
       "- Do not skip Super Admin registry planning.",
@@ -453,6 +488,11 @@ function validatePacket(packet) {
     ["app.slug", packet.app.slug],
     ["app.charterPath", packet.app.charterPath],
     ["app.purpose", packet.app.purpose],
+    ["app.barrierRemoved", packet.app.barrierRemoved],
+    ["app.needAddressed", packet.app.needAddressed],
+    ["app.movementTowardLife", packet.app.movementTowardLife],
+    ["app.transformationOutcome", packet.app.transformationOutcome],
+    ["app.toolClassification", packet.app.toolClassification],
     ["app.successDefinition", packet.app.successDefinition],
     ["app.deploymentTarget", packet.app.deploymentTarget],
     ["app.identityAuth.auth.provider", packet.app.identityAuth?.auth?.provider],
@@ -471,6 +511,7 @@ function validatePacket(packet) {
   for (const [label, value] of [
     ["app.audience", packet.app.audience],
     ["app.boundaries", packet.app.boundaries],
+    ["sourceOfTruth.requiredFiles", packet.sourceOfTruth?.requiredFiles],
     ["app.mvpStages", packet.app.mvpStages],
     ["app.superAdminIntegration.requirements", packet.app.superAdminIntegration.requirements],
     ["app.identityAuth.roles", packet.app.identityAuth?.roles],
@@ -500,6 +541,12 @@ function validatePacket(packet) {
 
   if (!packet.guardrails.noGiantCodexTask || !packet.guardrails.preventGoalBleed) {
     throw new Error("App Build Packet guardrails must prevent giant tasks and app-goal bleeding.");
+  }
+
+  for (const filePath of coreSourceOfTruthFiles) {
+    if (!packet.sourceOfTruth.requiredFiles.includes(filePath)) {
+      throw new Error(`App Build Packet must require source-of-truth file: ${filePath}`);
+    }
   }
 
   if (!packet.app.superAdminIntegration.required) {
