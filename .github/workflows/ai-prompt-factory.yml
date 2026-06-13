@@ -246,7 +246,7 @@ jobs:
             echo "## Codex Final Message"
             echo
             if [ -f agent-run/codex-output.md ]; then
-              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^ )]+/agent-run/#agent-run/#g'
+              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^/]+/[^/]+/##g'
             else
               echo "No Codex output file was captured."
             fi
@@ -335,7 +335,7 @@ jobs:
             echo "## Codex Final Message"
             echo
             if [ -f agent-run/codex-output.md ]; then
-              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^ )]+/agent-run/#agent-run/#g'
+              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^/]+/[^/]+/##g'
             else
               echo "No Codex output file was captured."
             fi
@@ -451,7 +451,7 @@ jobs:
             if [ -f agent-run/codex-output.md ]; then
               echo "## Codex output"
               echo
-              head -c 12000 agent-run/codex-output.md
+              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^/]+/[^/]+/##g'
             else
               echo "No Codex output file was captured before the failure."
             fi
