@@ -12,6 +12,7 @@ const followUpMode = normalizeFollowUpMode();
 const dryRun = followUpMode !== "create";
 const dryRunOutput = process.env.FOLLOW_UP_OUTPUT || "";
 const tasksFile = process.env.FOLLOW_UP_TASKS_FILE || "";
+const patchFile = process.env.CODEX_PATCH_FILE || path.join(path.dirname(path.resolve(outputFile || "agent-run/codex-output.md")), "codex.patch");
 const dispatchWorkflows = process.env.FOLLOW_UP_DISPATCH_WORKFLOWS === "true";
 const dispatchRef = process.env.FOLLOW_UP_REF || process.env.GITHUB_REF_NAME || "main";
 const maxDispatches = Number.parseInt(process.env.MAX_FOLLOW_UP_WORKFLOW_DISPATCHES || "1", 10);
@@ -147,28 +148,96 @@ function loadFollowUpTasks({ output, tasksFile }) {
     }
   }
 
-  return extractFollowUpTasks(output);
+  const outputTasks = extractFollowUpTasks(output);
+  if (outputTasks.length) return outputTasks;
+
+  if (patchFile && fs.existsSync(patchFile)) {
+    const patchTasks = extractFollowUpTasksFromPatch(fs.readFileSync(patchFile, "utf8"));
+    if (patchTasks.length) return patchTasks;
+  }
+
+  return [];
 }
 
 function normalizeTaskPayload(parsed) {
-  const tasks = Array.isArray(parsed) ? parsed : parsed.followUpTasks || parsed.follow_up_tasks || parsed.followups || parsed.issues || [];
-  return Array.isArray(tasks) ? tasks.filter((task) => task && typeof task === "object") : [];
+  return collectFollowUpTasks(parsed);
 }
 
 function extractFollowUpTasks(text) {
   const jsonBlocks = [...text.matchAll(/```json\s*([\s\S]*?)```/gi)].map((match) => match[1]);
+  const tasks = [];
 
   for (const block of jsonBlocks) {
     try {
       const parsed = JSON.parse(block);
-      const tasks = normalizeTaskPayload(parsed);
-      if (tasks.length) return tasks;
+      tasks.push(...normalizeTaskPayload(parsed));
     } catch {
       // Keep looking for the next structured block.
     }
   }
 
-  return [];
+  return dedupeTasks(tasks);
+}
+
+function extractFollowUpTasksFromPatch(patchText) {
+  const addedLines = [];
+
+  for (const line of String(patchText || "").split(/\r?\n/)) {
+    if (!line.startsWith("+") || line.startsWith("+++") || line.startsWith("+\\ No newline")) continue;
+    addedLines.push(line.slice(1));
+  }
+
+  return extractFollowUpTasks(addedLines.join("\n"));
+}
+
+function collectFollowUpTasks(value, tasks = []) {
+  if (Array.isArray(value)) {
+    collectTaskArray(value, tasks);
+    for (const item of value) collectFollowUpTasks(item, tasks);
+    return dedupeTasks(tasks);
+  }
+
+  if (!value || typeof value !== "object") return dedupeTasks(tasks);
+
+  for (const key of ["followUpTasks", "follow_up_tasks", "followups", "issues"]) {
+    if (Array.isArray(value[key])) collectTaskArray(value[key], tasks);
+  }
+
+  for (const child of Object.values(value)) {
+    if (child && typeof child === "object") collectFollowUpTasks(child, tasks);
+  }
+
+  return dedupeTasks(tasks);
+}
+
+function collectTaskArray(values, tasks) {
+  for (const item of values) {
+    if (isFollowUpTask(item)) tasks.push(item);
+  }
+}
+
+function isFollowUpTask(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (!("title" in value) || !("body" in value || "details" in value)) return false;
+
+  const label = value.recommendedLabel || value.label || value.labels?.[0] || "ai:plan";
+  return allowedLabels.has(String(label).trim()) || !label;
+}
+
+function dedupeTasks(tasks) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const task of tasks) {
+    const title = normalizeTitle(task.title);
+    const body = String(task.body || task.details || "").trim();
+    const key = `${title}\n${body}`;
+    if (!title || !body || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(task);
+  }
+
+  return unique;
 }
 
 function normalizeTitle(title) {

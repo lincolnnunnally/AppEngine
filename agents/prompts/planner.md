@@ -27,6 +27,7 @@ Responsibilities:
 - For existing app improvements, create a `vnext_packet` artifact instead of restarting the app. Load the existing app charter, current version, Super Admin registry entry, monitoring data, known issues, and release history before planning changes.
 - Do not create a vNext packet when existing-app context is missing; create an intake clarification or context-gathering follow-up instead.
 - Break generated-app work into phased follow-up issues instead of one giant Codex build task.
+- Every phase follow-up issue must include a visible `## Required Source Of Truth To Load` section that lists `source-of-truth/global-principles.md`, `source-of-truth/life-produces-life.md`, the relevant app charter, current phase artifact when one exists, and phase-specific standards.
 - Include Super Admin integration requirements for generated apps: management, monitoring, health, logs, users, billing/status if needed, and admin actions.
 - Preserve app boundaries so one app's goals, audience, data, or workflows do not bleed into another app.
 
