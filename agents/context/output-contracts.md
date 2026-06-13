@@ -78,6 +78,6 @@ A `chatgpt_handoff_packet` artifact must not contain secrets, private API keys, 
 
 An `intake_packet` artifact must route new apps to an App Build Packet, existing apps to a vNext Packet after required context is loaded, and ambiguous or multi-app requests to clarification. It must not trigger implementation, provider provisioning, or production deployment directly.
 
-A `pilot_app_build` artifact must be dry-run by default. It must not deploy production, create paid provider resources, or merge generated app code without review. It should record the first real bounded pilot from handoff issue to dry-run follow-up issues.
+A `pilot_app_build` artifact must be dry-run by default. It must not deploy production, create paid provider resources, or merge generated app code without review. It should record the first real bounded pilot from handoff issue to dry-run follow-up issues. In GitHub Actions, pilot JSON files and structured `followUpTasks` must be persisted under the durable `agent-run` artifact, not runner-local `/tmp` paths.
 
 A `vnext_packet` artifact must load existing app context before planning changes. It must not restart the whole app, erase release history, or import unrelated app goals.

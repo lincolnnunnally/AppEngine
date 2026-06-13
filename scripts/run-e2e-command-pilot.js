@@ -4,9 +4,13 @@ import os from "node:os";
 import path from "node:path";
 
 const repoRoot = process.cwd();
-const outputRoot =
+const agentRunDir = path.resolve(process.env.AGENT_RUN_DIR || path.join(repoRoot, "agent-run"));
+const outputRoot = path.resolve(
   process.env.PILOT_OUTPUT_DIR ||
-  fs.mkdtempSync(path.join(os.tmpdir(), "appengine-e2e-pilot-"));
+    (process.env.GITHUB_ACTIONS === "true"
+      ? path.join(agentRunDir, "pilot")
+      : fs.mkdtempSync(path.join(os.tmpdir(), "appengine-e2e-pilot-")))
+);
 const pilotOutput = process.env.PILOT_APP_BUILD_OUTPUT || path.join(outputRoot, "pilot-app-build.json");
 const mode = process.env.PILOT_MODE || "dry_run";
 const pilotName = process.env.PILOT_APP_NAME || "Spark of Hope Intake Lite";
@@ -28,7 +32,8 @@ const paths = {
   buildPacket: path.join(outputRoot, "app-build-packet.json"),
   buildFollowUps: path.join(outputRoot, "app-build-follow-ups.json"),
   codexOutput: path.join(outputRoot, "codex-output.md"),
-  followUpDryRun: path.join(outputRoot, "follow-up-issues.json")
+  followUpDryRun: path.join(outputRoot, "follow-up-issues.json"),
+  followUpTasks: process.env.FOLLOW_UP_TASKS_OUTPUT || path.join(outputRoot, "follow-up-tasks.json")
 };
 
 fs.mkdirSync(outputRoot, { recursive: true });
@@ -112,6 +117,11 @@ if (!fs.existsSync(paths.followUpDryRun)) {
 }
 
 const dryRun = readJson(paths.followUpDryRun);
+const structuredFollowUpTasks = dryRun.issues.map((item) => ({
+  title: item.title,
+  body: item.body,
+  recommendedLabel: item.label
+}));
 
 const pilot = {
   kind: "pilot_app_build",
@@ -133,14 +143,15 @@ const pilot = {
     chatgptHandoffPacket: outputPath(paths.handoffPacket),
     intakePacket: outputPath(paths.intakePacket),
     buildPacket: outputPath(paths.buildPacket),
-    followUpDryRun: outputPath(paths.followUpDryRun)
+    followUpDryRun: outputPath(paths.followUpDryRun),
+    structuredFollowUpTasks: outputPath(paths.followUpTasks)
   },
   workflow: {
     selectedPacket: intakePacket.selectedWorkflow.packetKind,
     selectedAgent: "planner",
-    followUpIssues: dryRun.issues.map((item) => ({
+    followUpIssues: structuredFollowUpTasks.map((item) => ({
       title: item.title,
-      label: item.label
+      label: item.recommendedLabel
     }))
   },
   prs: [],
@@ -161,6 +172,17 @@ const pilot = {
 };
 
 validatePilot(pilot);
+writeJson(paths.followUpTasks, {
+  kind: "follow_up_tasks",
+  schemaVersion: 1,
+  mode: "dry_run",
+  source: {
+    issueNumber: sourceIssueNumber,
+    issueUrl: sourceIssueUrl,
+    pilot: pilotSlug
+  },
+  followUpTasks: structuredFollowUpTasks
+});
 writeJson(pilotOutput, pilot);
 
 console.log(`e2e-pilot ok: ${pilot.pilot.name}`);

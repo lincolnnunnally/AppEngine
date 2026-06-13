@@ -232,6 +232,8 @@ source-of-truth/pilot-app-build-template.md
 
 The pilot is dry-run only. It proves the path from ChatGPT handoff issue to intake, App Build Packet, dry-run follow-up issues, and `pilot_app_build` artifact without production deployment, paid provider resources, or unreviewed generated app code.
 
+In GitHub Actions, pilot artifacts are persisted under the uploaded `agent-run` artifact instead of runner-local `/tmp` paths. The workflow defaults to dry-run follow-up previews. To allow real GitHub follow-up issues, set repository variable `APPENGINE_FOLLOW_UP_MODE` to `create`.
+
 ## Generated App Databases
 
 The engine can prepare databases for generated apps in two ways:

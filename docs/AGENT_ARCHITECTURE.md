@@ -159,6 +159,13 @@ npm run smoke:e2e-pilot
 
 The first pilot template is `Spark of Hope Intake Lite`, a small bounded app build packet. It is not a production deployment and does not merge generated app code. The pilot records issue body, handoff packet, intake packet, App Build Packet, dry-run follow-up issues, PRs, release status, blockers, next action, and guardrails in a `pilot_app_build` artifact.
 
+In GitHub Actions, pilot evidence must be durable. The pilot command writes JSON files under `agent-run/pilot/`, `scripts/persist-agent-run-artifacts.js` writes `agent-run/artifact-summary.md` and `agent-run/follow-up-tasks.json`, and the workflow uploads the `agent-run` artifact. Issue comments should point to that GitHub Actions artifact rather than runner-local `/tmp` paths.
+
+Follow-up issue creation is safe by default:
+
+- `dry-run`: write follow-up previews and comment with the output.
+- `create`: create real GitHub follow-up issues and dispatch bounded next workflows when `APPENGINE_FOLLOW_UP_MODE=create`.
+
 Pilot guardrails:
 
 - dry-run only by default
@@ -359,6 +366,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
 
 `scripts/run-e2e-command-pilot.js` runs the dry-run command pilot from ChatGPT handoff to intake, App Build Packet, follow-up issue dry run, and `pilot_app_build` artifact.
+
+`scripts/persist-agent-run-artifacts.js` turns pilot output into durable `agent-run` summaries and structured `follow-up-tasks.json` for preview or optional GitHub issue creation.
 
 `scripts/create-app-build-packet.js` creates an App Build Packet and phase-ready follow-up tasks for new or complex app work.
 

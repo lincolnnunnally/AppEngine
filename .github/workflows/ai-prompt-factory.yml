@@ -149,6 +149,17 @@ jobs:
           codex-args: '["--ephemeral"]'
           allow-bot-users: github-actions[bot]
 
+      - name: Persist agent-run summaries
+        if: ${{ always() }}
+        env:
+          AGENT_RUN_DIR: agent-run
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          SOURCE_ISSUE_NUMBER: ${{ steps.mode.outputs.issue_number }}
+          SOURCE_ISSUE_URL: ${{ github.event.issue.html_url || github.server_url }}
+        run: node scripts/persist-agent-run-artifacts.js
+
       - name: Create patch artifact
         id: diff
         if: ${{ always() }}
@@ -235,7 +246,7 @@ jobs:
             echo "## Codex Final Message"
             echo
             if [ -f agent-run/codex-output.md ]; then
-              head -c 12000 agent-run/codex-output.md
+              head -c 12000 agent-run/codex-output.md | sed 's#/tmp/#[runner-local tmp omitted]/#g'
             else
               echo "No Codex output file was captured."
             fi
@@ -268,6 +279,21 @@ jobs:
 
           pr_url="$(gh pr view "$branch" --json url --jq .url)"
           echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+
+      - name: Create or preview follow-up issues from structured output
+        if: ${{ needs.codex.outputs.issue_number != '' }}
+        env:
+          CODEX_OUTPUT_FILE: agent-run/codex-output.md
+          FOLLOW_UP_DISPATCH_WORKFLOWS: ${{ vars.APPENGINE_FOLLOW_UP_MODE == 'create' && 'true' || 'false' }}
+          FOLLOW_UP_MODE: ${{ vars.APPENGINE_FOLLOW_UP_MODE == 'create' && 'create' || 'dry-run' }}
+          FOLLOW_UP_OUTPUT: agent-run/follow-up-issues-result.json
+          FOLLOW_UP_REF: ${{ github.event.repository.default_branch }}
+          FOLLOW_UP_TASKS_FILE: agent-run/follow-up-tasks.json
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SOURCE_ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
+          SOURCE_ISSUE_URL: ${{ github.event.issue.html_url }}
+        run: node scripts/create-follow-up-issues.js
 
       - name: Comment on source issue
         if: ${{ needs.codex.outputs.issue_number != '' }}
@@ -307,25 +333,26 @@ jobs:
             echo "## Codex Final Message"
             echo
             if [ -f agent-run/codex-output.md ]; then
-              head -c 12000 agent-run/codex-output.md
+              head -c 12000 agent-run/codex-output.md | sed 's#/tmp/#[runner-local tmp omitted]/#g'
             else
               echo "No Codex output file was captured."
+            fi
+            if [ -f agent-run/artifact-summary.md ]; then
+              echo
+              cat agent-run/artifact-summary.md
+            fi
+            if [ -f agent-run/follow-up-issues-result.json ]; then
+              echo
+              echo "## Follow-Up Output"
+              echo
+              echo "\`\`\`json"
+              head -c 12000 agent-run/follow-up-issues-result.json
+              echo
+              echo "\`\`\`"
             fi
           } > issue-comment.md
 
           gh issue comment "$ISSUE_NUMBER" --repo "$GH_REPO" --body-file issue-comment.md
-
-      - name: Create follow-up issues from structured output
-        if: ${{ needs.codex.outputs.issue_number != '' }}
-        env:
-          CODEX_OUTPUT_FILE: agent-run/codex-output.md
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          FOLLOW_UP_DISPATCH_WORKFLOWS: "true"
-          FOLLOW_UP_REF: ${{ github.event.repository.default_branch }}
-          SOURCE_ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
-          SOURCE_ISSUE_URL: ${{ github.event.issue.html_url }}
-        run: node scripts/create-follow-up-issues.js
 
   report_failure:
     needs: codex
