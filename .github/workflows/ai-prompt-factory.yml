@@ -246,7 +246,7 @@ jobs:
             echo "## Codex Final Message"
             echo
             if [ -f agent-run/codex-output.md ]; then
-              head -c 12000 agent-run/codex-output.md | sed 's#/tmp/#[runner-local tmp omitted]/#g'
+              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^ )]+/agent-run/#agent-run/#g'
             else
               echo "No Codex output file was captured."
             fi
@@ -291,6 +291,8 @@ jobs:
           FOLLOW_UP_TASKS_FILE: agent-run/follow-up-tasks.json
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          MAX_FOLLOW_UP_ISSUES: ${{ vars.APPENGINE_MAX_FOLLOW_UP_ISSUES || '5' }}
+          MAX_FOLLOW_UP_WORKFLOW_DISPATCHES: ${{ vars.APPENGINE_MAX_FOLLOW_UP_WORKFLOW_DISPATCHES || '1' }}
           SOURCE_ISSUE_NUMBER: ${{ needs.codex.outputs.issue_number }}
           SOURCE_ISSUE_URL: ${{ github.event.issue.html_url }}
         run: node scripts/create-follow-up-issues.js
@@ -333,7 +335,7 @@ jobs:
             echo "## Codex Final Message"
             echo
             if [ -f agent-run/codex-output.md ]; then
-              head -c 12000 agent-run/codex-output.md | sed 's#/tmp/#[runner-local tmp omitted]/#g'
+              head -c 12000 agent-run/codex-output.md | sed -E 's#/tmp/#[runner-local tmp omitted]/#g; s#/home/runner/work/[^ )]+/agent-run/#agent-run/#g'
             else
               echo "No Codex output file was captured."
             fi
