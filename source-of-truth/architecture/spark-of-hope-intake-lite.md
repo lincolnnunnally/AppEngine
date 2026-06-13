@@ -9,8 +9,8 @@
 - App slug: `spark-of-hope-intake-lite`.
 - Charter: `source-of-truth/charters/spark-of-hope-intake-lite.md`.
 - Live GitHub verification: blocked by sandbox network restrictions during `npm run source:check`.
-- Local source check: `SOURCE_CHECK_OFFLINE=true npm run source:check` passed.
-- Local alignment: `HEAD` and `origin/main` both resolved to `f4badc7ad19eb3a937a6f8e90c3199e09eff3cdd`.
+- Local/offline source check: `SOURCE_CHECK_OFFLINE=true npm run source:check` passed; full `npm run source:check` remains blocked until live GitHub verification can run with network access.
+- Local alignment: `HEAD` and `origin/main` both resolved to `93f85d51d8c503e5ba93c9416004aaa1e43161fe`.
 
 ## Required Source Files Read
 
@@ -247,6 +247,8 @@ Rollback notes:
 ## Recommended Next Step
 
 Proceed to Provider/Cost planning, then Data Model, Identity/Auth, and UI Design. Keep each as a scoped follow-up issue. Do not proceed directly to MVP build from this architecture plan.
+
+Follow-up creation posture: dry-run/preview only unless `APPENGINE_FOLLOW_UP_MODE=create` is explicitly set by Lincoln. The follow-up task bodies below are issue-ready previews, not permission to create paid resources, deploy, apply migrations, or merge generated app implementation.
 
 ## Machine Artifact
 
