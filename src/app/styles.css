@@ -847,9 +847,246 @@ label {
   text-transform: capitalize;
 }
 
+.spark-page {
+  width: min(1160px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 28px 0 42px;
+}
+
+.spark-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.spark-brand {
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.spark-nav div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.spark-nav a:not(.spark-brand) {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 13px;
+  background: #ffffff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.spark-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.55fr);
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.spark-hero-copy,
+.spark-trust-rail,
+.spark-form-panel,
+.spark-side-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.spark-hero-copy {
+  padding: clamp(22px, 5vw, 42px);
+  background: #edf3fb;
+}
+
+.spark-hero-copy h1 {
+  max-width: 720px;
+  margin-bottom: 14px;
+}
+
+.spark-hero-copy p {
+  max-width: 680px;
+  font-size: 1.05rem;
+}
+
+.spark-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.spark-pill-row span {
+  border: 1px solid #b9d8d2;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--teal);
+  background: var(--green-soft);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.spark-trust-rail {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 22px;
+  background: #fff8ef;
+}
+
+.spark-trust-rail > span,
+.spark-note-grid span,
+.spark-helper {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.spark-trust-rail strong {
+  color: var(--blue);
+  font-size: 1.2rem;
+}
+
+.spark-trust-rail ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.spark-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.spark-form-panel,
+.spark-side-panel {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.spark-form-panel label {
+  color: #25332b;
+  font-size: 0.9rem;
+  text-transform: none;
+}
+
+.spark-form-panel input,
+.spark-form-panel textarea {
+  background: #fffdf8;
+}
+
+.spark-helper {
+  margin: -8px 0 0;
+  text-align: right;
+}
+
+.spark-consents {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0;
+  padding: 14px;
+  background: #f9fbfb;
+}
+
+.spark-consents legend {
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.spark-checkbox {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: #344138;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.spark-checkbox input {
+  width: 20px;
+  min-height: 20px;
+  margin-top: 2px;
+}
+
+.spark-submit {
+  justify-content: center;
+  width: min(240px, 100%);
+}
+
+.spark-status {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--teal);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.spark-status.success {
+  background: var(--green-soft);
+}
+
+.spark-status.error {
+  border-left-color: var(--coral);
+  background: #f8e9e5;
+}
+
+.spark-status strong,
+.spark-reference {
+  display: block;
+}
+
+.spark-status p {
+  margin-bottom: 8px;
+}
+
+.spark-reference {
+  color: var(--teal);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-weight: 900;
+}
+
+.spark-side-panel {
+  background: #f9fbfb;
+}
+
+.spark-note-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.spark-note-grid div {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.spark-note-grid p {
+  margin: 6px 0 0;
+}
+
 @media (max-width: 760px) {
   .topnav,
-  .navlinks {
+  .navlinks,
+  .spark-nav {
     align-items: stretch;
     flex-direction: column;
   }
@@ -871,8 +1108,14 @@ label {
   .two-column,
   .task-list,
   .form-grid,
+  .spark-hero,
+  .spark-layout,
   .form-grid label:first-child {
     grid-template-columns: 1fr;
     grid-column: auto;
+  }
+
+  .spark-submit {
+    width: 100%;
   }
 }

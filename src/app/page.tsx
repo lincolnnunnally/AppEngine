@@ -15,6 +15,7 @@ export default function HomePage() {
       <nav className="topnav">
         <strong>App Engine</strong>
         <div className="navlinks">
+          <Link href="/spark-of-hope-intake-lite">Spark Intake</Link>
           <Link href="/builder">Builder</Link>
           <Link href="/account">Customer Account</Link>
           <Link href="/admin">Admin Console</Link>
@@ -29,9 +30,14 @@ export default function HomePage() {
           to connect Neon persistence, Auth.js sign-in, reusable templates, and
           real worker orchestration.
         </p>
-        <Link className="button primary" href="/builder">
-          Open Builder
-        </Link>
+        <div className="action-row">
+          <Link className="button primary" href="/builder">
+            Open Builder
+          </Link>
+          <Link className="button" href="/spark-of-hope-intake-lite">
+            Preview Spark Intake
+          </Link>
+        </div>
       </section>
 
       <section className="grid" style={{ marginTop: 16 }}>
