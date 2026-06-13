@@ -8,8 +8,10 @@ const repo = process.env.GITHUB_REPOSITORY || "lincolnnunnally/AppEngine";
 const sourceIssueNumber = process.env.SOURCE_ISSUE_NUMBER || "";
 const sourceIssueUrl = process.env.SOURCE_ISSUE_URL || "";
 const maxFollowUps = Number.parseInt(process.env.MAX_FOLLOW_UP_ISSUES || "5", 10);
-const dryRun = process.env.FOLLOW_UP_DRY_RUN === "true";
+const followUpMode = normalizeFollowUpMode();
+const dryRun = followUpMode !== "create";
 const dryRunOutput = process.env.FOLLOW_UP_OUTPUT || "";
+const tasksFile = process.env.FOLLOW_UP_TASKS_FILE || "";
 const dispatchWorkflows = process.env.FOLLOW_UP_DISPATCH_WORKFLOWS === "true";
 const dispatchRef = process.env.FOLLOW_UP_REF || process.env.GITHUB_REF_NAME || "main";
 const maxDispatches = Number.parseInt(process.env.MAX_FOLLOW_UP_WORKFLOW_DISPATCHES || "1", 10);
@@ -39,7 +41,7 @@ if (!outputFile || !fs.existsSync(outputFile)) {
 }
 
 const output = fs.readFileSync(outputFile, "utf8");
-const tasks = extractFollowUpTasks(output).slice(0, maxFollowUps);
+const tasks = loadFollowUpTasks({ output, tasksFile }).slice(0, maxFollowUps);
 
 if (!tasks.length) {
   console.log("No structured follow-up tasks found.");
@@ -47,6 +49,7 @@ if (!tasks.length) {
 }
 
 const preparedIssues = [];
+const createdIssues = [];
 
 for (const task of tasks) {
   const title = normalizeTitle(task.title);
@@ -73,13 +76,49 @@ for (const task of tasks) {
 
   ensureLabel(label);
   const issueUrl = createIssue({ title, bodyPath, label });
+  createdIssues.push({ title, label, body, url: issueUrl });
   console.log(`Created follow-up issue: ${title} (${label})`);
   dispatchFollowUpWorkflow({ issueUrl, title, body, label });
 }
 
-if (dryRun && dryRunOutput) {
+if (dryRunOutput) {
   fs.mkdirSync(path.dirname(path.resolve(dryRunOutput)), { recursive: true });
-  fs.writeFileSync(path.resolve(dryRunOutput), `${JSON.stringify({ issues: preparedIssues }, null, 2)}\n`);
+  fs.writeFileSync(
+    path.resolve(dryRunOutput),
+    `${JSON.stringify({ mode: followUpMode, issues: dryRun ? preparedIssues : createdIssues }, null, 2)}\n`
+  );
+}
+
+function normalizeFollowUpMode() {
+  const value = String(process.env.FOLLOW_UP_MODE || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+
+  if (value === "create" || value === "create-issues") return "create";
+  if (value === "dry-run" || value === "dryrun" || value === "preview") return "dry-run";
+  if (process.env.FOLLOW_UP_CREATE_ISSUES === "true") return "create";
+  if (process.env.FOLLOW_UP_DRY_RUN === "false") return "create";
+  return "dry-run";
+}
+
+function loadFollowUpTasks({ output, tasksFile }) {
+  if (tasksFile && fs.existsSync(tasksFile)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(tasksFile, "utf8"));
+      const tasks = normalizeTaskPayload(parsed);
+      if (tasks.length) return tasks;
+    } catch {
+      console.warn(`Could not parse structured follow-up task file: ${tasksFile}`);
+    }
+  }
+
+  return extractFollowUpTasks(output);
+}
+
+function normalizeTaskPayload(parsed) {
+  const tasks = Array.isArray(parsed) ? parsed : parsed.followUpTasks || parsed.follow_up_tasks || parsed.followups || parsed.issues || [];
+  return Array.isArray(tasks) ? tasks.filter((task) => task && typeof task === "object") : [];
 }
 
 function extractFollowUpTasks(text) {
@@ -88,8 +127,8 @@ function extractFollowUpTasks(text) {
   for (const block of jsonBlocks) {
     try {
       const parsed = JSON.parse(block);
-      const tasks = parsed.followUpTasks || parsed.follow_up_tasks || parsed.followups || [];
-      if (Array.isArray(tasks)) return tasks.filter((task) => task && typeof task === "object");
+      const tasks = normalizeTaskPayload(parsed);
+      if (tasks.length) return tasks;
     } catch {
       // Keep looking for the next structured block.
     }

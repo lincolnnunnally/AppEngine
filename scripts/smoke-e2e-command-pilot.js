@@ -5,11 +5,13 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-e2e-command-pilot-"));
-const pilotOutput = path.join(smokeRoot, "pilot-app-build.json");
+const agentRunRoot = path.join(smokeRoot, "agent-run");
+const pilotRoot = path.join(agentRunRoot, "pilot");
+const pilotOutput = path.join(pilotRoot, "pilot-app-build.json");
 
 runNode("scripts/run-e2e-command-pilot.js", {
-  PILOT_OUTPUT_DIR: smokeRoot,
-  PILOT_APP_BUILD_OUTPUT: pilotOutput,
+  AGENT_RUN_DIR: agentRunRoot,
+  GITHUB_ACTIONS: "true",
   PILOT_APP_NAME: "Spark of Hope Intake Lite",
   PILOT_APP_SLUG: "spark-of-hope-intake-lite",
   SOURCE_ISSUE_NUMBER: "3100",
@@ -17,11 +19,24 @@ runNode("scripts/run-e2e-command-pilot.js", {
 });
 
 const pilot = readJson(pilotOutput);
-const issueBody = fs.readFileSync(path.join(smokeRoot, "chatgpt-handoff-issue.md"), "utf8");
-const handoffPacket = readJson(path.join(smokeRoot, "chatgpt-handoff-packet.json"));
-const intakePacket = readJson(path.join(smokeRoot, "intake-packet.json"));
-const buildPacket = readJson(path.join(smokeRoot, "app-build-packet.json"));
-const dryRun = readJson(path.join(smokeRoot, "follow-up-issues.json"));
+const issueBody = fs.readFileSync(path.join(pilotRoot, "chatgpt-handoff-issue.md"), "utf8");
+const handoffPacket = readJson(path.join(pilotRoot, "chatgpt-handoff-packet.json"));
+const intakePacket = readJson(path.join(pilotRoot, "intake-packet.json"));
+const buildPacket = readJson(path.join(pilotRoot, "app-build-packet.json"));
+const dryRun = readJson(path.join(pilotRoot, "follow-up-issues.json"));
+const followUpTasks = readJson(path.join(pilotRoot, "follow-up-tasks.json"));
+
+runNode("scripts/persist-agent-run-artifacts.js", {
+  AGENT_RUN_DIR: agentRunRoot,
+  GITHUB_REPOSITORY: "lincolnnunnally/AppEngine",
+  GITHUB_RUN_ID: "999",
+  SOURCE_ISSUE_NUMBER: "3100",
+  SOURCE_ISSUE_URL: "https://github.com/lincolnnunnally/AppEngine/issues/3100"
+});
+
+const artifactSummary = fs.readFileSync(path.join(agentRunRoot, "artifact-summary.md"), "utf8");
+const durableFollowUpTasks = readJson(path.join(agentRunRoot, "follow-up-tasks.json"));
+const durableDryRun = readJson(path.join(agentRunRoot, "follow-up-issues-dry-run.json"));
 
 assertEqual(pilot.kind, "pilot_app_build", "pilot artifact kind");
 assertEqual(pilot.pilot.mode, "dry_run", "pilot is dry run");
@@ -35,10 +50,17 @@ assertEqual(buildPacket.kind, "app_build_packet", "app build packet kind");
 assertEqual(pilot.workflow.selectedPacket, "app_build_packet", "pilot selected packet");
 assertEqual(pilot.release.status, "not_deployed", "pilot release status");
 assertEqual(pilot.release.productionDeployAllowed, false, "pilot blocks production");
+assertEqual(pilot.artifacts.structuredFollowUpTasks, "follow-up-tasks.json", "pilot records structured follow-up tasks");
 assertEqual(pilot.guardrails.dryRunOnly, true, "pilot dry run guardrail");
 assertEqual(pilot.guardrails.noProductionDeploy, true, "pilot production guardrail");
 assertEqual(pilot.guardrails.noPaidResources, true, "pilot paid resources guardrail");
 assertEqual(pilot.guardrails.noGeneratedCodeMergeWithoutReview, true, "pilot code merge guardrail");
+assertEqual(followUpTasks.kind, "follow_up_tasks", "pilot writes structured follow-up task file");
+assertEqual(followUpTasks.followUpTasks.length, 6, "pilot writes first six structured follow-up tasks");
+assertIncludes(artifactSummary, "Download the GitHub Actions artifact named `agent-run`", "artifact summary points to durable action artifact");
+assertIncludes(artifactSummary, "pilot/pilot-app-build.json", "artifact summary lists pilot artifact");
+assertEqual(durableFollowUpTasks.followUpTasks.length, 6, "durable follow-up task file is persisted");
+assertEqual(durableDryRun.issues.length, 6, "durable dry-run issue preview is persisted");
 assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[spark-of-hope-intake-lite] Phase: Discovery", "dry run creates discovery issue");
 assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[spark-of-hope-intake-lite] Phase: Charter", "dry run creates charter issue");
 assertArrayIncludes(dryRun.issues.map((issue) => issue.title), "[spark-of-hope-intake-lite] Phase: Provider/Cost", "dry run creates provider cost issue");

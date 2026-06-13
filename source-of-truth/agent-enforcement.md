@@ -65,6 +65,8 @@ Agents should create or recommend GitHub issues when they find missing context, 
 
 When structured `followUpTasks` are present in agent output, AppEngine may create GitHub issues automatically with one of the supported `ai:*` labels.
 
+Follow-up creation is dry-run by default. Real GitHub follow-up issue creation requires the explicit workflow mode `create` or the repository variable `APPENGINE_FOLLOW_UP_MODE=create`.
+
 ## App Build Packets
 
 Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, audience, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
@@ -95,6 +97,8 @@ Do not let a natural request become implementation work until intake and app sel
 Use a `pilot_app_build` artifact to prove the first bounded AppEngine command flow. The artifact must record the source issue, ChatGPT handoff packet, intake packet, App Build Packet or vNext Packet, dry-run follow-up issues, PRs, release status, blockers, and next action.
 
 The pilot is dry-run by default. It must not deploy production, create paid provider resources, or merge generated app code without review.
+
+Live GitHub-triggered pilots must persist pilot JSON files under the durable `agent-run` artifact. Do not point issue comments at runner-local `/tmp` paths. Emit `follow-up-tasks.json` when the workflow should preview or create phase follow-up issues.
 
 ## App Improvements
 

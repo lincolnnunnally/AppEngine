@@ -10,6 +10,7 @@ const planOutput = path.join(smokeRoot, "orchestration-plan.json");
 const promptOutput = path.join(smokeRoot, "generated-codex-prompt.md");
 const codexOutput = path.join(smokeRoot, "codex-output.md");
 const followUpOutput = path.join(smokeRoot, "follow-ups.json");
+const followUpTasksFile = path.join(smokeRoot, "follow-up-tasks.json");
 
 runStep("planner selection", () => {
   runNode("scripts/select-agent-mode.js", {
@@ -117,6 +118,44 @@ runStep("structured follow-up parsing", () => {
   assertEqual(parsed.issues[0].label, "ai:build", "follow-up label is normalized");
   assertIncludes(parsed.issues[0].body, "Source issue: #7", "follow-up body includes source issue");
   assertIncludes(parsed.issues[0].body, "Created by AppEngine orchestration follow-up parser.", "follow-up body records parser source");
+});
+
+runStep("structured follow-up task file parsing", () => {
+  fs.writeFileSync(
+    followUpTasksFile,
+    `${JSON.stringify(
+      {
+        kind: "follow_up_tasks",
+        schemaVersion: 1,
+        mode: "dry_run",
+        followUpTasks: [
+          {
+            title: "Plan Spark of Hope pilot charter",
+            body: "Create the charter follow-up from durable agent-run JSON.",
+            recommendedLabel: "ai:plan"
+          }
+        ]
+      },
+      null,
+      2
+    )}\n`
+  );
+
+  runNode("scripts/create-follow-up-issues.js", {
+    CODEX_OUTPUT_FILE: codexOutput,
+    FOLLOW_UP_MODE: "dry-run",
+    FOLLOW_UP_OUTPUT: followUpOutput,
+    FOLLOW_UP_TASKS_FILE: followUpTasksFile,
+    SOURCE_ISSUE_NUMBER: "32",
+    SOURCE_ISSUE_URL: "https://github.com/lincolnnunnally/AppEngine/issues/32"
+  });
+
+  const parsed = readJson(followUpOutput);
+  assertEqual(parsed.mode, "dry-run", "structured task file stays in dry-run mode");
+  assertEqual(parsed.issues.length, 1, "structured task file writes one dry-run issue");
+  assertEqual(parsed.issues[0].title, "Plan Spark of Hope pilot charter", "structured task file title is preserved");
+  assertEqual(parsed.issues[0].label, "ai:plan", "structured task file label is preserved");
+  assertIncludes(parsed.issues[0].body, "Source issue: #32", "structured task file output includes source issue");
 });
 
 console.log(`planner-loop smoke ok (${smokeRoot})`);

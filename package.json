@@ -20,6 +20,7 @@
     "vnext:packet": "node scripts/create-vnext-packet.js",
     "release:gate": "node scripts/create-release-gate-standard.js",
     "pilot:e2e": "node scripts/run-e2e-command-pilot.js",
+    "agent-run:persist": "node scripts/persist-agent-run-artifacts.js",
     "orchestration:plan": "node scripts/make-orchestration-plan.js",
     "orchestration:followups": "node scripts/create-follow-up-issues.js",
     "smoke:chatgpt-handoff": "node scripts/smoke-chatgpt-handoff.js",

@@ -39,6 +39,8 @@ Included:
 - Design quality and compatibility planning
 - Release gate planning
 - Dry-run follow-up issues
+- Durable `agent-run` pilot artifacts
+- Structured follow-up task JSON
 
 Not included:
 
@@ -82,6 +84,8 @@ The pilot succeeds when a dry-run command produces:
 - App Build Packet
 - Dry-run follow-up issues
 - `pilot_app_build` artifact
+- `agent-run/pilot` JSON artifacts in GitHub Actions
+- `follow-up-tasks.json` for optional follow-up issue creation
 - Guardrails proving no production deploy, no paid resource creation, and no generated app code merge without review
 
 ## Next Action After Dry Run
