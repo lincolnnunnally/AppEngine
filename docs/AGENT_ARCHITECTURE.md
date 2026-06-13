@@ -34,6 +34,8 @@ source-of-truth/agent-enforcement.md
 source-of-truth/chatgpt-handoff-issue-standard.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
+source-of-truth/end-to-end-command-test-standard.md
+source-of-truth/pilot-app-build-template.md
 source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
@@ -133,6 +135,37 @@ Local intake verification:
 ```bash
 npm run smoke:intake
 ```
+
+## E2E Command Pilot
+
+The first true "use the machine" step is a dry-run command that proves the AppEngine path from conversation to follow-up issues:
+
+```text
+ChatGPT conversation
+-> ChatGPT handoff issue
+-> intake packet
+-> selected workflow
+-> App Build Packet
+-> dry-run follow-up issues
+-> pilot_app_build artifact
+```
+
+Run it locally with:
+
+```bash
+npm run pilot:e2e
+npm run smoke:e2e-pilot
+```
+
+The first pilot template is `Spark of Hope Intake Lite`, a small bounded app build packet. It is not a production deployment and does not merge generated app code. The pilot records issue body, handoff packet, intake packet, App Build Packet, dry-run follow-up issues, PRs, release status, blockers, next action, and guardrails in a `pilot_app_build` artifact.
+
+Pilot guardrails:
+
+- dry-run only by default
+- no production deploy
+- no paid provider resources
+- no generated app code merge without review
+- no secrets in artifacts or issues
 
 ## App Build Packets
 
@@ -324,6 +357,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-chatgpt-handoff-packet.js` creates a `chatgpt_handoff_packet`, issue-ready title/body, and machine-readable handoff JSON for ChatGPT-to-GitHub triggers.
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
+
+`scripts/run-e2e-command-pilot.js` runs the dry-run command pilot from ChatGPT handoff to intake, App Build Packet, follow-up issue dry run, and `pilot_app_build` artifact.
 
 `scripts/create-app-build-packet.js` creates an App Build Packet and phase-ready follow-up tasks for new or complex app work.
 

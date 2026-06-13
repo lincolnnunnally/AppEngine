@@ -10,6 +10,8 @@ All agent workflows must load and answer this checklist before taking action.
 - ChatGPT Handoff and Issue Creation Packet Standard for conversation-to-GitHub handoffs
 - Intake Command Standard for natural language requests, GitHub issue creation, and agent workflow routing
 - App Selection Standard for new-app vs existing-app disambiguation
+- End-to-End AppEngine Command Test Standard for command-path proof and pilot dry runs
+- First Real App Pilot Template when the task touches the bounded pilot build
 - App Build Packet for new apps, major rebuilds, or complex multi-phase work
 - Identity/Auth Standard for generated apps, major rebuilds, and launch work
 - Super Admin Registry Standard for generated apps, major rebuilds, and launch work
@@ -36,19 +38,21 @@ All agent workflows must load and answer this checklist before taking action.
 7. Does the ChatGPT handoff issue avoid secrets, API keys, tokens, passwords, private credentials, and unnecessary private user data?
 8. If this came from a natural language request, does an `intake_packet` exist with raw request, inferred app, request type, confidence, missing context, selected workflow, and next labels?
 9. Has app selection identified exactly one outcome: new app, existing app, ambiguous request, or multi-app request?
-10. Is this a new app or complex build that needs an App Build Packet before implementation?
-11. If an App Build Packet exists, does the active task stay inside its current phase?
-12. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
-13. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
-14. Does the app have provider/cost review with reuse strategy, preview/production cost posture, cost ceiling, upgrade trigger, and owner approval before new paid resources?
-15. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
-16. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
-17. Does the app have Designer and Customer Perspective review before Release Gate approval?
-18. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
-19. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
-20. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
-21. Are any core files, docs, prompts, context, or issue links missing?
-22. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+10. If this is a command-path proof or pilot, does a `pilot_app_build` artifact record issue, handoff, intake, packet, dry-run follow-ups, PRs, release status, blockers, and next action?
+11. Does the pilot block production deployment, paid provider creation, and generated app code merge without review?
+12. Is this a new app or complex build that needs an App Build Packet before implementation?
+13. If an App Build Packet exists, does the active task stay inside its current phase?
+14. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
+15. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
+16. Does the app have provider/cost review with reuse strategy, preview/production cost posture, cost ceiling, upgrade trigger, and owner approval before new paid resources?
+17. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
+18. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
+19. Does the app have Designer and Customer Perspective review before Release Gate approval?
+20. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
+21. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
+22. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
+23. Are any core files, docs, prompts, context, or issue links missing?
+24. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 

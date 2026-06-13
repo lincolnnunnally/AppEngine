@@ -7,6 +7,7 @@ Use these standards for AppEngine and generated apps.
 - Use GitHub issues, labels, branches, pull requests, and comments as durable collaboration records.
 - Use ChatGPT handoff packets when conversations become GitHub issues so the raw request, selected app, missing context, recommended label, and source-of-truth files are durable.
 - Convert natural language requests into intake packets before planning so "build this," "start AppEngine build," "improve this app," and feature requests route to the correct app workflow.
+- Prove command paths with dry-run end-to-end pilot artifacts before relying on them for real app work.
 - Use app selection/disambiguation before implementation; new apps require App Build Packets, existing apps require vNext packets, and ambiguous or multi-app requests require clarification.
 - Keep customer/admin auth, Identity/Auth plans, Super Admin registry entries, provider/cost reviews, Deployment Environment plans, Design Quality Gates, UX Reviews, Compatibility Test Plans, Release Gates, Neon persistence, generated app export, QA, and deployment gates aligned.
 - Launch the first useful MVP as `v1`; route later improvements to `vNext`, `v2`, or follow-up issues instead of expanding the MVP forever.
