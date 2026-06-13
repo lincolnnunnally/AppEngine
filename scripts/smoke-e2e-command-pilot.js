@@ -41,7 +41,10 @@ const durableDryRun = readJson(path.join(agentRunRoot, "follow-up-issues-dry-run
 assertEqual(pilot.kind, "pilot_app_build", "pilot artifact kind");
 assertEqual(pilot.pilot.mode, "dry_run", "pilot is dry run");
 assertEqual(pilot.pilot.slug, "spark-of-hope-intake-lite", "pilot slug");
+assertEqual(pilot.issue.number, "3100", "pilot records live source issue");
 assertEqual(pilot.issue.label, "ai:plan", "pilot issue label");
+assertEqual(pilot.blockers.includes("Real GitHub issue has not been created in this dry run."), false, "live source issue is not reported as missing");
+assertIncludes(pilot.nextAction, "enable approved create-mode follow-ups", "live source issue next action points to follow-up approval");
 assertIncludes(issueBody, "## Machine Handoff", "issue body includes handoff JSON");
 assertEqual(handoffPacket.kind, "chatgpt_handoff_packet", "handoff packet kind");
 assertEqual(intakePacket.kind, "intake_packet", "intake packet kind");

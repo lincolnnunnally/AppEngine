@@ -17,6 +17,7 @@ const pilotName = process.env.PILOT_APP_NAME || "Spark of Hope Intake Lite";
 const pilotSlug = process.env.PILOT_APP_SLUG || "spark-of-hope-intake-lite";
 const sourceIssueNumber = process.env.SOURCE_ISSUE_NUMBER || "3000";
 const sourceIssueUrl = process.env.SOURCE_ISSUE_URL || "https://github.com/lincolnnunnally/AppEngine/issues/3000";
+const hasLiveSourceIssue = Boolean(process.env.SOURCE_ISSUE_NUMBER || process.env.SOURCE_ISSUE_URL);
 
 if (mode !== "dry_run") {
   throw new Error("The E2E pilot command is dry-run only. Refusing production-impacting mode.");
@@ -160,8 +161,13 @@ const pilot = {
     productionDeployAllowed: false,
     previewDeployPlanned: true
   },
-  blockers: ["Real GitHub issue has not been created in this dry run.", "Generated app code is not merged until review."],
-  nextAction: "Review dry-run follow-up issues, then create the real GitHub issue with ai:plan.",
+  blockers: [
+    ...(hasLiveSourceIssue ? [] : ["Real GitHub issue has not been created in this dry run."]),
+    "Generated app code is not merged until review."
+  ],
+  nextAction: hasLiveSourceIssue
+    ? "Review dry-run follow-up issues, then enable approved create-mode follow-ups if they are ready."
+    : "Review dry-run follow-up issues, then create the real GitHub issue with ai:plan.",
   guardrails: {
     dryRunOnly: true,
     noProductionDeploy: true,
