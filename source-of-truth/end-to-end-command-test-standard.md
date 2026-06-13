@@ -87,6 +87,13 @@ Real follow-up issue creation requires the explicit repository variable:
 APPENGINE_FOLLOW_UP_MODE=create
 ```
 
+Controlled create-mode tests should also set:
+
+```text
+APPENGINE_MAX_FOLLOW_UP_ISSUES=1 or 2
+APPENGINE_MAX_FOLLOW_UP_WORKFLOW_DISPATCHES=0 or 1
+```
+
 ## First Pilot Criteria
 
 The first real app pilot should be:
