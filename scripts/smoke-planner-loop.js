@@ -131,7 +131,14 @@ runStep("structured follow-up task file parsing", () => {
         followUpTasks: [
           {
             title: "Plan Spark of Hope pilot charter",
-            body: "Create the charter follow-up from durable agent-run JSON.",
+            body: [
+              "Create the charter follow-up from durable agent-run JSON.",
+              "",
+              "## Source",
+              "- Source issue: #32",
+              "- Source URL: https://github.com/lincolnnunnally/AppEngine/issues/32",
+              "- Created by AppEngine orchestration follow-up parser."
+            ].join("\n"),
             recommendedLabel: "ai:plan"
           }
         ]
@@ -156,6 +163,7 @@ runStep("structured follow-up task file parsing", () => {
   assertEqual(parsed.issues[0].title, "Plan Spark of Hope pilot charter", "structured task file title is preserved");
   assertEqual(parsed.issues[0].label, "ai:plan", "structured task file label is preserved");
   assertIncludes(parsed.issues[0].body, "Source issue: #32", "structured task file output includes source issue");
+  assertEqual(countOccurrences(parsed.issues[0].body, "## Source"), 1, "structured task file output deduplicates source section");
 });
 
 console.log(`planner-loop smoke ok (${smokeRoot})`);
@@ -205,6 +213,10 @@ function assertIncludes(value, expected, message) {
   if (!String(value).includes(expected)) {
     throw new Error(`${message}: expected ${JSON.stringify(value)} to include ${JSON.stringify(expected)}`);
   }
+}
+
+function countOccurrences(value, expected) {
+  return String(value).split(expected).length - 1;
 }
 
 function assertArrayIncludes(values, expected, message) {
