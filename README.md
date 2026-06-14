@@ -179,6 +179,8 @@ Lincoln conversation -> ChatGPT handoff packet -> GitHub issue -> intake packet 
 
 The first useful public launch is `v1`. Later improvements become `vNext`, `v2`, or focused follow-up issues instead of endlessly expanding the MVP.
 
+Preview deployments are public by default for fast review and route-specific verification. Production stays approval-gated. Public previews must not expose secrets, real private user data, production writes, paid provider actions, admin-only data, or real migrations.
+
 Before provisioning provider resources or approving release, agents must produce or approve a `provider_cost_review` artifact. That review checks provider reuse, preview cost posture, production approval, monthly ceiling or owner-defined cap, upgrade trigger, and whether new paid Vercel, Render, database, storage, email, payment, AI, analytics, or monitoring resources are allowed.
 
 Before autonomous model-heavy work continues, agents must produce or inherit a `cost_governance` artifact. That artifact tracks monthly, project, app, and issue AI/API spend, classifies the task as cheap, medium, or expensive, applies warning/pause/owner-approval thresholds, and can make Build Completion choose `pause_for_budget` or `request_budget_approval`.

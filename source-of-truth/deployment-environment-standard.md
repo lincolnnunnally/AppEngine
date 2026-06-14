@@ -34,6 +34,20 @@ Use this default unless the App Build Packet documents a different stack:
 - Health: app-owned health path, usually `/api/health` or a generated-app-specific health route
 - Rollback: revert app version, deployment, env var change, or database migration according to the packet
 
+## Preview Access Policy
+
+Preview deployments are public by default so Lincoln, reviewers, and agents can quickly see and verify the work.
+
+Public previews must stay safe:
+
+- No secrets in preview pages, API responses, logs, issue comments, or artifacts.
+- No real user data, private story data, production customer data, or private billing data.
+- No exposed admin dashboards unless the app has an approved preview-safe admin surface with mock or synthetic data.
+- No paid provider actions, production writes, real migrations, or provider provisioning from preview verification.
+- Production deployment remains blocked until the Release Gate and owner approval are recorded.
+
+Agents should not use protected Vercel bypass/share links as proof of preview readiness. Preview verification must use a normal public preview URL unless an app-specific charter explicitly records a different owner-approved policy.
+
 ## Environment Variable Rules
 
 Agents must define variable names, scopes, and owners. Agents must not write secret values into prompts, issues, docs, registry entries, generated artifacts, or pull requests.
@@ -77,6 +91,7 @@ Agents should produce deployment environment artifacts with this shape:
   "frontend": {
     "provider": "Vercel",
     "previewUrl": "planned",
+    "previewAccess": "public_by_default",
     "productionUrl": "approval-gated",
     "customDomain": "planned",
     "logsUrl": "planned",
@@ -112,6 +127,7 @@ Agents should produce deployment environment artifacts with this shape:
   },
   "guardrails": {
     "previewBeforeProduction": true,
+    "publicPreviewByDefault": true,
     "productionRequiresReleaseGate": true,
     "noSecretsInOutput": true,
     "rollbackNotesRequired": true

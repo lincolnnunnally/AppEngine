@@ -185,6 +185,7 @@ function buildDeploymentEnvironment({
     frontend: {
       provider: frontendProvider,
       previewUrl,
+      previewAccess: "public_by_default",
       productionUrl,
       customDomain,
       logsUrl,
@@ -211,6 +212,7 @@ function buildDeploymentEnvironment({
     },
     guardrails: {
       previewBeforeProduction: true,
+      publicPreviewByDefault: true,
       productionRequiresReleaseGate: true,
       noSecretsInOutput: true,
       rollbackNotesRequired: true
@@ -395,6 +397,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
     automationContracts: {
       previewDeploy: {
         recommendedLabel: "ai:review",
+        previewAccess: "public_by_default",
         deploysProduction: false,
         updatesSuperAdminStatus: "preview"
       },
@@ -700,7 +703,12 @@ function validateDeploymentEnvironment(plan) {
 
   if (!Array.isArray(plan.environmentVariables) || plan.environmentVariables.length === 0) missing.push("environmentVariables");
 
-  if (!plan.guardrails?.previewBeforeProduction || !plan.guardrails?.productionRequiresReleaseGate || !plan.guardrails?.rollbackNotesRequired) {
+  if (
+    !plan.guardrails?.previewBeforeProduction ||
+    !plan.guardrails?.publicPreviewByDefault ||
+    !plan.guardrails?.productionRequiresReleaseGate ||
+    !plan.guardrails?.rollbackNotesRequired
+  ) {
     missing.push("guardrails");
   }
 

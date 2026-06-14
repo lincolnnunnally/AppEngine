@@ -111,6 +111,8 @@ runStep("packet creation", () => {
   assertEqual(packet.app.releaseGate.kind, "release_gate_plan", "packet embeds release gate artifact");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet launch version");
   assertEqual(packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction, true, "packet owner approval guardrail");
+  assertEqual(packet.app.deploymentEnvironment.frontend.previewAccess, "public_by_default", "packet preview access policy");
+  assertEqual(packet.app.deploymentEnvironment.guardrails.publicPreviewByDefault, true, "packet public preview guardrail");
   assertEqual(packet.app.releaseGate.guardrails.costReviewBeforeProvisioning, true, "packet provider/cost release guardrail");
   assertEqual(packet.app.releaseGate.guardrails.costGovernanceBeforeModelHeavyWork, true, "packet cost governance release guardrail");
   assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");

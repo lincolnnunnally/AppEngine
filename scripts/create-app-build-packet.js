@@ -571,7 +571,11 @@ function validatePacket(packet) {
     throw new Error("App Build Packet must require provider/cost review before provisioning.");
   }
 
-  if (!packet.app.deploymentEnvironment.guardrails.previewBeforeProduction || !packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate) {
+  if (
+    !packet.app.deploymentEnvironment.guardrails.previewBeforeProduction ||
+    !packet.app.deploymentEnvironment.guardrails.publicPreviewByDefault ||
+    !packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate
+  ) {
     throw new Error("App Build Packet must require a Deployment Environment plan with preview-before-production guardrails.");
   }
 
@@ -832,6 +836,7 @@ function buildDeploymentEnvironment({
     frontend: {
       provider: frontendProvider,
       previewUrl,
+      previewAccess: "public_by_default",
       productionUrl,
       customDomain,
       logsUrl,
@@ -858,6 +863,7 @@ function buildDeploymentEnvironment({
     },
     guardrails: {
       previewBeforeProduction: true,
+      publicPreviewByDefault: true,
       productionRequiresReleaseGate: true,
       noSecretsInOutput: true,
       rollbackNotesRequired: true
@@ -934,6 +940,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
     automationContracts: {
       previewDeploy: {
         recommendedLabel: "ai:review",
+        previewAccess: "public_by_default",
         deploysProduction: false,
         updatesSuperAdminStatus: "preview"
       },
