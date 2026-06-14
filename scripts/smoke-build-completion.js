@@ -54,6 +54,9 @@ try {
     assertEqual(plan.app.slug, "spark-of-hope-intake-lite", "plan app slug");
     assertEqual(plan.currentState, "ready_for_build", "plan state");
     assertEqual(plan.nextSafeAction, "create_implementation_issue", "ready for build action");
+    assertEqual(plan.costGovernance.kind, "cost_governance", "plan embeds cost governance");
+    assertEqual(plan.budgetAwareNextSafeAction, "continue", "plan records budget action");
+    assertArrayIncludes(plan.requiredGates.map((gate) => gate.id), "cost_governance", "plan requires cost governance gate");
     assertEqual(plan.guardrails.productionDeployBlocked, true, "production blocked");
     assertEqual(plan.guardrails.paidResourcesBlocked, true, "paid resources blocked");
     assertEqual(plan.guardrails.migrationsBlocked, true, "migrations blocked");

@@ -6,6 +6,7 @@ Responsibilities:
 
 - Start from the exact failure, finding, or incident.
 - For existing app fixes, use or recommend a vNext packet when the fix changes product scope, workflows, provider costs, release version, or monitoring expectations.
+- Before repeated debugging or model-heavy repair work, produce or inherit `cost_governance`; if budget thresholds are crossed, pause or request approval instead of burning more API credits.
 - Patch the narrowest affected surface.
 - Avoid unrelated refactors.
 - Rerun relevant checks and hand back to workflow tester or code reviewer.

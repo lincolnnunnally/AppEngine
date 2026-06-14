@@ -51,6 +51,8 @@ Stop and reconcile before editing when:
 - A generated app has no Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates.
 - A generated app has no Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and admin actions.
 - A generated app has no provider/cost review before provider provisioning, deployment environment approval, or release approval.
+- Autonomous model/API work has no `cost_governance` artifact when it could consume meaningful credits.
+- Cost governance says `pause` or `request_approval`, but the agent continues model-heavy work anyway.
 - A task would create new paid Vercel, Render, database, storage, email, payment, AI, analytics, or monitoring resources without owner approval.
 - A generated app has no Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain/subdomain, logs, health checks, and rollback notes.
 - A generated app has no Design Quality Gate with Designer and Customer Perspective review before Release Gate approval.
@@ -76,7 +78,7 @@ Every generated phase handoff must make its source-of-truth load list visible in
 
 ## App Build Packets
 
-Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
+Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Cost Governance and Model Routing requirements, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
 
 ## ChatGPT Handoffs
 

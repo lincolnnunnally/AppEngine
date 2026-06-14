@@ -13,9 +13,11 @@ Use these standards for AppEngine and generated apps.
 - Persist live pilot artifacts under the durable `agent-run` artifact and keep real follow-up issue creation behind an explicit `create` mode.
 - Use app selection/disambiguation before implementation; new apps require App Build Packets, existing apps require vNext packets, and ambiguous or multi-app requests require clarification.
 - Keep customer/admin auth, Identity/Auth plans, Super Admin registry entries, provider/cost reviews, Deployment Environment plans, Design Quality Gates, UX Reviews, Compatibility Test Plans, Release Gates, Neon persistence, generated app export, QA, and deployment gates aligned.
+- Keep `cost_governance` aligned with build completion plans so model/API credit use is tracked before autonomous agents keep planning, reviewing, debugging, or building.
 - Launch the first useful MVP as `v1`; route later improvements to `vNext`, `v2`, or follow-up issues instead of expanding the MVP forever.
 - Use vNext packets for existing app improvements so “improve this app,” feature additions, fixes, feedback, and v2 work do not restart the whole app.
 - Do not create new paid provider resources without provider/cost review and owner approval.
+- Do not continue model-heavy agent work when cost governance says to pause or request owner approval.
 - Do not ship technically working but ugly, confusing, or emotionally mismatched generated apps; require Designer and Customer Perspective review before Release Gate approval.
 - Do not ship generated apps with unresolved Safari, mobile, common browser, touch-target, form, auth, upload, payment, or admin compatibility issues.
 - Keep generated apps buildable even when no generated-app database is configured.

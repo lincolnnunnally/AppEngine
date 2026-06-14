@@ -28,6 +28,7 @@ Before planning an improvement, agents must load:
 - Super Admin registry entry
 - Current deployment environment
 - Provider/cost review
+- Cost governance and model routing status
 - Monitoring data
 - Known issues
 - User feedback or request
@@ -53,6 +54,7 @@ existing app
 -> vNext packet
 -> impact and boundary review
 -> provider/cost delta
+-> cost governance check
 -> design/review/build/test
 -> build completion plan
 -> preview verification
@@ -79,6 +81,7 @@ Agents must stop or create follow-up work when:
 - Monitoring data or known issues were not checked.
 - The improvement would change app identity, audience, or boundaries without approval.
 - The improvement needs new paid providers but no provider/cost delta exists.
+- The improvement requires model-heavy debugging, implementation, architecture, or design generation but cost governance is missing or says to pause/request approval.
 - The improvement skips design, compatibility, workflow testing, or release gates.
 - The improvement advances without a Build Completion plan naming the current state, next safe action, blockers, related PR, preview URL, gates, and follow-up tasks.
 - Preview is claimed without route-specific `preview_verification`.
@@ -123,6 +126,7 @@ Agents should produce vNext packet artifacts with this shape:
   "buildCompletion": {
     "kind": "build_completion_plan",
     "required": true,
+    "costGovernanceRequired": true,
     "nextSafeAction": "create_implementation_issue"
   },
   "phases": [],

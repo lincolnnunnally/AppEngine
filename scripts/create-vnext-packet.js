@@ -11,7 +11,8 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/03-life-produces-life.md",
   "source-of-truth/04-app-purpose-rules.md",
   "source-of-truth/05-ecosystem-design-gates.md",
-  "source-of-truth/build-completion-orchestrator.md"
+  "source-of-truth/build-completion-orchestrator.md",
+  "source-of-truth/cost-governance-model-routing.md"
 ];
 
 const input = readInput(inputPath);
@@ -154,6 +155,7 @@ function buildVNextPacket({
     buildCompletion: {
       kind: "build_completion_plan",
       required: true,
+      costGovernanceRequired: true,
       initialState: "planned",
       nextSafeAction: "create_planning_issue"
     },
@@ -243,6 +245,7 @@ function toFollowUpTask(packet, phase) {
       "- Do not import unrelated app goals, audiences, data, or workflows.",
       "- Preserve the existing charter and current version history.",
       "- Create or update the build completion plan before implementation, preview, review, release, or monitoring work advances.",
+      "- Do not continue model-heavy improvement work when cost governance says to pause or request owner approval.",
       "- Do not claim preview success without route-specific preview verification.",
       "- Route broad rebuilds into a separate App Build Packet or explicit v2 packet.",
       "- Release through the improvement release gate and update monitoring."
@@ -286,7 +289,7 @@ function validateVNextPacket(packet) {
     missing.push("providerCostDelta");
   }
 
-  if (!packet.buildCompletion?.required || packet.buildCompletion?.kind !== "build_completion_plan") {
+  if (!packet.buildCompletion?.required || packet.buildCompletion?.kind !== "build_completion_plan" || !packet.buildCompletion?.costGovernanceRequired) {
     missing.push("buildCompletion");
   }
 

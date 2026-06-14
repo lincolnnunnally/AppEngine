@@ -13,7 +13,8 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/03-life-produces-life.md",
   "source-of-truth/04-app-purpose-rules.md",
   "source-of-truth/05-ecosystem-design-gates.md",
-  "source-of-truth/build-completion-orchestrator.md"
+  "source-of-truth/build-completion-orchestrator.md",
+  "source-of-truth/cost-governance-model-routing.md"
 ];
 const appName = input.name || process.env.APP_NAME || "Example App";
 const slug = input.slug || process.env.APP_SLUG || slugify(appName);
@@ -195,6 +196,7 @@ const packet = {
       "Define identity/auth before app build or launch work.",
       "Register management, monitoring, health, logs, users, billing/status if needed, and admin actions with Super Admin.",
       "Review provider strategy and cost before creating new paid resources.",
+      "Track AI/API credit spend with cost governance before autonomous model-heavy work continues.",
       "Define deployment environment and release gates before preview or production launch.",
       "Require Designer and Customer Perspective review before release approval.",
       "Block technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.",
@@ -450,6 +452,7 @@ function toFollowUpTask(packet, phase) {
       "- Do not invent auth outside the Identity/Auth Standard.",
       "- Do not skip Super Admin registry planning.",
       "- Do not create new paid provider resources without provider/cost review and owner approval.",
+      "- Do not continue model-heavy agent work when cost governance says to pause or request owner approval.",
       "- Do not include secret values in deployment environment output.",
       "- Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched UX.",
       "- Require Designer and Customer Perspective review before Release Gate approval.",
@@ -584,6 +587,7 @@ function validatePacket(packet) {
     !packet.app.releaseGate.guardrails.previewBeforeProduction ||
     !packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction ||
     !packet.app.releaseGate.guardrails.costReviewBeforeProvisioning ||
+    !packet.app.releaseGate.guardrails.costGovernanceBeforeModelHeavyWork ||
     !packet.app.releaseGate.guardrails.designReviewBeforeRelease ||
     !packet.app.releaseGate.guardrails.compatibilityBeforeRelease
   ) {
@@ -910,6 +914,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       gate("identity_auth", "required", "identity_auth_plan"),
       gate("super_admin_registry", "required", "super_admin_registry_entry"),
       gate("provider_cost_review", "required", providerCostReview.kind),
+      gate("cost_governance", "required", "cost_governance"),
       gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
       gate("design_quality", "required", designReview.kind),
@@ -944,6 +949,11 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
         noPaidResourcesWithoutApproval: true,
         costPosture: providerCostReview.costPosture
       },
+      costGovernance: {
+        recommendedLabel: "ai:review",
+        blocksModelSpendBeyondThreshold: true,
+        requiresOwnerApprovalAtApprovalThreshold: true
+      },
       compatibilityTesting: {
         recommendedLabel: "ai:review",
         requiresSafariMobile: true,
@@ -968,6 +978,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
       costReviewBeforeProvisioning: true,
+      costGovernanceBeforeModelHeavyWork: true,
       designReviewBeforeRelease: true,
       compatibilityBeforeRelease: true,
       postLaunchMonitoringRequired: true,

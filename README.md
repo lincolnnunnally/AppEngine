@@ -163,6 +163,7 @@ Generated apps must also define Operations/Cost/Provider Strategy, Deployment En
 
 ```text
 source-of-truth/operations-cost-provider-strategy.md
+source-of-truth/cost-governance-model-routing.md
 source-of-truth/deployment-environment-standard.md
 source-of-truth/design-quality-gate.md
 source-of-truth/ux-review-standard.md
@@ -173,12 +174,14 @@ source-of-truth/release-gate-standard.md
 The release path is:
 
 ```text
-Lincoln conversation -> ChatGPT handoff packet -> GitHub issue -> intake packet -> app selection -> packet -> identity/auth -> registry -> provider/cost -> environment -> design quality -> compatibility -> release gate -> monitored launch
+Lincoln conversation -> ChatGPT handoff packet -> GitHub issue -> intake packet -> app selection -> packet -> identity/auth -> registry -> provider/cost -> cost governance -> environment -> design quality -> compatibility -> release gate -> monitored launch
 ```
 
 The first useful public launch is `v1`. Later improvements become `vNext`, `v2`, or focused follow-up issues instead of endlessly expanding the MVP.
 
 Before provisioning provider resources or approving release, agents must produce or approve a `provider_cost_review` artifact. That review checks provider reuse, preview cost posture, production approval, monthly ceiling or owner-defined cap, upgrade trigger, and whether new paid Vercel, Render, database, storage, email, payment, AI, analytics, or monitoring resources are allowed.
+
+Before autonomous model-heavy work continues, agents must produce or inherit a `cost_governance` artifact. That artifact tracks monthly, project, app, and issue AI/API spend, classifies the task as cheap, medium, or expensive, applies warning/pause/owner-approval thresholds, and can make Build Completion choose `pause_for_budget` or `request_budget_approval`.
 
 Before release approval, the Designer and Customer Perspective agents must produce or approve a `design_review` artifact. That review checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens. Technically working but ugly or confusing apps do not pass the release gate.
 
@@ -188,6 +191,7 @@ Verify the release generator and no-production-deploy follow-up handoff with:
 
 ```bash
 npm run smoke:provider-cost
+npm run smoke:cost-governance
 npm run smoke:design-quality
 npm run smoke:compatibility
 npm run smoke:release-gate
@@ -360,6 +364,7 @@ source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
 source-of-truth/operations-cost-provider-strategy.md
+source-of-truth/cost-governance-model-routing.md
 source-of-truth/deployment-environment-standard.md
 source-of-truth/design-quality-gate.md
 source-of-truth/ux-review-standard.md
@@ -374,12 +379,13 @@ agents/context/security-rules.md
 agents/context/output-contracts.md
 ```
 
-For new generated apps or complicated app builds, create an App Build Packet before implementation. The packet defines the app charter, boundaries, audience, success definition, MVP stages, identity/auth, Super Admin registry, provider/cost review, deployment environment, Design Quality Gate, UX Review, Compatibility Test Plan, release gate, deployment target, and phased follow-up issues.
+For new generated apps or complicated app builds, create an App Build Packet before implementation. The packet defines the app charter, boundaries, audience, success definition, MVP stages, identity/auth, Super Admin registry, provider/cost review, cost governance, deployment environment, Design Quality Gate, UX Review, Compatibility Test Plan, release gate, deployment target, and phased follow-up issues.
 
 ```bash
 npm run packet:create
 npm run smoke:app-build-packet
 npm run smoke:provider-cost
+npm run smoke:cost-governance
 npm run smoke:design-quality
 npm run smoke:compatibility
 npm run smoke:release-gate

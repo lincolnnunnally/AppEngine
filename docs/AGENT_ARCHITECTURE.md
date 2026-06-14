@@ -44,6 +44,7 @@ source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
 source-of-truth/operations-cost-provider-strategy.md
+source-of-truth/cost-governance-model-routing.md
 source-of-truth/deployment-environment-standard.md
 source-of-truth/design-quality-gate.md
 source-of-truth/ux-review-standard.md
@@ -231,6 +232,8 @@ Super Admin registry entries must declare the app lifecycle status, owner, repo,
 
 Provider/Cost reviews must declare provider reuse, preview cost posture, production cost posture, cost ceiling or owner-defined cap, upgrade trigger, and whether new paid resources are approved. They block provider provisioning and release approval when cost ownership is unclear.
 
+Cost Governance reviews model/API credit usage separately from provider costs. The `cost_governance` artifact tracks monthly, project, app, and issue spend, classifies tasks as cheap, medium, or expensive, applies warning/pause/owner-approval thresholds, and lets Build Completion pause or request approval before consuming more credits.
+
 Deployment Environment plans must declare Vercel frontend settings, Render/API backend settings when needed, database provider, environment variable names without values, preview URL, production URL or approval gate, custom domain/subdomain, logs, health checks, and rollback notes.
 
 Design Quality Gates require Designer and Customer Perspective review before Release Gate approval. The `design_review` artifact checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
@@ -257,6 +260,7 @@ Local provider/cost and improvement verification:
 
 ```bash
 npm run smoke:provider-cost
+npm run smoke:cost-governance
 npm run smoke:vnext-packet
 ```
 
@@ -378,6 +382,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-identity-registry-standard.js` creates an Identity/Auth plan, Super Admin registry entry, and focused follow-up tasks.
 
 `scripts/create-provider-cost-standard.js` creates a provider/cost review and focused provider approval follow-up tasks.
+
+`scripts/create-cost-governance-standard.js` creates a model/API cost governance artifact, budget threshold decision, model routing recommendation, and budget follow-up tasks.
 
 `scripts/create-release-gate-standard.js` creates a Deployment Environment plan, Release Gate, and focused preview/release/monitor follow-up tasks.
 

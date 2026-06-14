@@ -66,6 +66,24 @@ For Spark of Hope Intake Lite, the expected route is:
 /spark-of-hope-intake-lite
 ```
 
+### cost_governance
+
+Every build completion plan should embed a `cost_governance` artifact before autonomous agent work consumes meaningful AI/API credits.
+
+The artifact must track:
+
+- Monthly budget
+- Monthly spend
+- Project spend
+- App spend
+- Issue spend
+- Remaining budget
+- Model routing class
+- Warning, pause, and owner approval thresholds
+- Budget-aware next action
+
+Cost governance is distinct from provider cost review. Provider cost review governs generated-app infrastructure costs. Cost governance governs model/API credit consumption by AppEngine agents.
+
 ## Build States
 
 Use these state values:
@@ -93,10 +111,17 @@ Use these action values:
 - `run_review_gates`
 - `create_fix_issue`
 - `stop_for_owner_approval`
+- `pause_for_budget`
+- `request_budget_approval`
 - `prepare_release_gate`
 - `create_vnext_packet`
 
 Agents should stop guessing what happens next. They should update the build completion plan and follow the next safe action.
+
+Budget-aware actions use this meaning:
+
+- `pause_for_budget`: stop autonomous progress because AI/API spend reached the pause threshold.
+- `request_budget_approval`: stop until owner approval records a higher budget, spend cap, or cheaper routing decision.
 
 ## Safe Auto-Progress
 
@@ -135,8 +160,13 @@ The build completion plan must keep these blocked unless owner approval is recor
 - Migrations
 - Auto-merge of generated code
 - Protected Vercel bypass/share links in public comments
+- AI/API credit consumption beyond configured cost governance thresholds
 
 If any blocked action is requested, the next safe action is `stop_for_owner_approval`.
+
+If cost governance says `pause`, the next safe action is `pause_for_budget`.
+
+If cost governance says `request_approval`, the next safe action is `request_budget_approval`.
 
 ## Machine Shape
 
@@ -173,6 +203,21 @@ Agents should produce build completion artifacts with this shape:
     "migrationsAllowed": false,
     "autoMergeAllowed": false
   },
+  "costGovernance": {
+    "kind": "cost_governance",
+    "monthlyBudget": 100,
+    "monthlySpend": 30,
+    "projectSpend": 22,
+    "appSpend": 12,
+    "issueSpend": 1,
+    "remainingBudget": 70,
+    "modelRouting": {
+      "taskClass": "cheap",
+      "recommendedClass": "cheap"
+    },
+    "nextBudgetAction": "continue"
+  },
+  "budgetAwareNextSafeAction": "continue",
   "guardrails": {
     "productionDeployBlocked": true,
     "paidResourcesBlocked": true,

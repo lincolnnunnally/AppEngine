@@ -375,6 +375,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       gate("identity_auth", "required", "identity_auth_plan"),
       gate("super_admin_registry", "required", "super_admin_registry_entry"),
       gate("provider_cost_review", "required", providerCostReview.kind),
+      gate("cost_governance", "required", "cost_governance"),
       gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
       gate("design_quality", "required", designReview.kind),
@@ -402,6 +403,11 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
         blocksProvisioning: true,
         noPaidResourcesWithoutApproval: true,
         costPosture: providerCostReview.costPosture
+      },
+      costGovernance: {
+        recommendedLabel: "ai:review",
+        blocksModelSpendBeyondThreshold: true,
+        requiresOwnerApprovalAtApprovalThreshold: true
       },
       designReview: {
         recommendedLabel: "ai:review",
@@ -433,6 +439,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       previewBeforeProduction: true,
       ownerApprovalBeforeProduction: true,
       costReviewBeforeProvisioning: true,
+      costGovernanceBeforeModelHeavyWork: true,
       designReviewBeforeRelease: true,
       compatibilityBeforeRelease: true,
       postLaunchMonitoringRequired: true,
@@ -758,11 +765,12 @@ function validateReleaseGate(plan) {
   if (!plan.gates?.some((gate) => gate.id === "design_quality")) missing.push("gates.design_quality");
   if (!plan.gates?.some((gate) => gate.id === "customer_perspective_review")) missing.push("gates.customer_perspective_review");
   if (!plan.gates?.some((gate) => gate.id === "provider_cost_review")) missing.push("gates.provider_cost_review");
+  if (!plan.gates?.some((gate) => gate.id === "cost_governance")) missing.push("gates.cost_governance");
   if (!plan.gates?.some((gate) => gate.id === "compatibility")) missing.push("gates.compatibility");
   if (!plan.gates?.some((gate) => gate.id === "safari_mobile")) missing.push("gates.safari_mobile");
   if (!plan.gates?.some((gate) => gate.id === "common_browsers")) missing.push("gates.common_browsers");
   if (!plan.gates?.some((gate) => gate.id === "production_approval")) missing.push("gates.production_approval");
-  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.providerCostReview || !plan.automationContracts?.designReview || !plan.automationContracts?.compatibilityTesting || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
+  if (!plan.automationContracts?.previewDeploy || !plan.automationContracts?.providerCostReview || !plan.automationContracts?.costGovernance || !plan.automationContracts?.designReview || !plan.automationContracts?.compatibilityTesting || !plan.automationContracts?.productionApproval || !plan.automationContracts?.postLaunchMonitoring) {
     missing.push("automationContracts");
   }
 
@@ -770,6 +778,7 @@ function validateReleaseGate(plan) {
     !plan.guardrails?.previewBeforeProduction ||
     !plan.guardrails?.ownerApprovalBeforeProduction ||
     !plan.guardrails?.costReviewBeforeProvisioning ||
+    !plan.guardrails?.costGovernanceBeforeModelHeavyWork ||
     !plan.guardrails?.designReviewBeforeRelease ||
     !plan.guardrails?.compatibilityBeforeRelease ||
     !plan.guardrails?.postLaunchMonitoringRequired
