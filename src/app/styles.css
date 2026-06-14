@@ -862,6 +862,9 @@ label {
 }
 
 .spark-brand {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   font-weight: 900;
   text-decoration: none;
 }
@@ -873,7 +876,7 @@ label {
 }
 
 .spark-nav a:not(.spark-brand) {
-  min-height: 40px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--line);
@@ -1030,6 +1033,7 @@ label {
 }
 
 .spark-submit {
+  min-height: 44px;
   justify-content: center;
   width: min(240px, 100%);
 }
