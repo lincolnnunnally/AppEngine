@@ -10,7 +10,8 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/02-global-principles.md",
   "source-of-truth/03-life-produces-life.md",
   "source-of-truth/04-app-purpose-rules.md",
-  "source-of-truth/05-ecosystem-design-gates.md"
+  "source-of-truth/05-ecosystem-design-gates.md",
+  "source-of-truth/build-completion-orchestrator.md"
 ];
 
 const input = readInput(inputPath);
@@ -150,6 +151,12 @@ function buildVNextPacket({
       costReviewRequired: true,
       approvalRequiredForNewPaidResources: true
     },
+    buildCompletion: {
+      kind: "build_completion_plan",
+      required: true,
+      initialState: "planned",
+      nextSafeAction: "create_planning_issue"
+    },
     phases: buildPhases(),
     followUpTasks: [],
     guardrails: {
@@ -235,6 +242,8 @@ function toFollowUpTask(packet, phase) {
       "- Preserve the app's specific purpose; apps share philosophy but do not share purpose.",
       "- Do not import unrelated app goals, audiences, data, or workflows.",
       "- Preserve the existing charter and current version history.",
+      "- Create or update the build completion plan before implementation, preview, review, release, or monitoring work advances.",
+      "- Do not claim preview success without route-specific preview verification.",
       "- Route broad rebuilds into a separate App Build Packet or explicit v2 packet.",
       "- Release through the improvement release gate and update monitoring."
     ].join("\n")
@@ -275,6 +284,10 @@ function validateVNextPacket(packet) {
 
   if (!packet.providerCostDelta?.costReviewRequired || !packet.providerCostDelta?.approvalRequiredForNewPaidResources) {
     missing.push("providerCostDelta");
+  }
+
+  if (!packet.buildCompletion?.required || packet.buildCompletion?.kind !== "build_completion_plan") {
+    missing.push("buildCompletion");
   }
 
   if (!packet.guardrails?.doNotRestartWholeApp || !packet.guardrails?.preventGoalBleed || !packet.guardrails?.releaseGateRequired) {

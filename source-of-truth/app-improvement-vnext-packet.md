@@ -54,6 +54,8 @@ existing app
 -> impact and boundary review
 -> provider/cost delta
 -> design/review/build/test
+-> build completion plan
+-> preview verification
 -> release gate
 -> updated monitored version
 ```
@@ -78,6 +80,8 @@ Agents must stop or create follow-up work when:
 - The improvement would change app identity, audience, or boundaries without approval.
 - The improvement needs new paid providers but no provider/cost delta exists.
 - The improvement skips design, compatibility, workflow testing, or release gates.
+- The improvement advances without a Build Completion plan naming the current state, next safe action, blockers, related PR, preview URL, gates, and follow-up tasks.
+- Preview is claimed without route-specific `preview_verification`.
 - The improvement is broad enough to need a new App Build Packet or explicit v2 packet.
 
 ## Machine Shape
@@ -115,6 +119,11 @@ Agents should produce vNext packet artifacts with this shape:
   "providerCostDelta": {
     "newPaidResourcesExpected": false,
     "costReviewRequired": true
+  },
+  "buildCompletion": {
+    "kind": "build_completion_plan",
+    "required": true,
+    "nextSafeAction": "create_implementation_issue"
   },
   "phases": [],
   "guardrails": {

@@ -19,6 +19,8 @@
     "provider:cost": "node scripts/create-provider-cost-standard.js",
     "vnext:packet": "node scripts/create-vnext-packet.js",
     "release:gate": "node scripts/create-release-gate-standard.js",
+    "build:completion": "node scripts/create-build-completion-plan.js",
+    "preview:verify": "node scripts/verify-preview.js",
     "pilot:e2e": "node scripts/run-e2e-command-pilot.js",
     "agent-run:persist": "node scripts/persist-agent-run-artifacts.js",
     "orchestration:plan": "node scripts/make-orchestration-plan.js",
@@ -33,6 +35,7 @@
     "smoke:provider-cost": "node scripts/smoke-provider-cost.js",
     "smoke:vnext-packet": "node scripts/smoke-vnext-packet.js",
     "smoke:release-gate": "node scripts/smoke-release-gate.js",
+    "smoke:build-completion": "node scripts/smoke-build-completion.js",
     "smoke:planner-loop": "node scripts/smoke-planner-loop.js",
     "monitor:issues": "node scripts/monitor-ai-issues.js",
     "source:check": "node scripts/check-source-of-truth.js"
