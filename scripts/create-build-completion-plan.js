@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { applyCostGovernanceToDecision, buildCostGovernance, validateCostGovernance } from "./lib/cost-governance.js";
 
 const combinedOutput = process.env.BUILD_COMPLETION_OUTPUT || "";
 const planOutput = process.env.BUILD_COMPLETION_PLAN_OUTPUT || "";
@@ -7,10 +8,12 @@ const followUpsOutput = process.env.BUILD_COMPLETION_FOLLOWUPS_OUTPUT || "";
 const inputPath = process.env.BUILD_COMPLETION_INPUT || "";
 const packetPath = process.env.BUILD_COMPLETION_PACKET || "";
 const previewVerificationPath = process.env.PREVIEW_VERIFICATION_INPUT || "";
+const costGovernancePath = process.env.COST_GOVERNANCE_INPUT || "";
 
 const input = readInput(inputPath);
 const packet = readInput(packetPath);
 const previewVerification = readInput(previewVerificationPath);
+const costGovernanceInput = input.costGovernance || readInput(costGovernancePath);
 
 const packetApp = packet.app || packet.content?.app || {};
 const appName = input.appName || input.name || packetApp.name || process.env.APP_NAME || "Example App";
@@ -35,7 +38,7 @@ const passedGates = normalizeGateList(input.passedGates || gatesFromEnv("BUILD_P
 const failedGates = normalizeGateList(input.failedGates || gatesFromEnv("BUILD_FAILED_GATES")).map(markGateFailed);
 const ownerApprovalRequired = booleanFrom(input.ownerApprovalRequired, process.env.OWNER_APPROVAL_REQUIRED, false);
 const safety = buildSafety(input.safety || {});
-const nextSafeAction = determineNextSafeAction({
+const baseNextSafeAction = determineNextSafeAction({
   currentState,
   currentPhase,
   packet,
@@ -48,6 +51,20 @@ const nextSafeAction = determineNextSafeAction({
   ownerApprovalRequired,
   safety
 });
+const costGovernance = buildCostGovernance({
+  input: costGovernanceInput,
+  context: {
+    appName,
+    slug,
+    sourceIssue,
+    currentPhase,
+    currentState,
+    nextSafeAction: baseNextSafeAction.action,
+    taskType: input.taskType || process.env.APPENGINE_TASK_TYPE || currentPhase
+  }
+});
+validateCostGovernance(costGovernance);
+const nextSafeAction = applyCostGovernanceToDecision(baseNextSafeAction, costGovernance);
 const plan = buildCompletionPlan({
   appName,
   slug,
@@ -63,6 +80,7 @@ const plan = buildCompletionPlan({
   passedGates,
   failedGates: nextSafeAction.failedGates,
   safety,
+  costGovernance,
   previewVerification,
   followUpTasks: buildFollowUpTasks({
     appName,
@@ -70,6 +88,7 @@ const plan = buildCompletionPlan({
     action: nextSafeAction.action,
     blockedReason: nextSafeAction.blockedReason,
     currentPhase,
+    costGovernance,
     previewVerification,
     relatedPr,
     relatedPreviewUrl
@@ -94,7 +113,7 @@ const output = {
     title: `${gate.id} failed`,
     details: gate.reason || "Gate failed or needs follow-up.",
     recommendedLabel: "ai:fix"
-  })),
+  })).concat(costGovernanceFinding(plan.costGovernance)),
   followUpTasks: plan.followUpTasks,
   handoffTo: handoffForAction(plan.nextSafeAction)
 };
@@ -122,6 +141,7 @@ function buildCompletionPlan({
   passedGates,
   failedGates,
   safety,
+  costGovernance,
   previewVerification,
   followUpTasks
 }) {
@@ -146,6 +166,8 @@ function buildCompletionPlan({
     followUpTasks,
     evidenceLinks: buildEvidenceLinks({ sourceIssue, relatedPr, relatedPreviewUrl, previewVerification }),
     safety,
+    costGovernance,
+    budgetAwareNextSafeAction: costGovernance.nextBudgetAction,
     previewVerification: previewVerification.kind === "preview_verification" ? previewVerification : null,
     guardrails: {
       productionDeployBlocked: true,
@@ -158,6 +180,18 @@ function buildCompletionPlan({
       createdAt: new Date().toISOString()
     }
   };
+}
+
+function costGovernanceFinding(costGovernance) {
+  if (!costGovernance || costGovernance.nextBudgetAction === "continue") return [];
+  return [
+    {
+      severity: costGovernance.nextBudgetAction === "continue_with_cheaper_model" ? "medium" : "high",
+      title: "AI/API cost governance threshold reached",
+      details: costGovernance.blockedReason || "Review cost governance before continuing.",
+      recommendedLabel: costGovernance.nextBudgetAction === "continue_with_cheaper_model" ? "ai:plan" : "ai:review"
+    }
+  ];
 }
 
 function determineNextSafeAction({
@@ -257,7 +291,7 @@ function determineNextSafeAction({
   }
 }
 
-function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase, previewVerification, relatedPr, relatedPreviewUrl }) {
+function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase, costGovernance, previewVerification, relatedPr, relatedPreviewUrl }) {
   const titlePrefix = `[${slug}]`;
   const sharedGuardrails = [
     "## Guardrails",
@@ -265,8 +299,24 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
     "- Do not create paid resources.",
     "- Do not apply migrations.",
     "- Do not merge generated app code automatically.",
-    "- Do not post protected Vercel bypass/share links publicly."
+    "- Do not post protected Vercel bypass/share links publicly.",
+    "- Do not continue burning AI/API credits beyond configured cost governance thresholds."
   ].join("\n");
+  const costGovernanceSummary = costGovernance?.kind === "cost_governance"
+    ? [
+        "## Cost Governance",
+        `- Monthly budget: ${formatMoney(costGovernance.monthlyBudget)}`,
+        `- Monthly spend: ${formatMoney(costGovernance.monthlySpend)}`,
+        `- Project spend: ${formatMoney(costGovernance.projectSpend)}`,
+        `- App spend: ${formatMoney(costGovernance.appSpend)}`,
+        `- Issue spend: ${formatMoney(costGovernance.issueSpend)}`,
+        `- Remaining budget: ${formatMoney(costGovernance.remainingBudget)}`,
+        `- Estimated next spend: ${formatMoney(costGovernance.estimatedNextSpend)}`,
+        `- Threshold status: ${costGovernance.thresholdStatus}`,
+        `- Budget action: ${costGovernance.nextBudgetAction}`,
+        `- Model route: ${costGovernance.modelRouting.taskClass} -> ${costGovernance.modelRouting.recommendedClass}`
+      ].join("\n")
+    : "";
 
   const tasks = {
     create_planning_issue: {
@@ -279,6 +329,42 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         blockedReason ? `Blocked reason: ${blockedReason}` : "",
         "",
         requiredSourceFiles(),
+        "",
+        costGovernanceSummary,
+        costGovernanceSummary ? "" : "",
+        sharedGuardrails
+      ].filter(Boolean).join("\n")
+    },
+    pause_for_budget: {
+      title: `${titlePrefix} Pause for AI/API budget threshold`,
+      recommendedLabel: "ai:review",
+      body: [
+        `Pause AppEngine work for ${appName} because cost governance reached a pause threshold.`,
+        "",
+        blockedReason ? `Blocked reason: ${blockedReason}` : "Blocked reason: AI/API spend threshold reached.",
+        "",
+        "Record owner approval, a lower-cost route, or an updated budget before continuing.",
+        "",
+        requiredSourceFiles(),
+        "",
+        costGovernanceSummary,
+        "",
+        sharedGuardrails
+      ].filter(Boolean).join("\n")
+    },
+    request_budget_approval: {
+      title: `${titlePrefix} AI/API budget approval required`,
+      recommendedLabel: "ai:review",
+      body: [
+        `Owner approval is required before ${appName} continues consuming AI/API credits.`,
+        "",
+        blockedReason ? `Blocked reason: ${blockedReason}` : "Blocked reason: AI/API budget approval threshold reached.",
+        "",
+        "Record approved budget, spend cap, or a cheaper model routing decision before continuing.",
+        "",
+        requiredSourceFiles(),
+        "",
+        costGovernanceSummary,
         "",
         sharedGuardrails
       ].filter(Boolean).join("\n")
@@ -419,6 +505,8 @@ function validateBuildCompletionPlan(plan) {
     ["currentState", plan.currentState],
     ["nextSafeAction", plan.nextSafeAction],
     ["safety", plan.safety],
+    ["costGovernance", plan.costGovernance],
+    ["budgetAwareNextSafeAction", plan.budgetAwareNextSafeAction],
     ["guardrails", plan.guardrails]
   ]) {
     if (!value) missing.push(label);
@@ -472,6 +560,7 @@ function defaultRequiredGates(packet) {
 
   return [
     gate("source_of_truth", "planning"),
+    gate("cost_governance", "planning"),
     gate("app_build_packet", "planning"),
     gate("provider_cost_review", "planning"),
     gate("deployment_environment", "planning"),
@@ -532,6 +621,8 @@ function handoffForAction(action) {
     run_review_gates: ["designer", "customer_perspective", "workflow_tester", "code_reviewer"],
     create_fix_issue: ["fixer"],
     stop_for_owner_approval: ["code_reviewer"],
+    pause_for_budget: ["code_reviewer"],
+    request_budget_approval: ["code_reviewer"],
     prepare_release_gate: ["workflow_tester", "monitor"],
     create_vnext_packet: ["planner"]
   };
@@ -559,6 +650,7 @@ function requiredSourceFiles() {
     "- source-of-truth/04-app-purpose-rules.md",
     "- source-of-truth/05-ecosystem-design-gates.md",
     "- source-of-truth/build-completion-orchestrator.md",
+    "- source-of-truth/cost-governance-model-routing.md",
     "- source-of-truth/app-build-packet.md",
     "- source-of-truth/deployment-environment-standard.md",
     "- source-of-truth/release-gate-standard.md",
@@ -614,9 +706,15 @@ function validActions() {
     "run_review_gates",
     "create_fix_issue",
     "stop_for_owner_approval",
+    "pause_for_budget",
+    "request_budget_approval",
     "prepare_release_gate",
     "create_vnext_packet"
   ]);
+}
+
+function formatMoney(value) {
+  return value === null || value === undefined ? "not configured" : String(value);
 }
 
 function gatesFromEnv(name) {

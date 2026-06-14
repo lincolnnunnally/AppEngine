@@ -35,6 +35,7 @@ Each packet must define:
 - Compatibility Test Plan
 - Release Gate plan
 - Build Completion plan
+- Cost Governance plan for model/API credit usage
 - Phase plan with follow-up labels
 - Guardrails that prevent app-goal bleeding
 
@@ -129,6 +130,12 @@ Preview success must be backed by a `preview_verification` artifact that checks 
 
 Use `source-of-truth/build-completion-orchestrator.md` for the required shape.
 
+## Cost Governance Requirement
+
+Every generated app workflow must include or inherit cost governance before autonomous model-heavy work continues. The `cost_governance` artifact tracks model/API budget, spend, task class, routing strategy, thresholds, and whether the next action should continue, use a cheaper model, pause, or request owner approval.
+
+Use `source-of-truth/cost-governance-model-routing.md` for the required shape.
+
 ## Guardrails
 
 Packets must enforce:
@@ -146,6 +153,7 @@ Packets must enforce:
 - Do not merge phases just because a model can generate more code.
 - Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
 - Do not continue from planning to implementation, preview, review, release, or vNext work without a build completion plan naming the next safe action.
+- Do not continue model-heavy agent work beyond cost governance warning, pause, or owner approval thresholds.
 - Do not claim preview success without route-specific preview verification.
 - Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.
 - Do not approve release with unresolved Safari, mobile, common browser, touch-target, form, auth, upload, payment, or admin compatibility issues.

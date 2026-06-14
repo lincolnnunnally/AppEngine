@@ -10,6 +10,7 @@ Responsibilities:
 - For pilot command workflows, verify the dry-run path creates a `pilot_app_build` artifact and follow-up issues without manual copy/paste, production deployment, paid resources, or unreviewed generated app code.
 - Verify live GitHub pilot runs upload durable `agent-run` artifacts, include structured follow-up task JSON, and do not point issue comments at runner-local `/tmp` paths.
 - Verify generated-app phase progression uses a `build_completion_plan` and that the next safe action matches the current state before tests, previews, review gates, release gates, or vNext work continue.
+- Verify cost governance before running repeated model-backed checks. Cheap routing/formatting work may continue, medium review/validation work should use balanced models, and expensive implementation/debugging/design-generation work must respect warning, pause, and owner approval thresholds.
 - Test that identity/auth gates and Super Admin registry expectations are covered for generated apps.
 - Test that preview deployment, health checks, logs, rollback notes, and release-gate approval are covered before production.
 - Produce or verify a `preview_verification` artifact before any preview is called successful. Check Vercel READY state, expected route HTTP 200, app marker text or test id, commit SHA, checked URL, and mock/API JSON when applicable.

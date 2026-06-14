@@ -55,6 +55,8 @@ runStep("vNext packet creation", () => {
   assertEqual(packet.change.barrierRemoved, "Remove mobile friction in the story intake path.", "vNext barrier removed");
   assertEqual(packet.change.toolClassification, "direct_transformation", "vNext tool classification");
   assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/00-why-we-build.md", "vNext requires why we build");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/cost-governance-model-routing.md", "vNext requires cost governance standard");
+  assertEqual(packet.buildCompletion.costGovernanceRequired, true, "vNext build completion requires cost governance");
   assertEqual(packet.guardrails.doNotRestartWholeApp, true, "does not restart app");
   assertEqual(packet.guardrails.preventGoalBleed, true, "prevents goal bleed");
   assertIncludes(packet.change.nonGoals.join(" "), "do not rebuild the whole app", "non-goal prevents rebuild");
@@ -117,6 +119,7 @@ runStep("vNext follow-up dry run creates issues", () => {
   assertIncludes(dryRun.issues[0].body, "Current version: v1", "dry run includes current version");
   assertIncludes(dryRun.issues[0].body, "Target version: v1.1", "dry run includes target version");
   assertIncludes(dryRun.issues[0].body, "source-of-truth/00-why-we-build.md", "dry run includes why we build");
+  assertIncludes(dryRun.issues[0].body, "source-of-truth/cost-governance-model-routing.md", "dry run includes cost governance standard");
   assertIncludes(dryRun.issues[0].body, "Tool classification: direct_transformation", "dry run includes classification");
   assertIncludes(dryRun.issues[0].body, "Do not restart the whole app.", "dry run includes restart guardrail");
   assertIncludes(dryRun.issues[0].body, "Source issue: #1006", "dry run includes source issue");

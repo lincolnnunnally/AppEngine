@@ -46,12 +46,14 @@ runStep("packet embeds deployment and release gate", () => {
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL gated");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet v1 version");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "provider_cost_review", "packet provider cost gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "cost_governance", "packet cost governance gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "compatibility", "packet compatibility gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "safari_mobile", "packet Safari mobile gate");
   assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
   assertEqual(packet.app.releaseGate.guardrails.costReviewBeforeProvisioning, true, "packet release requires cost review");
+  assertEqual(packet.app.releaseGate.guardrails.costGovernanceBeforeModelHeavyWork, true, "packet release requires cost governance");
   assertEqual(packet.app.releaseGate.guardrails.compatibilityBeforeRelease, true, "packet release requires compatibility");
   assertEqual(packet.app.releaseGate.automationContracts.previewDeploy.deploysProduction, false, "preview deploy avoids production");
   assertEqual(packet.app.releaseGate.automationContracts.compatibilityTesting.blocksReleaseApproval, true, "compatibility blocks release approval");
@@ -99,6 +101,7 @@ runStep("standalone release generator creates follow-ups", () => {
   assertEqual(release.kind, "release_gate_plan", "release artifact kind");
   assertEqual(release.app.version, "v1", "release version");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "provider_cost_review", "release provider cost gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "cost_governance", "release cost governance gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "preview_deploy", "release preview gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "design_quality", "release design gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "customer_perspective_review", "release customer perspective gate");
@@ -107,12 +110,14 @@ runStep("standalone release generator creates follow-ups", () => {
   assertArrayIncludes(release.gates.map((gate) => gate.id), "common_browsers", "release common browsers gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "production_approval", "release production approval gate");
   assertEqual(release.automationContracts.providerCostReview.noPaidResourcesWithoutApproval, true, "release provider cost blocks paid resources");
+  assertEqual(release.automationContracts.costGovernance.blocksModelSpendBeyondThreshold, true, "release cost governance blocks threshold spend");
   assertEqual(release.automationContracts.designReview.blocksReleaseApproval, true, "release design review blocks approval");
   assertEqual(release.automationContracts.compatibilityTesting.blocksReleaseApproval, true, "release compatibility blocks approval");
   assertEqual(release.automationContracts.compatibilityTesting.requiresSafariMobile, true, "release compatibility requires Safari mobile");
   assertEqual(release.automationContracts.previewDeploy.deploysProduction, false, "release preview does not deploy production");
   assertEqual(release.automationContracts.productionApproval.requiresHumanApproval, true, "release approval requires human");
   assertEqual(release.guardrails.costReviewBeforeProvisioning, true, "release guardrail requires cost review");
+  assertEqual(release.guardrails.costGovernanceBeforeModelHeavyWork, true, "release guardrail requires cost governance");
   assertEqual(release.guardrails.designReviewBeforeRelease, true, "release guardrail requires design review");
   assertEqual(release.guardrails.compatibilityBeforeRelease, true, "release guardrail requires compatibility");
   assertEqual(release.guardrails.vNextAfterV1, true, "release vNext guardrail");

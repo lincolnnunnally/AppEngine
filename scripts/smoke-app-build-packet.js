@@ -65,6 +65,7 @@ runStep("packet creation", () => {
   assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/01-ecosystem-philosophy.md", "packet requires ecosystem philosophy");
   assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/04-app-purpose-rules.md", "packet requires app purpose rules");
   assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/05-ecosystem-design-gates.md", "packet requires ecosystem design gates");
+  assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/cost-governance-model-routing.md", "packet requires cost governance standard");
   assertEqual(packet.guardrails.noGiantCodexTask, true, "packet forbids giant Codex task");
   assertEqual(packet.guardrails.preventGoalBleed, true, "packet prevents app-goal bleeding");
   assertEqual(packet.app.identityAuth.required, true, "packet requires Identity/Auth plan");
@@ -111,8 +112,10 @@ runStep("packet creation", () => {
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet launch version");
   assertEqual(packet.app.releaseGate.guardrails.ownerApprovalBeforeProduction, true, "packet owner approval guardrail");
   assertEqual(packet.app.releaseGate.guardrails.costReviewBeforeProvisioning, true, "packet provider/cost release guardrail");
+  assertEqual(packet.app.releaseGate.guardrails.costGovernanceBeforeModelHeavyWork, true, "packet cost governance release guardrail");
   assertEqual(packet.app.releaseGate.guardrails.designReviewBeforeRelease, true, "packet release requires design review");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "provider_cost_review", "packet provider cost gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "cost_governance", "packet cost governance gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design quality gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "compatibility", "packet compatibility gate");
