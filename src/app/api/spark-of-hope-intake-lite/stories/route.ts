@@ -74,6 +74,7 @@ export async function GET() {
     {
       ok: true,
       mode: "preview_mock",
+      stored: false,
       accepts: ["POST"],
       production: "blocked",
       storage: "disabled"

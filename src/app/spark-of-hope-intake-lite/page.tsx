@@ -76,7 +76,7 @@ export default function SparkOfHopeIntakeLitePage() {
   }
 
   return (
-    <main className="spark-page">
+    <main className="spark-page" data-app-marker="spark-of-hope-intake-lite">
       <nav className="spark-nav" aria-label="Spark of Hope Intake Lite">
         <Link href="/" className="spark-brand">
           Spark of Hope Intake Lite
