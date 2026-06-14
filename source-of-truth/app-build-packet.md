@@ -34,6 +34,7 @@ Each packet must define:
 - UX Review
 - Compatibility Test Plan
 - Release Gate plan
+- Build Completion plan
 - Phase plan with follow-up labels
 - Guardrails that prevent app-goal bleeding
 
@@ -120,6 +121,14 @@ Every generated app must include a Release Gate before it leaves build mode. The
 
 Use `source-of-truth/release-gate-standard.md` for the required shape.
 
+## Build Completion Requirement
+
+Every generated app must include or create a Build Completion plan before moving from planning into implementation, preview, review gates, release gates, or vNext work. The plan must state the current phase, current state, next safe action, blockers, related PR, preview URL, required/passed/failed gates, follow-up tasks, and evidence links.
+
+Preview success must be backed by a `preview_verification` artifact that checks the expected route, marker text or test id, commit SHA, Vercel READY state, and mock/API JSON when applicable. Root URL availability alone is not preview success.
+
+Use `source-of-truth/build-completion-orchestrator.md` for the required shape.
+
 ## Guardrails
 
 Packets must enforce:
@@ -136,6 +145,8 @@ Packets must enforce:
 - Do not create new paid provider resources without provider/cost review and owner approval.
 - Do not merge phases just because a model can generate more code.
 - Do not keep building indefinitely when a release gate can move the app to preview, v1 launch, monitoring, or vNext follow-up work.
+- Do not continue from planning to implementation, preview, review, release, or vNext work without a build completion plan naming the next safe action.
+- Do not claim preview success without route-specific preview verification.
 - Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.
 - Do not approve release with unresolved Safari, mobile, common browser, touch-target, form, auth, upload, payment, or admin compatibility issues.
 

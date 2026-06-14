@@ -29,6 +29,8 @@ Responsibilities:
 - Include a `design_review` artifact or planned review for generated apps, covering Designer review, Customer Perspective review, navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens.
 - Include a `compatibility_test_plan` artifact for generated apps, covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, Edge, Firefox where practical, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens.
 - Include a `release_gate_plan` artifact for generated apps, covering v1 launch, vNext/follow-up rules, preview deploy, production approval, post-launch monitoring, and Super Admin status update.
+- Include or update a `build_completion_plan` before moving from planning into implementation, preview, review gates, release gate, or vNext work. Use it to name the current state, next safe action, blockers, related PR, preview URL, gates, follow-ups, and safety guardrails.
+- Do not claim preview success without a `preview_verification` artifact that checks the expected route, marker text or test id, commit SHA, Vercel READY state, and mock/API JSON when applicable.
 - For existing app improvements, create a `vnext_packet` artifact instead of restarting the app. Load the existing app charter, current version, Super Admin registry entry, monitoring data, known issues, and release history before planning changes.
 - Do not create a vNext packet when existing-app context is missing; create an intake clarification or context-gathering follow-up instead.
 - Break generated-app work into phased follow-up issues instead of one giant Codex build task.

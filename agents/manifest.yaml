@@ -35,6 +35,7 @@ shared_context_files:
   - source-of-truth/app-selection-standard.md
   - source-of-truth/end-to-end-command-test-standard.md
   - source-of-truth/pilot-app-build-template.md
+  - source-of-truth/build-completion-orchestrator.md
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
   - source-of-truth/super-admin-registry.md
@@ -157,6 +158,7 @@ agents:
       - chatgpt_handoff_packet
       - intake_packet
       - pilot_app_build
+      - build_completion_plan
       - build_spec
       - app_build_packet
       - vnext_packet
@@ -186,6 +188,7 @@ agents:
       - pull_request
       - implementation_summary
       - changed_files
+      - build_completion_plan
 
   workflow_tester:
     prompt: agents/prompts/workflow-tester.md
@@ -196,6 +199,7 @@ agents:
     outputs:
       - workflow_test_plan
       - compatibility_test_plan
+      - preview_verification
       - pass_fail_report
       - broken_paths
       - fix_recommendations
@@ -207,6 +211,7 @@ agents:
       - pull_request
     outputs:
       - review_report
+      - build_completion_plan
       - blocking_issues
       - non_blocking_improvements
 
@@ -232,6 +237,7 @@ agents:
       - error_signal
     outputs:
       - health_report
+      - build_completion_plan
       - incident_issue
       - improvement_issue
 

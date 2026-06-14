@@ -19,7 +19,9 @@ natural request
 -> Design Quality Gate
 -> UX review
 -> Compatibility Test Plan
+-> Build Completion Plan
 -> preview deploy
+-> preview verification
 -> production approval
 -> v1 launch
 -> post-launch monitoring
@@ -55,6 +57,8 @@ Each generated app must pass or explicitly block these gates:
 - Chrome mobile/desktop and common desktop browser issues are recorded or resolved
 - Touch targets, forms, auth flows, uploads/payments if used, and admin screens are checked
 - Preview deploy contract exists
+- Build Completion Plan exists
+- Preview verification exists and passed for the expected route
 - Preview health check is defined
 - Preview logs are defined
 - User/admin paths are testable
@@ -69,6 +73,7 @@ Each generated app must pass or explicitly block these gates:
 Release gates should create issue-ready tasks for:
 
 - Preview deploy: create or update preview deployment, run smoke checks, and update Super Admin status to `preview`.
+- Preview verification: confirm Vercel READY state, root URL availability, expected route HTTP 200, app marker/test-id content, commit SHA, checked URL, timestamp, and mock/API JSON when applicable.
 - Provider/cost review: confirm provider reuse, cost posture, paid-resource approval, and upgrade triggers before provisioning or production release.
 - Design review: require Designer and Customer Perspective review before release approval.
 - Compatibility testing: require mobile-first, Safari, Chrome, Edge, Firefox, viewport, touch-target, form, auth, upload/payment if used, and admin checks before release approval.
@@ -84,6 +89,8 @@ Agents must stop or create follow-up work when:
 
 - A generated app has no release gate.
 - A generated app keeps receiving build tasks but has no preview path.
+- A generated app advances without a Build Completion Plan naming the next safe action.
+- Preview is marked ready from the root URL alone, from a 404 route, from the wrong page, or without marker/test-id evidence.
 - Provider/cost review is missing before provider provisioning or release approval.
 - New paid provider resources are being created without owner approval.
 - Designer review or Customer Perspective review is missing before release approval.
@@ -144,6 +151,16 @@ Agents should produce release gate artifacts with this shape:
       "id": "safari_mobile",
       "status": "required",
       "evidence": "iPhone Safari, iPad Safari, desktop Safari"
+    },
+    {
+      "id": "build_completion_plan",
+      "status": "required",
+      "evidence": "build_completion_plan"
+    },
+    {
+      "id": "preview_verification",
+      "status": "required",
+      "evidence": "preview_verification"
     },
     {
       "id": "production_approval",

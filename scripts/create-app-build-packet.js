@@ -12,7 +12,8 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/02-global-principles.md",
   "source-of-truth/03-life-produces-life.md",
   "source-of-truth/04-app-purpose-rules.md",
-  "source-of-truth/05-ecosystem-design-gates.md"
+  "source-of-truth/05-ecosystem-design-gates.md",
+  "source-of-truth/build-completion-orchestrator.md"
 ];
 const appName = input.name || process.env.APP_NAME || "Example App";
 const slug = input.slug || process.env.APP_SLUG || slugify(appName);
@@ -453,6 +454,8 @@ function toFollowUpTask(packet, phase) {
       "- Do not approve release for technically working but ugly, confusing, inaccessible, or emotionally mismatched UX.",
       "- Require Designer and Customer Perspective review before Release Gate approval.",
       "- Do not approve release with unresolved Safari, mobile, touch-target, form, auth, upload, payment, or common browser issues.",
+      "- Do not advance planning, implementation, preview, review, release, or vNext work without a build completion plan naming the next safe action.",
+      "- Do not claim preview success unless preview verification checks the expected route, app marker, commit SHA, and mock/API JSON when applicable.",
       "- Keep production deployment approval-gated.",
       "- Launch MVP as v1 and route later improvements to vNext packets or follow-up issues.",
       "- Create follow-up issues for later phases instead of expanding this task."
