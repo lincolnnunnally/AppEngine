@@ -7,6 +7,7 @@ export type AgentArtifactKind =
   | "pilot_app_build"
   | "build_completion_plan"
   | "preview_verification"
+  | "deployment_lifecycle"
   | "app_build_packet"
   | "vnext_packet"
   | "identity_auth_plan"

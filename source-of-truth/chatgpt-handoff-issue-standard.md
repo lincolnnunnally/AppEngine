@@ -151,7 +151,7 @@ Add packet-specific files:
 - Existing-app improvements: `source-of-truth/app-improvement-vnext-packet.md`
 - Bug fixes: `source-of-truth/app-improvement-vnext-packet.md`
 - Design improvements: `source-of-truth/design-quality-gate.md` and `source-of-truth/ux-review-standard.md`
-- Launch/release requests: `source-of-truth/deployment-environment-standard.md` and `source-of-truth/release-gate-standard.md`
+- Launch/release requests: `source-of-truth/deployment-environment-standard.md`, `source-of-truth/app-url-lifecycle-standard.md`, and `source-of-truth/release-gate-standard.md`
 
 ## Title And Body Templates
 

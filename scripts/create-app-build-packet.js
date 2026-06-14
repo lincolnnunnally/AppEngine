@@ -14,6 +14,7 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/04-app-purpose-rules.md",
   "source-of-truth/05-ecosystem-design-gates.md",
   "source-of-truth/build-completion-orchestrator.md",
+  "source-of-truth/app-url-lifecycle-standard.md",
   "source-of-truth/cost-governance-model-routing.md"
 ];
 const appName = input.name || process.env.APP_NAME || "Example App";
@@ -110,6 +111,7 @@ const deploymentEnvironment =
     backendProvider: process.env.APP_BACKEND_PROVIDER || (process.env.APP_BACKEND_REQUIRED === "true" ? "Render" : "Vercel Functions"),
     databaseProvider: process.env.APP_DATABASE_PROVIDER || "Neon",
     previewUrl: process.env.APP_PREVIEW_URL || "planned",
+    reviewUrl: process.env.APP_REVIEW_URL || process.env.OWNER_REVIEW_URL || "planned",
     productionUrl: process.env.APP_PRODUCTION_URL || "approval-gated",
     customDomain: process.env.APP_CUSTOM_DOMAIN || "planned",
     healthPath: process.env.APP_HEALTH_PATH || `/api/engine/apps/${slug}/health`,
@@ -506,6 +508,7 @@ function validatePacket(packet) {
     ["app.providerCostReview.costPosture.preview", packet.app.providerCostReview?.costPosture?.preview],
     ["app.deploymentEnvironment.frontend.provider", packet.app.deploymentEnvironment?.frontend?.provider],
     ["app.deploymentEnvironment.frontend.previewUrl", packet.app.deploymentEnvironment?.frontend?.previewUrl],
+    ["app.deploymentEnvironment.frontend.reviewUrl", packet.app.deploymentEnvironment?.frontend?.reviewUrl],
     ["app.designReview.reviewers.designerStatus", packet.app.designReview?.reviewers?.designerStatus],
     ["app.designReview.reviewers.customerPerspectiveStatus", packet.app.designReview?.reviewers?.customerPerspectiveStatus],
     ["app.compatibilityTestPlan.kind", packet.app.compatibilityTestPlan?.kind],
@@ -820,6 +823,7 @@ function buildDeploymentEnvironment({
   backendProvider,
   databaseProvider,
   previewUrl,
+  reviewUrl,
   productionUrl,
   customDomain,
   healthPath,
@@ -836,6 +840,7 @@ function buildDeploymentEnvironment({
     frontend: {
       provider: frontendProvider,
       previewUrl,
+      reviewUrl,
       previewAccess: "public_by_default",
       productionUrl,
       customDomain,
@@ -923,6 +928,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       gate("cost_governance", "required", "cost_governance"),
       gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
+      gate("deployment_lifecycle", "required", "deployment_lifecycle"),
       gate("design_quality", "required", designReview.kind),
       gate("designer_review", "required", designReview.reviewers.designerStatus),
       gate("customer_perspective_review", "required", designReview.reviewers.customerPerspectiveStatus),

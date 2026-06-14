@@ -12,11 +12,16 @@ const packetOutput = path.join(smokeRoot, "app-build-packet.json");
 const completionOutput = path.join(smokeRoot, "build-completion-output.json");
 const completionPlanOutput = path.join(smokeRoot, "build-completion-plan.json");
 const completionFollowUpsOutput = path.join(smokeRoot, "build-completion-follow-ups.json");
+const lifecycleOutput = path.join(smokeRoot, "deployment-lifecycle-output.json");
+const lifecycleArtifactOutput = path.join(smokeRoot, "deployment-lifecycle-artifact.json");
+const previewMissingReviewOutput = path.join(smokeRoot, "preview-missing-review-output.json");
+const previewMissingReviewArtifactOutput = path.join(smokeRoot, "preview-missing-review-artifact.json");
 const previewFailOutput = path.join(smokeRoot, "preview-fail-output.json");
 const previewFailArtifactOutput = path.join(smokeRoot, "preview-fail-artifact.json");
 const previewPassOutput = path.join(smokeRoot, "preview-pass-output.json");
 const previewPassArtifactOutput = path.join(smokeRoot, "preview-pass-artifact.json");
 const previewCompletionOutput = path.join(smokeRoot, "preview-completion-plan.json");
+const reviewReadyPlanOutput = path.join(smokeRoot, "review-ready-plan.json");
 const safetyPlanOutput = path.join(smokeRoot, "safety-plan.json");
 
 const server = await startPreviewServer();
@@ -31,7 +36,8 @@ try {
       APP_AUDIENCE: "story sharers|care team",
       APP_SUCCESS_DEFINITION: "A person can submit one private preview story and understand what happens next.",
       APP_PREVIEW_URL: "https://spark-preview.example.test",
-      APP_PRODUCTION_URL: "approval-gated"
+      APP_REVIEW_URL: "https://review.spark-of-hope.example.test",
+      APP_PRODUCTION_URL: "https://spark-of-hope.example.test"
     });
 
     await runNode("scripts/create-build-completion-plan.js", {
@@ -41,6 +47,8 @@ try {
       BUILD_COMPLETION_FOLLOWUPS_OUTPUT: completionFollowUpsOutput,
       BUILD_CURRENT_STATE: "ready_for_build",
       BUILD_CURRENT_PHASE: "mvp_build",
+      APP_REVIEW_URL: "https://review.spark-of-hope.example.test",
+      APP_PRODUCTION_URL: "https://spark-of-hope.example.test",
       SOURCE_ISSUE_NUMBER: "56",
       SOURCE_ISSUE_URL: "https://github.com/lincolnnunnally/AppEngine/issues/56"
     });
@@ -50,8 +58,15 @@ try {
     const followUps = readJson(completionFollowUpsOutput);
 
     assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "build_completion_plan", "combined output includes build completion artifact");
+    assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "deployment_lifecycle", "combined output includes deployment lifecycle artifact");
     assertEqual(plan.kind, "build_completion_plan", "plan artifact kind");
     assertEqual(plan.app.slug, "spark-of-hope-intake-lite", "plan app slug");
+    assertEqual(plan.reviewUrl, "https://review.spark-of-hope.example.test", "plan review URL");
+    assertEqual(plan.productionUrl, "https://spark-of-hope.example.test", "plan production URL");
+    assertEqual(plan.currentVersion, "v1", "plan current version");
+    assertEqual(plan.deploymentLifecycle.kind, "deployment_lifecycle", "plan embeds deployment lifecycle");
+    assertEqual(plan.deploymentLifecycle.discovery.reviewUrlKnown, true, "plan knows review URL");
+    assertEqual(plan.deploymentLifecycle.discovery.productionUrlKnown, true, "plan knows production URL");
     assertEqual(plan.currentState, "ready_for_build", "plan state");
     assertEqual(plan.nextSafeAction, "create_implementation_issue", "ready for build action");
     assertEqual(plan.costGovernance.kind, "cost_governance", "plan embeds cost governance");
@@ -65,11 +80,59 @@ try {
     assertIncludes(followUps.followUpTasks[0].body, "Do not merge generated app code automatically", "follow-up blocks auto merge");
   });
 
+  await runStep("deployment lifecycle artifact records owner review and production URLs", async () => {
+    await runNode("scripts/create-deployment-lifecycle.js", {
+      DEPLOYMENT_LIFECYCLE_PACKET: packetOutput,
+      DEPLOYMENT_LIFECYCLE_OUTPUT: lifecycleOutput,
+      DEPLOYMENT_LIFECYCLE_ARTIFACT_OUTPUT: lifecycleArtifactOutput,
+      APP_REVIEW_URL: "https://review.spark-of-hope.example.test",
+      APP_PRODUCTION_URL: "https://spark-of-hope.example.test",
+      APP_DEPLOYMENT_URL: "https://spark-build-preview.example.test",
+      APP_DEPLOYMENT_STATE: "build_preview",
+      APP_CURRENT_VERSION: "v1",
+      APP_REVIEW_VERSION: "v1",
+      APP_PRODUCTION_VERSION: "not_released"
+    });
+
+    const output = readJson(lifecycleOutput);
+    const lifecycle = readJson(lifecycleArtifactOutput);
+
+    assertArrayIncludes(output.artifacts.map((artifact) => artifact.kind), "deployment_lifecycle", "combined output includes lifecycle artifact");
+    assertEqual(lifecycle.kind, "deployment_lifecycle", "lifecycle artifact kind");
+    assertEqual(lifecycle.reviewUrl, "https://review.spark-of-hope.example.test", "lifecycle review URL");
+    assertEqual(lifecycle.productionUrl, "https://spark-of-hope.example.test", "lifecycle production URL");
+    assertEqual(lifecycle.deploymentUrl, "https://spark-build-preview.example.test", "lifecycle deployment URL");
+    assertEqual(lifecycle.deploymentState, "build_preview", "lifecycle deployment state");
+    assertEqual(lifecycle.currentVersion, "v1", "lifecycle current version");
+    assertEqual(lifecycle.approvalRequired, true, "lifecycle approval required");
+  });
+
+  await runStep("preview verification fails when owner review URL is missing", async () => {
+    await runNode("scripts/verify-preview.js", {
+      PREVIEW_URL: server.url,
+      EXPECTED_ROUTE: "/spark-of-hope-intake-lite",
+      EXPECTED_MARKER: "data-app-marker=\"spark-of-hope-intake-lite\"",
+      COMMIT_SHA: "abc1234",
+      VERCEL_DEPLOYMENT_STATE: "READY",
+      PREVIEW_VERIFICATION_OUTPUT: previewMissingReviewOutput,
+      PREVIEW_VERIFICATION_ARTIFACT_OUTPUT: previewMissingReviewArtifactOutput
+    });
+
+    const artifact = readJson(previewMissingReviewArtifactOutput);
+
+    assertEqual(artifact.kind, "preview_verification", "preview artifact kind");
+    assertEqual(artifact.status, "failed", "missing review URL fails");
+    assertArrayIncludes(artifact.checks.filter((item) => item.status === "failed").map((item) => item.id), "review_url_known", "review URL known check fails");
+    assertEqual(artifact.deploymentLifecycle.deploymentState, "failed_needs_fix", "missing review URL creates failed lifecycle state");
+  });
+
   await runStep("preview verification fails when route returns 404", async () => {
     await runNode("scripts/verify-preview.js", {
       PREVIEW_URL: server.url,
+      REVIEW_URL: server.url,
       EXPECTED_ROUTE: "/missing-route",
       EXPECTED_MARKER: "Spark of Hope Intake Lite",
+      APP_PRODUCTION_URL: "https://spark-of-hope.example.test",
       COMMIT_SHA: "abc1234",
       VERCEL_DEPLOYMENT_STATE: "READY",
       PREVIEW_VERIFICATION_OUTPUT: previewFailOutput,
@@ -89,10 +152,13 @@ try {
   await runStep("preview verification passes only when route marker and API JSON match", async () => {
     await runNode("scripts/verify-preview.js", {
       PREVIEW_URL: server.url,
+      REVIEW_URL: server.url,
       EXPECTED_ROUTE: "/spark-of-hope-intake-lite",
       EXPECTED_MARKER: "data-app-marker=\"spark-of-hope-intake-lite\"",
       EXPECTED_API_URL: `${server.url}/api/spark-of-hope-intake-lite/stories`,
       EXPECTED_API_JSON: JSON.stringify({ ok: true, mode: "preview_mock", stored: false }),
+      APP_PRODUCTION_URL: "https://spark-of-hope.example.test",
+      APP_CURRENT_VERSION: "v1",
       COMMIT_SHA: "abc1234",
       VERCEL_DEPLOYMENT_STATE: "READY",
       PREVIEW_VERIFICATION_OUTPUT: previewPassOutput,
@@ -106,6 +172,10 @@ try {
     assertEqual(artifact.http.route.status, 200, "route status 200");
     assertEqual(artifact.http.route.markerFound, true, "marker found");
     assertEqual(artifact.http.api.json.stored, false, "mock API confirms no storage");
+    assertEqual(artifact.reviewUrl, server.url, "preview records review URL");
+    assertEqual(artifact.productionUrl, "https://spark-of-hope.example.test", "preview records production URL");
+    assertEqual(artifact.deploymentLifecycle.deploymentState, "review_ready", "passed preview creates review-ready lifecycle");
+    assertEqual(artifact.deploymentLifecycle.currentVersion, "v1", "preview records current version");
     assertEqual(output.followUpTasks.length, 0, "passed preview does not create fix follow-up");
   });
 
@@ -123,6 +193,28 @@ try {
     assertEqual(plan.currentState, "failed_needs_fix", "failed preview changes state");
     assertEqual(plan.nextSafeAction, "create_fix_issue", "failed preview creates fix action");
     assertArrayIncludes(plan.failedGates.map((gate) => gate.id), "preview_verification", "preview failure becomes failed gate");
+  });
+
+  await runStep("review-ready deployment waits for owner review", async () => {
+    await runNode("scripts/create-build-completion-plan.js", {
+      BUILD_COMPLETION_PACKET: packetOutput,
+      PREVIEW_VERIFICATION_INPUT: previewPassArtifactOutput,
+      BUILD_COMPLETION_PLAN_OUTPUT: reviewReadyPlanOutput,
+      BUILD_CURRENT_STATE: "preview_verified",
+      BUILD_PASSED_GATES: "design_quality,designer_review,customer_perspective_review,ux_state_review,compatibility,safari_mobile,common_browsers,touch_forms_auth_admin,code_review",
+      APP_REVIEW_URL: server.url,
+      APP_PRODUCTION_URL: "https://spark-of-hope.example.test"
+    });
+
+    const plan = readJson(reviewReadyPlanOutput);
+
+    assertEqual(plan.currentState, "review_ready", "verified preview advances to review-ready state");
+    assertEqual(plan.nextSafeAction, "await_owner_review", "review-ready state awaits owner review");
+    assertEqual(plan.reviewUrl, server.url, "review-ready plan records review URL");
+    assertEqual(plan.productionUrl, "https://spark-of-hope.example.test", "review-ready plan records production URL");
+    assertEqual(plan.deploymentState, "review_ready", "review-ready plan records lifecycle state");
+    assertEqual(plan.currentVersion, "v1", "review-ready plan records current version");
+    assertEqual(plan.guardrails.productionDeployBlocked, true, "production remains blocked");
   });
 
   await runStep("owner-only actions remain blocked", async () => {

@@ -36,6 +36,7 @@ shared_context_files:
   - source-of-truth/end-to-end-command-test-standard.md
   - source-of-truth/pilot-app-build-template.md
   - source-of-truth/build-completion-orchestrator.md
+  - source-of-truth/app-url-lifecycle-standard.md
   - source-of-truth/cost-governance-model-routing.md
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
@@ -161,6 +162,7 @@ agents:
       - intake_packet
       - pilot_app_build
       - build_completion_plan
+      - deployment_lifecycle
       - cost_governance
       - build_spec
       - app_build_packet
@@ -192,6 +194,7 @@ agents:
       - implementation_summary
       - changed_files
       - build_completion_plan
+      - deployment_lifecycle
       - cost_governance
 
   workflow_tester:
@@ -203,6 +206,7 @@ agents:
     outputs:
       - workflow_test_plan
       - compatibility_test_plan
+      - deployment_lifecycle
       - preview_verification
       - pass_fail_report
       - broken_paths
@@ -216,6 +220,7 @@ agents:
     outputs:
       - review_report
       - build_completion_plan
+      - deployment_lifecycle
       - cost_governance
       - blocking_issues
       - non_blocking_improvements
@@ -243,6 +248,7 @@ agents:
     outputs:
       - health_report
       - build_completion_plan
+      - deployment_lifecycle
       - cost_governance
       - incident_issue
       - improvement_issue

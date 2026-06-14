@@ -89,6 +89,7 @@ runStep("packet creation", () => {
   assertEqual(packet.app.providerCostReview.guardrails.noPaidResourcesWithoutApproval, true, "packet paid provider guardrail");
   assertEqual(packet.app.deploymentEnvironment.kind, "deployment_environment_plan", "packet embeds deployment environment artifact");
   assertEqual(packet.app.deploymentEnvironment.frontend.provider, "Vercel", "packet frontend provider");
+  assertEqual(packet.app.deploymentEnvironment.frontend.reviewUrl, "planned", "packet owner review URL is planned");
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL is gated");
   assertArrayIncludes(packet.app.deploymentEnvironment.environmentVariables.map((item) => item.name), "DATABASE_URL", "packet database env var");
   assertEqual(packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate, true, "packet production requires release gate");

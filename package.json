@@ -20,6 +20,7 @@
     "vnext:packet": "node scripts/create-vnext-packet.js",
     "release:gate": "node scripts/create-release-gate-standard.js",
     "build:completion": "node scripts/create-build-completion-plan.js",
+    "deployment:lifecycle": "node scripts/create-deployment-lifecycle.js",
     "cost:governance": "node scripts/create-cost-governance-standard.js",
     "preview:verify": "node scripts/verify-preview.js",
     "pilot:e2e": "node scripts/run-e2e-command-pilot.js",

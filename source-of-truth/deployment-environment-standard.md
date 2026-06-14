@@ -13,6 +13,7 @@ Each app must declare:
 - Database provider
 - Required environment variable names without secret values
 - Preview URL or planned preview URL
+- Owner review URL or planned review URL
 - Production URL or approval-gated production status
 - Custom domain or subdomain plan
 - Health check path
@@ -28,6 +29,7 @@ Use this default unless the App Build Packet documents a different stack:
 - API/backend: Vercel functions for simple apps, Render service when a separate API/backend is needed
 - Database: Neon branch or app-scoped database for generated apps
 - Preview URL: created before production
+- Owner review URL: stable current review location for Lincoln
 - Production URL: approval-gated until Release Gate approval
 - Custom domain/subdomain: planned before production
 - Logs: Vercel logs and Render logs when a Render backend exists
@@ -69,6 +71,7 @@ Agents must stop or create follow-up work when:
 
 - A generated app has no deployment environment plan.
 - A preview deploy is requested without required environment variables listed.
+- A preview or review-ready state is claimed without a known owner review URL.
 - Production deploy is requested without release-gate approval.
 - Production URL, custom domain, health, logs, or rollback notes are missing.
 - A backend/API service is needed but no provider, health check, logs path, or env var inventory exists.
@@ -91,6 +94,7 @@ Agents should produce deployment environment artifacts with this shape:
   "frontend": {
     "provider": "Vercel",
     "previewUrl": "planned",
+    "reviewUrl": "planned",
     "previewAccess": "public_by_default",
     "productionUrl": "approval-gated",
     "customDomain": "planned",

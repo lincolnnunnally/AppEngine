@@ -12,6 +12,7 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/04-app-purpose-rules.md",
   "source-of-truth/05-ecosystem-design-gates.md",
   "source-of-truth/build-completion-orchestrator.md",
+  "source-of-truth/app-url-lifecycle-standard.md",
   "source-of-truth/cost-governance-model-routing.md"
 ];
 
@@ -155,6 +156,7 @@ function buildVNextPacket({
     buildCompletion: {
       kind: "build_completion_plan",
       required: true,
+      deploymentLifecycleRequired: true,
       costGovernanceRequired: true,
       initialState: "planned",
       nextSafeAction: "create_planning_issue"
@@ -289,7 +291,12 @@ function validateVNextPacket(packet) {
     missing.push("providerCostDelta");
   }
 
-  if (!packet.buildCompletion?.required || packet.buildCompletion?.kind !== "build_completion_plan" || !packet.buildCompletion?.costGovernanceRequired) {
+  if (
+    !packet.buildCompletion?.required ||
+    packet.buildCompletion?.kind !== "build_completion_plan" ||
+    !packet.buildCompletion?.deploymentLifecycleRequired ||
+    !packet.buildCompletion?.costGovernanceRequired
+  ) {
     missing.push("buildCompletion");
   }
 

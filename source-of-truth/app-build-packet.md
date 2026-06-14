@@ -246,6 +246,7 @@ Agents should produce packet artifacts with this shape:
       "deployment": {
         "provider": "Vercel",
         "previewUrl": "planned",
+        "reviewUrl": "planned",
         "productionUrl": "approval-gated"
       },
       "operations": {
@@ -281,6 +282,7 @@ Agents should produce packet artifacts with this shape:
       "frontend": {
         "provider": "Vercel",
         "previewUrl": "planned",
+        "reviewUrl": "planned",
         "productionUrl": "approval-gated",
         "customDomain": "planned",
         "logsUrl": "planned",

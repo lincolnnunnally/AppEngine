@@ -171,6 +171,11 @@ Agents should produce release gate artifacts with this shape:
       "evidence": "build_completion_plan"
     },
     {
+      "id": "deployment_lifecycle",
+      "status": "required",
+      "evidence": "deployment_lifecycle"
+    },
+    {
       "id": "preview_verification",
       "status": "required",
       "evidence": "preview_verification"
