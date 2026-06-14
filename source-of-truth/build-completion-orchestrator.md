@@ -47,6 +47,8 @@ The artifact must track:
 
 Preview success must not be claimed from a root URL alone.
 
+Preview deployments are public by default. Production stays protected until approved. The preview verifier should use a normal public preview URL and must not rely on protected Vercel bypass/share links as proof unless an app-specific owner-approved exception is recorded.
+
 A preview passes only when:
 
 - Vercel deployment state is `READY`
@@ -58,6 +60,7 @@ A preview passes only when:
 - Commit SHA is recorded
 - Checked URL is recorded
 - Timestamp is recorded
+- Public preview content is safe: no secrets, real private user data, production writes, paid provider actions, or migrations are exposed
 - Result is persisted in durable `agent-run` artifacts
 
 For Spark of Hope Intake Lite, the expected route is:
@@ -160,6 +163,7 @@ The build completion plan must keep these blocked unless owner approval is recor
 - Migrations
 - Auto-merge of generated code
 - Protected Vercel bypass/share links in public comments
+- Treating protected preview access as a successful public preview
 - AI/API credit consumption beyond configured cost governance thresholds
 
 If any blocked action is requested, the next safe action is `stop_for_owner_approval`.

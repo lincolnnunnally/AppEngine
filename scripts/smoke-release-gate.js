@@ -92,10 +92,12 @@ runStep("standalone release generator creates follow-ups", () => {
 
   assertEqual(deployment.kind, "deployment_environment_plan", "deployment artifact kind");
   assertEqual(deployment.frontend.provider, "Vercel", "deployment frontend provider");
+  assertEqual(deployment.frontend.previewAccess, "public_by_default", "deployment preview is public by default");
   assertEqual(deployment.apiBackend.provider, "Render", "deployment backend provider");
   assertEqual(deployment.database.provider, "Neon", "deployment database provider");
   assertArrayIncludes(deployment.environmentVariables.map((item) => item.name), "DATABASE_URL", "deployment env vars include database");
   assertEqual(deployment.guardrails.previewBeforeProduction, true, "deployment preview before production");
+  assertEqual(deployment.guardrails.publicPreviewByDefault, true, "deployment public preview guardrail");
   assertEqual(deployment.guardrails.productionRequiresReleaseGate, true, "deployment requires release gate");
 
   assertEqual(release.kind, "release_gate_plan", "release artifact kind");
@@ -115,6 +117,7 @@ runStep("standalone release generator creates follow-ups", () => {
   assertEqual(release.automationContracts.compatibilityTesting.blocksReleaseApproval, true, "release compatibility blocks approval");
   assertEqual(release.automationContracts.compatibilityTesting.requiresSafariMobile, true, "release compatibility requires Safari mobile");
   assertEqual(release.automationContracts.previewDeploy.deploysProduction, false, "release preview does not deploy production");
+  assertEqual(release.automationContracts.previewDeploy.previewAccess, "public_by_default", "release preview access policy");
   assertEqual(release.automationContracts.productionApproval.requiresHumanApproval, true, "release approval requires human");
   assertEqual(release.guardrails.costReviewBeforeProvisioning, true, "release guardrail requires cost review");
   assertEqual(release.guardrails.costGovernanceBeforeModelHeavyWork, true, "release guardrail requires cost governance");

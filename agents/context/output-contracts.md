@@ -82,7 +82,7 @@ A `super_admin_registry_entry` artifact must not contain secrets. It may contain
 
 A `provider_cost_review` artifact must not contain secrets, provider tokens, private billing data, or payment credentials. It blocks new paid provider resource creation and release approval until cost posture, reuse strategy, and owner approval needs are clear.
 
-A `deployment_environment_plan` artifact must list variable names only, never secret values.
+A `deployment_environment_plan` artifact must list variable names only, never secret values. Preview deployments are public by default for review and route-specific verification; production remains approval-gated.
 
 A `design_review` artifact must include Designer and Customer Perspective review status. It blocks Release Gate approval when mobile, empty states, error states, onboarding, admin screens, accessibility, trust, or emotional fit are missing.
 
@@ -100,6 +100,6 @@ A `build_completion_plan` artifact must use the state values `planned`, `ready_f
 
 A `cost_governance` artifact must classify the current model task as `cheap`, `medium`, or `expensive`. Cheap tasks include issue routing, label selection, formatting, and artifact cleanup. Medium tasks include review, summarization, and validation. Expensive tasks include architecture, implementation, debugging, and design generation. Its `nextBudgetAction` must be `continue`, `continue_with_cheaper_model`, `pause`, or `request_approval`. It must not contain API keys, model tokens, account billing secrets, private invoices, payment credentials, or private billing data.
 
-A `preview_verification` artifact must fail when the expected route returns 404, when only the root URL works, when the expected route returns the wrong page, when the marker text or test id is missing, when the Vercel deployment state is not `READY`, or when the commit SHA is missing. A failed preview verification must create a focused `ai:fix` follow-up task.
+A `preview_verification` artifact must fail when the expected route returns 404, when only the root URL works, when the expected route returns the wrong page, when the marker text or test id is missing, when the Vercel deployment state is not `READY`, when the commit SHA is missing, or when the check depends on a protected Vercel bypass/share link instead of a normal public preview URL. A failed preview verification must create a focused `ai:fix` follow-up task.
 
 A `vnext_packet` artifact must load existing app context before planning changes. It must not restart the whole app, erase release history, or import unrelated app goals.

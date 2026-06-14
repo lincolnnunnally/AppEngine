@@ -62,6 +62,7 @@ Each generated app must pass or explicitly block these gates:
 - Preview deploy contract exists
 - Build Completion Plan exists
 - Preview verification exists and passed for the expected route
+- Preview verification used a normal public preview URL unless a different owner-approved app policy is recorded
 - Preview health check is defined
 - Preview logs are defined
 - User/admin paths are testable
@@ -76,7 +77,7 @@ Each generated app must pass or explicitly block these gates:
 Release gates should create issue-ready tasks for:
 
 - Preview deploy: create or update preview deployment, run smoke checks, and update Super Admin status to `preview`.
-- Preview verification: confirm Vercel READY state, root URL availability, expected route HTTP 200, app marker/test-id content, commit SHA, checked URL, timestamp, and mock/API JSON when applicable.
+- Preview verification: confirm Vercel READY state, normal public preview URL availability, expected route HTTP 200, app marker/test-id content, commit SHA, checked URL, timestamp, and mock/API JSON when applicable.
 - Provider/cost review: confirm provider reuse, cost posture, paid-resource approval, and upgrade triggers before provisioning or production release.
 - Cost governance: confirm monthly/project/app/issue AI/API spend, task class, model routing, thresholds, and whether continuation requires a cheaper model, pause, or owner approval.
 - Design review: require Designer and Customer Perspective review before release approval.
@@ -95,6 +96,7 @@ Agents must stop or create follow-up work when:
 - A generated app keeps receiving build tasks but has no preview path.
 - A generated app advances without a Build Completion Plan naming the next safe action.
 - Preview is marked ready from the root URL alone, from a 404 route, from the wrong page, or without marker/test-id evidence.
+- Preview verification depends on a protected Vercel bypass/share link instead of a normal public preview URL.
 - Provider/cost review is missing before provider provisioning or release approval.
 - Cost governance is missing before model-heavy release, review, debugging, design, or implementation work continues.
 - Cost governance says `pause` or `request_approval`, but the release path continues anyway.
@@ -182,6 +184,7 @@ Agents should produce release gate artifacts with this shape:
   "automationContracts": {
     "previewDeploy": {
       "recommendedLabel": "ai:review",
+      "previewAccess": "public_by_default",
       "deploysProduction": false,
       "updatesSuperAdminStatus": "preview"
     },
