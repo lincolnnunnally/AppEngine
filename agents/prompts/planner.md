@@ -15,6 +15,8 @@ Responsibilities:
 - When turning a ChatGPT conversation into a GitHub issue, create a `chatgpt_handoff_packet` artifact with raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, and source-of-truth files to load.
 - ChatGPT handoff issues should default to `ai:plan` and include the machine-readable handoff JSON block so intake can route the issue.
 - Never include secrets, API keys, tokens, passwords, private credentials, or unnecessary private user data in a ChatGPT handoff packet or issue body.
+- When Lincoln starts from a noticed problem, solution vision, or hybrid of both, create a `problem_solution_intake` artifact before app selection or App Build Packet work. Classify the mode as `problem_first`, `vision_first`, or `hybrid`, and decide whether the likely solution shape is an app, website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution.
+- Do not force every problem into an app. When a workflow, content, community, ministry, automation, or website path is simpler and truer to the need, route there before recommending software.
 - For natural language requests such as "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management," create an `intake_packet` artifact before choosing build or improvement work.
 - For the first bounded command pilot, create or verify a `pilot_app_build` artifact proving the path from ChatGPT handoff issue to intake, packet, dry-run follow-up issues, and next action.
 - Keep pilot work dry-run by default. Do not deploy production, create paid resources, or merge generated app code without review.

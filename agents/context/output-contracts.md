@@ -55,6 +55,7 @@ Every app charter, App Build Packet, vNext Packet, architecture plan, design bri
 Agents may return these artifact kinds when relevant:
 
 - `chatgpt_handoff_packet`: required when ChatGPT turns Lincoln's conversation into a GitHub issue; defines raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, source-of-truth files to load, issue title/body, and secret-safety guardrails.
+- `problem_solution_intake`: required when Lincoln starts from a noticed problem, an existing solution vision, or a hybrid of both; classifies intake as `problem_first`, `vision_first`, or `hybrid`, clarifies affected people, barriers, root causes, desired transformation, solution shape, missing context, routing, next safe action, and planning-only guardrails.
 - `intake_packet`: required before routing natural language requests like "build this app," "start AppEngine build," "improve Spark of Hope," or "add this feature to Toner Management"; defines raw request, inferred app, request type, confidence, missing context, selected workflow, next labels, and guardrails.
 - `pilot_app_build`: required for the first bounded AppEngine command pilot; records issue, handoff packet, intake packet, App Build Packet or vNext Packet, dry-run follow-up issues, PRs, release status, blockers, next action, and guardrails.
 - `build_completion_plan`: required before generated-app work moves from planning into implementation, preview, review, release, or vNext work; records app, source issue, current phase, current state, next safe action, blocked reason, owner approval requirement, related PR, preview URL, required/passed/failed gates, follow-up tasks, evidence links, and safety guardrails.
@@ -96,6 +97,8 @@ A `compatibility_test_plan` artifact must include Safari/mobile and common brows
 A `release_gate_plan` artifact must not claim production is approved unless owner approval is recorded in GitHub or another durable source.
 
 A `chatgpt_handoff_packet` artifact must not contain secrets, private API keys, tokens, passwords, private credentials, or unnecessary private user data. It should default to `ai:plan` so intake and app selection happen before build, fix, review, or release work.
+
+A `problem_solution_intake` artifact must classify the starting point as `problem_first`, `vision_first`, or `hybrid`. It must recommend one or more solution shapes from `app`, `website`, `workflow_process`, `automation`, `content_resource`, `community_ministry_model`, or `multi_part_ecosystem_solution`. It must include problem summary, affected people, barriers, need addressed, desired transformation, movement toward life, missing questions, routing, next safe action, owner-readable summary, and planning-only guardrails. It must not route directly to implementation, production, paid resources, migrations, env changes, public intake UI, or generated app auto-merge.
 
 An `intake_packet` artifact must route new apps to an App Build Packet, existing apps to a vNext Packet after required context is loaded, and ambiguous or multi-app requests to clarification. It must not trigger implementation, provider provisioning, or production deployment directly.
 
