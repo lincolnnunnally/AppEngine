@@ -429,7 +429,7 @@ ai:monitor
 
 The workflow generates a prompt from the issue, runs the Codex GitHub Action, captures Codex changes as a patch, opens a pull request when files changed, and comments the result back on the issue. It does not deploy. Keep `OPENAI_API_KEY` configured as a GitHub secret; do not expose it as a job-level environment variable.
 
-The workflow listens for issues that are opened, labeled, edited, or reopened. A phone-created issue with an existing `ai:*` label can start without Lincoln relabeling or editing it later. If Codex fails, the workflow comments back on the issue with the failed run link.
+The workflow listens for issues that are opened, labeled, edited, or reopened. A phone-created issue with an existing `ai:*` label can start without Lincoln relabeling or editing it later. The opened event is the canonical run for a newly-created AI-labeled issue, and the workflow skips the immediate duplicate labeled echo so AppEngine does not spend twice or post duplicate comments. Manually adding an `ai:*` label to an older issue still starts the matching workflow. If Codex fails, the workflow comments back on the issue with the failed run link.
 
 Every prompt-factory run writes a phone-first preflight artifact and an `owner_status_report` under the durable `agent-run` artifact. The issue comment includes the owner status summary so Lincoln can see where the app is, what state/version it is in, what is blocked, and the next safe action without reading workflow logs.
 
