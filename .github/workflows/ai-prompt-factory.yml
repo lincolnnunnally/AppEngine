@@ -2,7 +2,7 @@ name: AI Prompt Factory
 
 on:
   issues:
-    types: [edited, labeled, reopened]
+    types: [opened, edited, labeled, reopened]
   workflow_dispatch:
     inputs:
       mode:
@@ -67,6 +67,26 @@ jobs:
           LABEL_NAME: ${{ github.event.label.name }}
           ISSUE_LABELS_JSON: ${{ toJson(github.event.issue.labels.*.name) }}
         run: node scripts/select-agent-mode.js
+
+      - name: Create phone-first preflight record
+        env:
+          AGENT_MODE: ${{ steps.mode.outputs.mode }}
+          FOLLOW_UP_MODE: ${{ vars.APPENGINE_FOLLOW_UP_MODE == 'create' && 'create' || 'dry-run' }}
+          GITHUB_EVENT_ACTION: ${{ github.event.action }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          ISSUE_LABELS_JSON: ${{ toJson(github.event.issue.labels.*.name) }}
+          PHONE_FIRST_PREFLIGHT_MARKDOWN_OUTPUT: agent-run/phone-first-preflight.md
+          PHONE_FIRST_PREFLIGHT_OUTPUT: agent-run/phone-first-preflight.json
+          TASK_BODY: ${{ github.event.issue.body || inputs.task }}
+          TASK_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          TASK_TITLE: ${{ github.event.issue.title || format('Manual {0} request', steps.mode.outputs.mode) }}
+          TASK_URL: ${{ github.event.issue.html_url || github.server_url }}
+          TRIGGER_LABEL: ${{ steps.mode.outputs.trigger_label }}
+          WORKFLOW_AGENTS: ${{ steps.mode.outputs.workflow_agents }}
+        run: node scripts/create-phone-first-preflight.js
 
       - name: Create orchestration record
         env:

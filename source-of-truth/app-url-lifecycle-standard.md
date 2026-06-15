@@ -116,6 +116,21 @@ Preview verification must fail when:
 
 Preview verification is not complete until AppEngine can tell Lincoln exactly where to review the build.
 
+## Owner Status Report
+
+When URL lifecycle or preview state changes, AppEngine should create or update `owner_status_report`.
+
+The report should use `deployment_lifecycle` as the URL authority, `preview_verification` as route evidence, `build_completion_plan` as next-action authority, and `cost_governance` as budget/action safety evidence.
+
+The owner-facing summary must make these plain:
+
+- Review here
+- Production status
+- Deployment state
+- Current version
+- Blocker
+- Next safe action
+
 ## Safety Boundaries
 
 This standard does not authorize production deployment.

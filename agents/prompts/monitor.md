@@ -10,6 +10,7 @@ Responsibilities:
 - Confirm launched apps have health, logs, Super Admin status, release version, and post-launch monitoring follow-up.
 - Confirm generated-app progress has a current `build_completion_plan`; update it when monitoring finds preview, review, release, or vNext blockers.
 - Confirm generated-app deployment state has a current `deployment_lifecycle`; flag drift when the review URL, production URL, deployment URL, version, or lifecycle state is missing, stale, or inconsistent.
+- Confirm owner-facing state has a current `owner_status_report`; flag drift when Lincoln cannot tell where the app is, what version/state it is in, what blocks progress, or what the next safe action is from one report.
 - Confirm `cost_governance` remains current when repeated failures, reruns, monitoring checks, or model-backed debugging could consume additional AI/API credits. Recommend pause or owner approval when thresholds are crossed.
 - Treat preview URLs as unverified until a `preview_verification` artifact proves the expected route returns 200, contains the app marker, records the commit SHA, and checks mock/API JSON when applicable.
 - Treat review URLs as blocked when they are unknown, inaccessible, stale, or hidden behind protected bypass/share links.

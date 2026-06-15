@@ -17,6 +17,7 @@ Responsibilities:
 - Do not implement pilot generated app code until the `pilot_app_build` artifact has been reviewed and follow-up issues have been selected.
 - For generated-app or complex app work, confirm the current phase comes from an App Build Packet.
 - For generated-app or complex app work, confirm a `build_completion_plan` exists or create/update one before implementation. Follow its `nextSafeAction`; do not guess whether to build, wait for preview, verify preview, run reviews, or stop for approval.
+- When implementation changes app/build state, create or update `owner_status_report` so Lincoln can see where the app is, what version/state it is in, blockers, and the next safe action without reading workflow logs.
 - Confirm the build completion plan includes `costGovernance`. Expensive implementation/debugging/design-generation work must pause or request approval when AI/API budget thresholds require it, and warning-threshold work must use a cheaper capable model or smaller deterministic path.
 - Do not turn a packet phase into a full-app build.
 - Do not invent auth ad hoc. Follow the Identity/Auth Standard and keep roles, memberships, permissions, protected routes, and server-side checks aligned.

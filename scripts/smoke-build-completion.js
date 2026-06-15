@@ -60,6 +60,8 @@ try {
 
     assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "build_completion_plan", "combined output includes build completion artifact");
     assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "deployment_lifecycle", "combined output includes deployment lifecycle artifact");
+    assertArrayIncludes(combined.artifacts.map((artifact) => artifact.kind), "owner_status_report", "combined output includes owner status artifact");
+    const ownerStatus = combined.artifacts.find((artifact) => artifact.kind === "owner_status_report")?.content;
     assertEqual(plan.kind, "build_completion_plan", "plan artifact kind");
     assertEqual(plan.app.slug, "spark-of-hope-intake-lite", "plan app slug");
     assertEqual(plan.reviewUrl, "https://review.spark-of-hope.example.test", "plan review URL");
@@ -72,6 +74,9 @@ try {
     assertEqual(plan.nextSafeAction, "create_implementation_issue", "ready for build action");
     assertEqual(plan.costGovernance.kind, "cost_governance", "plan embeds cost governance");
     assertEqual(plan.budgetAwareNextSafeAction, "continue", "plan records budget action");
+    assertEqual(ownerStatus.kind, "owner_status_report", "owner status artifact kind");
+    assertEqual(ownerStatus.reviewUrl, "https://review.spark-of-hope.example.test", "owner status review URL");
+    assertEqual(ownerStatus.nextSafeAction, "create_implementation_issue", "owner status next safe action");
     assertArrayIncludes(plan.requiredGates.map((gate) => gate.id), "cost_governance", "plan requires cost governance gate");
     assertEqual(plan.guardrails.productionDeployBlocked, true, "production blocked");
     assertEqual(plan.guardrails.paidResourcesBlocked, true, "paid resources blocked");
