@@ -144,6 +144,8 @@ Problem-to-solution intake should route to:
 
 Do not route directly to `ai:build` from problem-to-solution intake unless a later packet or phase issue explicitly approves implementation.
 
+When the problem or vision is accepted as a candidate, use `source-of-truth/problem-portfolio-routing-standard.md` to place it into `app_portfolio_registry` as a tracked solution candidate before creating an App Build Packet, vNext Packet, or implementation issue.
+
 ## Owner-Readable Output
 
 The owner-readable output should be concise:
