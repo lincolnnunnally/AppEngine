@@ -266,3 +266,5 @@ The gate is working when:
 5. Unclear candidates return `needs_clarification`.
 6. Security, cost, and scope blockers produce explicit blocked statuses.
 7. All guardrails remain active.
+
+After a ready status, use `source-of-truth/candidate-to-packet-bridge.md` to create a review-ready packet draft before any final App Build Packet, vNext Packet, non-app solution plan, phase issue, or build work.
