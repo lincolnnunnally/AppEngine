@@ -97,7 +97,7 @@ export default function SparkOfHopeIntakeLitePage() {
           </p>
           <div className="spark-pill-row" aria-label="Preview guardrails">
             <span>Private by default</span>
-            <span>No production writes</span>
+            <span>Review-gated storage</span>
             <span>No paid resources</span>
           </div>
         </div>
@@ -192,8 +192,8 @@ export default function SparkOfHopeIntakeLitePage() {
           <p className="eyebrow">Privacy note</p>
           <h2>Your story is not a public post.</h2>
           <p>
-            This first preview uses a mock submission route. It checks the form, returns a reference, and does not write
-            to Neon or send the story anywhere.
+            This preview defaults to a mock submission route. Controlled preview storage can be enabled only behind
+            review-gated server settings, while production writes stay blocked.
           </p>
 
           <div className="spark-note-grid">

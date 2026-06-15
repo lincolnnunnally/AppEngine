@@ -39,6 +39,7 @@
     "smoke:cost-governance": "node scripts/smoke-cost-governance.js",
     "smoke:owner-status": "node scripts/smoke-owner-status-report.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
+    "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",
     "smoke:vnext-packet": "node scripts/smoke-vnext-packet.js",
     "smoke:release-gate": "node scripts/smoke-release-gate.js",
     "smoke:build-completion": "node scripts/smoke-build-completion.js",
