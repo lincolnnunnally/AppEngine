@@ -32,6 +32,7 @@ shared_context_files:
   - source-of-truth/agent-enforcement.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-to-solution-intake-standard.md
+  - source-of-truth/problem-portfolio-routing-standard.md
   - source-of-truth/intake-command-standard.md
   - source-of-truth/app-selection-standard.md
   - source-of-truth/end-to-end-command-test-standard.md
@@ -163,6 +164,7 @@ agents:
     outputs:
       - chatgpt_handoff_packet
       - problem_solution_intake
+      - problem_portfolio_routing
       - intake_packet
       - pilot_app_build
       - build_completion_plan

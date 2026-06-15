@@ -4,6 +4,7 @@ import type { EngineTask } from "./tasks";
 export type AgentArtifactKind =
   | "chatgpt_handoff_packet"
   | "problem_solution_intake"
+  | "problem_portfolio_routing"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"
