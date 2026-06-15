@@ -6,6 +6,7 @@ export type AgentArtifactKind =
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"
+  | "candidate_packet_bridge"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"

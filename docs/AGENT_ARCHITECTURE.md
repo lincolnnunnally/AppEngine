@@ -377,6 +377,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 
 `scripts/create-solution-candidate-review.js` reviews a `problem_portfolio_routing` artifact and decides whether the candidate needs clarification, is blocked by security/cost/scope, or is ready for an App Build Packet request, vNext Packet request, or non-app solution plan request.
 
+`scripts/create-candidate-packet-bridge.js` converts an approved `solution_candidate_review` artifact into the correct review-ready packet draft without creating phase issues, triggering Codex build work, or deploying anything.
+
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
 
 `scripts/run-e2e-command-pilot.js` runs the dry-run command pilot from ChatGPT handoff to intake, App Build Packet, follow-up issue dry run, and `pilot_app_build` artifact.
