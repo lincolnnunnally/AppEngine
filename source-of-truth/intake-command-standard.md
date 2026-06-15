@@ -23,12 +23,15 @@ Use this path for every natural language request:
 
 ```text
 ChatGPT handoff issue or natural request
+-> problem_solution_intake when the request starts from a problem, solution vision, or hybrid
 -> intake packet
 -> app selection
 -> correct workflow
 -> App Build Packet or vNext Packet
 -> agent loop
 ```
+
+Use `source-of-truth/problem-to-solution-intake-standard.md` before normal app selection when Lincoln has noticed a problem but has not chosen a solution, when the request has a solution vision that still needs shape/scope validation, or when the right answer might be a website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution instead of only an app.
 
 ## Request Types
 

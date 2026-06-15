@@ -31,6 +31,7 @@
     "orchestration:followups": "node scripts/create-follow-up-issues.js",
     "smoke:chatgpt-handoff": "node scripts/smoke-chatgpt-handoff.js",
     "smoke:e2e-pilot": "node scripts/smoke-e2e-command-pilot.js",
+    "smoke:problem-solution-intake": "node scripts/smoke-problem-solution-intake.js",
     "smoke:app-build-packet": "node scripts/smoke-app-build-packet.js",
     "smoke:intake": "node scripts/smoke-intake-packet.js",
     "smoke:identity-registry": "node scripts/smoke-identity-registry.js",

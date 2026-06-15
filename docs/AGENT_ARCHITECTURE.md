@@ -371,6 +371,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 
 `scripts/create-chatgpt-handoff-packet.js` creates a `chatgpt_handoff_packet`, issue-ready title/body, and machine-readable handoff JSON for ChatGPT-to-GitHub triggers.
 
+`source-of-truth/problem-to-solution-intake-standard.md` defines the planning-only intake layer for problem-first, vision-first, and hybrid starts before AppEngine assumes the answer is an app or implementation task.
+
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
 
 `scripts/run-e2e-command-pilot.js` runs the dry-run command pilot from ChatGPT handoff to intake, App Build Packet, follow-up issue dry run, and `pilot_app_build` artifact.
