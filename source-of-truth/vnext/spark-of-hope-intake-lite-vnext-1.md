@@ -152,15 +152,15 @@ Audit/status metadata must not contain story body, contact values, raw request p
     "name": "Spark of Hope Intake Lite",
     "slug": "spark-of-hope-intake-lite"
   },
-  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "reviewUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app",
   "productionUrl": "approval-gated",
-  "deploymentUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "deploymentUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app",
   "deploymentState": "review_ready",
   "currentVersion": "v1.1-preview-controlled-persistence",
   "reviewVersion": "v1.1-preview-controlled-persistence",
   "productionVersion": "not_released",
   "approvalRequired": true,
-  "lastDeploymentTimestamp": "2026-06-15T13:16:29.240Z",
+  "lastDeploymentTimestamp": "tracked-in-preview-verification-artifact",
   "guardrails": {
     "productionDeployBlockedUntilApproval": true,
     "paidResourcesBlockedUntilApproval": true,
@@ -192,8 +192,8 @@ Audit/status metadata must not contain story body, contact values, raw request p
   "blockedReason": "",
   "ownerApprovalRequired": false,
   "relatedPr": "https://github.com/lincolnnunnally/AppEngine/pull/74",
-  "relatedPreviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
-  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+  "relatedPreviewUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app",
+  "reviewUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
   "productionUrl": "approval-gated",
   "deploymentState": "review_ready",
   "currentVersion": "v1.1-preview-controlled-persistence",
@@ -237,12 +237,12 @@ Audit/status metadata must not contain story body, contact values, raw request p
   "currentState": "preview_verified",
   "deploymentState": "review_ready",
   "currentVersion": "v1.1-preview-controlled-persistence",
-  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+  "reviewUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
   "productionUrl": "approval-gated",
   "blockingProgress": "Review gates are required before merge or release advancement.",
   "nextSafeAction": "run_review_gates",
   "ownerReadable": {
-    "whereIsTheApp": "Review here: https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+    "whereIsTheApp": "Review here: https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
     "production": "Production: blocked/not live yet.",
     "whatHappensIfApproved": "Approval can allow merge of this preview slice, not production launch."
   },
@@ -263,14 +263,14 @@ Audit/status metadata must not contain story body, contact values, raw request p
   "schemaVersion": 1,
   "status": "passed",
   "summary": "Preview route /spark-of-hope-intake-lite passed route-specific verification.",
-  "previewRootUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
-  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "previewRootUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app",
+  "reviewUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app",
   "productionUrl": "approval-gated",
   "expectedRoute": "/spark-of-hope-intake-lite",
-  "checkedUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
-  "commitSha": "cf6fd3e",
+  "checkedUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+  "commitSha": "recorded-in-durable-preview-verification-artifact",
   "deploymentState": "READY",
-  "checkedAt": "2026-06-15T13:16:29.240Z",
+  "checkedAt": "recorded-in-durable-preview-verification-artifact",
   "checks": [
     {
       "id": "vercel_deployment_ready",
@@ -301,12 +301,12 @@ Audit/status metadata must not contain story body, contact values, raw request p
   "http": {
     "route": {
       "status": 200,
-      "finalUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+      "finalUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
       "markerFound": true
     },
     "api": {
       "status": 200,
-      "finalUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/api/spark-of-hope-intake-lite/stories",
+      "finalUrl": "https://app-engine-git-codex-spark-vne-cde7c6-lincolnnunnallys-projects.vercel.app/api/spark-of-hope-intake-lite/stories",
       "json": {
         "ok": true,
         "mode": "preview_mock",
