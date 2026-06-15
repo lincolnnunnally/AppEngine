@@ -12,6 +12,7 @@ Problem-to-portfolio routing answers:
 - Should the candidate become a new app, existing app improvement, website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution?
 - What portfolio entry or candidate record should track it?
 - What review gates must pass before a build packet, vNext packet, website plan, automation plan, process plan, content plan, or ministry/community model can proceed?
+- Should the next step be Solution Candidate Review before any packet or non-app solution plan?
 - What should Lincoln see in one owner-readable routing report?
 
 ## Input Artifact
@@ -249,6 +250,7 @@ Required source-of-truth files:
 - `source-of-truth/05-ecosystem-design-gates.md`
 - `source-of-truth/problem-to-solution-intake-standard.md`
 - `source-of-truth/problem-portfolio-routing-standard.md`
+- `source-of-truth/solution-candidate-review-gate.md`
 - `source-of-truth/app-selection-standard.md`
 - `source-of-truth/app-build-packet.md` when the candidate may become an app
 - `source-of-truth/app-improvement-vnext-packet.md` when the candidate is an existing app improvement

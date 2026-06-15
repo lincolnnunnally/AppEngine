@@ -25,6 +25,7 @@ Use this path for every natural language request:
 ChatGPT handoff issue or natural request
 -> problem_solution_intake when the request starts from a problem, solution vision, or hybrid
 -> problem_portfolio_routing when the clarified problem or vision becomes a portfolio candidate
+-> solution_candidate_review before App Build Packet, vNext Packet, or non-app solution plan requests
 -> intake packet
 -> app selection
 -> correct workflow
@@ -35,6 +36,8 @@ ChatGPT handoff issue or natural request
 Use `source-of-truth/problem-to-solution-intake-standard.md` before normal app selection when Lincoln has noticed a problem but has not chosen a solution, when the request has a solution vision that still needs shape/scope validation, or when the right answer might be a website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution instead of only an app.
 
 Use `source-of-truth/problem-portfolio-routing-standard.md` after `problem_solution_intake` and before App Build Packet or vNext Packet creation when the clarified problem or vision should become a tracked solution candidate in the app portfolio.
+
+Use `source-of-truth/solution-candidate-review-gate.md` after `problem_portfolio_routing` to decide whether the tracked candidate needs clarification, is blocked, or is ready for an App Build Packet request, vNext Packet request, or non-app solution plan request.
 
 ## Request Types
 
