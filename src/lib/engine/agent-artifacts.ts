@@ -8,6 +8,8 @@ export type AgentArtifactKind =
   | "build_completion_plan"
   | "preview_verification"
   | "deployment_lifecycle"
+  | "cost_governance"
+  | "owner_status_report"
   | "app_build_packet"
   | "vnext_packet"
   | "identity_auth_plan"

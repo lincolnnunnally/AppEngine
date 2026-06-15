@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { applyCostGovernanceToDecision, buildCostGovernance, validateCostGovernance } from "./lib/cost-governance.js";
 import { buildDeploymentLifecycle, ownerReviewRouteUrl, validDeploymentStates, validateDeploymentLifecycle } from "./lib/deployment-lifecycle.js";
+import { buildOwnerStatusReport, validateOwnerStatusReport } from "./lib/owner-status-report.js";
 
 const combinedOutput = process.env.BUILD_COMPLETION_OUTPUT || "";
 const planOutput = process.env.BUILD_COMPLETION_PLAN_OUTPUT || "";
@@ -112,6 +113,13 @@ const plan = buildCompletionPlan({
 });
 
 validateBuildCompletionPlan(plan);
+const ownerStatusReport = buildOwnerStatusReport({
+  buildCompletionPlan: plan,
+  deploymentLifecycle,
+  previewVerification: previewVerification.kind === "preview_verification" ? previewVerification : null,
+  costGovernance
+});
+validateOwnerStatusReport(ownerStatusReport);
 
 const output = {
   agent: "planner",
@@ -130,6 +138,11 @@ const output = {
       kind: "build_completion_plan",
       title: `${appName} Build Completion Plan`,
       content: plan
+    },
+    {
+      kind: "owner_status_report",
+      title: `${appName} Owner Status Report`,
+      content: ownerStatusReport
     }
   ],
   findings: plan.failedGates.map((gate) => ({

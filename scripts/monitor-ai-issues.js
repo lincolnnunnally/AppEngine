@@ -46,7 +46,7 @@ const report = {
   sourceOfTruthChanges,
   issues: [...issues.values()]
     .sort((a, b) => a.number - b.number)
-    .map((issue) => withStaleState(issue, now)),
+    .map((issue) => withWorkflowVisibility(withStaleState(issue, now))),
   pullRequests: pullRequests.map((pullRequest) => withStaleState(pullRequest, now)),
   failedWorkflowRuns,
   recentlyMergedPullRequests,
@@ -65,12 +65,7 @@ if (shouldComment) {
 }
 
 function commentIfNeeded(issue) {
-  const details = JSON.parse(
-    execFileSync("gh", ["issue", "view", String(issue.number), "--repo", repo, "--json", "comments"], {
-      encoding: "utf8"
-    })
-  );
-  const alreadyCommented = details.comments?.some((comment) => comment.body?.includes(marker));
+  const alreadyCommented = issue.workflowVisibility?.monitorMarkerPresent;
 
   if (alreadyCommented) {
     console.log(`Issue #${issue.number} already has monitor marker.`);
@@ -83,8 +78,11 @@ function commentIfNeeded(issue) {
     "",
     `Labels: ${issue.labels.map((label) => `\`${label.name}\``).join(", ") || "none"}`,
     issue.isStale ? `Stale check: no update for ${issue.hoursSinceUpdated} hours.` : "Stale check: recently updated.",
+    issue.workflowVisibility?.needsWorkflowStartAttention
+      ? "Workflow start: no AI Prompt Factory issue comment was found yet."
+      : "Workflow start: AI Prompt Factory issue comment found or not required.",
     "",
-    "If this issue has not started a workflow, re-apply the relevant `ai:*` label or run the AI Prompt Factory workflow manually.",
+    "If this issue has not started a workflow, confirm it has an `ai:*` label and that the AI Prompt Factory workflow includes the `opened` trigger.",
     dryRun ? "" : "",
     dryRun ? "Dry run: no durable action was taken." : ""
   ].join("\n");
@@ -186,6 +184,37 @@ function withStaleState(item, date) {
     hoursSinceUpdated,
     isStale: hoursSinceUpdated >= staleHours
   };
+}
+
+function withWorkflowVisibility(issue) {
+  const comments = readIssueComments(issue.number);
+  const hasPromptFactoryComment = comments.some((comment) => /AI prompt factory (finished|failed)/i.test(comment.body || ""));
+  const hasWorkflowRunLink = comments.some((comment) => /\/actions\/runs\//i.test(comment.body || ""));
+  const monitorMarkerPresent = comments.some((comment) => comment.body?.includes(marker));
+  const hasAiLabel = issue.labels?.some((label) => String(label.name || "").startsWith("ai:"));
+
+  return {
+    ...issue,
+    workflowVisibility: {
+      hasPromptFactoryComment,
+      hasWorkflowRunLink,
+      monitorMarkerPresent,
+      needsWorkflowStartAttention: Boolean(hasAiLabel && !hasPromptFactoryComment)
+    }
+  };
+}
+
+function readIssueComments(issueNumber) {
+  try {
+    const details = JSON.parse(
+      execFileSync("gh", ["issue", "view", String(issueNumber), "--repo", repo, "--json", "comments"], {
+        encoding: "utf8"
+      })
+    );
+    return Array.isArray(details.comments) ? details.comments : [];
+  } catch {
+    return [];
+  }
 }
 
 function readMonitorConfig() {

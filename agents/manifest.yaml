@@ -38,6 +38,7 @@ shared_context_files:
   - source-of-truth/build-completion-orchestrator.md
   - source-of-truth/app-url-lifecycle-standard.md
   - source-of-truth/cost-governance-model-routing.md
+  - source-of-truth/owner-status-report-standard.md
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
   - source-of-truth/super-admin-registry.md
@@ -164,6 +165,7 @@ agents:
       - build_completion_plan
       - deployment_lifecycle
       - cost_governance
+      - owner_status_report
       - build_spec
       - app_build_packet
       - vnext_packet

@@ -1,6 +1,13 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  absorbArtifact,
+  buildOwnerStatusReport,
+  collectArtifactsFromAgentRun,
+  renderOwnerStatusMarkdown,
+  validateOwnerStatusReport
+} from "./lib/owner-status-report.js";
 
 const repoRoot = process.cwd();
 const agentRunDir = path.resolve(process.env.AGENT_RUN_DIR || "agent-run");
@@ -8,6 +15,8 @@ const pilotDir = path.resolve(process.env.PILOT_ARTIFACT_DIR || path.join(agentR
 const summaryOutput = path.resolve(process.env.AGENT_RUN_SUMMARY_OUTPUT || path.join(agentRunDir, "artifact-summary.md"));
 const followUpTasksOutput = path.resolve(process.env.FOLLOW_UP_TASKS_OUTPUT || path.join(agentRunDir, "follow-up-tasks.json"));
 const dryRunIssuesOutput = path.resolve(process.env.FOLLOW_UP_DRY_RUN_OUTPUT || path.join(agentRunDir, "follow-up-issues-dry-run.json"));
+const ownerStatusOutput = path.resolve(process.env.OWNER_STATUS_REPORT_OUTPUT || path.join(agentRunDir, "owner-status-report.json"));
+const ownerStatusMarkdownOutput = path.resolve(process.env.OWNER_STATUS_REPORT_MARKDOWN_OUTPUT || path.join(agentRunDir, "owner-status-report.md"));
 const runUrl = process.env.GITHUB_RUN_ID && process.env.GITHUB_REPOSITORY
   ? `${process.env.GITHUB_SERVER_URL || "https://github.com"}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
   : "";
@@ -20,6 +29,24 @@ const codexOutputPath = path.join(agentRunDir, "codex-output.md");
 const pilot = readJsonIfExists(pilotPath);
 const dryRun = readJsonIfExists(dryRunPath);
 const followUpTasks = normalizeFollowUpTasks(dryRun, pilot, extractNestedFollowUpTasks());
+const orchestrationPlan = readJsonIfExists(path.join(agentRunDir, "orchestration-plan.json"));
+const phoneFirstPreflight = readJsonIfExists(path.join(agentRunDir, "phone-first-preflight.json"));
+const ownerArtifacts = collectArtifactsFromAgentRun(agentRunDir, codexOutputPath);
+absorbArtifact(ownerArtifacts, orchestrationPlan);
+absorbArtifact(ownerArtifacts, phoneFirstPreflight);
+const ownerStatusReport = buildOwnerStatusReport({
+  ...ownerArtifacts,
+  orchestrationPlan,
+  phoneFirstPreflight,
+  context: {
+    sourceIssueUrl: process.env.SOURCE_ISSUE_URL || "",
+    workflowRunUrl: runUrl
+  }
+});
+
+validateOwnerStatusReport(ownerStatusReport);
+writeJson(ownerStatusOutput, ownerStatusReport);
+writeText(ownerStatusMarkdownOutput, renderOwnerStatusMarkdown(ownerStatusReport));
 
 if (followUpTasks.length) {
   writeJson(followUpTasksOutput, {
@@ -44,12 +71,13 @@ if (followUpTasks.length) {
   });
 }
 
-writeText(summaryOutput, renderSummary({ pilot, followUpTasks }));
+writeText(summaryOutput, renderSummary({ pilot, followUpTasks, ownerStatusReport, phoneFirstPreflight }));
 
 console.log(`agent-run summary: ${displayPath(summaryOutput)}`);
 if (followUpTasks.length) console.log(`follow-up tasks: ${displayPath(followUpTasksOutput)} (${followUpTasks.length})`);
+console.log(`owner status report: ${displayPath(ownerStatusOutput)}`);
 
-function renderSummary({ pilot, followUpTasks }) {
+function renderSummary({ pilot, followUpTasks, ownerStatusReport, phoneFirstPreflight }) {
   const lines = [
     "## Durable Agent-Run Artifacts",
     "",
@@ -58,10 +86,36 @@ function renderSummary({ pilot, followUpTasks }) {
     "",
     "### Files In Artifact",
     "- `orchestration-plan.json`",
+    "- `phone-first-preflight.json`",
+    "- `phone-first-preflight.md`",
     "- `generated-codex-prompt.md`",
     "- `codex-output.md`",
+    "- `owner-status-report.json`",
+    "- `owner-status-report.md`",
     "- `codex.patch`"
   ].filter(Boolean);
+
+  if (phoneFirstPreflight) {
+    lines.push(
+      "",
+      "### Phone-First Preflight",
+      `- Trigger: ${phoneFirstPreflight.trigger?.eventName || "unknown"}/${phoneFirstPreflight.trigger?.eventAction || "manual"}`,
+      `- Selected mode: ${phoneFirstPreflight.selectedMode || "unknown"}`,
+      `- Selected label: ${phoneFirstPreflight.selectedLabel || "unknown"}`,
+      `- Follow-up mode: ${phoneFirstPreflight.followUpMode || "dry-run"}`,
+      `- Artifact target: ${phoneFirstPreflight.artifactTarget || "agent-run"}`
+    );
+  }
+
+  lines.push(
+    "",
+    "### Owner Status",
+    `- ${ownerStatusReport.ownerReadable.whereIsTheApp}`,
+    `- State: ${ownerStatusReport.ownerReadable.state}`,
+    `- Version: ${ownerStatusReport.ownerReadable.version}`,
+    `- Blocking progress: ${ownerStatusReport.ownerReadable.blockingProgress}`,
+    `- Next safe action: ${ownerStatusReport.ownerReadable.nextSafeAction}`
+  );
 
   if (pilot) {
     lines.push(

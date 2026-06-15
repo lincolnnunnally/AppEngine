@@ -6,6 +6,9 @@ import path from "node:path";
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-planner-loop-"));
 const selectedOutput = path.join(smokeRoot, "selected.env");
+const openedSelectedOutput = path.join(smokeRoot, "opened-selected.env");
+const preflightOutput = path.join(smokeRoot, "phone-first-preflight.json");
+const preflightMarkdownOutput = path.join(smokeRoot, "phone-first-preflight.md");
 const planOutput = path.join(smokeRoot, "orchestration-plan.json");
 const promptOutput = path.join(smokeRoot, "generated-codex-prompt.md");
 const codexOutput = path.join(smokeRoot, "codex-output.md");
@@ -30,6 +33,53 @@ runStep("planner selection", () => {
   assertEqual(selected.trigger_label, "ai:plan", "selection records trigger label");
   assertIncludes(selected.workflow_agents, "context_gate", "planner workflow includes context gate");
   assertIncludes(selected.workflow_agents, "planner", "planner workflow includes planner");
+});
+
+runStep("opened ai:plan issue selection", () => {
+  const workflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/ai-prompt-factory.yml"), "utf8");
+  assertIncludes(workflow, "types: [opened, edited, labeled, reopened]", "AI Prompt Factory listens for opened issues");
+
+  runNode("scripts/select-agent-mode.js", {
+    GITHUB_OUTPUT: openedSelectedOutput,
+    ISSUE_NUMBER: "68",
+    ISSUE_LABELS_JSON: JSON.stringify(["enhancement", "ai:plan"]),
+    LABEL_NAME: ""
+  });
+  const selected = readGithubOutput(openedSelectedOutput);
+
+  assertEqual(selected.mode, "planner", "opened ai:plan issue selects planner mode");
+  assertEqual(selected.issue_number, "68", "opened issue preserves issue number");
+  assertEqual(selected.trigger_label, "ai:plan", "opened issue records trigger label from labels");
+});
+
+runStep("phone-first preflight records owner-visible run state", () => {
+  runNode("scripts/create-phone-first-preflight.js", {
+    AGENT_MODE: "planner",
+    FOLLOW_UP_MODE: "dry-run",
+    GITHUB_EVENT_ACTION: "opened",
+    GITHUB_EVENT_NAME: "issues",
+    GITHUB_REPOSITORY: "lincolnnunnally/AppEngine",
+    GITHUB_RUN_ID: "12345",
+    ISSUE_LABELS_JSON: JSON.stringify(["ai:plan"]),
+    PHONE_FIRST_PREFLIGHT_OUTPUT: preflightOutput,
+    PHONE_FIRST_PREFLIGHT_MARKDOWN_OUTPUT: preflightMarkdownOutput,
+    TASK_BODY: "## Machine Handoff\n\n```json\n{\"kind\":\"chatgpt_handoff_packet\"}\n```",
+    TASK_NUMBER: "68",
+    TASK_TITLE: "Phone-first AppEngine issue trigger and preview handoff",
+    TASK_URL: "https://github.com/lincolnnunnally/AppEngine/issues/68",
+    TRIGGER_LABEL: "ai:plan",
+    WORKFLOW_AGENTS: "context_gate,planner"
+  });
+
+  const preflight = readJson(preflightOutput);
+  const markdown = fs.readFileSync(preflightMarkdownOutput, "utf8");
+
+  assertEqual(preflight.kind, "phone_first_preflight", "preflight artifact kind");
+  assertEqual(preflight.trigger.openedIssueCanRunWithoutRelabeling, true, "opened ai issue can run without relabeling");
+  assertEqual(preflight.handoffDetected, true, "preflight detects ChatGPT handoff");
+  assertEqual(preflight.followUpMode, "dry-run", "preflight records dry-run mode");
+  assertArrayIncludes(preflight.sourceOfTruth.sharedContextFiles, "source-of-truth/00-why-we-build.md", "preflight records source of truth");
+  assertIncludes(markdown, "Opened issue can run without relabeling: true", "preflight markdown is owner readable");
 });
 
 runStep("orchestration plan generation", () => {

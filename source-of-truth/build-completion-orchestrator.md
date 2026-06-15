@@ -112,6 +112,27 @@ The artifact must track:
 
 `build_completion_plan` must use `deployment_lifecycle` as the authority for `reviewUrl`, `productionUrl`, `deploymentState`, and current version.
 
+### owner_status_report
+
+Every major phase should produce an `owner_status_report` that translates machine state into a single owner-readable status.
+
+The report must be generated from:
+
+- `build_completion_plan`
+- `deployment_lifecycle`
+- `preview_verification`
+- `cost_governance`
+
+It must tell Lincoln:
+
+- Where the app is
+- What state it is in
+- What version it is
+- What is blocking progress
+- What the next safe action is
+
+The report must be persisted under the durable `agent-run` artifact and should be reflected in issue comments when workflows complete.
+
 ## Build States
 
 Use these state values:
