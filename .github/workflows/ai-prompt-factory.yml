@@ -34,8 +34,39 @@ on:
         type: string
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_run: ${{ steps.prompt_gate.outputs.should_run }}
+      skip_reason: ${{ steps.prompt_gate.outputs.skip_reason }}
+      trigger_label: ${{ steps.prompt_gate.outputs.trigger_label }}
+      canonical_event_action: ${{ steps.prompt_gate.outputs.canonical_event_action }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Decide whether prompt factory should run
+        id: prompt_gate
+        env:
+          DEDUPE_WINDOW_SECONDS: ${{ vars.APPENGINE_OPENED_LABEL_DEDUPE_SECONDS || '120' }}
+          DISPATCH_MODE: ${{ inputs.mode }}
+          GITHUB_EVENT_ACTION: ${{ github.event.action }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          ISSUE_CREATED_AT: ${{ github.event.issue.created_at }}
+          ISSUE_LABELS_JSON: ${{ toJson(github.event.issue.labels.*.name) }}
+          LABEL_NAME: ${{ github.event.label.name }}
+        run: node scripts/should-run-prompt-factory.js
+
   codex:
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'ai:') || contains(toJson(github.event.issue.labels.*.name), 'ai:') }}
+    needs: gate
+    if: ${{ needs.gate.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
