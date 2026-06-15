@@ -29,8 +29,8 @@ const output = {
   agent: "planner",
   status: lifecycle.discovery.reviewUrlKnown ? "completed" : "needs_follow_up",
   summary: lifecycle.discovery.reviewUrlKnown
-    ? `Deployment lifecycle recorded for ${appName}; owner review URL: ${lifecycle.reviewUrl}.`
-    : `Deployment lifecycle recorded for ${appName}, but owner review URL is unknown.`,
+    ? `Deployment lifecycle recorded for ${appName}. Review here: ${lifecycle.reviewUrl}. Production: ${formatOwnerProductionStatus(lifecycle)}.`
+    : `Deployment lifecycle recorded for ${appName}, but owner review URL is unknown. Review here: unknown. Production: ${formatOwnerProductionStatus(lifecycle)}.`,
   artifacts: [
     {
       kind: "deployment_lifecycle",
@@ -99,6 +99,11 @@ function buildReviewUrlFollowUp(lifecycle) {
     "- Do not merge generated app code automatically.",
     "- Do not post protected Vercel bypass/share links publicly."
   ].join("\n");
+}
+
+function formatOwnerProductionStatus(lifecycle) {
+  if (!lifecycle || lifecycle.deploymentState !== "production_live") return "blocked/not live yet";
+  return lifecycle.productionUrl || "live";
 }
 
 function readInput(filePath) {

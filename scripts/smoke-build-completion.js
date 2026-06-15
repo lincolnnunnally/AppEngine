@@ -22,6 +22,7 @@ const previewPassOutput = path.join(smokeRoot, "preview-pass-output.json");
 const previewPassArtifactOutput = path.join(smokeRoot, "preview-pass-artifact.json");
 const previewCompletionOutput = path.join(smokeRoot, "preview-completion-plan.json");
 const reviewReadyPlanOutput = path.join(smokeRoot, "review-ready-plan.json");
+const reviewReadyCombinedOutput = path.join(smokeRoot, "review-ready-output.json");
 const safetyPlanOutput = path.join(smokeRoot, "safety-plan.json");
 
 const server = await startPreviewServer();
@@ -199,6 +200,7 @@ try {
     await runNode("scripts/create-build-completion-plan.js", {
       BUILD_COMPLETION_PACKET: packetOutput,
       PREVIEW_VERIFICATION_INPUT: previewPassArtifactOutput,
+      BUILD_COMPLETION_OUTPUT: reviewReadyCombinedOutput,
       BUILD_COMPLETION_PLAN_OUTPUT: reviewReadyPlanOutput,
       BUILD_CURRENT_STATE: "preview_verified",
       BUILD_PASSED_GATES: "design_quality,designer_review,customer_perspective_review,ux_state_review,compatibility,safari_mobile,common_browsers,touch_forms_auth_admin,code_review",
@@ -207,14 +209,19 @@ try {
     });
 
     const plan = readJson(reviewReadyPlanOutput);
+    const combined = readJson(reviewReadyCombinedOutput);
 
     assertEqual(plan.currentState, "review_ready", "verified preview advances to review-ready state");
     assertEqual(plan.nextSafeAction, "await_owner_review", "review-ready state awaits owner review");
-    assertEqual(plan.reviewUrl, server.url, "review-ready plan records review URL");
+    assertEqual(plan.reviewUrl, `${server.url}/spark-of-hope-intake-lite`, "review-ready plan records exact review URL");
     assertEqual(plan.productionUrl, "https://spark-of-hope.example.test", "review-ready plan records production URL");
     assertEqual(plan.deploymentState, "review_ready", "review-ready plan records lifecycle state");
     assertEqual(plan.currentVersion, "v1", "review-ready plan records current version");
     assertEqual(plan.guardrails.productionDeployBlocked, true, "production remains blocked");
+    assertIncludes(combined.summary, `Review here: ${server.url}/spark-of-hope-intake-lite`, "owner-facing summary names review URL");
+    assertIncludes(combined.summary, "Production: blocked/not live yet", "owner-facing summary says production is blocked");
+    assertIncludes(plan.followUpTasks[0].body, `Review here: ${server.url}/spark-of-hope-intake-lite`, "owner-facing follow-up names review URL");
+    assertIncludes(plan.followUpTasks[0].body, "Production: blocked/not live yet", "owner-facing follow-up says production is blocked");
   });
 
   await runStep("owner-only actions remain blocked", async () => {

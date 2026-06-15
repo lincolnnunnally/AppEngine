@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { applyCostGovernanceToDecision, buildCostGovernance, validateCostGovernance } from "./lib/cost-governance.js";
-import { buildDeploymentLifecycle, validDeploymentStates, validateDeploymentLifecycle } from "./lib/deployment-lifecycle.js";
+import { buildDeploymentLifecycle, ownerReviewRouteUrl, validDeploymentStates, validateDeploymentLifecycle } from "./lib/deployment-lifecycle.js";
 
 const combinedOutput = process.env.BUILD_COMPLETION_OUTPUT || "";
 const planOutput = process.env.BUILD_COMPLETION_PLAN_OUTPUT || "";
@@ -116,7 +116,10 @@ validateBuildCompletionPlan(plan);
 const output = {
   agent: "planner",
   status: plan.blockedReason ? "needs_follow_up" : "completed",
-  summary: `Created build completion plan for ${appName}; next safe action: ${plan.nextSafeAction}.`,
+  summary: [
+    `Created build completion plan for ${appName}; next safe action: ${plan.nextSafeAction}.`,
+    ownerFacingUrlSummary(deploymentLifecycle, previewVerification)
+  ].join(" "),
   artifacts: [
     {
       kind: "deployment_lifecycle",
@@ -182,7 +185,7 @@ function buildCompletionPlan({
     ownerApprovalRequired,
     relatedPr: relatedPr || null,
     relatedPreviewUrl: relatedPreviewUrl || null,
-    reviewUrl: deploymentLifecycle.reviewUrl,
+    reviewUrl: ownerFacingReviewUrl(deploymentLifecycle, previewVerification),
     productionUrl: deploymentLifecycle.productionUrl,
     deploymentState: deploymentLifecycle.deploymentState,
     currentVersion: deploymentLifecycle.currentVersion,
@@ -483,7 +486,7 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         relatedPr ? `Related PR: ${relatedPr}` : "Related PR: not recorded",
         relatedPreviewUrl ? `Preview URL: ${relatedPreviewUrl}` : "Preview URL: not recorded",
-        `Review URL: ${deploymentLifecycle?.reviewUrl || "unknown"}`,
+        `Review URL: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
         "",
         requiredSourceFiles(),
         "",
@@ -497,7 +500,7 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         `Verify the preview deployment for ${appName}.`,
         "",
         relatedPreviewUrl ? `Preview URL: ${relatedPreviewUrl}` : "Preview URL: not recorded",
-        `Review URL: ${deploymentLifecycle?.reviewUrl || "unknown"}`,
+        `Review URL: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
         "Preview success must check the expected route, marker content, commit SHA, and mock/API JSON when applicable.",
         "",
         requiredSourceFiles(),
@@ -587,7 +590,7 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
       body: [
         `Verify the owner review URL for ${appName}.`,
         "",
-        `Review URL: ${deploymentLifecycle?.reviewUrl || "unknown"}`,
+        `Review URL: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
         `Deployment state: ${deploymentLifecycle?.deploymentState || "unknown"}`,
         "The review URL must be accessible without protected bypass links and must show the expected app route/version.",
         "",
@@ -602,8 +605,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
       body: [
         `${appName} is ready for owner review.`,
         "",
-        `Review URL: ${deploymentLifecycle?.reviewUrl || "unknown"}`,
-        `Production URL: ${deploymentLifecycle?.productionUrl || "approval-gated"}`,
+        `Review here: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
+        `Production: ${formatOwnerProductionStatus(deploymentLifecycle)}`,
         `Deployment state: ${deploymentLifecycle?.deploymentState || "unknown"}`,
         `Current version: ${deploymentLifecycle?.currentVersion || "unknown"}`,
         "",
@@ -660,6 +663,23 @@ function validateBuildCompletionPlan(plan) {
   }
 
   if (missing.length) throw new Error(`Build completion plan is missing required fields: ${missing.join(", ")}`);
+}
+
+function ownerFacingUrlSummary(deploymentLifecycle, previewVerification = {}) {
+  return [
+    `Review here: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}.`,
+    `Production: ${formatOwnerProductionStatus(deploymentLifecycle)}.`
+  ].join(" ");
+}
+
+function ownerFacingReviewUrl(deploymentLifecycle, previewVerification = {}) {
+  if (!deploymentLifecycle?.discovery?.reviewUrlKnown) return "unknown";
+  return ownerReviewRouteUrl(deploymentLifecycle.reviewUrl, previewVerification.expectedRoute || "/") || deploymentLifecycle.reviewUrl;
+}
+
+function formatOwnerProductionStatus(deploymentLifecycle) {
+  if (!deploymentLifecycle || deploymentLifecycle.deploymentState !== "production_live") return "blocked/not live yet";
+  return deploymentLifecycle.productionUrl || "live";
 }
 
 function buildSafety(safetyInput) {
@@ -769,7 +789,7 @@ function buildEvidenceLinks({ sourceIssue, relatedPr, relatedPreviewUrl, preview
     sourceIssueUrl: normalizeSourceIssue(sourceIssue).url || null,
     relatedPrUrl: relatedPr || null,
     previewUrl: relatedPreviewUrl || null,
-    reviewUrl: deploymentLifecycle?.reviewUrl || null,
+    reviewUrl: ownerFacingReviewUrl(deploymentLifecycle, previewVerification),
     productionUrl: deploymentLifecycle?.productionUrl || null,
     previewCheckedUrl: previewVerification.checkedUrl || null,
     previewArtifact: previewVerification.kind === "preview_verification" ? "preview_verification" : null

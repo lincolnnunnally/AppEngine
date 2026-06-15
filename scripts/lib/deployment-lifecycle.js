@@ -174,6 +174,7 @@ export function ownerReviewRouteUrl(reviewUrl, expectedRoute = "/") {
   const root = stripTrailingSlash(reviewUrl);
   const route = normalizeRoute(expectedRoute);
   if (!root) return "";
+  if (route === "/") return root;
   if (route !== "/" && root.endsWith(route)) return root;
   return `${root}${route}`;
 }
