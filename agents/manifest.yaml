@@ -42,6 +42,7 @@ shared_context_files:
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
   - source-of-truth/super-admin-registry.md
+  - source-of-truth/app-portfolio-registry.md
   - source-of-truth/operations-cost-provider-strategy.md
   - source-of-truth/deployment-environment-standard.md
   - source-of-truth/design-quality-gate.md
@@ -166,6 +167,7 @@ agents:
       - deployment_lifecycle
       - cost_governance
       - owner_status_report
+      - app_portfolio_registry
       - build_spec
       - app_build_packet
       - vnext_packet
@@ -252,6 +254,7 @@ agents:
       - build_completion_plan
       - deployment_lifecycle
       - cost_governance
+      - app_portfolio_registry
       - incident_issue
       - improvement_issue
 

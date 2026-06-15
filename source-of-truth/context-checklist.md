@@ -19,6 +19,7 @@ All agent workflows must load and answer this checklist before taking action.
 - App Build Packet for new apps, major rebuilds, or complex multi-phase work
 - Identity/Auth Standard for generated apps, major rebuilds, and launch work
 - Super Admin Registry Standard for generated apps, major rebuilds, and launch work
+- App Portfolio Registry Standard for portfolio-wide app state, URLs, versions, issues, pull requests, and next safe actions
 - Operations, Cost, and Provider Strategy Standard for generated apps, provider provisioning, cost review, deployment environments, and launch work
 - Cost Governance and Model Routing Standard for model/API credit spend, task classification, thresholds, and owner approval
 - Deployment Environment Standard for generated apps, major rebuilds, preview deploys, and launch work
@@ -54,17 +55,18 @@ All agent workflows must load and answer this checklist before taking action.
 18. If an App Build Packet exists, does the active task stay inside its current phase?
 19. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
 20. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
-21. Does the app have provider/cost review with reuse strategy, preview/production cost posture, cost ceiling, upgrade trigger, and owner approval before new paid resources?
-22. Does the active agent run have cost governance with monthly/project/app/issue spend, remaining budget, task class, thresholds, and budget-aware next action when model/API credits may be consumed?
-23. Does cost governance say to continue, continue with a cheaper model, pause, or request owner approval?
-24. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
-25. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
-26. Does the app have Designer and Customer Perspective review before Release Gate approval?
-27. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
-28. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
-29. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
-30. Are any core files, docs, prompts, context, or issue links missing?
-31. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+21. Does the portfolio registry know this app's name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source files, linked issues, and linked PRs?
+22. Does the app have provider/cost review with reuse strategy, preview/production cost posture, cost ceiling, upgrade trigger, and owner approval before new paid resources?
+23. Does the active agent run have cost governance with monthly/project/app/issue spend, remaining budget, task class, thresholds, and budget-aware next action when model/API credits may be consumed?
+24. Does cost governance say to continue, continue with a cheaper model, pause, or request owner approval?
+25. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
+26. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
+27. Does the app have Designer and Customer Perspective review before Release Gate approval?
+28. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
+29. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
+30. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
+31. Are any core files, docs, prompts, context, or issue links missing?
+32. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 

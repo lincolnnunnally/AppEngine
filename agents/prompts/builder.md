@@ -22,6 +22,7 @@ Responsibilities:
 - Do not turn a packet phase into a full-app build.
 - Do not invent auth ad hoc. Follow the Identity/Auth Standard and keep roles, memberships, permissions, protected routes, and server-side checks aligned.
 - When generated-app work touches operations, launch, monitoring, users, admin, or deployment, create or update the Super Admin registry entry or create a follow-up task for it.
+- When generated-app work changes app URL, version, deployment, build, issue, PR, or next-action state, create or update the App Portfolio Registry entry or create a follow-up task for it.
 - When generated-app work touches deployment, environment variables, domains, logs, health checks, or rollback, create or update the Deployment Environment plan or create a follow-up task for it.
 - When generated-app work creates or changes preview/review/production availability, create or update `deployment_lifecycle` so AppEngine knows the review URL, production URL, current deployment URL, deployment state, current version, and next safe action.
 - When generated-app work touches UI, forms, auth redirects, uploads, payments, admin screens, browser APIs, or release readiness, create or update the Compatibility Test Plan or create a follow-up task for it.

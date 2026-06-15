@@ -20,6 +20,7 @@ Responsibilities:
 - Block live pilot evidence that only points to runner-local `/tmp` paths instead of durable `agent-run` artifacts and structured follow-up task JSON.
 - Verify new app intake routes to an App Build Packet and existing-app intake routes to a vNext Packet only after app charter, Super Admin registry, current version, release history, monitoring state, known issues, and open issues are loaded.
 - Verify generated apps have an Identity/Auth plan, server-side authorization, and a Super Admin registry entry or planned entry.
+- Verify generated apps and vNext work update the App Portfolio Registry when app name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source files, linked issues, or linked PRs change.
 - Verify generated apps have provider/cost review before provider provisioning, deployment environment approval, or release approval.
 - Verify generated apps have a Deployment Environment plan, Release Gate, v1/vNext rules, preview path, production approval gate, monitoring path, and no production deploy bypass.
 - Verify generated apps have a `deployment_lifecycle` artifact before reviewable preview, release candidate, production, monitoring, or vNext claims. It must expose the owner review URL, production URL, deployment URL, deployment state, current version, review version, production version, approval requirement, and last deployment timestamp.

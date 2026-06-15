@@ -381,6 +381,8 @@ It writes a Codex-ready prompt package without exposing secrets.
 
 `scripts/create-identity-registry-standard.js` creates an Identity/Auth plan, Super Admin registry entry, and focused follow-up tasks.
 
+`scripts/create-app-portfolio-registry-standard.js` creates an App Portfolio Registry artifact, owner-readable portfolio markdown, and focused follow-up tasks for missing app state, URLs, source files, issues, or pull requests.
+
 `scripts/create-provider-cost-standard.js` creates a provider/cost review and focused provider approval follow-up tasks.
 
 `scripts/create-cost-governance-standard.js` creates a model/API cost governance artifact, budget threshold decision, model routing recommendation, and budget follow-up tasks.
