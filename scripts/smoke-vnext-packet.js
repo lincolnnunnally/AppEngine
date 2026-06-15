@@ -57,6 +57,7 @@ runStep("vNext packet creation", () => {
   assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/00-why-we-build.md", "vNext requires why we build");
   assertArrayIncludes(packet.sourceOfTruth.requiredFiles, "source-of-truth/cost-governance-model-routing.md", "vNext requires cost governance standard");
   assertEqual(packet.buildCompletion.costGovernanceRequired, true, "vNext build completion requires cost governance");
+  assertEqual(packet.buildCompletion.deploymentLifecycleRequired, true, "vNext build completion requires deployment lifecycle");
   assertEqual(packet.guardrails.doNotRestartWholeApp, true, "does not restart app");
   assertEqual(packet.guardrails.preventGoalBleed, true, "prevents goal bleed");
   assertIncludes(packet.change.nonGoals.join(" "), "do not rebuild the whole app", "non-goal prevents rebuild");

@@ -26,6 +26,7 @@ runStep("packet embeds deployment and release gate", () => {
     APP_BACKEND_REQUIRED: "true",
     APP_BACKEND_PROVIDER: "Render",
     APP_PREVIEW_URL: "https://kind-help-desk-preview.vercel.app",
+    APP_REVIEW_URL: "https://review.kind-help-desk.example.org",
     APP_PRODUCTION_URL: "approval-gated",
     APP_CUSTOM_DOMAIN: "help.example.org",
     APP_LOGS_URL: "planned",
@@ -43,10 +44,12 @@ runStep("packet embeds deployment and release gate", () => {
   assertEqual(packet.app.deploymentEnvironment.apiBackend.required, true, "packet marks backend required");
   assertEqual(packet.app.deploymentEnvironment.apiBackend.provider, "Render", "packet backend provider");
   assertEqual(packet.app.deploymentEnvironment.frontend.previewUrl, "https://kind-help-desk-preview.vercel.app", "packet preview URL");
+  assertEqual(packet.app.deploymentEnvironment.frontend.reviewUrl, "https://review.kind-help-desk.example.org", "packet review URL");
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL gated");
   assertEqual(packet.app.releaseGate.versioning.launchVersion, "v1", "packet v1 version");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "provider_cost_review", "packet provider cost gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "cost_governance", "packet cost governance gate");
+  assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "deployment_lifecycle", "packet deployment lifecycle gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "design_quality", "packet design gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "customer_perspective_review", "packet customer perspective gate");
   assertArrayIncludes(packet.app.releaseGate.gates.map((gate) => gate.id), "compatibility", "packet compatibility gate");
@@ -78,6 +81,7 @@ runStep("standalone release generator creates follow-ups", () => {
     APP_BACKEND_PROVIDER: "Render",
     APP_DATABASE_PROVIDER: "Neon",
     APP_PREVIEW_URL: "https://kind-help-desk-preview.vercel.app",
+    APP_REVIEW_URL: "https://review.kind-help-desk.example.org",
     APP_PRODUCTION_URL: "approval-gated",
     APP_CUSTOM_DOMAIN: "help.example.org",
     APP_HEALTH_PATH: "/api/health",
@@ -93,6 +97,7 @@ runStep("standalone release generator creates follow-ups", () => {
   assertEqual(deployment.kind, "deployment_environment_plan", "deployment artifact kind");
   assertEqual(deployment.frontend.provider, "Vercel", "deployment frontend provider");
   assertEqual(deployment.frontend.previewAccess, "public_by_default", "deployment preview is public by default");
+  assertEqual(deployment.frontend.reviewUrl, "https://review.kind-help-desk.example.org", "deployment review URL");
   assertEqual(deployment.apiBackend.provider, "Render", "deployment backend provider");
   assertEqual(deployment.database.provider, "Neon", "deployment database provider");
   assertArrayIncludes(deployment.environmentVariables.map((item) => item.name), "DATABASE_URL", "deployment env vars include database");
@@ -105,6 +110,7 @@ runStep("standalone release generator creates follow-ups", () => {
   assertArrayIncludes(release.gates.map((gate) => gate.id), "provider_cost_review", "release provider cost gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "cost_governance", "release cost governance gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "preview_deploy", "release preview gate");
+  assertArrayIncludes(release.gates.map((gate) => gate.id), "deployment_lifecycle", "release lifecycle gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "design_quality", "release design gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "customer_perspective_review", "release customer perspective gate");
   assertArrayIncludes(release.gates.map((gate) => gate.id), "compatibility", "release compatibility gate");

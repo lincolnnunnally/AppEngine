@@ -220,6 +220,7 @@ function sourceOfTruthFilesFor(requestType) {
       "source-of-truth/super-admin-registry.md",
       "source-of-truth/operations-cost-provider-strategy.md",
       "source-of-truth/deployment-environment-standard.md",
+      "source-of-truth/app-url-lifecycle-standard.md",
       "source-of-truth/design-quality-gate.md",
       "source-of-truth/ux-review-standard.md",
       "source-of-truth/compatibility-standard.md",
@@ -239,6 +240,7 @@ function sourceOfTruthFilesFor(requestType) {
     launch_release: [
       "source-of-truth/app-improvement-vnext-packet.md",
       "source-of-truth/deployment-environment-standard.md",
+      "source-of-truth/app-url-lifecycle-standard.md",
       "source-of-truth/release-gate-standard.md",
       "source-of-truth/super-admin-registry.md",
       "source-of-truth/operations-cost-provider-strategy.md"

@@ -1,9 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
+import { buildDeploymentLifecycle, isKnownUrl, ownerReviewRouteUrl, validateDeploymentLifecycle } from "./lib/deployment-lifecycle.js";
 
 const combinedOutput = process.env.PREVIEW_VERIFICATION_OUTPUT || "";
 const verificationOutput = process.env.PREVIEW_VERIFICATION_ARTIFACT_OUTPUT || "";
 const previewRootUrl = requiredEnv("PREVIEW_URL");
+const appName = process.env.APP_NAME || "Preview App";
+const appSlug = process.env.APP_SLUG || slugify(appName);
+const reviewUrl = process.env.REVIEW_URL || process.env.APP_REVIEW_URL || process.env.OWNER_REVIEW_URL || "";
+const productionUrl = process.env.PRODUCTION_URL || process.env.APP_PRODUCTION_URL || "";
+const currentVersion = process.env.APP_CURRENT_VERSION || process.env.APP_VERSION || "v1";
+const reviewVersion = process.env.APP_REVIEW_VERSION || currentVersion;
+const productionVersion = process.env.APP_PRODUCTION_VERSION || "not_released";
 const expectedRoute = normalizeRoute(process.env.EXPECTED_ROUTE || "/");
 const expectedMarker = process.env.EXPECTED_MARKER || process.env.EXPECTED_TEST_ID || "";
 const apiUrl = process.env.EXPECTED_API_URL || "";
@@ -20,6 +28,13 @@ const verification = await verifyPreview({
   expectedApiJson,
   commitSha,
   deploymentState,
+  appName,
+  appSlug,
+  reviewUrl,
+  productionUrl,
+  currentVersion,
+  reviewVersion,
+  productionVersion,
   timeoutMs
 });
 const output = {
@@ -65,16 +80,39 @@ if (verification.status !== "passed") {
   console.log(verification.summary);
 }
 
-async function verifyPreview({ previewRootUrl, expectedRoute, expectedMarker, apiUrl, expectedApiJson, commitSha, deploymentState, timeoutMs }) {
+async function verifyPreview({
+  previewRootUrl,
+  expectedRoute,
+  expectedMarker,
+  apiUrl,
+  expectedApiJson,
+  commitSha,
+  deploymentState,
+  appName,
+  appSlug,
+  reviewUrl,
+  productionUrl,
+  currentVersion,
+  reviewVersion,
+  productionVersion,
+  timeoutMs
+}) {
   const checkedAt = new Date().toISOString();
   const rootUrl = stripTrailingSlash(previewRootUrl);
-  const checkedUrl = `${rootUrl}${expectedRoute}`;
+  const reviewRootUrl = stripTrailingSlash(reviewUrl);
+  const checkedUrl = isKnownUrl(reviewRootUrl) ? ownerReviewRouteUrl(reviewRootUrl, expectedRoute) : `${rootUrl}${expectedRoute}`;
   const checks = [];
 
   checks.push(check("vercel_deployment_ready", deploymentState === "READY", `Deployment state: ${deploymentState || "missing"}`));
+  checks.push(check("review_url_known", isKnownUrl(reviewRootUrl), reviewRootUrl ? `Review URL: ${reviewRootUrl}` : "Review URL is missing."));
 
   const rootResult = await fetchText(rootUrl, timeoutMs);
   checks.push(check("preview_root_available", rootResult.status >= 200 && rootResult.status < 400, `Root status: ${rootResult.status}`));
+
+  const reviewRootResult = isKnownUrl(reviewRootUrl)
+    ? await fetchText(reviewRootUrl, timeoutMs)
+    : { ok: false, status: 0, finalUrl: reviewRootUrl || "unknown", body: "review URL missing" };
+  checks.push(check("review_url_accessible", reviewRootResult.status >= 200 && reviewRootResult.status < 400, `Review root status: ${reviewRootResult.status}`));
 
   const routeResult = await fetchText(checkedUrl, timeoutMs);
   checks.push(check("expected_route_http_200", routeResult.status === 200, `Route status: ${routeResult.status}`));
@@ -95,7 +133,7 @@ async function verifyPreview({ previewRootUrl, expectedRoute, expectedMarker, ap
   const failedChecks = checks.filter((item) => item.status === "failed");
   const status = failedChecks.length ? "failed" : "passed";
 
-  return {
+  const verification = {
     kind: "preview_verification",
     schemaVersion: 1,
     status,
@@ -104,6 +142,8 @@ async function verifyPreview({ previewRootUrl, expectedRoute, expectedMarker, ap
         ? `Preview route ${expectedRoute} passed route-specific verification.`
         : `Preview route ${expectedRoute} failed: ${failedChecks.map((item) => item.id).join(", ")}.`,
     previewRootUrl: rootUrl,
+    reviewUrl: reviewRootUrl || "unknown",
+    productionUrl: productionUrl || "approval-gated",
     expectedRoute,
     checkedUrl,
     commitSha,
@@ -114,6 +154,10 @@ async function verifyPreview({ previewRootUrl, expectedRoute, expectedMarker, ap
       root: {
         status: rootResult.status,
         finalUrl: rootResult.finalUrl
+      },
+      reviewRoot: {
+        status: reviewRootResult.status,
+        finalUrl: reviewRootResult.finalUrl
       },
       route: {
         status: routeResult.status,
@@ -139,6 +183,37 @@ async function verifyPreview({ previewRootUrl, expectedRoute, expectedMarker, ap
       migrationsBlocked: true,
       protectedPreviewBypassLinksPubliclyBlocked: true
     }
+  };
+
+  const deploymentLifecycle = buildDeploymentLifecycle({
+    input: {
+      appName,
+      appSlug,
+      reviewUrl: reviewRootUrl,
+      productionUrl,
+      deploymentUrl: rootUrl,
+      deploymentState: status === "passed" ? "review_ready" : "failed_needs_fix",
+      currentVersion,
+      reviewVersion,
+      productionVersion,
+      approvalRequired: true,
+      lastDeploymentTimestamp: checkedAt
+    },
+    previewVerification: verification,
+    appName,
+    slug: appSlug,
+    relatedPreviewUrl: rootUrl
+  });
+  validateDeploymentLifecycle(deploymentLifecycle);
+
+  return {
+    ...verification,
+    vercelDeploymentState: verification.deploymentState,
+    lifecycleDeploymentState: deploymentLifecycle.deploymentState,
+    currentVersion: deploymentLifecycle.currentVersion,
+    reviewVersion: deploymentLifecycle.reviewVersion,
+    productionVersion: deploymentLifecycle.productionVersion,
+    deploymentLifecycle
   };
 }
 
@@ -228,7 +303,11 @@ function buildFailureIssueBody(verification) {
     "## Evidence",
     `- Deployment state: ${verification.deploymentState}`,
     `- Root URL: ${verification.previewRootUrl}`,
+    `- Review URL: ${verification.reviewUrl}`,
+    `- Production URL: ${verification.productionUrl}`,
     `- Checked URL: ${verification.checkedUrl}`,
+    `- Lifecycle deployment state: ${verification.lifecycleDeploymentState || verification.deploymentLifecycle?.deploymentState || "unknown"}`,
+    `- Current version: ${verification.currentVersion}`,
     `- Route status: ${verification.http.route.status}`,
     `- Marker found: ${verification.http.route.markerFound}`,
     `- Commit SHA: ${verification.commitSha || "missing"}`,
@@ -244,6 +323,7 @@ function buildFailureIssueBody(verification) {
     "- source-of-truth/03-life-produces-life.md",
     "- source-of-truth/04-app-purpose-rules.md",
     "- source-of-truth/05-ecosystem-design-gates.md",
+    "- source-of-truth/app-url-lifecycle-standard.md",
     "- source-of-truth/build-completion-orchestrator.md",
     "- source-of-truth/deployment-environment-standard.md",
     "- source-of-truth/release-gate-standard.md",
@@ -277,6 +357,13 @@ function requiredEnv(name) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required.`);
   return value;
+}
+
+function slugify(value) {
+  return String(value || "app")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "app";
 }
 
 function writeJson(filePath, value) {

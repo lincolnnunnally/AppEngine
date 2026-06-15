@@ -16,6 +16,7 @@ const backendRequired = booleanFrom(input.backendRequired, process.env.APP_BACKE
 const backendProvider = input.backendProvider || process.env.APP_BACKEND_PROVIDER || (backendRequired ? "Render" : "Vercel Functions");
 const databaseProvider = input.databaseProvider || process.env.APP_DATABASE_PROVIDER || "Neon";
 const previewUrl = input.previewUrl || process.env.APP_PREVIEW_URL || "planned";
+const reviewUrl = input.reviewUrl || process.env.APP_REVIEW_URL || process.env.OWNER_REVIEW_URL || "planned";
 const productionUrl = input.productionUrl || process.env.APP_PRODUCTION_URL || "approval-gated";
 const customDomain = input.customDomain || process.env.APP_CUSTOM_DOMAIN || "planned";
 const healthPath = input.healthPath || process.env.APP_HEALTH_PATH || "/api/health";
@@ -52,6 +53,7 @@ const deploymentEnvironment =
     backendProvider,
     databaseProvider,
     previewUrl,
+    reviewUrl,
     productionUrl,
     customDomain,
     healthPath,
@@ -169,6 +171,7 @@ function buildDeploymentEnvironment({
   backendProvider,
   databaseProvider,
   previewUrl,
+  reviewUrl,
   productionUrl,
   customDomain,
   healthPath,
@@ -185,6 +188,7 @@ function buildDeploymentEnvironment({
     frontend: {
       provider: frontendProvider,
       previewUrl,
+      reviewUrl,
       previewAccess: "public_by_default",
       productionUrl,
       customDomain,
@@ -380,6 +384,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       gate("cost_governance", "required", "cost_governance"),
       gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
+      gate("deployment_lifecycle", "required", "deployment_lifecycle"),
       gate("design_quality", "required", designReview.kind),
       gate("designer_review", "required", designReview.reviewers.designerStatus),
       gate("customer_perspective_review", "required", designReview.reviewers.customerPerspectiveStatus),
@@ -557,6 +562,7 @@ function buildFollowUpTasks({ appName, slug, providerCostReview, deploymentEnvir
         `- API/backend provider: ${deploymentEnvironment.apiBackend.provider}`,
         `- Database: ${deploymentEnvironment.database.provider}`,
         `- Preview URL: ${deploymentEnvironment.frontend.previewUrl}`,
+        `- Review URL: ${deploymentEnvironment.frontend.reviewUrl}`,
         `- Production URL: ${deploymentEnvironment.frontend.productionUrl}`,
         `- Custom domain/subdomain: ${deploymentEnvironment.frontend.customDomain}`,
         `- Health: ${deploymentEnvironment.frontend.healthPath}`,
@@ -690,6 +696,7 @@ function validateDeploymentEnvironment(plan) {
     ["app.version", plan.app?.version],
     ["frontend.provider", plan.frontend?.provider],
     ["frontend.previewUrl", plan.frontend?.previewUrl],
+    ["frontend.reviewUrl", plan.frontend?.reviewUrl],
     ["frontend.productionUrl", plan.frontend?.productionUrl],
     ["frontend.customDomain", plan.frontend?.customDomain],
     ["frontend.logsUrl", plan.frontend?.logsUrl],

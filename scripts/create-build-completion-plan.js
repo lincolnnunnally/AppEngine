@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { applyCostGovernanceToDecision, buildCostGovernance, validateCostGovernance } from "./lib/cost-governance.js";
+import { buildDeploymentLifecycle, ownerReviewRouteUrl, validDeploymentStates, validateDeploymentLifecycle } from "./lib/deployment-lifecycle.js";
 
 const combinedOutput = process.env.BUILD_COMPLETION_OUTPUT || "";
 const planOutput = process.env.BUILD_COMPLETION_PLAN_OUTPUT || "";
@@ -9,11 +10,13 @@ const inputPath = process.env.BUILD_COMPLETION_INPUT || "";
 const packetPath = process.env.BUILD_COMPLETION_PACKET || "";
 const previewVerificationPath = process.env.PREVIEW_VERIFICATION_INPUT || "";
 const costGovernancePath = process.env.COST_GOVERNANCE_INPUT || "";
+const deploymentLifecyclePath = process.env.DEPLOYMENT_LIFECYCLE_INPUT || "";
 
 const input = readInput(inputPath);
 const packet = readInput(packetPath);
 const previewVerification = readInput(previewVerificationPath);
 const costGovernanceInput = input.costGovernance || readInput(costGovernancePath);
+const deploymentLifecycleInput = input.deploymentLifecycle || input.deployment_lifecycle || readInput(deploymentLifecyclePath);
 
 const packetApp = packet.app || packet.content?.app || {};
 const appName = input.appName || input.name || packetApp.name || process.env.APP_NAME || "Example App";
@@ -27,12 +30,22 @@ const sourceIssue =
 const currentPhase = input.currentPhase || process.env.BUILD_CURRENT_PHASE || firstOpenPhase(packet) || "planning";
 const currentState = normalizeState(input.currentState || process.env.BUILD_CURRENT_STATE || inferInitialState({ packet, currentPhase }));
 const relatedPr = input.relatedPr || process.env.BUILD_RELATED_PR || "";
-const relatedPreviewUrl =
+const rawRelatedPreviewUrl =
   input.relatedPreviewUrl ||
   process.env.BUILD_RELATED_PREVIEW_URL ||
   previewVerification.checkedUrl ||
   previewVerification.previewRootUrl ||
   "";
+const deploymentLifecycle = buildDeploymentLifecycle({
+  input: deploymentLifecycleInput,
+  packet,
+  previewVerification,
+  appName,
+  slug,
+  relatedPreviewUrl: rawRelatedPreviewUrl
+});
+validateDeploymentLifecycle(deploymentLifecycle);
+const relatedPreviewUrl = rawRelatedPreviewUrl || (deploymentLifecycle.discovery.deploymentUrlKnown ? deploymentLifecycle.deploymentUrl : "");
 const requiredGates = normalizeGateList(input.requiredGates || defaultRequiredGates(packet));
 const passedGates = normalizeGateList(input.passedGates || gatesFromEnv("BUILD_PASSED_GATES"));
 const failedGates = normalizeGateList(input.failedGates || gatesFromEnv("BUILD_FAILED_GATES")).map(markGateFailed);
@@ -49,7 +62,8 @@ const baseNextSafeAction = determineNextSafeAction({
   passedGates,
   failedGates,
   ownerApprovalRequired,
-  safety
+  safety,
+  deploymentLifecycle
 });
 const costGovernance = buildCostGovernance({
   input: costGovernanceInput,
@@ -82,6 +96,7 @@ const plan = buildCompletionPlan({
   safety,
   costGovernance,
   previewVerification,
+  deploymentLifecycle,
   followUpTasks: buildFollowUpTasks({
     appName,
     slug,
@@ -89,6 +104,7 @@ const plan = buildCompletionPlan({
     blockedReason: nextSafeAction.blockedReason,
     currentPhase,
     costGovernance,
+    deploymentLifecycle,
     previewVerification,
     relatedPr,
     relatedPreviewUrl
@@ -100,8 +116,16 @@ validateBuildCompletionPlan(plan);
 const output = {
   agent: "planner",
   status: plan.blockedReason ? "needs_follow_up" : "completed",
-  summary: `Created build completion plan for ${appName}; next safe action: ${plan.nextSafeAction}.`,
+  summary: [
+    `Created build completion plan for ${appName}; next safe action: ${plan.nextSafeAction}.`,
+    ownerFacingUrlSummary(deploymentLifecycle, previewVerification)
+  ].join(" "),
   artifacts: [
+    {
+      kind: "deployment_lifecycle",
+      title: `${appName} Deployment Lifecycle`,
+      content: deploymentLifecycle
+    },
     {
       kind: "build_completion_plan",
       title: `${appName} Build Completion Plan`,
@@ -142,6 +166,7 @@ function buildCompletionPlan({
   failedGates,
   safety,
   costGovernance,
+  deploymentLifecycle,
   previewVerification,
   followUpTasks
 }) {
@@ -160,11 +185,16 @@ function buildCompletionPlan({
     ownerApprovalRequired,
     relatedPr: relatedPr || null,
     relatedPreviewUrl: relatedPreviewUrl || null,
+    reviewUrl: ownerFacingReviewUrl(deploymentLifecycle, previewVerification),
+    productionUrl: deploymentLifecycle.productionUrl,
+    deploymentState: deploymentLifecycle.deploymentState,
+    currentVersion: deploymentLifecycle.currentVersion,
+    deploymentLifecycle,
     requiredGates,
     passedGates,
     failedGates,
     followUpTasks,
-    evidenceLinks: buildEvidenceLinks({ sourceIssue, relatedPr, relatedPreviewUrl, previewVerification }),
+    evidenceLinks: buildEvidenceLinks({ sourceIssue, relatedPr, relatedPreviewUrl, previewVerification, deploymentLifecycle }),
     safety,
     costGovernance,
     budgetAwareNextSafeAction: costGovernance.nextBudgetAction,
@@ -199,6 +229,7 @@ function determineNextSafeAction({
   currentPhase,
   packet,
   previewVerification,
+  deploymentLifecycle,
   relatedPr,
   relatedPreviewUrl,
   requiredGates,
@@ -243,6 +274,32 @@ function determineNextSafeAction({
     return action("create_planning_issue", "planned", "App Build Packet or vNext Packet is missing.");
   }
 
+  if (deploymentLifecycle.deploymentState === "failed_needs_fix") {
+    return action("create_fix_issue", "failed_needs_fix", "Deployment lifecycle is failed and needs a focused fix.");
+  }
+  if (deploymentLifecycle.deploymentState === "review_blocked" && ["draft_pr_open", "preview_pending", "preview_verified", "build_preview"].includes(currentState)) {
+    return action("create_fix_issue", "review_blocked", "Owner review URL is missing, unknown, or not accessible.");
+  }
+  if (currentState === "build_preview") {
+    return deploymentLifecycle.discovery.reviewUrlKnown
+      ? action("verify_review_url", "build_preview", "")
+      : action("create_fix_issue", "review_blocked", "Owner review URL is not recorded.");
+  }
+  if (currentState === "review_ready") {
+    return action("await_owner_review", "review_ready", "Owner review is required before release approval.");
+  }
+  if (currentState === "production_blocked") {
+    return {
+      action: "stop_for_owner_approval",
+      state: "owner_approval_required",
+      blockedReason: "Production remains blocked until owner approval is recorded.",
+      ownerApprovalRequired: true,
+      failedGates
+    };
+  }
+  if (currentState === "production_live") return action("create_vnext_packet", "ready_for_vnext", "");
+  if (currentState === "approved_for_release") return action("prepare_release_gate", "approved_for_release", "");
+
   if (currentState === "ready_for_vnext") return action("create_vnext_packet", "ready_for_vnext", "");
   if (currentState === "failed_needs_fix" || currentState === "review_blocked") {
     return action("create_fix_issue", currentState, "The current build state is blocked and needs a fix.");
@@ -267,10 +324,13 @@ function determineNextSafeAction({
       : action("wait_for_preview", "preview_pending", "Preview URL is not recorded yet.");
   }
   if (currentState === "preview_verified") {
+    if (!deploymentLifecycle.discovery.reviewUrlKnown) {
+      return action("create_fix_issue", "review_blocked", "Preview is verified, but no owner review URL is recorded.");
+    }
     const missingReviewGates = requiredGates.filter((gate) => gate.phase === "review" && !passedGates.some((passed) => passed.id === gate.id));
     return missingReviewGates.length
       ? action("run_review_gates", "preview_verified", "")
-      : action("prepare_release_gate", "release_blocked", "Release gate must stop before production approval.");
+      : action("await_owner_review", "review_ready", "Owner review is required before release approval.");
   }
   if (currentState === "ready_for_build") return action("create_implementation_issue", "ready_for_build", "");
 
@@ -291,7 +351,7 @@ function determineNextSafeAction({
   }
 }
 
-function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase, costGovernance, previewVerification, relatedPr, relatedPreviewUrl }) {
+function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase, costGovernance, deploymentLifecycle, previewVerification, relatedPr, relatedPreviewUrl }) {
   const titlePrefix = `[${slug}]`;
   const sharedGuardrails = [
     "## Guardrails",
@@ -317,6 +377,19 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         `- Model route: ${costGovernance.modelRouting.taskClass} -> ${costGovernance.modelRouting.recommendedClass}`
       ].join("\n")
     : "";
+  const deploymentLifecycleSummary = deploymentLifecycle?.kind === "deployment_lifecycle"
+    ? [
+        "## Deployment Lifecycle",
+        `- Review URL: ${deploymentLifecycle.reviewUrl}`,
+        `- Production URL: ${deploymentLifecycle.productionUrl}`,
+        `- Current deployment URL: ${deploymentLifecycle.deploymentUrl}`,
+        `- Deployment state: ${deploymentLifecycle.deploymentState}`,
+        `- Current version: ${deploymentLifecycle.currentVersion}`,
+        `- Review version: ${deploymentLifecycle.reviewVersion}`,
+        `- Production version: ${deploymentLifecycle.productionVersion}`,
+        `- Approval required: ${deploymentLifecycle.approvalRequired}`
+      ].join("\n")
+    : "";
 
   const tasks = {
     create_planning_issue: {
@@ -330,6 +403,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         requiredSourceFiles(),
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         costGovernanceSummary,
         costGovernanceSummary ? "" : "",
         sharedGuardrails
@@ -347,6 +422,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         requiredSourceFiles(),
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         costGovernanceSummary,
         "",
         sharedGuardrails
@@ -364,6 +441,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         requiredSourceFiles(),
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         costGovernanceSummary,
         "",
         sharedGuardrails
@@ -377,6 +456,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         "The slice must produce reviewable generated app code in a draft PR path only.",
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         requiredSourceFiles(),
         "",
         sharedGuardrails
@@ -390,6 +471,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         "The PR must remain draft until preview verification and review gates pass.",
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         requiredSourceFiles(),
         "",
         sharedGuardrails
@@ -403,6 +486,7 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         relatedPr ? `Related PR: ${relatedPr}` : "Related PR: not recorded",
         relatedPreviewUrl ? `Preview URL: ${relatedPreviewUrl}` : "Preview URL: not recorded",
+        `Review URL: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
         "",
         requiredSourceFiles(),
         "",
@@ -416,6 +500,7 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         `Verify the preview deployment for ${appName}.`,
         "",
         relatedPreviewUrl ? `Preview URL: ${relatedPreviewUrl}` : "Preview URL: not recorded",
+        `Review URL: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
         "Preview success must check the expected route, marker content, commit SHA, and mock/API JSON when applicable.",
         "",
         requiredSourceFiles(),
@@ -429,6 +514,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
       body: [
         `Run design, customer perspective, compatibility, workflow, code, and release-blocking review gates for ${appName}.`,
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         requiredSourceFiles(),
         "",
         sharedGuardrails
@@ -442,6 +529,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         blockedReason ? `Blocked reason: ${blockedReason}` : "",
         previewVerification.kind === "preview_verification" ? `Preview status: ${previewVerification.status}` : "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         "",
         requiredSourceFiles(),
         "",
@@ -458,6 +547,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         "Record explicit owner approval before production, paid resources, migrations, secrets/env changes, or merge actions.",
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         requiredSourceFiles(),
         "",
         sharedGuardrails
@@ -471,6 +562,8 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         "",
         "Production remains blocked until owner approval is recorded.",
         "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
         requiredSourceFiles(),
         "",
         sharedGuardrails
@@ -483,6 +576,41 @@ function buildFollowUpTasks({ appName, slug, action, blockedReason, currentPhase
         `Create a vNext packet for ${appName}.`,
         "",
         "Load the existing charter, registry entry, monitoring data, known issues, release history, and current version before planning changes.",
+        "",
+        deploymentLifecycleSummary,
+        deploymentLifecycleSummary ? "" : "",
+        requiredSourceFiles(),
+        "",
+        sharedGuardrails
+      ].join("\n")
+    },
+    verify_review_url: {
+      title: `${titlePrefix} Verify owner review URL`,
+      recommendedLabel: "ai:review",
+      body: [
+        `Verify the owner review URL for ${appName}.`,
+        "",
+        `Review URL: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
+        `Deployment state: ${deploymentLifecycle?.deploymentState || "unknown"}`,
+        "The review URL must be accessible without protected bypass links and must show the expected app route/version.",
+        "",
+        requiredSourceFiles(),
+        "",
+        sharedGuardrails
+      ].join("\n")
+    },
+    await_owner_review: {
+      title: `${titlePrefix} Await owner review`,
+      recommendedLabel: "ai:review",
+      body: [
+        `${appName} is ready for owner review.`,
+        "",
+        `Review here: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}`,
+        `Production: ${formatOwnerProductionStatus(deploymentLifecycle)}`,
+        `Deployment state: ${deploymentLifecycle?.deploymentState || "unknown"}`,
+        `Current version: ${deploymentLifecycle?.currentVersion || "unknown"}`,
+        "",
+        "Do not promote production until owner approval is recorded.",
         "",
         requiredSourceFiles(),
         "",
@@ -504,6 +632,11 @@ function validateBuildCompletionPlan(plan) {
     ["currentPhase", plan.currentPhase],
     ["currentState", plan.currentState],
     ["nextSafeAction", plan.nextSafeAction],
+    ["reviewUrl", plan.reviewUrl],
+    ["productionUrl", plan.productionUrl],
+    ["deploymentState", plan.deploymentState],
+    ["currentVersion", plan.currentVersion],
+    ["deploymentLifecycle", plan.deploymentLifecycle],
     ["safety", plan.safety],
     ["costGovernance", plan.costGovernance],
     ["budgetAwareNextSafeAction", plan.budgetAwareNextSafeAction],
@@ -514,6 +647,7 @@ function validateBuildCompletionPlan(plan) {
 
   if (!validStates().has(plan.currentState)) missing.push(`currentState:${plan.currentState}`);
   if (!validActions().has(plan.nextSafeAction)) missing.push(`nextSafeAction:${plan.nextSafeAction}`);
+  if (!validDeploymentStates().has(plan.deploymentState)) missing.push(`deploymentState:${plan.deploymentState}`);
   if (!Array.isArray(plan.requiredGates)) missing.push("requiredGates");
   if (!Array.isArray(plan.passedGates)) missing.push("passedGates");
   if (!Array.isArray(plan.failedGates)) missing.push("failedGates");
@@ -529,6 +663,23 @@ function validateBuildCompletionPlan(plan) {
   }
 
   if (missing.length) throw new Error(`Build completion plan is missing required fields: ${missing.join(", ")}`);
+}
+
+function ownerFacingUrlSummary(deploymentLifecycle, previewVerification = {}) {
+  return [
+    `Review here: ${ownerFacingReviewUrl(deploymentLifecycle, previewVerification)}.`,
+    `Production: ${formatOwnerProductionStatus(deploymentLifecycle)}.`
+  ].join(" ");
+}
+
+function ownerFacingReviewUrl(deploymentLifecycle, previewVerification = {}) {
+  if (!deploymentLifecycle?.discovery?.reviewUrlKnown) return "unknown";
+  return ownerReviewRouteUrl(deploymentLifecycle.reviewUrl, previewVerification.expectedRoute || "/") || deploymentLifecycle.reviewUrl;
+}
+
+function formatOwnerProductionStatus(deploymentLifecycle) {
+  if (!deploymentLifecycle || deploymentLifecycle.deploymentState !== "production_live") return "blocked/not live yet";
+  return deploymentLifecycle.productionUrl || "live";
 }
 
 function buildSafety(safetyInput) {
@@ -564,6 +715,7 @@ function defaultRequiredGates(packet) {
     gate("app_build_packet", "planning"),
     gate("provider_cost_review", "planning"),
     gate("deployment_environment", "planning"),
+    gate("deployment_lifecycle", "preview"),
     gate("preview_verification", "preview"),
     gate("design_review", "review"),
     gate("customer_perspective_review", "review"),
@@ -618,8 +770,10 @@ function handoffForAction(action) {
     create_draft_pr: ["builder"],
     wait_for_preview: ["workflow_tester"],
     verify_preview: ["workflow_tester"],
+    verify_review_url: ["workflow_tester"],
     run_review_gates: ["designer", "customer_perspective", "workflow_tester", "code_reviewer"],
     create_fix_issue: ["fixer"],
+    await_owner_review: ["code_reviewer"],
     stop_for_owner_approval: ["code_reviewer"],
     pause_for_budget: ["code_reviewer"],
     request_budget_approval: ["code_reviewer"],
@@ -630,11 +784,13 @@ function handoffForAction(action) {
   return handoffs[action] || ["planner"];
 }
 
-function buildEvidenceLinks({ sourceIssue, relatedPr, relatedPreviewUrl, previewVerification }) {
+function buildEvidenceLinks({ sourceIssue, relatedPr, relatedPreviewUrl, previewVerification, deploymentLifecycle }) {
   return {
     sourceIssueUrl: normalizeSourceIssue(sourceIssue).url || null,
     relatedPrUrl: relatedPr || null,
     previewUrl: relatedPreviewUrl || null,
+    reviewUrl: ownerFacingReviewUrl(deploymentLifecycle, previewVerification),
+    productionUrl: deploymentLifecycle?.productionUrl || null,
     previewCheckedUrl: previewVerification.checkedUrl || null,
     previewArtifact: previewVerification.kind === "preview_verification" ? "preview_verification" : null
   };
@@ -650,6 +806,7 @@ function requiredSourceFiles() {
     "- source-of-truth/04-app-purpose-rules.md",
     "- source-of-truth/05-ecosystem-design-gates.md",
     "- source-of-truth/build-completion-orchestrator.md",
+    "- source-of-truth/app-url-lifecycle-standard.md",
     "- source-of-truth/cost-governance-model-routing.md",
     "- source-of-truth/app-build-packet.md",
     "- source-of-truth/deployment-environment-standard.md",
@@ -688,7 +845,12 @@ function validStates() {
     "draft_pr_open",
     "preview_pending",
     "preview_verified",
+    "build_preview",
+    "review_ready",
     "review_blocked",
+    "approved_for_release",
+    "production_live",
+    "production_blocked",
     "release_blocked",
     "owner_approval_required",
     "ready_for_vnext",
@@ -703,8 +865,10 @@ function validActions() {
     "create_draft_pr",
     "wait_for_preview",
     "verify_preview",
+    "verify_review_url",
     "run_review_gates",
     "create_fix_issue",
+    "await_owner_review",
     "stop_for_owner_approval",
     "pause_for_budget",
     "request_budget_approval",

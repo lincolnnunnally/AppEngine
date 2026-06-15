@@ -45,6 +45,7 @@ Every agent workflow must load:
 - End-to-End AppEngine Command Test Standard when proving the handoff-to-packet-to-follow-up path
 - First Real App Pilot Template when running or reviewing the bounded pilot app build
 - App Build Packet when planning or building a new app, generated app, major rebuild, or complex multi-phase workflow
+- App URL Lifecycle Standard when planning, building, reviewing, verifying, monitoring, releasing, or improving generated app URLs
 - Identity/Auth Standard when planning, building, reviewing, or launching a generated app
 - Super Admin Registry Standard when planning, building, reviewing, monitoring, or launching a generated app
 - Operations, Cost, and Provider Strategy Standard before provisioning provider resources, approving deployment environments, or launching generated apps

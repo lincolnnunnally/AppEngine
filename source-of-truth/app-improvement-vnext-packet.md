@@ -83,8 +83,9 @@ Agents must stop or create follow-up work when:
 - The improvement needs new paid providers but no provider/cost delta exists.
 - The improvement requires model-heavy debugging, implementation, architecture, or design generation but cost governance is missing or says to pause/request approval.
 - The improvement skips design, compatibility, workflow testing, or release gates.
-- The improvement advances without a Build Completion plan naming the current state, next safe action, blockers, related PR, preview URL, gates, and follow-up tasks.
-- Preview is claimed without route-specific `preview_verification`.
+- The improvement advances without a Build Completion plan naming the current state, next safe action, blockers, related PR, review URL, production URL, deployment state, gates, and follow-up tasks.
+- The improvement advances without a `deployment_lifecycle` artifact naming the current review URL, production URL, deployment URL, current version, review version, and production version.
+- Preview is claimed without route-specific `preview_verification` and a known owner review URL.
 - The improvement is broad enough to need a new App Build Packet or explicit v2 packet.
 
 ## Machine Shape
@@ -126,6 +127,7 @@ Agents should produce vNext packet artifacts with this shape:
   "buildCompletion": {
     "kind": "build_completion_plan",
     "required": true,
+    "deploymentLifecycleRequired": true,
     "costGovernanceRequired": true,
     "nextSafeAction": "create_implementation_issue"
   },

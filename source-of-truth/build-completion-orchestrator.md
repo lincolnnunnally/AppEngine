@@ -36,6 +36,10 @@ The artifact must track:
 - Whether owner approval is required
 - Related PR
 - Related preview URL
+- Owner review URL
+- Production URL
+- Deployment state
+- Current version
 - Required gates
 - Passed gates
 - Failed gates
@@ -53,6 +57,7 @@ A preview passes only when:
 
 - Vercel deployment state is `READY`
 - Preview root URL is available
+- Owner review URL exists and is accessible without protected bypass/share links
 - Expected route returns HTTP 200
 - Expected route is not the wrong root page
 - Expected route contains an app marker text or test id
@@ -87,6 +92,26 @@ The artifact must track:
 
 Cost governance is distinct from provider cost review. Provider cost review governs generated-app infrastructure costs. Cost governance governs model/API credit consumption by AppEngine agents.
 
+### deployment_lifecycle
+
+Every generated app should produce or update a `deployment_lifecycle` artifact before AppEngine claims a preview is reviewable, a release candidate is ready, production is live, or vNext work is safe to plan.
+
+The artifact must track:
+
+- App name
+- App slug
+- Owner review URL
+- Production URL
+- Current deployment URL
+- Deployment state
+- Current version
+- Review version
+- Production version
+- Whether approval is required
+- Last deployment timestamp
+
+`build_completion_plan` must use `deployment_lifecycle` as the authority for `reviewUrl`, `productionUrl`, `deploymentState`, and current version.
+
 ## Build States
 
 Use these state values:
@@ -96,7 +121,12 @@ Use these state values:
 - `draft_pr_open`
 - `preview_pending`
 - `preview_verified`
+- `build_preview`
+- `review_ready`
 - `review_blocked`
+- `approved_for_release`
+- `production_live`
+- `production_blocked`
 - `release_blocked`
 - `owner_approval_required`
 - `ready_for_vnext`
@@ -111,8 +141,10 @@ Use these action values:
 - `create_draft_pr`
 - `wait_for_preview`
 - `verify_preview`
+- `verify_review_url`
 - `run_review_gates`
 - `create_fix_issue`
+- `await_owner_review`
 - `stop_for_owner_approval`
 - `pause_for_budget`
 - `request_budget_approval`
@@ -135,6 +167,7 @@ These actions may safely auto-progress when source-of-truth checks pass and arti
 - Create draft PRs
 - Wait for preview
 - Verify preview routes
+- Verify owner review URLs
 - Run review gates
 - Create focused fix issues
 - Prepare release-gate artifacts without production deployment
@@ -196,6 +229,21 @@ Agents should produce build completion artifacts with this shape:
   "ownerApprovalRequired": false,
   "relatedPr": null,
   "relatedPreviewUrl": null,
+  "reviewUrl": "https://review.spark-of-hope.unitedundergod.org",
+  "productionUrl": "https://spark-of-hope.com",
+  "deploymentState": "review_ready",
+  "currentVersion": "v1",
+  "deploymentLifecycle": {
+    "kind": "deployment_lifecycle",
+    "reviewUrl": "https://review.spark-of-hope.unitedundergod.org",
+    "productionUrl": "https://spark-of-hope.com",
+    "deploymentUrl": "https://app-engine-preview.vercel.app",
+    "deploymentState": "review_ready",
+    "currentVersion": "v1",
+    "reviewVersion": "v1",
+    "productionVersion": "not_released",
+    "approvalRequired": true
+  },
   "requiredGates": [],
   "passedGates": [],
   "failedGates": [],
@@ -241,10 +289,13 @@ Agents should produce preview verification artifacts with this shape:
   "status": "passed",
   "summary": "Preview route passed route-specific verification.",
   "previewRootUrl": "https://preview.example.app",
+  "reviewUrl": "https://review.spark-of-hope.unitedundergod.org",
+  "productionUrl": "https://spark-of-hope.com",
   "expectedRoute": "/spark-of-hope-intake-lite",
   "checkedUrl": "https://preview.example.app/spark-of-hope-intake-lite",
   "commitSha": "abc123",
   "deploymentState": "READY",
+  "lifecycleDeploymentState": "review_ready",
   "checkedAt": "2026-06-14T00:00:00.000Z",
   "checks": [
     {
@@ -271,6 +322,7 @@ Agents should produce preview verification artifacts with this shape:
 Agents must not claim preview success when:
 
 - Only the root URL works.
+- Owner review URL is missing, unknown, inaccessible, stale, or protected by a bypass/share link.
 - The expected route returns 404.
 - The expected route returns the wrong page.
 - The marker text or test id is missing.
