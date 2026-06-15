@@ -152,15 +152,15 @@ Audit/status metadata must not contain story body, contact values, raw request p
     "name": "Spark of Hope Intake Lite",
     "slug": "spark-of-hope-intake-lite"
   },
-  "reviewUrl": "pending-pr-preview",
+  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
   "productionUrl": "approval-gated",
-  "deploymentUrl": "pending-pr-preview",
-  "deploymentState": "build_preview",
+  "deploymentUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "deploymentState": "review_ready",
   "currentVersion": "v1.1-preview-controlled-persistence",
   "reviewVersion": "v1.1-preview-controlled-persistence",
   "productionVersion": "not_released",
   "approvalRequired": true,
-  "lastDeploymentTimestamp": "pending-pr-preview",
+  "lastDeploymentTimestamp": "2026-06-15T13:16:29.240Z",
   "guardrails": {
     "productionDeployBlockedUntilApproval": true,
     "paidResourcesBlockedUntilApproval": true,
@@ -186,16 +186,16 @@ Audit/status metadata must not contain story body, contact values, raw request p
     "title": "Spark of Hope Intake Lite vNext 1",
     "url": "https://github.com/lincolnnunnally/AppEngine/issues/63"
   },
-  "currentPhase": "implementation",
-  "currentState": "draft_pr_open",
-  "nextSafeAction": "wait_for_preview",
-  "blockedReason": "Preview verification and review gates are required before merge or release advancement.",
-  "ownerApprovalRequired": true,
-  "relatedPr": "pending-pr",
-  "relatedPreviewUrl": null,
-  "reviewUrl": "pending-pr-preview",
+  "currentPhase": "review",
+  "currentState": "preview_verified",
+  "nextSafeAction": "run_review_gates",
+  "blockedReason": "",
+  "ownerApprovalRequired": false,
+  "relatedPr": "https://github.com/lincolnnunnally/AppEngine/pull/74",
+  "relatedPreviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
   "productionUrl": "approval-gated",
-  "deploymentState": "build_preview",
+  "deploymentState": "review_ready",
   "currentVersion": "v1.1-preview-controlled-persistence",
   "requiredGates": [
     "preview_verification",
@@ -206,9 +206,11 @@ Audit/status metadata must not contain story body, contact values, raw request p
     "release_gate"
   ],
   "passedGates": [
+    "preview_verification",
     "spark_intake_persistence_smoke",
     "generated_apps_guard",
-    "typecheck"
+    "typecheck",
+    "build"
   ],
   "failedGates": [],
   "budgetAwareNextSafeAction": "continue",
@@ -232,15 +234,15 @@ Audit/status metadata must not contain story body, contact values, raw request p
     "name": "Spark of Hope Intake Lite",
     "slug": "spark-of-hope-intake-lite"
   },
-  "currentState": "draft_pr_open",
-  "deploymentState": "build_preview",
+  "currentState": "preview_verified",
+  "deploymentState": "review_ready",
   "currentVersion": "v1.1-preview-controlled-persistence",
-  "reviewUrl": "pending-pr-preview",
+  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
   "productionUrl": "approval-gated",
-  "blockingProgress": "Waiting for PR preview and route-specific preview verification.",
-  "nextSafeAction": "wait_for_preview",
+  "blockingProgress": "Review gates are required before merge or release advancement.",
+  "nextSafeAction": "run_review_gates",
   "ownerReadable": {
-    "whereIsTheApp": "Review URL is pending until the PR preview is available.",
+    "whereIsTheApp": "Review here: https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
     "production": "Production: blocked/not live yet.",
     "whatHappensIfApproved": "Approval can allow merge of this preview slice, not production launch."
   },
@@ -255,12 +257,78 @@ Audit/status metadata must not contain story body, contact values, raw request p
 
 ## Preview Verification
 
-No Vercel preview verification is included in this source file because the preview URL is created after the PR opens. Preview verification must target:
-
-- route: `/spark-of-hope-intake-lite`
-- marker: `data-app-marker="spark-of-hope-intake-lite"`
-- API: `/api/spark-of-hope-intake-lite/stories`
-- expected API subset in default mode: `{ "ok": true, "mode": "preview_mock", "stored": false, "production": "blocked" }`
+```json
+{
+  "kind": "preview_verification",
+  "schemaVersion": 1,
+  "status": "passed",
+  "summary": "Preview route /spark-of-hope-intake-lite passed route-specific verification.",
+  "previewRootUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "reviewUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app",
+  "productionUrl": "approval-gated",
+  "expectedRoute": "/spark-of-hope-intake-lite",
+  "checkedUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+  "commitSha": "cf6fd3e",
+  "deploymentState": "READY",
+  "checkedAt": "2026-06-15T13:16:29.240Z",
+  "checks": [
+    {
+      "id": "vercel_deployment_ready",
+      "status": "passed",
+      "details": "Deployment state: READY"
+    },
+    {
+      "id": "expected_route_http_200",
+      "status": "passed",
+      "details": "Route status: 200"
+    },
+    {
+      "id": "expected_marker_present",
+      "status": "passed",
+      "details": "Marker: data-app-marker=\"spark-of-hope-intake-lite\""
+    },
+    {
+      "id": "expected_api_http_200",
+      "status": "passed",
+      "details": "API status: 200"
+    },
+    {
+      "id": "expected_api_json",
+      "status": "passed",
+      "details": "Expected API subset: {\"ok\":true,\"mode\":\"preview_mock\",\"stored\":false,\"production\":\"blocked\"}"
+    }
+  ],
+  "http": {
+    "route": {
+      "status": 200,
+      "finalUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite",
+      "markerFound": true
+    },
+    "api": {
+      "status": 200,
+      "finalUrl": "https://app-engine-7ztmgv4dv-lincolnnunnallys-projects.vercel.app/api/spark-of-hope-intake-lite/stories",
+      "json": {
+        "ok": true,
+        "mode": "preview_mock",
+        "stored": false,
+        "production": "blocked",
+        "storage": "disabled",
+        "reviewStatus": "not_started"
+      }
+    }
+  },
+  "lifecycleDeploymentState": "review_ready",
+  "guardrails": {
+    "rootUrlAloneCannotPass": true,
+    "route404Fails": true,
+    "markerRequired": true,
+    "productionDeployBlocked": true,
+    "paidResourcesBlocked": true,
+    "migrationsBlocked": true,
+    "protectedPreviewBypassLinksPubliclyBlocked": true
+  }
+}
+```
 
 ## Acceptance Criteria
 
