@@ -115,6 +115,8 @@ After changing Vercel variables, redeploy the affected environment. Check that t
 
 Health should report `storage: "neon"`, `databaseConfigured: true`, and `schemaReady: true`.
 
+These setup endpoints require engine-admin access. Local development can still use the documented admin bypass, but public deployments should require Auth.js sign-in with an owner/admin role.
+
 ## Auth Access
 
 During local development, admin routes can be opened without OAuth so you can keep building:
@@ -140,6 +142,10 @@ APP_ENGINE_OWNER_EMAIL
 AUTH_GOOGLE_ID
 AUTH_GOOGLE_SECRET
 ```
+
+`AUTH_SECRET` has no production fallback. Missing production secrets fail startup instead of silently using a development value. The local development fallback is only allowed when `NODE_ENV !== "production"`.
+
+AppEngine currently pins `next-auth` to `5.0.0-beta.31` because that is the version in the lockfile and runtime path. Do not float this dependency with `latest`; plan and test a dedicated upgrade before moving to a future stable Auth.js/NextAuth release.
 
 Generated apps must define an Identity/Auth plan before build or launch work begins. The standard lives in:
 

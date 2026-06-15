@@ -3,7 +3,8 @@ import PostgresAdapter from "@auth/pg-adapter";
 import { Pool } from "@neondatabase/serverless";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import { roleForEmail } from "@/lib/auth/roles";
+import { getAuthSecret } from "@/lib/auth/config";
+import { resolveRoleForSessionUser } from "@/lib/auth/roles";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 
 const providers = [
@@ -30,12 +31,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
 
   return {
     adapter: databaseUrl ? PostgresAdapter(new Pool({ connectionString: databaseUrl })) : undefined,
-    secret: process.env.AUTH_SECRET || "app-engine-local-development-secret",
+    secret: getAuthSecret(),
     providers,
     callbacks: {
-      session({ session }) {
+      async session({ session, user }) {
         if (session.user) {
-          session.user.role = roleForEmail(session.user.email);
+          session.user.role = await resolveRoleForSessionUser({
+            id: user?.id,
+            email: session.user.email || user?.email,
+            role: user?.role
+          });
         }
         return session;
       }
