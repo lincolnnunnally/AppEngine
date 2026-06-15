@@ -4,6 +4,8 @@ AppEngine must turn an approved `solution_candidate_review` into the correct rev
 
 This bridge produces a `candidate_packet_bridge` artifact. It is planning/packet-draft only. It does not create phase issues, trigger Codex build work, deploy production, create paid resources, apply migrations, add secrets, change env vars, change repository visibility, or auto-merge generated app code.
 
+After this bridge, AppEngine must run `source-of-truth/packet-draft-approval-gate.md` before any draft can become a final App Build Packet, vNext Packet, or Non-App Solution Plan.
+
 ## Purpose
 
 The Candidate To Packet Bridge answers:
@@ -204,6 +206,7 @@ Required source-of-truth files:
 - `source-of-truth/problem-portfolio-routing-standard.md`
 - `source-of-truth/solution-candidate-review-gate.md`
 - `source-of-truth/candidate-to-packet-bridge.md`
+- `source-of-truth/packet-draft-approval-gate.md`
 - `source-of-truth/app-portfolio-registry.md`
 - `source-of-truth/app-build-packet.md` when selected draft is `app_build_packet_draft`
 - `source-of-truth/app-improvement-vnext-packet.md` when selected draft is `vnext_packet_draft`

@@ -36,15 +36,24 @@ source-of-truth/05-ecosystem-design-gates.md
 source-of-truth/context-checklist.md
 source-of-truth/agent-enforcement.md
 source-of-truth/chatgpt-handoff-issue-standard.md
+source-of-truth/problem-to-solution-intake-standard.md
+source-of-truth/problem-portfolio-routing-standard.md
+source-of-truth/solution-candidate-review-gate.md
+source-of-truth/candidate-to-packet-bridge.md
+source-of-truth/packet-draft-approval-gate.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
 source-of-truth/pilot-app-build-template.md
+source-of-truth/build-completion-orchestrator.md
+source-of-truth/app-url-lifecycle-standard.md
+source-of-truth/cost-governance-model-routing.md
+source-of-truth/owner-status-report-standard.md
 source-of-truth/app-build-packet.md
 source-of-truth/identity-auth-standard.md
 source-of-truth/super-admin-registry.md
+source-of-truth/app-portfolio-registry.md
 source-of-truth/operations-cost-provider-strategy.md
-source-of-truth/cost-governance-model-routing.md
 source-of-truth/deployment-environment-standard.md
 source-of-truth/design-quality-gate.md
 source-of-truth/ux-review-standard.md
@@ -378,6 +387,14 @@ It writes a Codex-ready prompt package without exposing secrets.
 `scripts/create-solution-candidate-review.js` reviews a `problem_portfolio_routing` artifact and decides whether the candidate needs clarification, is blocked by security/cost/scope, or is ready for an App Build Packet request, vNext Packet request, or non-app solution plan request.
 
 `scripts/create-candidate-packet-bridge.js` converts an approved `solution_candidate_review` artifact into the correct review-ready packet draft without creating phase issues, triggering Codex build work, or deploying anything.
+
+`scripts/create-packet-draft-approval.js` reviews a `candidate_packet_bridge` draft and approves, revises, rejects, or blocks it before any final packet can be created.
+
+Local packet draft approval verification:
+
+```bash
+npm run smoke:packet-draft-approval
+```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
 
