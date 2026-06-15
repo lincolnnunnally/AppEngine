@@ -14,6 +14,7 @@ export type AgentArtifactKind =
   | "vnext_packet"
   | "identity_auth_plan"
   | "super_admin_registry_entry"
+  | "app_portfolio_registry"
   | "provider_cost_review"
   | "deployment_environment_plan"
   | "design_review"

@@ -65,6 +65,7 @@ Agents may return these artifact kinds when relevant:
 - `app_build_packet`: required before a new generated app, major rebuild, or complex app workflow is implemented.
 - `identity_auth_plan`: required for generated apps and launch work; defines provider, sessions, identity objects, memberships, roles, permissions, protected routes, local setup behavior, and production auth gates.
 - `super_admin_registry_entry`: required for generated apps and launch work; defines lifecycle status, owner, repo, deployment, health, logs, admin, users, billing/status if needed, and allowed admin actions.
+- `app_portfolio_registry`: required when AppEngine reports portfolio-wide app state; indexes every managed app by name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source-of-truth files, linked issues, and linked PRs.
 - `provider_cost_review`: required before generated apps provision provider resources or pass release; defines provider strategy, reuse options, preview/production cost posture, cost ceiling, upgrade trigger, and paid-resource approval gates.
 - `deployment_environment_plan`: required for generated apps and launch work; defines frontend provider, API/backend provider if needed, database provider, env var inventory, preview URL, production URL, custom domain/subdomain, logs, health checks, and rollback notes.
 - `design_review`: required for generated apps and release work; defines Designer review, Customer Perspective review, design quality checks, UX state checks, mobile checks, onboarding, admin screens, and release-blocking issues.
@@ -81,6 +82,8 @@ An `app_build_packet` artifact must include app charter path, purpose, audience,
 An `identity_auth_plan` artifact must not contain secrets, OAuth credentials, API keys, session secrets, provider tokens, private user data, or production bypass values.
 
 A `super_admin_registry_entry` artifact must not contain secrets. It may contain planned URLs, status values, provider names, route paths, and environment names.
+
+An `app_portfolio_registry` artifact must not contain secrets, private user data, private billing data, protected Vercel bypass/share links, or hidden deployment credentials. It must include every managed app's name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source-of-truth files, linked issues, and linked PRs. It must flag missing review URLs, missing source files, missing linked work, contradictory states, or production-live claims without approval evidence as blockers or focused follow-up tasks.
 
 A `provider_cost_review` artifact must not contain secrets, provider tokens, private billing data, or payment credentials. It blocks new paid provider resource creation and release approval until cost posture, reuse strategy, and owner approval needs are clear.
 
