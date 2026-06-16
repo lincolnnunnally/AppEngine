@@ -8,6 +8,7 @@ export type AgentArtifactKind =
   | "real_project_trial"
   | "trial_result_review"
   | "orchestrator_run"
+  | "pending_check_resolution"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"

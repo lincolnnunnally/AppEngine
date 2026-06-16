@@ -465,6 +465,26 @@ export function HandoffRelayControlCenter({
         {error ? <span className="error-chip">{error}</span> : null}
       </section>
 
+      <section className="panel pending-check-policy-panel" data-testid="pending-check-resolution-policy">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Pending Check Resolution</p>
+            <h2>Stuck is different from failed</h2>
+            <p>
+              If source check, typecheck, build, smoke tests, and GitHub verification pass, AppEngine can keep the PR reviewable when an
+              outside status stays pending too long. Failed checks still block, and this never approves an automatic merge.
+            </p>
+          </div>
+          <span className="handoff-state-pill">Owner review only</span>
+        </div>
+        <div className="pending-check-grid">
+          <StateBlock label="Required" value="source:check, typecheck, build, relevant smoke tests, and GitHub PR Verification must pass." />
+          <StateBlock label="Advisory" value="Old external pending statuses, such as stale Vercel signals, may become reviewable after timeout." />
+          <StateBlock label="Blocking" value="Any failed check, missing required check, failed preview verification, production action, migration, or paid resource stays blocked." />
+          <StateBlock label="Timeout" value="Default threshold is 45 minutes, configurable with APPENGINE_PENDING_CHECK_TIMEOUT_MINUTES." />
+        </div>
+      </section>
+
       <section className="panel project-memory-panel" data-testid="project-memory-engine">
         <div className="handoff-section-heading">
           <div>

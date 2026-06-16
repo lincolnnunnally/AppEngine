@@ -9,6 +9,7 @@ It lets Lincoln press one button so AppEngine can:
 - inspect pasted handoff summaries
 - inspect real project trials
 - derive design intent and portfolio context
+- inspect pending check resolution when external PR statuses are stale
 - choose the next safe action
 - explain why that action was selected
 - draft the next Codex/action prompt
@@ -77,6 +78,12 @@ Agents and tools may produce an `orchestrator_run` artifact:
       "status": "derived",
       "summary": "Portfolio context used for routing",
       "sourceFiles": ["source-of-truth/app-portfolio-registry.md"]
+    },
+    "pendingCheckResolution": {
+      "kind": "pending_check_resolution",
+      "status": "available",
+      "summary": "Required checks passed; external advisory status remains pending beyond timeout.",
+      "sourceFiles": ["source-of-truth/pending-check-resolution-policy.md"]
     }
   },
   "nextActionPrompt": {
@@ -120,8 +127,16 @@ The orchestrator should use:
 - `real_project_trial`
 - `design_intent_profile`
 - `app_portfolio_registry`
+- `pending_check_resolution` when PR checks are stuck pending
 
 If an input is missing, the orchestrator must say so plainly and choose the safest useful next action.
+
+When `pending_check_resolution` is present:
+
+- `blocked_by_failed_check` must stop progression.
+- `blocked_by_required_pending` must stop progression.
+- `waiting_for_timeout` must wait or ask the owner.
+- `review_ready_with_advisory_pending` may move to owner review only, never automatic merge.
 
 ## Owner Control Center
 

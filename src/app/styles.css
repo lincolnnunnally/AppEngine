@@ -1162,6 +1162,23 @@ label {
   align-items: start;
 }
 
+.pending-check-policy-panel {
+  display: grid;
+  gap: 14px;
+  background: #fff9f0;
+}
+
+.pending-check-policy-panel > .handoff-section-heading p {
+  max-width: 820px;
+  margin: 0;
+}
+
+.pending-check-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .project-memory-panel {
   display: grid;
   gap: 14px;
@@ -1585,6 +1602,7 @@ label {
     .handoff-state-grid,
     .handoff-analysis-grid,
     .handoff-prompt-meta,
+    .pending-check-grid,
     .project-memory-summary-grid,
     .project-memory-lists,
     .project-memory-summaries,
