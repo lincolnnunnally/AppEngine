@@ -38,6 +38,7 @@ shared_context_files:
   - source-of-truth/packet-draft-approval-gate.md
   - source-of-truth/final-packet-materialization.md
   - source-of-truth/phase-creation-approval-gate.md
+  - source-of-truth/phase-issue-generation.md
   - source-of-truth/intake-command-standard.md
   - source-of-truth/app-selection-standard.md
   - source-of-truth/end-to-end-command-test-standard.md
@@ -175,6 +176,7 @@ agents:
       - packet_draft_approval
       - final_packet_materialization
       - phase_creation_approval
+      - phase_issue_generation
       - intake_packet
       - pilot_app_build
       - build_completion_plan

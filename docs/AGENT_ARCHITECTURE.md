@@ -43,6 +43,7 @@ source-of-truth/candidate-to-packet-bridge.md
 source-of-truth/packet-draft-approval-gate.md
 source-of-truth/final-packet-materialization.md
 source-of-truth/phase-creation-approval-gate.md
+source-of-truth/phase-issue-generation.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
@@ -412,6 +413,14 @@ Local phase creation approval verification:
 
 ```bash
 npm run smoke:phase-creation-approval
+```
+
+`scripts/create-phase-issue-generation.js` turns an approved `phase_creation_approval` into bounded, reviewable phase issue drafts with phase order, labels to apply later, per-phase guardrails, and required source-of-truth files. It does not create GitHub issues, trigger Codex build work, deploy, provision, migrate, change secrets/env, or auto-merge generated app code.
+
+Local phase issue generation verification:
+
+```bash
+npm run smoke:phase-issue-generation
 ```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
