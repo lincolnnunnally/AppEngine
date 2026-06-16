@@ -69,7 +69,7 @@ Every `packet_draft_approval` must use one of these statuses:
 - `blocked_by_cost`
 - `blocked_by_scope`
 
-Only `approved_for_final_packet` may recommend the next planning step toward a final packet. Even then, this gate does not create the final packet.
+Only `approved_for_final_packet` may recommend the next planning step toward a final packet. Even then, this gate does not create the final packet. Final packet creation happens later through `source-of-truth/final-packet-materialization.md`.
 
 ## Required Approval Checks
 
@@ -228,6 +228,7 @@ Required source-of-truth files:
 - `source-of-truth/solution-candidate-review-gate.md`
 - `source-of-truth/candidate-to-packet-bridge.md`
 - `source-of-truth/packet-draft-approval-gate.md`
+- `source-of-truth/final-packet-materialization.md`
 - `source-of-truth/app-portfolio-registry.md`
 
 ## Guardrails

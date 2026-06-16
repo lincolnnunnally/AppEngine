@@ -36,6 +36,7 @@ shared_context_files:
   - source-of-truth/solution-candidate-review-gate.md
   - source-of-truth/candidate-to-packet-bridge.md
   - source-of-truth/packet-draft-approval-gate.md
+  - source-of-truth/final-packet-materialization.md
   - source-of-truth/intake-command-standard.md
   - source-of-truth/app-selection-standard.md
   - source-of-truth/end-to-end-command-test-standard.md
@@ -171,6 +172,7 @@ agents:
       - solution_candidate_review
       - candidate_packet_bridge
       - packet_draft_approval
+      - final_packet_materialization
       - intake_packet
       - pilot_app_build
       - build_completion_plan
