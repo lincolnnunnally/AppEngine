@@ -93,6 +93,7 @@
     "smoke:provider-cost": "node scripts/smoke-provider-cost.js",
     "smoke:cost-governance": "node scripts/smoke-cost-governance.js",
     "smoke:owner-status": "node scripts/smoke-owner-status-report.js",
+    "smoke:audit-trail-lite": "node scripts/smoke-audit-trail-lite.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",
