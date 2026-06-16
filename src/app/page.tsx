@@ -15,6 +15,7 @@ export default function HomePage() {
       <nav className="topnav">
         <strong>App Engine</strong>
         <div className="navlinks">
+          <Link href="/problem-intake-lite">Problem Intake</Link>
           <Link href="/spark-of-hope-intake-lite">Spark Intake</Link>
           <Link href="/owner-control-center">Owner Control</Link>
           <Link href="/builder">Builder</Link>
@@ -32,6 +33,12 @@ export default function HomePage() {
           real worker orchestration.
         </p>
         <div className="action-row">
+          <Link className="button primary" href="/problem-intake-lite">
+            Start Intake
+          </Link>
+          <Link className="button" href="/owner-control-center">
+            Owner Control
+          </Link>
           <Link className="button primary" href="/builder">
             Open Builder
           </Link>

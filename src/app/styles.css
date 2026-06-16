@@ -1087,6 +1087,229 @@ label {
   margin: 6px 0 0;
 }
 
+.problem-intake-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(420px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.problem-intake-copy {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-height: 520px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  background: #fff8ef;
+}
+
+.problem-intake-copy h1,
+.owner-control-header h1 {
+  max-width: 760px;
+}
+
+.guardrail-strip,
+.guardrail-list,
+.artifact-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guardrail-strip span,
+.guardrail-list span,
+.artifact-strip span {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--teal);
+  background: var(--green-soft);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.problem-intake-form {
+  display: grid;
+  gap: 16px;
+}
+
+.intake-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.choice-button,
+.queue-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--ink);
+  background: #ffffff;
+  font: inherit;
+  text-align: left;
+}
+
+.choice-button {
+  display: grid;
+  gap: 6px;
+  min-height: 118px;
+  cursor: pointer;
+}
+
+.choice-button.selected,
+.queue-item.selected {
+  border-color: var(--teal);
+  background: var(--green-soft);
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.choice-button span,
+.queue-item span,
+.queue-item small,
+.detail-grid span,
+.next-action-band span,
+.owner-summary-item span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.compact-form-grid textarea {
+  min-height: 104px;
+}
+
+.owner-control-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.owner-control-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.35fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.owner-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.owner-summary-item {
+  display: grid;
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #edf3fb;
+}
+
+.owner-summary-item strong {
+  color: var(--blue);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.owner-control-main {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.problem-queue,
+.owner-detail-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.queue-header,
+.detail-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.queue-list {
+  display: grid;
+  gap: 8px;
+}
+
+.queue-item {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.queue-item strong {
+  overflow-wrap: anywhere;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-grid section,
+.next-action-band,
+.empty-state,
+.feedback-list article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.detail-grid p,
+.next-action-band strong,
+.feedback-list p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.next-action-band {
+  background: #f7efd8;
+}
+
+.next-action-band strong {
+  display: block;
+}
+
+.owner-feedback-form {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.feedback-list {
+  display: grid;
+  gap: 8px;
+}
+
+.feedback-list small {
+  color: var(--muted);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.empty-state {
+  display: grid;
+  gap: 6px;
+}
+
+.empty-state.spacious {
+  min-height: 280px;
+  align-content: center;
+}
+
 .owner-control-page {
   padding-bottom: 48px;
 }
@@ -1597,6 +1820,12 @@ label {
     .form-grid,
     .spark-hero,
     .spark-layout,
+    .problem-intake-layout,
+    .intake-choice-grid,
+    .owner-control-header,
+    .owner-summary-grid,
+    .owner-control-main,
+    .detail-grid,
     .handoff-hero,
     .handoff-layout,
     .handoff-state-grid,
@@ -1622,6 +1851,15 @@ label {
   .handoff-section-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .problem-intake-copy {
+    min-height: auto;
+  }
+
+  .queue-header,
+  .detail-heading {
+    display: grid;
   }
 
   .spark-submit {
