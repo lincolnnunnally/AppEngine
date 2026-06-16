@@ -1704,6 +1704,30 @@ label {
   gap: 10px;
 }
 
+.audit-trail-panel {
+  display: grid;
+  gap: 14px;
+  background: #f7fbfa;
+}
+
+.audit-event-list {
+  display: grid;
+  gap: 10px;
+}
+
+.audit-event-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #b9d8d2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.audit-event-card p {
+  margin-bottom: 0;
+}
+
 .project-memory-panel {
   display: grid;
   gap: 14px;
@@ -2141,6 +2165,7 @@ label {
     .handoff-prompt-meta,
     .owner-quick-status-grid,
     .pending-check-grid,
+    .audit-event-card .handoff-state-grid,
     .project-memory-summary-grid,
     .project-memory-lists,
     .project-memory-summaries,
