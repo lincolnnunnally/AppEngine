@@ -96,6 +96,7 @@
     "smoke:audit-trail-lite": "node scripts/smoke-audit-trail-lite.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
+    "smoke:storage-provider-plan": "node scripts/smoke-storage-provider-plan.js",
     "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",
     "smoke:spark-approved-preview": "node scripts/smoke-spark-approved-preview.js",
     "smoke:spark-follow-up-review": "node scripts/smoke-spark-follow-up-review.js",
