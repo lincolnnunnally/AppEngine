@@ -49,6 +49,7 @@ source-of-truth/phase-issue-publisher-dry-run.md
 source-of-truth/phase-issue-publisher-manual-mode.md
 source-of-truth/published-phase-issue-registry.md
 source-of-truth/phase-start-approval-gate.md
+source-of-truth/execution-label-dry-run.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
@@ -466,6 +467,14 @@ Local phase start approval verification:
 
 ```bash
 npm run smoke:phase-start-approval
+```
+
+`scripts/create-execution-label-dry-run.js` previews the exact label changes for an approved phase start. It reports current labels, proposed labels, labels to add later, blocked labels, safety reason, and next safe action without applying labels or triggering Codex build work.
+
+Local execution label dry-run verification:
+
+```bash
+npm run smoke:execution-label-dry-run
 ```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.

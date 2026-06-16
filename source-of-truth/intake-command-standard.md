@@ -36,6 +36,7 @@ ChatGPT handoff issue or natural request
 -> phase_issue_publisher_manual only when manual mode and owner approval explicitly allow real issue creation
 -> published_phase_issue_registry after manually published phase issues are created
 -> phase_start_approval before a published issue may receive an execution label later
+-> execution_label_dry_run before any real label mutation
 -> intake packet
 -> app selection
 -> correct workflow
@@ -68,6 +69,8 @@ Use `source-of-truth/phase-issue-publisher-manual-mode.md` after `phase_issue_pu
 Use `source-of-truth/published-phase-issue-registry.md` after `phase_issue_publisher_manual` completes real issue creation to record issue numbers, URLs, source packet traceability, phase order, labels, guardrails, current status, and next safe action. The registry must not create issues, add labels, or trigger Codex build work.
 
 Use `source-of-truth/phase-start-approval-gate.md` after `published_phase_issue_registry` and before any execution label is considered. The approval gate may approve, revise, reject, or block manual phase start, but it must not add labels or trigger Codex build work.
+
+Use `source-of-truth/execution-label-dry-run.md` after approved `phase_start_approval` to preview exact label changes before any real GitHub label mutation. The dry run must not apply labels or trigger Codex build work.
 
 ## Request Types
 
