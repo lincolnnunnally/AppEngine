@@ -41,6 +41,7 @@ shared_context_files:
   - source-of-truth/orchestrator-approved-handoff-export.md
   - source-of-truth/orchestrator-to-handoff-bridge.md
   - source-of-truth/pending-check-resolution-policy.md
+  - source-of-truth/production-readiness-snapshot.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
@@ -209,6 +210,7 @@ agents:
       - published_phase_issue_registry
       - phase_start_approval
       - execution_label_dry_run
+      - production_readiness_snapshot
       - intake_packet
       - pilot_app_build
       - build_completion_plan
