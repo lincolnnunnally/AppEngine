@@ -94,6 +94,7 @@
     "smoke:spark-approved-preview": "node scripts/smoke-spark-approved-preview.js",
     "smoke:spark-follow-up-review": "node scripts/smoke-spark-follow-up-review.js",
     "smoke:spark-reminder-lite": "node scripts/smoke-spark-reminder-lite.js",
+    "smoke:spark-public-trial-readiness": "node scripts/smoke-spark-public-trial-readiness.js",
     "smoke:spark-review-queue-lite": "node scripts/smoke-spark-review-queue-lite.js",
     "smoke:vnext-packet": "node scripts/smoke-vnext-packet.js",
     "smoke:release-gate": "node scripts/smoke-release-gate.js",
