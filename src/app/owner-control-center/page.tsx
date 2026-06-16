@@ -4,7 +4,7 @@ import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-con
 import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
-import { listOrchestratorRuns } from "@/lib/engine/orchestrator-run";
+import { listOrchestratorActionQueue, listOrchestratorRuns } from "@/lib/engine/orchestrator-run";
 import { loadProjectMemory } from "@/lib/engine/project-memory";
 import { listProblemIntakeRecords } from "@/lib/engine/problem-intake-lite";
 import { listRealProjectTrials, listTrialProjectCandidates, listTrialResultReviews } from "@/lib/engine/real-project-trial";
@@ -16,12 +16,13 @@ export default async function OwnerControlCenterPage() {
     redirect("/");
   }
 
-  const [handoffs, projectMemory, trialRuns, trialReviews, orchestratorRuns, problemIntakeRecords] = await Promise.all([
+  const [handoffs, projectMemory, trialRuns, trialReviews, orchestratorRuns, orchestratorActionQueue, problemIntakeRecords] = await Promise.all([
     listHandoffRelaySummaries(),
     loadProjectMemory(),
     listRealProjectTrials(),
     listTrialResultReviews(),
     listOrchestratorRuns(),
+    listOrchestratorActionQueue(),
     listProblemIntakeRecords()
   ]);
 
@@ -43,6 +44,7 @@ export default async function OwnerControlCenterPage() {
         initialTrialRuns={trialRuns}
         initialTrialReviews={trialReviews}
         initialOrchestratorRuns={orchestratorRuns}
+        initialOrchestratorActionQueue={orchestratorActionQueue}
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
       <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />

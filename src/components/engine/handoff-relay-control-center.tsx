@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
-import type { OrchestratorRun } from "@/lib/engine/orchestrator-run";
+import type { OrchestratorActionQueueItem, OrchestratorActionStatus, OrchestratorRun } from "@/lib/engine/orchestrator-run";
 import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
 import type {
   RealProjectTrialSummary,
@@ -30,6 +30,7 @@ type TrialResultReviewPayload = {
 
 type OrchestratorRunPayload = {
   runs: OrchestratorRun[];
+  actionQueue: OrchestratorActionQueueItem[];
   storage: string;
 };
 
@@ -66,6 +67,7 @@ export function HandoffRelayControlCenter({
   initialTrialRuns,
   initialTrialReviews,
   initialOrchestratorRuns,
+  initialOrchestratorActionQueue,
   initialStorage
 }: {
   initialHandoffs: HandoffRelaySummary[];
@@ -74,6 +76,7 @@ export function HandoffRelayControlCenter({
   initialTrialRuns: RealProjectTrialSummary[];
   initialTrialReviews: TrialResultReview[];
   initialOrchestratorRuns: OrchestratorRun[];
+  initialOrchestratorActionQueue: OrchestratorActionQueueItem[];
   initialStorage: string;
 }) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
@@ -82,6 +85,7 @@ export function HandoffRelayControlCenter({
   const [trialRuns, setTrialRuns] = useState(initialTrialRuns);
   const [trialReviews, setTrialReviews] = useState(initialTrialReviews);
   const [orchestratorRuns, setOrchestratorRuns] = useState(initialOrchestratorRuns);
+  const [orchestratorActionQueue, setOrchestratorActionQueue] = useState(initialOrchestratorActionQueue);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
@@ -203,6 +207,7 @@ export function HandoffRelayControlCenter({
       const response = await fetch("/api/engine/orchestrator-run");
       const payload = await readJsonResponse<OrchestratorRunPayload>(response, "Orchestrator refresh failed");
       setOrchestratorRuns(payload.runs || []);
+      setOrchestratorActionQueue(payload.actionQueue || []);
       setStorage(payload.storage || "local");
       setSelectedOrchestratorRunId((current) => current || payload.runs?.[0]?.id || "");
       setStatus("Orchestrator runs refreshed");
@@ -220,9 +225,13 @@ export function HandoffRelayControlCenter({
 
     try {
       const response = await fetch("/api/engine/orchestrator-run", { method: "POST" });
-      const payload = await readJsonResponse<{ run: OrchestratorRun; projectMemory: ProjectMemory }>(response, "Manual orchestrator run failed");
+      const payload = await readJsonResponse<{ run: OrchestratorRun; actionQueue: OrchestratorActionQueueItem[]; projectMemory: ProjectMemory }>(
+        response,
+        "Manual orchestrator run failed"
+      );
       const nextRuns = [payload.run, ...orchestratorRuns.filter((run) => run.id !== payload.run.id)];
       setOrchestratorRuns(nextRuns);
+      setOrchestratorActionQueue(payload.actionQueue || []);
       setProjectMemory(payload.projectMemory);
       setSelectedOrchestratorRunId(payload.run.id);
       setStatus("Next safe step selected");
@@ -388,8 +397,8 @@ export function HandoffRelayControlCenter({
     setStatus("Orchestrator prompt copied for owner review");
   }
 
-  async function prepareOrchestratorHandoff() {
-    if (!selectedOrchestratorRun) {
+  async function prepareOrchestratorHandoff(run: OrchestratorRun | null = selectedOrchestratorRun) {
+    if (!run) {
       setError("Run or select an orchestrator result first.");
       setStatus("Needs orchestrator run");
       return;
@@ -399,13 +408,18 @@ export function HandoffRelayControlCenter({
     setError("");
 
     try {
-      const response = await fetch(`/api/engine/orchestrator-run/${selectedOrchestratorRun.id}/handoff`, { method: "POST" });
-      const payload = await readJsonResponse<{ handoff: HandoffRelaySummary; projectMemory: ProjectMemory }>(
+      const response = await fetch(`/api/engine/orchestrator-run/${run.id}/handoff`, { method: "POST" });
+      const payload = await readJsonResponse<{ handoff: HandoffRelaySummary; actionQueueItem?: OrchestratorActionQueueItem; projectMemory: ProjectMemory }>(
         response,
         "Prepared handoff failed"
       );
       const nextHandoffs = [payload.handoff, ...handoffs.filter((handoff) => handoff.id !== payload.handoff.id)];
       setHandoffs(nextHandoffs);
+      if (payload.actionQueueItem) {
+        setOrchestratorActionQueue((current) =>
+          current.map((action) => (action.id === payload.actionQueueItem?.id ? payload.actionQueueItem : action))
+        );
+      }
       setProjectMemory(payload.projectMemory);
       setSelectedId(payload.handoff.id);
       setSelectedFeedback([]);
@@ -413,6 +427,32 @@ export function HandoffRelayControlCenter({
       setStatus("Prepared Codex handoff saved to inbox");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Prepared handoff failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function markActionQueueItem(action: OrchestratorActionQueueItem, nextStatus: Extract<OrchestratorActionStatus, "blocked" | "completed">) {
+    setBusyAction(`orchestrator-action-${action.id}`);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/engine/orchestrator-run/actions/${action.id}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const payload = await readJsonResponse<{
+        actionQueueItem: OrchestratorActionQueueItem;
+        actionQueue: OrchestratorActionQueueItem[];
+        projectMemory: ProjectMemory;
+      }>(response, "Action queue update failed");
+      setOrchestratorActionQueue(payload.actionQueue || []);
+      setProjectMemory(payload.projectMemory);
+      setStatus(`Action marked ${payload.actionQueueItem.status.replace(/_/g, " ")}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Action queue update failed");
       setStatus("Needs attention");
     } finally {
       setBusyAction("");
@@ -698,6 +738,60 @@ export function HandoffRelayControlCenter({
               ))
             ) : (
               <p>No orchestrator runs stored yet.</p>
+            )}
+          </div>
+        </aside>
+
+        <aside className="trial-history-card orchestrator-history-card" data-testid="orchestrator-action-queue">
+          <p className="eyebrow">Action Queue</p>
+          <h3>Recommended next actions</h3>
+          <div className="handoff-inbox-list">
+            {orchestratorActionQueue.length ? (
+              orchestratorActionQueue.map((action) => {
+                const sourceRun = orchestratorRuns.find((run) => run.id === action.sourceRunId) || null;
+
+                return (
+                  <article className="handoff-inbox-item" key={action.id}>
+                    <span>{action.status.replace(/_/g, " ")}</span>
+                    <strong>{action.title}</strong>
+                    <p>{action.reason}</p>
+                    <small>
+                      Confidence: {sourceRun?.decisionTrace.confidenceLevel || "unknown"} · Approval:{" "}
+                      {action.ownerApprovalRequired ? "owner required" : "owner review"}
+                    </small>
+                    <textarea className="handoff-prompt-box orchestrator-prompt-box" readOnly value={action.prompt} />
+                    <div className="orchestrator-actions">
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => void prepareOrchestratorHandoff(sourceRun)}
+                        disabled={!sourceRun || Boolean(busyAction)}
+                      >
+                        Prepare handoff
+                      </button>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => void markActionQueueItem(action, "completed")}
+                        disabled={Boolean(busyAction)}
+                      >
+                        Mark completed
+                      </button>
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() => void markActionQueueItem(action, "blocked")}
+                        disabled={Boolean(busyAction)}
+                      >
+                        Mark blocked
+                      </button>
+                    </div>
+                    <small>{action.expectedOutcome}</small>
+                  </article>
+                );
+              })
+            ) : (
+              <p>No queued orchestrator actions yet.</p>
             )}
           </div>
         </aside>
