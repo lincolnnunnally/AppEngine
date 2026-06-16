@@ -9,6 +9,7 @@ export type AgentArtifactKind =
   | "trial_result_review"
   | "orchestrator_run"
   | "orchestrator_action_queue"
+  | "orchestrator_batch_dry_run"
   | "pending_check_resolution"
   | "problem_solution_intake"
   | "problem_portfolio_routing"

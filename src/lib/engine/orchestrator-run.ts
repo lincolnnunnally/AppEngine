@@ -43,6 +43,50 @@ export type OrchestratorActionQueueItem = {
   storage: "local_mock";
 };
 
+export type OrchestratorBatchDryRun = {
+  kind: "orchestrator_batch_dry_run";
+  schemaVersion: 1;
+  id: string;
+  createdAt: string;
+  status: "prepared" | "no_safe_actions";
+  storage: "local_mock";
+  dryRunOnly: true;
+  selectionLimit: 3;
+  selectedActionIds: string[];
+  preparedHandoffDrafts: Array<{
+    sourceActionId: string;
+    sourceRunId: string;
+    title: string;
+    action: string;
+    reason: string;
+    prompt: string;
+    expectedOutcome: string;
+    dependencies: string[];
+    guardrails: string[];
+    confidenceLevel: OrchestratorConfidenceLevel;
+    dryRunOnly: true;
+  }>;
+  skippedActions: Array<{
+    actionId: string;
+    status: OrchestratorActionStatus;
+    reason: string;
+  }>;
+  execution: {
+    codexTriggered: false;
+    githubIssuesCreated: false;
+    labelsApplied: false;
+    productionDeployed: false;
+    paidResourcesCreated: false;
+    migrationsApplied: false;
+    secretsOrEnvChanged: false;
+    repositoryVisibilityChanged: false;
+    autoMerged: false;
+  };
+  nextSafeAction: string;
+  ownerReadableSummary: string;
+  guardrails: OrchestratorGuardrails;
+};
+
 export type OrchestratorRun = {
   kind: "orchestrator_run";
   schemaVersion: 1;
@@ -134,6 +178,12 @@ export async function listOrchestratorActionQueue() {
   return store.actionQueue.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function createStoredOrchestratorBatchDryRun(now = new Date()) {
+  const store = await readStore();
+
+  return createOrchestratorBatchDryRun(store.actionQueue, store.runs, now);
+}
+
 export async function saveOrchestratorRun(input: OrchestratorInput) {
   const store = await readStore();
   const run = createOrchestratorRun(input);
@@ -186,6 +236,81 @@ export async function updateOrchestratorActionStatus(
   await writeStore(store);
 
   return updatedAction;
+}
+
+export function createOrchestratorBatchDryRun(
+  actions: OrchestratorActionQueueItem[],
+  runs: OrchestratorRun[] = [],
+  now = new Date()
+): OrchestratorBatchDryRun {
+  const createdAt = now.toISOString();
+  const normalizedActions = actions.map(normalizeActionQueueItem).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const selectedActions = normalizedActions.filter(isSafeQueuedBatchAction).slice(0, 3);
+  const selectedIds = new Set(selectedActions.map((action) => action.id));
+  const runById = new Map(runs.map((run) => [run.id, run]));
+  const skippedActions = normalizedActions
+    .filter((action) => !selectedIds.has(action.id))
+    .map((action) => ({
+      actionId: action.id,
+      status: action.status,
+      reason:
+        action.status !== "queued"
+          ? `Skipped because status is ${action.status}.`
+          : !action.prompt.trim()
+            ? "Skipped because the queued action has no prompt to prepare."
+            : selectedActions.length >= 3
+              ? "Skipped because the dry-run batch limit is three actions."
+              : "Skipped because the action was not considered safe for batch preparation."
+    }));
+  const preparedHandoffDrafts = selectedActions.map((action) => {
+    const sourceRun = runById.get(action.sourceRunId);
+
+    return {
+      sourceActionId: action.id,
+      sourceRunId: action.sourceRunId,
+      title: `Prepared dry-run handoff: ${action.title}`,
+      action: action.action,
+      reason: action.reason,
+      prompt: buildBatchDryRunPrompt(action),
+      expectedOutcome: action.expectedOutcome,
+      dependencies: action.dependencies,
+      guardrails: [...action.guardrails, "Dry-run batch only. Do not execute, send, publish, label, deploy, migrate, or merge."],
+      confidenceLevel: sourceRun?.decisionTrace.confidenceLevel || "medium",
+      dryRunOnly: true as const
+    };
+  });
+  const status = preparedHandoffDrafts.length ? "prepared" : "no_safe_actions";
+
+  return {
+    kind: "orchestrator_batch_dry_run",
+    schemaVersion: 1,
+    id: `orchestrator_batch_dry_run_${now.getTime().toString(36)}`,
+    createdAt,
+    status,
+    storage: "local_mock",
+    dryRunOnly: true,
+    selectionLimit: 3,
+    selectedActionIds: selectedActions.map((action) => action.id),
+    preparedHandoffDrafts,
+    skippedActions,
+    execution: {
+      codexTriggered: false,
+      githubIssuesCreated: false,
+      labelsApplied: false,
+      productionDeployed: false,
+      paidResourcesCreated: false,
+      migrationsApplied: false,
+      secretsOrEnvChanged: false,
+      repositoryVisibilityChanged: false,
+      autoMerged: false
+    },
+    nextSafeAction: status === "prepared" ? "owner_reviews_prepared_batch_handoffs" : "queue_safe_actions_before_batch_dry_run",
+    ownerReadableSummary:
+      status === "prepared"
+        ? `Prepared ${preparedHandoffDrafts.length} dry-run handoff draft${preparedHandoffDrafts.length === 1 ? "" : "s"} from queued orchestrator actions. Nothing was executed.`
+        : "No safe queued orchestrator actions were available for batch dry-run preparation.",
+    guardrails: defaultGuardrails()
+  };
 }
 
 export async function markOrchestratorActionPreparedHandoff(runId: string, now = new Date()) {
@@ -787,7 +912,7 @@ function normalizeRunActionQueue(run: OrchestratorRun): OrchestratorRun["actionQ
     };
   }
 
-	  return buildActionQueue({
+  return buildActionQueue({
     runId: run.id,
     createdAt: run.createdAt,
     decision: {
@@ -826,6 +951,31 @@ function normalizeActionQueueItem(value: unknown): OrchestratorActionQueueItem {
     completedAt: action.completedAt || null,
     storage: "local_mock"
   };
+}
+
+function isSafeQueuedBatchAction(action: OrchestratorActionQueueItem) {
+  return action.status === "queued" && Boolean(action.prompt.trim());
+}
+
+function buildBatchDryRunPrompt(action: OrchestratorActionQueueItem) {
+  return [
+    action.prompt,
+    "",
+    "Batch dry-run wrapper:",
+    "- This is a prepared handoff draft only.",
+    "- Do not trigger Codex automatically.",
+    "- Do not create GitHub issues.",
+    "- Do not apply labels.",
+    "- Do not deploy production.",
+    "- Do not create paid resources.",
+    "- Do not apply migrations.",
+    "- Do not add secrets or env vars.",
+    "- Do not change repository visibility.",
+    "- Do not auto-merge generated app code.",
+    "",
+    "Dry-run expected outcome:",
+    action.expectedOutcome
+  ].join("\n");
 }
 
 function isActionStatus(value: string): value is OrchestratorActionStatus {
