@@ -34,6 +34,7 @@ ChatGPT handoff issue or natural request
 -> phase_issue_publish_approval before any drafted phase issue is published to GitHub
 -> phase_issue_publisher_dry_run to preview exact GitHub issue payloads before real issue creation
 -> phase_issue_publisher_manual only when manual mode and owner approval explicitly allow real issue creation
+-> published_phase_issue_registry after manually published phase issues are created
 -> intake packet
 -> app selection
 -> correct workflow
@@ -62,6 +63,8 @@ Use `source-of-truth/phase-issue-publish-approval-gate.md` after `phase_issue_ge
 Use `source-of-truth/phase-issue-publisher-dry-run.md` after approved `phase_issue_publish_approval` to preview exact GitHub issue payloads before any real GitHub issue is created. This dry run must not publish issues, trigger Codex build work, deploy, provision, migrate, change secrets/env, or auto-merge generated app code.
 
 Use `source-of-truth/phase-issue-publisher-manual-mode.md` after `phase_issue_publisher_dry_run` only when real GitHub issue creation is explicitly owner-approved. Manual publishing must default to no-op, strip build-triggering labels, include source packet traceability, and must not trigger Codex build work.
+
+Use `source-of-truth/published-phase-issue-registry.md` after `phase_issue_publisher_manual` completes real issue creation to record issue numbers, URLs, source packet traceability, phase order, labels, guardrails, current status, and next safe action. The registry must not create issues, add labels, or trigger Codex build work.
 
 ## Request Types
 

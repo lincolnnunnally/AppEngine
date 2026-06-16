@@ -47,6 +47,7 @@ source-of-truth/phase-issue-generation.md
 source-of-truth/phase-issue-publish-approval-gate.md
 source-of-truth/phase-issue-publisher-dry-run.md
 source-of-truth/phase-issue-publisher-manual-mode.md
+source-of-truth/published-phase-issue-registry.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
@@ -448,6 +449,14 @@ Local phase issue publisher manual-mode verification:
 
 ```bash
 npm run smoke:phase-issue-publisher-manual
+```
+
+`scripts/create-published-phase-issue-registry.js` records completed manual publish results into a tracking-only `published_phase_issue_registry` with issue numbers, URLs, phase order, labels, guardrails, current status, and next safe action. It does not create issues, add labels, or trigger Codex build work.
+
+Local published phase issue registry verification:
+
+```bash
+npm run smoke:published-phase-issue-registry
 ```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.

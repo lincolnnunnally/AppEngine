@@ -197,6 +197,10 @@ Every issue body created by manual mode must include:
 - required source-of-truth files
 - manual publisher traceability
 
+## Next Tracking Step
+
+After real GitHub issues are created, use `source-of-truth/published-phase-issue-registry.md` to record issue numbers, URLs, source packet traceability, phase order, labels, guardrails, current status, and next safe action. The registry step must not create additional issues, add labels, or trigger Codex build work.
+
 ## Failure Rules
 
 The manual publisher must fail honestly when:
