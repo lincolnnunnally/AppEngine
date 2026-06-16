@@ -11,6 +11,7 @@ All agent workflows must load and answer this checklist before taking action.
 - App Purpose Rules
 - Ecosystem Design Gates
 - App Charter
+- Handoff Relay Reducer when owner-facing relay, pasted Codex handoffs, next prompt drafting, or middleman-work reduction is involved
 - ChatGPT Handoff and Issue Creation Packet Standard for conversation-to-GitHub handoffs
 - Problem-To-Solution Intake Standard for problem-first, vision-first, and hybrid starts
 - Problem Intake To Portfolio Routing Standard for accepted problem/vision candidates before packets or implementation
@@ -61,6 +62,7 @@ All agent workflows must load and answer this checklist before taking action.
 9. How does this help someone become a source of life for others?
 10. If this came from ChatGPT, does a `chatgpt_handoff_packet` exist with raw conversation summary, raw request, selected app or new app slug, request type, intake confidence, missing context, recommended label, and source-of-truth files to load?
 11. Does the ChatGPT handoff issue avoid secrets, API keys, tokens, passwords, private credentials, and unnecessary private user data?
+- If this came from a pasted Codex handoff, does a `handoff_relay_summary` exist with PR/branch/status, verification, completed work, guardrails, risks, blockers, dependencies, current project state, and a draft next prompt for owner review only?
 12. If this starts from a problem, vision, or hybrid of both, does a `problem_solution_intake` artifact classify the mode, questions, solution shape, missing context, routing, and next safe action before build work?
 13. If the problem/vision is accepted as a candidate, does `problem_portfolio_routing` map it into `app_portfolio_registry` before any App Build Packet or vNext Packet is created?
 14. Does the selected candidate type avoid forcing every problem into an app when a website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution is more fitting?

@@ -30,6 +30,7 @@ shared_context_files:
   - source-of-truth/05-ecosystem-design-gates.md
   - source-of-truth/context-checklist.md
   - source-of-truth/agent-enforcement.md
+  - source-of-truth/handoff-relay-reducer.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
@@ -176,6 +177,7 @@ agents:
       - issue_labeled_ai_plan
     outputs:
       - chatgpt_handoff_packet
+      - handoff_relay_summary
       - problem_solution_intake
       - problem_portfolio_routing
       - solution_candidate_review
