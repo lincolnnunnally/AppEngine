@@ -5,6 +5,8 @@ export type IntakePayload = {
   preferredName?: unknown;
   email?: unknown;
   storyTitle?: unknown;
+  categoryOrStruggle?: unknown;
+  hopeOutcome?: unknown;
   storyBody?: unknown;
   mayReview?: unknown;
   mayContact?: unknown;
@@ -17,6 +19,8 @@ type ValidatedStoryIntake = {
   preferredName: string;
   email: string;
   storyTitle: string;
+  categoryOrStruggle: string;
+  hopeOutcome: string;
   storyBody: string;
   mayReview: boolean;
   mayContact: boolean;
@@ -39,6 +43,8 @@ type StoryIntakeResponseBody = {
   received?: {
     preferredName: string | null;
     storyTitle: string | null;
+    categoryOrStruggle: string | null;
+    hopeOutcome: string | null;
     mayContact: boolean;
   };
   code?: string;
@@ -166,6 +172,8 @@ function validateStoryIntakePayload(payload: IntakePayload, mode: StoryIntakeMod
   const preferredName = cleanText(payload.preferredName);
   const email = cleanText(payload.email);
   const storyTitle = cleanText(payload.storyTitle);
+  const categoryOrStruggle = cleanText(payload.categoryOrStruggle);
+  const hopeOutcome = cleanText(payload.hopeOutcome);
   const mayReview = payload.mayReview === true;
   const mayContact = payload.mayContact === true;
   const mayPrepareEncouragement = payload.mayPrepareEncouragement === true;
@@ -192,6 +200,8 @@ function validateStoryIntakePayload(payload: IntakePayload, mode: StoryIntakeMod
       preferredName,
       email,
       storyTitle,
+      categoryOrStruggle,
+      hopeOutcome,
       storyBody,
       mayReview,
       mayContact,
@@ -447,6 +457,8 @@ function buildSuccessBody({
     received: {
       preferredName: intake.preferredName || null,
       storyTitle: intake.storyTitle || null,
+      categoryOrStruggle: intake.categoryOrStruggle || null,
+      hopeOutcome: intake.hopeOutcome || null,
       mayContact: intake.mayContact
     },
     message
