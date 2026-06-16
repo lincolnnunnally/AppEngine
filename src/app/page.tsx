@@ -16,6 +16,7 @@ export default function HomePage() {
         <strong>App Engine</strong>
         <div className="navlinks">
           <Link href="/spark-of-hope-intake-lite">Spark Intake</Link>
+          <Link href="/owner-control-center">Owner Control</Link>
           <Link href="/builder">Builder</Link>
           <Link href="/account">Customer Account</Link>
           <Link href="/admin">Admin Console</Link>
