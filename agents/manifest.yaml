@@ -33,6 +33,7 @@ shared_context_files:
   - source-of-truth/handoff-relay-reducer.md
   - source-of-truth/project-memory-engine.md
   - source-of-truth/real-project-trial-runner.md
+  - source-of-truth/trial-result-review-loop.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
@@ -182,6 +183,7 @@ agents:
       - handoff_relay_summary
       - project_memory
       - real_project_trial
+      - trial_result_review
       - problem_solution_intake
       - problem_portfolio_routing
       - solution_candidate_review

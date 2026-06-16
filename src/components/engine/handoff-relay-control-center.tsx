@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
 import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
-import type { RealProjectTrialSummary, TrialProjectCandidate } from "@/lib/engine/real-project-trial";
+import type {
+  RealProjectTrialSummary,
+  TrialProjectCandidate,
+  TrialResultReview,
+  TrialResultReviewStatus
+} from "@/lib/engine/real-project-trial";
 
 type HandoffRelayPayload = {
   handoffs: HandoffRelaySummary[];
@@ -14,6 +19,11 @@ type HandoffRelayPayload = {
 type RealProjectTrialPayload = {
   candidates: TrialProjectCandidate[];
   trials: RealProjectTrialSummary[];
+  storage: string;
+};
+
+type TrialResultReviewPayload = {
+  reviews: TrialResultReview[];
   storage: string;
 };
 
@@ -34,28 +44,43 @@ const memoryFeedbackOptions: Array<{ id: ProjectMemoryFeedbackChoice; label: str
   { id: "future_improvement", label: "Future improvement" }
 ];
 
+const trialReviewOptions: Array<{ id: TrialResultReviewStatus; label: string }> = [
+  { id: "useful", label: "Useful" },
+  { id: "needs_clarification", label: "Needs clarification" },
+  { id: "wrong_direction", label: "Wrong direction" },
+  { id: "missing_requirement", label: "Missing requirement" },
+  { id: "design_mismatch", label: "Design mismatch" },
+  { id: "ready_for_next_packet", label: "Ready for next packet" }
+];
+
 export function HandoffRelayControlCenter({
   initialHandoffs,
   initialProjectMemory,
   initialTrialCandidates,
   initialTrialRuns,
+  initialTrialReviews,
   initialStorage
 }: {
   initialHandoffs: HandoffRelaySummary[];
   initialProjectMemory: ProjectMemory;
   initialTrialCandidates: TrialProjectCandidate[];
   initialTrialRuns: RealProjectTrialSummary[];
+  initialTrialReviews: TrialResultReview[];
   initialStorage: string;
 }) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
   const [projectMemory, setProjectMemory] = useState(initialProjectMemory);
   const [trialCandidates, setTrialCandidates] = useState(initialTrialCandidates);
   const [trialRuns, setTrialRuns] = useState(initialTrialRuns);
+  const [trialReviews, setTrialReviews] = useState(initialTrialReviews);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
   const [selectedTrialCandidate, setSelectedTrialCandidate] = useState(initialTrialCandidates[0]?.slug || "");
   const [selectedTrialId, setSelectedTrialId] = useState(initialTrialRuns[0]?.id || "");
+  const [selectedTrialReviewId, setSelectedTrialReviewId] = useState(initialTrialReviews[0]?.id || "");
+  const [trialReviewStatus, setTrialReviewStatus] = useState<TrialResultReviewStatus>("useful");
+  const [trialReviewNote, setTrialReviewNote] = useState("");
   const [manualTrial, setManualTrial] = useState({
     name: "",
     problem: "",
@@ -77,6 +102,10 @@ export function HandoffRelayControlCenter({
   const selectedTrial = useMemo(
     () => trialRuns.find((trial) => trial.id === selectedTrialId) || trialRuns[0] || null,
     [trialRuns, selectedTrialId]
+  );
+  const selectedTrialReview = useMemo(
+    () => trialReviews.find((review) => review.id === selectedTrialReviewId) || trialReviews[0] || null,
+    [trialReviews, selectedTrialReviewId]
   );
   const usingManualTrial = selectedTrialCandidate === "manual";
   const memoryItemCount =
@@ -127,6 +156,25 @@ export function HandoffRelayControlCenter({
       setStatus("Trial runs refreshed");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Trial refresh failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function loadTrialReviews() {
+    setBusyAction("trial-review-refresh");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/real-project-trial/reviews");
+      const payload = await readJsonResponse<TrialResultReviewPayload>(response, "Trial review refresh failed");
+      setTrialReviews(payload.reviews || []);
+      setStorage(payload.storage || "local");
+      setSelectedTrialReviewId((current) => current || payload.reviews?.[0]?.id || "");
+      setStatus("Trial reviews refreshed");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Trial review refresh failed");
       setStatus("Needs attention");
     } finally {
       setBusyAction("");
@@ -199,6 +247,40 @@ export function HandoffRelayControlCenter({
     }
   }
 
+  async function submitTrialReview() {
+    if (!selectedTrial) {
+      setError("Generate or select a trial before reviewing the result.");
+      setStatus("Needs trial result");
+      return;
+    }
+
+    setBusyAction("trial-review");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/real-project-trial/reviews", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          trialId: selectedTrial.id,
+          status: trialReviewStatus,
+          note: trialReviewNote
+        })
+      });
+      const payload = await readJsonResponse<{ review: TrialResultReview; projectMemory: ProjectMemory }>(response, "Trial review failed");
+      const nextReviews = [payload.review, ...trialReviews.filter((review) => review.id !== payload.review.id)];
+      setTrialReviews(nextReviews);
+      setProjectMemory(payload.projectMemory);
+      setSelectedTrialReviewId(payload.review.id);
+      setStatus("Trial review saved to project memory");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Trial review failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function saveFeedback() {
     if (!selectedHandoff) {
       setError("Select a handoff first.");
@@ -237,6 +319,13 @@ export function HandoffRelayControlCenter({
 
     await navigator.clipboard.writeText(selectedTrial.nextPrompt.prompt);
     setStatus("Trial prompt copied for owner review");
+  }
+
+  async function copyTrialReviewPrompt() {
+    if (!selectedTrialReview) return;
+
+    await navigator.clipboard.writeText(selectedTrialReview.nextPrompt.prompt);
+    setStatus("Trial review prompt copied for owner review");
   }
 
   async function saveProjectMemoryFeedback() {
@@ -311,6 +400,7 @@ export function HandoffRelayControlCenter({
         <span className="status-chip">{handoffs.length} handoff{handoffs.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{memoryItemCount} memory item{memoryItemCount === 1 ? "" : "s"}</span>
         <span className="status-chip">{trialRuns.length} trial run{trialRuns.length === 1 ? "" : "s"}</span>
+        <span className="status-chip">{trialReviews.length} trial review{trialReviews.length === 1 ? "" : "s"}</span>
         {error ? <span className="error-chip">{error}</span> : null}
       </section>
 
@@ -552,6 +642,142 @@ export function HandoffRelayControlCenter({
         ) : null}
       </section>
 
+      <section className="panel trial-review-panel" data-testid="trial-result-review">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Trial Result Review</p>
+            <h2>Teach AppEngine what happened</h2>
+            <p>Review the latest trial result, mark what worked or missed, and turn feedback into a safe improvement candidate.</p>
+          </div>
+          <button className="button" type="button" onClick={() => void loadTrialReviews()} disabled={Boolean(busyAction)}>
+            {busyAction === "trial-review-refresh" ? "Refreshing..." : "Refresh Reviews"}
+          </button>
+        </div>
+
+        <div className="trial-review-layout">
+          <section className="trial-review-card">
+            <div className="handoff-section-heading">
+              <div>
+                <p className="eyebrow">Latest Trial Output</p>
+                <h3>{selectedTrial ? selectedTrial.project.name : "No trial selected"}</h3>
+              </div>
+              <span className="handoff-state-pill">{selectedTrial ? formatPacketType(selectedTrial.recommendedPacketType) : "Waiting"}</span>
+            </div>
+            {selectedTrial ? (
+              <div className="handoff-state-grid">
+                <StateBlock label="Problem" value={selectedTrial.problemBeingSolved} />
+                <StateBlock label="Desired transformation" value={selectedTrial.desiredTransformation} />
+                <StateBlock label="Design intent" value={selectedTrial.designIntent} />
+                <StateBlock label="Next safe action" value={selectedTrial.nextSafeAction} />
+              </div>
+            ) : (
+              <p>Generate a real project trial first, then review the result here.</p>
+            )}
+          </section>
+
+          <section className="trial-review-card">
+            <div>
+              <p className="eyebrow">Owner Review</p>
+              <h3>Choose the closest status</h3>
+            </div>
+            <div className="trial-review-options">
+              {trialReviewOptions.map((option) => (
+                <label className="handoff-feedback-choice" key={option.id}>
+                  <input
+                    type="radio"
+                    name="trial-review-status"
+                    checked={trialReviewStatus === option.id}
+                    onChange={() => setTrialReviewStatus(option.id)}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+            <label className="handoff-paste-label">
+              What was useful, wrong, missing, or mismatched?
+              <textarea
+                value={trialReviewNote}
+                onChange={(event) => setTrialReviewNote(event.target.value)}
+                placeholder="Example: The audience is right, but the next prompt needs to include pastoral review boundaries."
+              />
+            </label>
+            <div className="action-row">
+              <button className="button primary" type="button" onClick={() => void submitTrialReview()} disabled={Boolean(busyAction) || !selectedTrial}>
+                {busyAction === "trial-review" ? "Saving..." : "Save Trial Review"}
+              </button>
+              <span className="handoff-safe-note">Review updates memory only. It does not trigger Codex or GitHub work.</span>
+            </div>
+          </section>
+        </div>
+
+        {selectedTrialReview ? (
+          <div className="trial-summary-layout">
+            <section className="trial-summary-card">
+              <div className="handoff-section-heading">
+                <div>
+                  <p className="eyebrow">Review Result</p>
+                  <h2>{selectedTrialReview.project.name}</h2>
+                </div>
+                <span className="handoff-state-pill">{formatReviewStatus(selectedTrialReview.reviewStatus)}</span>
+              </div>
+              <div className="handoff-analysis-grid">
+                <StateBlock label="Improvement candidate" value={selectedTrialReview.improvementCandidate.title} />
+                <StateBlock label="Candidate type" value={selectedTrialReview.improvementCandidate.candidateType.replace(/_/g, " ")} />
+                <ListBlock label="Useful signals" items={selectedTrialReview.usefulSignals} empty="No useful signals marked yet." />
+                <ListBlock label="Concerns" items={selectedTrialReview.concerns} empty="No concerns marked." />
+              </div>
+            </section>
+
+            <section className="trial-prompt-card">
+              <div className="handoff-section-heading">
+                <div>
+                  <p className="eyebrow">Review-Based Prompt</p>
+                  <h2>Copy only after review</h2>
+                </div>
+                <button className="button accent" type="button" onClick={() => void copyTrialReviewPrompt()}>
+                  Copy Review Prompt
+                </button>
+              </div>
+              <textarea className="handoff-prompt-box trial-prompt-box" readOnly value={selectedTrialReview.nextPrompt.prompt} />
+              <div className="handoff-prompt-meta">
+                <StateBlock label="Reason" value={selectedTrialReview.nextPrompt.reason} />
+                <StateBlock label="Expected outcome" value={selectedTrialReview.nextPrompt.expectedOutcome} />
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        <aside className="trial-history-card">
+          <p className="eyebrow">Review History</p>
+          <h3>Newest first</h3>
+          <div className="handoff-inbox-list">
+            {trialReviews.length ? (
+              trialReviews.map((review) => (
+                <button
+                  className={`handoff-inbox-item ${review.id === selectedTrialReview?.id ? "selected" : ""}`}
+                  key={review.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTrialReviewId(review.id);
+                    setTrialReviewStatus(review.reviewStatus);
+                    setTrialReviewNote(review.ownerNote);
+                    setStatus("Trial review selected");
+                    setError("");
+                  }}
+                >
+                  <span>{new Date(review.createdAt).toLocaleString()}</span>
+                  <strong>{formatReviewStatus(review.reviewStatus)}</strong>
+                  <p>{review.ownerReadableSummary}</p>
+                  <small>{review.nextPrompt.expectedOutcome}</small>
+                </button>
+              ))
+            ) : (
+              <p>No trial reviews stored yet.</p>
+            )}
+          </div>
+        </aside>
+      </section>
+
       <section className="handoff-layout">
         <div className="handoff-main">
           <section className="panel handoff-inbox-panel">
@@ -758,6 +984,19 @@ function formatPacketType(value: string) {
   };
 
   return labels[value] || value;
+}
+
+function formatReviewStatus(value: string) {
+  const labels: Record<string, string> = {
+    useful: "Useful",
+    needs_clarification: "Needs clarification",
+    wrong_direction: "Wrong direction",
+    missing_requirement: "Missing requirement",
+    design_mismatch: "Design mismatch",
+    ready_for_next_packet: "Ready for next packet"
+  };
+
+  return labels[value] || value.replace(/_/g, " ");
 }
 
 async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {

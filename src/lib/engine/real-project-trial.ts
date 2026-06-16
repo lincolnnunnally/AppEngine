@@ -4,6 +4,14 @@ import type { ProjectMemory } from "./project-memory";
 
 export type TrialPacketType = "app_build_packet" | "vnext_packet" | "non_app_solution_plan";
 
+export type TrialResultReviewStatus =
+  | "useful"
+  | "needs_clarification"
+  | "wrong_direction"
+  | "missing_requirement"
+  | "design_mismatch"
+  | "ready_for_next_packet";
+
 export type TrialProjectCandidate = {
   name: string;
   slug: string;
@@ -59,6 +67,38 @@ export type RealProjectTrialSummary = {
   guardrails: RealProjectTrialGuardrails;
 };
 
+export type TrialResultReviewInput = {
+  trialId?: string;
+  status: TrialResultReviewStatus | string;
+  note?: string;
+};
+
+export type TrialResultReview = {
+  kind: "trial_result_review";
+  schemaVersion: 1;
+  id: string;
+  createdAt: string;
+  trialId: string;
+  project: RealProjectTrialSummary["project"];
+  reviewStatus: TrialResultReviewStatus;
+  ownerNote: string;
+  usefulSignals: string[];
+  concerns: string[];
+  improvementCandidate: {
+    title: string;
+    summary: string;
+    candidateType: "clarification" | "direction_correction" | "requirement_gap" | "design_correction" | "packet_progression";
+  };
+  nextPrompt: {
+    prompt: string;
+    reason: string;
+    expectedOutcome: string;
+    dependencies: string[];
+  };
+  ownerReadableSummary: string;
+  guardrails: RealProjectTrialGuardrails;
+};
+
 type ArtifactReference = {
   kind: string;
   status: "available" | "derived" | "needed";
@@ -81,11 +121,12 @@ type RealProjectTrialGuardrails = {
 
 type StoreShape = {
   trials: RealProjectTrialSummary[];
+  reviews: TrialResultReview[];
 };
 
 const storeDir = join(process.cwd(), ".app-engine");
 const storePath = join(storeDir, "real-project-trials.json");
-let memoryStore: StoreShape = { trials: [] };
+let memoryStore: StoreShape = { trials: [], reviews: [] };
 
 export function listTrialProjectCandidates(): TrialProjectCandidate[] {
   return [
@@ -124,6 +165,12 @@ export async function listRealProjectTrials() {
   return store.trials.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function listTrialResultReviews() {
+  const store = await readStore();
+
+  return store.reviews.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function saveRealProjectTrial(input: RealProjectTrialInput, projectMemory?: ProjectMemory) {
   const store = await readStore();
   const trial = createRealProjectTrial(input, projectMemory);
@@ -131,6 +178,15 @@ export async function saveRealProjectTrial(input: RealProjectTrialInput, project
   await writeStore(store);
 
   return trial;
+}
+
+export async function saveTrialResultReview(input: TrialResultReviewInput, projectMemory?: ProjectMemory) {
+  const store = await readStore();
+  const review = createTrialResultReview(input, store.trials, projectMemory);
+  store.reviews = [review, ...store.reviews].slice(0, 50);
+  await writeStore(store);
+
+  return review;
 }
 
 export function createRealProjectTrial(input: RealProjectTrialInput, projectMemory?: ProjectMemory, now = new Date()): RealProjectTrialSummary {
@@ -163,6 +219,37 @@ export function createRealProjectTrial(input: RealProjectTrialInput, projectMemo
     ownerReadableSummary: `${candidate.name} is ready for a safe real-project trial. Recommended packet: ${formatPacketType(
       candidate.recommendedPacketType
     )}. Next: ${candidate.nextSafeAction}`,
+    guardrails: defaultGuardrails()
+  };
+}
+
+export function createTrialResultReview(
+  input: TrialResultReviewInput,
+  trials: RealProjectTrialSummary[],
+  projectMemory?: ProjectMemory,
+  now = new Date()
+): TrialResultReview {
+  const trial = resolveTrialForReview(input, trials);
+  const reviewStatus = normalizeReviewStatus(input.status);
+  const ownerNote = String(input.note || "").trim().slice(0, 1600);
+  const createdAt = now.toISOString();
+  const improvementCandidate = buildImprovementCandidate({ trial, reviewStatus, ownerNote });
+  const nextPrompt = buildReviewNextPrompt({ trial, reviewStatus, ownerNote, projectMemory, improvementCandidate });
+
+  return {
+    kind: "trial_result_review",
+    schemaVersion: 1,
+    id: `trial_review_${trial.project.slug}_${now.getTime().toString(36)}`,
+    createdAt,
+    trialId: trial.id,
+    project: trial.project,
+    reviewStatus,
+    ownerNote,
+    usefulSignals: buildUsefulSignals(reviewStatus, trial),
+    concerns: buildConcerns(reviewStatus, ownerNote),
+    improvementCandidate,
+    nextPrompt,
+    ownerReadableSummary: `${trial.project.name} review marked ${formatReviewStatus(reviewStatus)}. Next: ${nextPrompt.expectedOutcome}`,
     guardrails: defaultGuardrails()
   };
 }
@@ -320,10 +407,11 @@ async function readStore(): Promise<StoreShape> {
     const parsed = JSON.parse(raw) as Partial<StoreShape>;
 
     return {
-      trials: Array.isArray(parsed.trials) ? parsed.trials.map(normalizeTrial).filter(isRealProjectTrialSummary) : []
+      trials: Array.isArray(parsed.trials) ? parsed.trials.map(normalizeTrial).filter(isRealProjectTrialSummary) : [],
+      reviews: Array.isArray(parsed.reviews) ? parsed.reviews.map(normalizeReview).filter(isTrialResultReview) : []
     };
   } catch {
-    return { trials: [] };
+    return { trials: [], reviews: [] };
   }
 }
 
@@ -341,6 +429,10 @@ function isRealProjectTrialSummary(value: RealProjectTrialSummary | null): value
   return Boolean(value);
 }
 
+function isTrialResultReview(value: TrialResultReview | null): value is TrialResultReview {
+  return Boolean(value);
+}
+
 function normalizeTrial(value: unknown): RealProjectTrialSummary | null {
   if (!value || typeof value !== "object") return null;
   const trial = value as RealProjectTrialSummary;
@@ -350,6 +442,194 @@ function normalizeTrial(value: unknown): RealProjectTrialSummary | null {
     ...trial,
     guardrails: defaultGuardrails()
   };
+}
+
+function normalizeReview(value: unknown): TrialResultReview | null {
+  if (!value || typeof value !== "object") return null;
+  const review = value as TrialResultReview;
+  if (review.kind !== "trial_result_review" || !review.id || !review.trialId || !review.project?.slug) return null;
+
+  return {
+    ...review,
+    reviewStatus: normalizeReviewStatus(review.reviewStatus),
+    guardrails: defaultGuardrails()
+  };
+}
+
+function resolveTrialForReview(input: TrialResultReviewInput, trials: RealProjectTrialSummary[]) {
+  const trial = input.trialId ? trials.find((candidate) => candidate.id === input.trialId) : trials[0];
+
+  if (!trial) {
+    throw new Error("Trial result review needs a real project trial to review.");
+  }
+
+  return trial;
+}
+
+function normalizeReviewStatus(value: string): TrialResultReviewStatus {
+  if (isReviewStatus(value)) return value;
+  throw new Error(`Unsupported trial result review status: ${value || "missing"}`);
+}
+
+function isReviewStatus(value: string): value is TrialResultReviewStatus {
+  return [
+    "useful",
+    "needs_clarification",
+    "wrong_direction",
+    "missing_requirement",
+    "design_mismatch",
+    "ready_for_next_packet"
+  ].includes(value);
+}
+
+function buildImprovementCandidate({
+  trial,
+  reviewStatus,
+  ownerNote
+}: {
+  trial: RealProjectTrialSummary;
+  reviewStatus: TrialResultReviewStatus;
+  ownerNote: string;
+}): TrialResultReview["improvementCandidate"] {
+  const byStatus: Record<TrialResultReviewStatus, TrialResultReview["improvementCandidate"]> = {
+    useful: {
+      title: `${trial.project.name}: preserve useful trial direction`,
+      summary: ownerNote || "Owner marked the trial result useful. Preserve this direction in the next packet.",
+      candidateType: "packet_progression"
+    },
+    needs_clarification: {
+      title: `${trial.project.name}: clarify trial result before packet work`,
+      summary: ownerNote || "Owner needs clearer problem, audience, scope, risks, or next action before packet work.",
+      candidateType: "clarification"
+    },
+    wrong_direction: {
+      title: `${trial.project.name}: correct trial direction`,
+      summary: ownerNote || "Owner marked the trial direction wrong. Re-check source-of-truth and app boundaries before proceeding.",
+      candidateType: "direction_correction"
+    },
+    missing_requirement: {
+      title: `${trial.project.name}: add missing trial requirement`,
+      summary: ownerNote || "Owner found a missing requirement that must be added before next packet work.",
+      candidateType: "requirement_gap"
+    },
+    design_mismatch: {
+      title: `${trial.project.name}: correct design intent mismatch`,
+      summary: ownerNote || "Owner found a design mismatch. Update design intent before UI or packet progression.",
+      candidateType: "design_correction"
+    },
+    ready_for_next_packet: {
+      title: `${trial.project.name}: proceed to next packet`,
+      summary: ownerNote || `Owner marked the trial ready for ${formatPacketType(trial.recommendedPacketType)} progression.`,
+      candidateType: "packet_progression"
+    }
+  };
+
+  return byStatus[reviewStatus];
+}
+
+function buildUsefulSignals(reviewStatus: TrialResultReviewStatus, trial: RealProjectTrialSummary) {
+  if (["useful", "ready_for_next_packet"].includes(reviewStatus)) {
+    return [
+      `Problem is clear: ${trial.problemBeingSolved}`,
+      `Audience is clear: ${trial.targetAudience}`,
+      `Recommended packet type is ${formatPacketType(trial.recommendedPacketType)}.`
+    ];
+  }
+
+  return [];
+}
+
+function buildConcerns(reviewStatus: TrialResultReviewStatus, ownerNote: string) {
+  const concerns: Record<TrialResultReviewStatus, string[]> = {
+    useful: [],
+    ready_for_next_packet: [],
+    needs_clarification: ["Owner needs clarification before packet work."],
+    wrong_direction: ["Owner marked the trial direction wrong."],
+    missing_requirement: ["Owner identified a missing requirement."],
+    design_mismatch: ["Owner identified a design mismatch."]
+  };
+
+  return [...concerns[reviewStatus], ...(ownerNote ? [`Owner note: ${ownerNote}`] : [])];
+}
+
+function buildReviewNextPrompt({
+  trial,
+  reviewStatus,
+  ownerNote,
+  projectMemory,
+  improvementCandidate
+}: {
+  trial: RealProjectTrialSummary;
+  reviewStatus: TrialResultReviewStatus;
+  ownerNote: string;
+  projectMemory?: ProjectMemory;
+  improvementCandidate: TrialResultReview["improvementCandidate"];
+}): TrialResultReview["nextPrompt"] {
+  const actionByStatus: Record<TrialResultReviewStatus, string> = {
+    useful: `Preserve the useful direction and prepare the next ${formatPacketType(trial.recommendedPacketType)} checkpoint.`,
+    needs_clarification: "Create a clarification-only pass before packet work.",
+    wrong_direction: "Re-route the trial through source-of-truth and candidate review before packet work.",
+    missing_requirement: "Update the trial requirements before packet work.",
+    design_mismatch: "Update design intent before packet work or UI work.",
+    ready_for_next_packet: `Prepare the next ${formatPacketType(trial.recommendedPacketType)} path for owner review.`
+  };
+  const memorySummary = projectMemory?.summaries?.executive || projectMemory?.latestProjectState?.recommendedNextAction || "Project memory not loaded.";
+
+  return {
+    prompt: [
+      `Review the trial result for ${trial.project.name}.`,
+      "",
+      "Owner review:",
+      `- Status: ${formatReviewStatus(reviewStatus)}`,
+      `- Note: ${ownerNote || "No owner note provided."}`,
+      `- Improvement candidate: ${improvementCandidate.title}`,
+      `- Candidate type: ${improvementCandidate.candidateType}`,
+      "",
+      "Trial summary:",
+      `- Problem: ${trial.problemBeingSolved}`,
+      `- Audience: ${trial.targetAudience}`,
+      `- Desired transformation: ${trial.desiredTransformation}`,
+      `- Design intent: ${trial.designIntent}`,
+      `- Current stage: ${trial.currentStage}`,
+      `- Recommended packet type: ${formatPacketType(trial.recommendedPacketType)}`,
+      "",
+      "Next safe action:",
+      actionByStatus[reviewStatus],
+      "",
+      "Project memory snapshot:",
+      memorySummary,
+      "",
+      "Guardrails:",
+      "- Do not trigger Codex automatically.",
+      "- Do not create GitHub issues.",
+      "- Do not apply labels.",
+      "- Do not deploy production.",
+      "- Do not create paid resources.",
+      "- Do not apply migrations.",
+      "- Do not add secrets or env vars.",
+      "- Do not change repository visibility.",
+      "- Do not auto-merge generated app code.",
+      "",
+      "Expected outcome:",
+      "Update AppEngine's owner-reviewed path based on the trial feedback and explain what should happen next."
+    ].join("\n"),
+    reason: `Owner marked the trial as ${formatReviewStatus(reviewStatus)}, so AppEngine should convert that feedback into a bounded improvement candidate before further work.`,
+    expectedOutcome: actionByStatus[reviewStatus],
+    dependencies: [...trial.nextPrompt.dependencies, "source-of-truth/trial-result-review-loop.md"]
+  };
+}
+
+export function formatReviewStatus(value: TrialResultReviewStatus) {
+  const labels: Record<TrialResultReviewStatus, string> = {
+    useful: "useful",
+    needs_clarification: "needs clarification",
+    wrong_direction: "wrong direction",
+    missing_requirement: "missing requirement",
+    design_mismatch: "design mismatch",
+    ready_for_next_packet: "ready for next packet"
+  };
+
+  return labels[value];
 }
 
 function defaultGuardrails(): RealProjectTrialGuardrails {
