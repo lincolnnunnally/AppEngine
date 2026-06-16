@@ -82,6 +82,7 @@ Agents may return these artifact kinds when relevant:
 - `app_portfolio_registry`: required when AppEngine reports portfolio-wide app state; indexes every managed app by name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source-of-truth files, linked issues, and linked PRs.
 - `provider_cost_review`: required before generated apps provision provider resources or pass release; defines provider strategy, reuse options, preview/production cost posture, cost ceiling, upgrade trigger, and paid-resource approval gates.
 - `deployment_environment_plan`: required for generated apps and launch work; defines frontend provider, API/backend provider if needed, database provider, env var inventory, preview URL, production URL, custom domain/subdomain, logs, health checks, and rollback notes.
+- `design_intent_profile`: required before generated-app UI design, UI build, or UI review; captures target audience, user sophistication, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, examples/references, things to avoid, and practical output guidance for colors, typography, spacing, cards, forms, dashboards, navigation, buttons, empty states, and mobile layout.
 - `design_review`: required for generated apps and release work; defines Designer review, Customer Perspective review, design quality checks, UX state checks, mobile checks, onboarding, admin screens, and release-blocking issues.
 - `compatibility_test_plan`: required for generated apps and release work; defines browser support, iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common browser checks, viewports, touch targets, forms, auth flows, uploads/payments if used, admin screens, and release-blocking issues.
 - `release_gate_plan`: required for generated apps and launch work; defines v1 launch rules, vNext follow-up rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update contract.
@@ -91,7 +92,7 @@ Agents may return these artifact kinds when relevant:
 - `workflow_test_plan`: end-to-end journey checks.
 - `review_report`: code, security, quality, and deployment-risk review.
 
-An `app_build_packet` artifact must include app charter path, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, tool classification, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration requirements, Super Admin registry entry, Provider/Cost review, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate plan, guardrails, phases, and phase-ready `followUpTasks`.
+An `app_build_packet` artifact must include app charter path, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, tool classification, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration requirements, Super Admin registry entry, Provider/Cost review, Deployment Environment plan, Design Intent profile, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate plan, guardrails, phases, and phase-ready `followUpTasks`.
 
 An `identity_auth_plan` artifact must not contain secrets, OAuth credentials, API keys, session secrets, provider tokens, private user data, or production bypass values.
 
@@ -102,6 +103,8 @@ An `app_portfolio_registry` artifact must not contain secrets, private user data
 A `provider_cost_review` artifact must not contain secrets, provider tokens, private billing data, or payment credentials. It blocks new paid provider resource creation and release approval until cost posture, reuse strategy, and owner approval needs are clear.
 
 A `deployment_environment_plan` artifact must list variable names only, never secret values. Preview deployments are public by default for review and route-specific verification; production remains approval-gated.
+
+A `design_intent_profile` artifact must include app name/slug/context, target audience, user sophistication level, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, examples/references if provided, things to avoid, owner-readable summary, and output guidance for colors, typography, spacing, cards, forms, dashboards, navigation, buttons, empty states, and mobile layout. It must fail honestly when required design intent fields are missing. It must not authorize a redesign, production deploy, paid resource, migration, secrets/env change, repository visibility change, automatic Codex build work, or execution label.
 
 A `design_review` artifact must include Designer and Customer Perspective review status. It blocks Release Gate approval when mobile, empty states, error states, onboarding, admin screens, accessibility, trust, or emotional fit are missing.
 

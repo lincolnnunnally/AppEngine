@@ -15,7 +15,8 @@ const coreSourceOfTruthFiles = [
   "source-of-truth/05-ecosystem-design-gates.md",
   "source-of-truth/build-completion-orchestrator.md",
   "source-of-truth/app-url-lifecycle-standard.md",
-  "source-of-truth/cost-governance-model-routing.md"
+  "source-of-truth/cost-governance-model-routing.md",
+  "source-of-truth/design-intent-engine.md"
 ];
 const appName = input.name || process.env.APP_NAME || "Example App";
 const slug = input.slug || process.env.APP_SLUG || slugify(appName);
@@ -117,6 +118,21 @@ const deploymentEnvironment =
     healthPath: process.env.APP_HEALTH_PATH || `/api/engine/apps/${slug}/health`,
     logsUrl: process.env.APP_LOGS_URL || "planned"
   });
+const designIntent =
+  input.designIntent ||
+  input.design_intent_profile ||
+  buildDesignIntentProfile({
+    appName,
+    slug,
+    audience,
+    styleProfile: process.env.APP_DESIGN_STYLE_PROFILE || "warm_approachable",
+    emotionalExperience:
+      process.env.APP_DESIGN_FEELING ||
+      "warm, approachable, clean, hopeful, practical, trustworthy",
+    trustNeeds: process.env.APP_DESIGN_TRUST_NEEDS || "clear state, visible guardrails, honest blockers, next safe action",
+    accessibilityNeeds: process.env.APP_DESIGN_ACCESSIBILITY || "mobile-first, readable contrast, large touch targets, plain language",
+    thingsToAvoid: process.env.APP_DESIGN_AVOID || "cold, generic, over-complicated, decorative clutter"
+  });
 const designReview =
   input.designReview ||
   buildDesignReview({
@@ -143,6 +159,7 @@ const releaseGate =
     version: deploymentEnvironment.app.version,
     providerCostReview,
     deploymentEnvironment,
+    designIntent,
     designReview,
     compatibilityTestPlan
   });
@@ -176,6 +193,7 @@ const packet = {
     superAdminRegistry,
     providerCostReview,
     deploymentEnvironment,
+    designIntent,
     designReview,
     compatibilityTestPlan,
     releaseGate
@@ -200,6 +218,7 @@ const packet = {
       "Review provider strategy and cost before creating new paid resources.",
       "Track AI/API credit spend with cost governance before autonomous model-heavy work continues.",
       "Define deployment environment and release gates before preview or production launch.",
+      "Capture design intent before generated UI, visual polish, or design review.",
       "Require Designer and Customer Perspective review before release approval.",
       "Block technically working but ugly, confusing, inaccessible, or emotionally mismatched apps.",
       "Block release when Safari, mobile, touch, form, auth, upload, payment, or common browser issues remain unresolved.",
@@ -295,9 +314,13 @@ function buildPhases(slug) {
       "Identity/Auth plan includes provider, session strategy, roles, memberships, permissions, and protected routes.",
       "Production auth gates and local setup behavior are explicit."
     ]),
+    phase("design_intent", "Design Intent", "designer", "ai:plan", "Capture audience, feeling, trust, accessibility, visual style, references, and things to avoid before UI design.", [
+      "Design Intent profile exists or missing fields are recorded.",
+      "Profile includes audience, user sophistication, desired emotional experience, trust needs, accessibility needs, visual style preference, and things to avoid."
+    ]),
     phase("ui_design", "UI Design", "designer", "ai:build", "Define user flows, screens, copy, accessibility, and design direction.", [
       "Primary workflow is visible and testable.",
-      "Design supports the app audience and charter."
+      "Design supports the app audience, charter, and Design Intent profile."
     ]),
     phase("design_quality", "Design Quality", "designer", "ai:review", "Review navigation, primary actions, mobile layout, copy, spacing, contrast, trust, and emotional fit.", [
       "Designer review is complete or release-blocking issues are recorded.",
@@ -428,6 +451,13 @@ function toFollowUpTask(packet, phase) {
       `- Logs: ${app.deploymentEnvironment.frontend.logsUrl}`,
       `- Env vars: ${app.deploymentEnvironment.environmentVariables.map((item) => item.name).join(", ")}`,
       "",
+      "## Design Intent",
+      `- Style profile: ${app.designIntent.visualStylePreference}`,
+      `- Audience: ${app.designIntent.targetAudience.join(", ")}`,
+      `- Desired feeling: ${app.designIntent.desiredEmotionalExperience.join(", ")}`,
+      `- Trust needs: ${app.designIntent.trustNeeds.join(", ")}`,
+      `- Avoid: ${app.designIntent.thingsToAvoid.join(", ")}`,
+      "",
       "## Design Quality",
       `- Designer review: ${app.designReview.reviewers.designerStatus}`,
       `- Customer Perspective review: ${app.designReview.reviewers.customerPerspectiveStatus}`,
@@ -476,6 +506,7 @@ function validatePacket(packet) {
     "provider_cost",
     "data_model",
     "identity_auth",
+    "design_intent",
     "ui_design",
     "design_quality",
     "ux_review",
@@ -509,6 +540,9 @@ function validatePacket(packet) {
     ["app.deploymentEnvironment.frontend.provider", packet.app.deploymentEnvironment?.frontend?.provider],
     ["app.deploymentEnvironment.frontend.previewUrl", packet.app.deploymentEnvironment?.frontend?.previewUrl],
     ["app.deploymentEnvironment.frontend.reviewUrl", packet.app.deploymentEnvironment?.frontend?.reviewUrl],
+    ["app.designIntent.kind", packet.app.designIntent?.kind],
+    ["app.designIntent.visualStylePreference", packet.app.designIntent?.visualStylePreference],
+    ["app.designIntent.ownerReadableSummary", packet.app.designIntent?.ownerReadableSummary],
     ["app.designReview.reviewers.designerStatus", packet.app.designReview?.reviewers?.designerStatus],
     ["app.designReview.reviewers.customerPerspectiveStatus", packet.app.designReview?.reviewers?.customerPerspectiveStatus],
     ["app.compatibilityTestPlan.kind", packet.app.compatibilityTestPlan?.kind],
@@ -529,6 +563,12 @@ function validatePacket(packet) {
     ["app.providerCostReview.providers", packet.app.providerCostReview?.providers],
     ["app.providerCostReview.checks", packet.app.providerCostReview?.checks],
     ["app.deploymentEnvironment.environmentVariables", packet.app.deploymentEnvironment?.environmentVariables],
+    ["app.designIntent.targetAudience", packet.app.designIntent?.targetAudience],
+    ["app.designIntent.desiredEmotionalExperience", packet.app.designIntent?.desiredEmotionalExperience],
+    ["app.designIntent.brandPersonality", packet.app.designIntent?.brandPersonality],
+    ["app.designIntent.trustNeeds", packet.app.designIntent?.trustNeeds],
+    ["app.designIntent.accessibilityNeeds", packet.app.designIntent?.accessibilityNeeds],
+    ["app.designIntent.thingsToAvoid", packet.app.designIntent?.thingsToAvoid],
     ["app.designReview.qualityChecks", packet.app.designReview?.qualityChecks],
     ["app.designReview.stateChecks", packet.app.designReview?.stateChecks],
     ["app.compatibilityTestPlan.browserSupport", packet.app.compatibilityTestPlan?.browserSupport],
@@ -580,6 +620,14 @@ function validatePacket(packet) {
     !packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate
   ) {
     throw new Error("App Build Packet must require a Deployment Environment plan with preview-before-production guardrails.");
+  }
+
+  if (
+    packet.app.designIntent.kind !== "design_intent_profile" ||
+    !packet.app.designIntent.guardrails.foundationOnly ||
+    !packet.app.designIntent.guardrails.noAutomaticCodexBuild
+  ) {
+    throw new Error("App Build Packet must require a Design Intent profile before UI work.");
   }
 
   if (!packet.app.designReview.guardrails.blocksReleaseGateApproval || !packet.app.designReview.guardrails.requiresDesignerReview) {
@@ -906,7 +954,7 @@ function variable(name, scope, target, required, secret, purpose) {
   };
 }
 
-function buildReleaseGate({ appName, slug, version, providerCostReview, deploymentEnvironment, designReview, compatibilityTestPlan }) {
+function buildReleaseGate({ appName, slug, version, providerCostReview, deploymentEnvironment, designIntent, designReview, compatibilityTestPlan }) {
   return {
     kind: "release_gate_plan",
     schemaVersion: 1,
@@ -929,6 +977,7 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
       gate("provider_provisioning_approval", "blocked_until_owner_approval", providerCostReview.costPosture.production),
       gate("deployment_environment", "required", "deployment_environment_plan"),
       gate("deployment_lifecycle", "required", "deployment_lifecycle"),
+      gate("design_intent", "required", designIntent.kind),
       gate("design_quality", "required", designReview.kind),
       gate("designer_review", "required", designReview.reviewers.designerStatus),
       gate("customer_perspective_review", "required", designReview.reviewers.customerPerspectiveStatus),
@@ -966,6 +1015,13 @@ function buildReleaseGate({ appName, slug, version, providerCostReview, deployme
         recommendedLabel: "ai:review",
         blocksModelSpendBeyondThreshold: true,
         requiresOwnerApprovalAtApprovalThreshold: true
+      },
+      designIntent: {
+        recommendedLabel: "ai:plan",
+        requiredBeforeUiDesign: true,
+        requiredBeforeUiBuild: true,
+        requiredBeforeDesignReview: true,
+        artifact: designIntent.kind
       },
       compatibilityTesting: {
         recommendedLabel: "ai:review",
@@ -1072,6 +1128,56 @@ function compatibilityCheck(id, question) {
 
 function gate(id, status, evidence) {
   return { id, status, evidence };
+}
+
+function buildDesignIntentProfile({ appName, slug, audience, styleProfile, emotionalExperience, trustNeeds, accessibilityNeeds, thingsToAvoid }) {
+  return {
+    kind: "design_intent_profile",
+    schemaVersion: 1,
+    app: {
+      name: appName,
+      slug,
+      context: "App Build Packet design intent before UI generation"
+    },
+    targetAudience: normalizeList(audience),
+    userSophisticationLevel: "mixed",
+    desiredEmotionalExperience: normalizeList(emotionalExperience),
+    brandPersonality: ["approachable", "practical", "trustworthy"],
+    trustNeeds: normalizeList(trustNeeds),
+    accessibilityNeeds: normalizeList(accessibilityNeeds),
+    visualStylePreference: styleProfile,
+    examplesOrReferences: [],
+    thingsToAvoid: normalizeList(thingsToAvoid),
+    outputGuidance: {
+      colors: "Use an audience-specific palette with clear status colors and accessible contrast.",
+      typography: "Use readable type with hierarchy appropriate to the app context.",
+      spacing: "Use mobile-first spacing that is comfortable without wasting operational space.",
+      cards: "Use cards for repeated items and framed tools; avoid nested cards.",
+      forms: "Use plain-language labels, supportive validation, and visible safety notes.",
+      dashboards: "Show state, blockers, next action, evidence, owner review URL, and version when relevant.",
+      navigation: "Use short labels and obvious owner/user paths.",
+      buttons: "Make the primary action clear and keep secondary actions restrained.",
+      emptyStates: "Explain what is missing and what the next safe action is.",
+      mobileLayout: "Avoid horizontal overflow; keep touch targets large and Safari-safe."
+    },
+    ownerReadableSummary: `${appName} should have an audience-specific UI that feels ${normalizeList(emotionalExperience).join(", ")} and avoids ${normalizeList(thingsToAvoid).join(", ")}.`,
+    guardrails: {
+      foundationOnly: true,
+      noUiRedesign: true,
+      noProductionDeploy: true,
+      noPaidResources: true,
+      noMigrations: true,
+      noSecretsOrEnvChanges: true,
+      repositoryVisibilityUnchanged: true,
+      noAutomaticCodexBuild: true
+    }
+  };
+}
+
+function normalizeList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
+  return [];
 }
 
 function buildDesignReview({ appName, slug, audience, emotionalFit }) {

@@ -21,6 +21,7 @@ These rules apply to ChatGPT, Codex, GitHub Actions, future agents, and monitori
 - Load the Super Admin Registry Standard when the task touches generated apps, app operations, launch readiness, monitoring, or deployment.
 - Load the Operations, Cost, and Provider Strategy Standard when the task touches generated apps, provider choices, new resources, cost, storage, email, payments, AI/model usage, monitoring services, deployment, or launch readiness.
 - Load the Deployment Environment Standard when the task touches generated apps, environment variables, preview URLs, production URLs, domains, logs, health checks, rollback, or deployment.
+- Load the Design Intent Engine when the task touches generated app UI, visual direction, layout, forms, dashboards, navigation, mobile layout, design review, or visual polish.
 - Load the Design Quality Gate when the task touches generated apps, UX, UI, copy, mobile, accessibility, trust, admin screens, or release readiness.
 - Load the UX Review Standard when the task touches generated apps, workflow testing, mobile testing, empty states, error states, onboarding, admin screens, or release readiness.
 - Load the Compatibility Standard when the task touches generated apps, mobile readiness, Safari, Chrome, Edge, Firefox, viewports, touch targets, forms, auth flows, uploads, payments, admin screens, or release readiness.
@@ -55,6 +56,7 @@ Stop and reconcile before editing when:
 - Cost governance says `pause` or `request_approval`, but the agent continues model-heavy work anyway.
 - A task would create new paid Vercel, Render, database, storage, email, payment, AI, analytics, or monitoring resources without owner approval.
 - A generated app has no Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain/subdomain, logs, health checks, and rollback notes.
+- A generated app UI task has no `design_intent_profile` capturing audience, user sophistication, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, things to avoid, and output guidance.
 - A generated app has no Design Quality Gate with Designer and Customer Perspective review before Release Gate approval.
 - A generated app is technically working but ugly, confusing, unreadable, inaccessible, emotionally mismatched, or missing mobile, empty, error, onboarding, or admin states.
 - A generated app has no Compatibility Test Plan covering Safari, mobile, common browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens.
@@ -78,7 +80,7 @@ Every generated phase handoff must make its source-of-truth load list visible in
 
 ## App Build Packets
 
-Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Cost Governance and Model Routing requirements, Deployment Environment plan, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
+Use an App Build Packet before building any generated app or complex app workflow. The packet must define the app charter, purpose, audience, barrier removed, need addressed, movement toward life, transformation outcome, boundaries, success definition, MVP stages, deployment target, Identity/Auth plan, Super Admin integration, Super Admin registry entry, provider/cost review, Cost Governance and Model Routing requirements, Deployment Environment plan, Design Intent profile, Design Quality Gate, UX Review, Compatibility Test Plan, Release Gate, and phase follow-up tasks. Do not collapse discovery, architecture, provider/cost, data model, identity/auth, UI/design, design intent, design quality, UX review, compatibility, build, testing, review, deployment environment, deployment, release gate, monitoring, and Super Admin registration into one task.
 
 ## ChatGPT Handoffs
 
