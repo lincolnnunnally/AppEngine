@@ -32,6 +32,7 @@ ChatGPT handoff issue or natural request
 -> phase_creation_approval before phase issues can be generated
 -> phase_issue_generation to draft bounded phase issues before any GitHub issue creation
 -> phase_issue_publish_approval before any drafted phase issue is published to GitHub
+-> phase_issue_publisher_dry_run to preview exact GitHub issue payloads before real issue creation
 -> intake packet
 -> app selection
 -> correct workflow
@@ -56,6 +57,8 @@ Use `source-of-truth/phase-creation-approval-gate.md` after `final_packet_materi
 Use `source-of-truth/phase-issue-generation.md` after approved `phase_creation_approval` to create bounded, reviewable phase issue drafts with labels and guardrails before any live GitHub issue is created. This generator must not create GitHub issues, trigger Codex build work, deploy, provision, migrate, change secrets/env, or auto-merge generated app code.
 
 Use `source-of-truth/phase-issue-publish-approval-gate.md` after `phase_issue_generation` to approve, revise, reject, or block whether drafted phase issues may be published as real GitHub issues. This approval gate itself must not publish GitHub issues, trigger Codex build work, deploy, provision, migrate, change secrets/env, or auto-merge generated app code.
+
+Use `source-of-truth/phase-issue-publisher-dry-run.md` after approved `phase_issue_publish_approval` to preview exact GitHub issue payloads before any real GitHub issue is created. This dry run must not publish issues, trigger Codex build work, deploy, provision, migrate, change secrets/env, or auto-merge generated app code.
 
 ## Request Types
 

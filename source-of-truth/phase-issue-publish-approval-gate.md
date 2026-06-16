@@ -15,7 +15,7 @@ Phase Issue Publish Approval answers:
 - Do any drafts include secrets, env vars, protected URLs, paid-resource instructions, migrations, or production deploy instructions?
 - Is Codex build execution still blocked unless explicitly approved later?
 
-This is the last review checkpoint before AppEngine may publish drafted phase issues into GitHub.
+This is the last review checkpoint before AppEngine may preview publish-ready GitHub issue payloads. After approval, use `source-of-truth/phase-issue-publisher-dry-run.md` before any real GitHub issue creation.
 
 ## Input Artifact
 
@@ -61,6 +61,8 @@ Every `phase_issue_publish_approval` must use one of these statuses:
 - `blocked_by_scope`
 
 Only `approved_for_issue_publish` may recommend later issue publication. Even then, this gate does not publish GitHub issues.
+
+After this gate approves issue publication, use `source-of-truth/phase-issue-publisher-dry-run.md` to preview the exact GitHub issue payloads for owner review before any live issue is created.
 
 ## Required Approval Checks
 

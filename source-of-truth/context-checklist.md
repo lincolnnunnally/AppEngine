@@ -21,6 +21,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Phase Creation Approval Gate before phase issue generation or executable phase work
 - Phase Issue Generation before GitHub phase issue creation or executable phase work
 - Phase Issue Publish Approval Gate before real GitHub phase issue publication
+- Phase Issue Publisher Dry Run before real GitHub issue creation
 - Intake Command Standard for natural language requests, GitHub issue creation, and agent workflow routing
 - App Selection Standard for new-app vs existing-app disambiguation
 - End-to-End AppEngine Command Test Standard for command-path proof and pilot dry runs
@@ -78,27 +79,29 @@ All agent workflows must load and answer this checklist before taking action.
 32. If phase issue generation passes, does `phase_issue_publish_approval` approve, revise, reject, or block publication before real GitHub issues are created?
 33. Does phase issue publish approval check title, body, source packet, phase order, labels, guardrails, acceptance criteria, boundedness, safe labels, secrets/env safety, protected URL safety, paid resource safety, migration safety, and production deploy safety?
 34. Does phase issue publish approval preserve `githubIssuesPublished: false`, `codexBuildTriggered: false`, and `codexTriggerLabelsApproved: false` until a later explicit publish/activation step?
-35. If this came from a natural language request, does an `intake_packet` exist with raw request, inferred app, request type, confidence, missing context, selected workflow, and next labels?
-36. Has app selection identified exactly one outcome: new app, existing app, ambiguous request, or multi-app request?
-37. If this is a command-path proof or pilot, does a `pilot_app_build` artifact record issue, handoff, intake, packet, dry-run follow-ups, PRs, release status, blockers, and next action?
-38. If this is a live GitHub pilot, are pilot JSON artifacts and structured follow-up task JSON persisted under `agent-run` instead of runner-local `/tmp` paths?
-39. Does the pilot block production deployment, paid provider creation, and generated app code merge without review?
-40. Is this a new app or complex build that needs an App Build Packet before implementation?
-41. If an App Build Packet exists, does the active task stay inside its current phase?
-42. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
-43. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
-44. Does the portfolio registry know this app's name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source files, linked issues, and linked PRs?
-45. Does the app have provider/cost review with reuse strategy, preview/production cost posture, cost ceiling, upgrade trigger, and owner approval before new paid resources?
-46. Does the active agent run have cost governance with monthly/project/app/issue spend, remaining budget, task class, thresholds, and budget-aware next action when model/API credits may be consumed?
-47. Does cost governance say to continue, continue with a cheaper model, pause, or request owner approval?
-48. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
-49. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
-50. Does the app have Designer and Customer Perspective review before Release Gate approval?
-51. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
-52. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
-53. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
-54. Are any core files, docs, prompts, context, or issue links missing?
-55. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+35. If phase issue publish approval passes, does `phase_issue_publisher_dry_run` preview exact GitHub issue payloads with titles, bodies, labels, phase order, source packet traceability, guardrails, and next safe action?
+36. Does phase issue publisher dry run preserve `githubIssuesCreated: false` and `codexBuildTriggered: false` until a later explicit owner-approved publisher?
+37. If this came from a natural language request, does an `intake_packet` exist with raw request, inferred app, request type, confidence, missing context, selected workflow, and next labels?
+38. Has app selection identified exactly one outcome: new app, existing app, ambiguous request, or multi-app request?
+39. If this is a command-path proof or pilot, does a `pilot_app_build` artifact record issue, handoff, intake, packet, dry-run follow-ups, PRs, release status, blockers, and next action?
+40. If this is a live GitHub pilot, are pilot JSON artifacts and structured follow-up task JSON persisted under `agent-run` instead of runner-local `/tmp` paths?
+41. Does the pilot block production deployment, paid provider creation, and generated app code merge without review?
+42. Is this a new app or complex build that needs an App Build Packet before implementation?
+43. If an App Build Packet exists, does the active task stay inside its current phase?
+44. Does the app have an Identity/Auth plan with provider, roles, memberships, permissions, protected routes, and production auth gates?
+45. Does the app have a Super Admin registry entry or planned entry with status, health, logs, admin, users, billing/status if needed, and allowed admin actions?
+46. Does the portfolio registry know this app's name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source files, linked issues, and linked PRs?
+47. Does the app have provider/cost review with reuse strategy, preview/production cost posture, cost ceiling, upgrade trigger, and owner approval before new paid resources?
+48. Does the active agent run have cost governance with monthly/project/app/issue spend, remaining budget, task class, thresholds, and budget-aware next action when model/API credits may be consumed?
+49. Does cost governance say to continue, continue with a cheaper model, pause, or request owner approval?
+50. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
+51. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
+52. Does the app have Designer and Customer Perspective review before Release Gate approval?
+53. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
+54. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
+55. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
+56. Are any core files, docs, prompts, context, or issue links missing?
+57. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 
