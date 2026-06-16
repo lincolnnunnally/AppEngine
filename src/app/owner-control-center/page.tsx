@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
+import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { listOrchestratorRuns } from "@/lib/engine/orchestrator-run";
 import { loadProjectMemory } from "@/lib/engine/project-memory";
+import { listProblemIntakeRecords } from "@/lib/engine/problem-intake-lite";
 import { listRealProjectTrials, listTrialProjectCandidates, listTrialResultReviews } from "@/lib/engine/real-project-trial";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +16,13 @@ export default async function OwnerControlCenterPage() {
     redirect("/");
   }
 
-  const [handoffs, projectMemory, trialRuns, trialReviews, orchestratorRuns] = await Promise.all([
+  const [handoffs, projectMemory, trialRuns, trialReviews, orchestratorRuns, problemIntakeRecords] = await Promise.all([
     listHandoffRelaySummaries(),
     loadProjectMemory(),
     listRealProjectTrials(),
     listTrialResultReviews(),
-    listOrchestratorRuns()
+    listOrchestratorRuns(),
+    listProblemIntakeRecords()
   ]);
 
   return (
@@ -28,6 +31,7 @@ export default async function OwnerControlCenterPage() {
         <strong>AppEngine Owner Control</strong>
         <div className="navlinks">
           <Link href="/">Home</Link>
+          <Link href="/problem-intake-lite">Problem Intake</Link>
           <Link href="/builder">Builder</Link>
           <Link href="/admin">Admin</Link>
         </div>
@@ -41,6 +45,7 @@ export default async function OwnerControlCenterPage() {
         initialOrchestratorRuns={orchestratorRuns}
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
+      <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
     </main>
   );
 }

@@ -71,6 +71,7 @@
     "smoke:published-phase-issue-registry": "node scripts/smoke-published-phase-issue-registry.js",
     "smoke:phase-start-approval": "node scripts/smoke-phase-start-approval.js",
     "smoke:execution-label-dry-run": "node scripts/smoke-execution-label-dry-run.js",
+    "smoke:problem-intake-lite-ui": "node scripts/smoke-problem-intake-lite-ui.js",
     "smoke:app-build-packet": "node scripts/smoke-app-build-packet.js",
     "smoke:intake": "node scripts/smoke-intake-packet.js",
     "smoke:identity-registry": "node scripts/smoke-identity-registry.js",
