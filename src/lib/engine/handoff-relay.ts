@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { OrchestratorRun } from "./orchestrator-run";
+import type { OrchestratorBatchDryRun, OrchestratorRun } from "./orchestrator-run";
 import { updateProjectMemoryFromHandoff, updateProjectMemoryFromPreparedHandoff } from "./project-memory";
 
 export type HandoffFeedbackChoice =
@@ -231,6 +231,84 @@ export async function savePreparedHandoffFromOrchestratorRun(run: OrchestratorRu
   store.handoffs = [summary, ...store.handoffs.filter((handoff) => handoff.id !== summary.id)].slice(0, 50);
   await writeStore(store);
   await updateProjectMemoryFromPreparedHandoff(summary, run);
+
+  return summary;
+}
+
+export function createPreparedHandoffFromOrchestratorBatchDraft(
+  draft: OrchestratorBatchDryRun["preparedHandoffDrafts"][number],
+  now = new Date()
+): HandoffRelaySummary {
+  const rawText = buildBatchPreparedHandoffText(draft);
+  const summary = createHandoffRelaySummary(rawText, now);
+  const action = formatAction(draft.action);
+
+  return {
+    ...summary,
+    id: `handoff_from_${draft.sourceActionId}`,
+    source: "orchestrator_prepared_handoff",
+    extracted: {
+      ...summary.extracted,
+      prNumber: null,
+      prTitle: `Prepared batch Codex handoff: ${action}`,
+      branch: "not applicable",
+      mergeStatus: "prepared",
+      verificationResults: limit(
+        [
+          "Required verification: npm run source:check",
+          "Required verification: npm run typecheck",
+          "Required verification: npm run build",
+          ...summary.extracted.verificationResults
+        ],
+        8
+      ),
+      completedWork: limit(
+        [
+          `Prepared batch handoff created from orchestrator action ${draft.sourceActionId}.`,
+          `Source run: ${draft.sourceRunId}.`,
+          ...summary.extracted.completedWork
+        ],
+        8
+      ),
+      guardrailsPreserved: limit([...summary.extracted.guardrailsPreserved, ...draft.guardrails], 10),
+      dependencies: limit([...draft.dependencies, ...summary.extracted.dependencies], 8)
+    },
+    projectState: {
+      currentStatus: "Prepared batch handoff waiting for owner review",
+      latestCompletedMilestone: `Orchestrator batch prepared ${action} for the Handoff Inbox.`,
+      openPrs: [],
+      recommendedNextAction: "Review the prepared Codex handoff in the Handoff Inbox, copy it if it is right, then send it manually.",
+      remainingMajorMilestones: [
+        "Owner reviews prepared batch handoffs",
+        "Owner copies only the prompts that are right",
+        "Codex receives prompts only when Lincoln sends them",
+        "Verification evidence is recorded after each next action"
+      ]
+    },
+    nextPrompt: {
+      prompt: draft.prompt,
+      reason: draft.reason,
+      dependencies: draft.dependencies,
+      expectedOutcome: draft.expectedOutcome
+    },
+    feedback: {
+      ...summary.feedback,
+      improvementCandidate: ""
+    },
+    ownerReadableSummary: `Prepared batch Codex handoff from ${draft.sourceActionId}. Next action: ${action}. It is waiting in the Handoff Inbox for owner review and copy.`,
+    guardrails: defaultGuardrails()
+  };
+}
+
+export async function savePreparedHandoffFromOrchestratorBatchDraft(
+  draft: OrchestratorBatchDryRun["preparedHandoffDrafts"][number],
+  now = new Date()
+) {
+  const store = await readStore();
+  const summary = createPreparedHandoffFromOrchestratorBatchDraft(draft, now);
+  store.handoffs = [summary, ...store.handoffs.filter((handoff) => handoff.id !== summary.id)].slice(0, 50);
+  await writeStore(store);
+  await updateProjectMemoryFromHandoff(summary);
 
   return summary;
 }
@@ -518,6 +596,54 @@ function buildPreparedHandoffText(run: OrchestratorRun) {
     "",
     "Evidence:",
     ...(run.evidence.length ? run.evidence.map((entry) => `- ${entry}`) : ["- No extra evidence recorded."]),
+    "",
+    "Owner action:",
+    "Review this prepared handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
+  ].join("\n");
+}
+
+function buildBatchPreparedHandoffText(draft: OrchestratorBatchDryRun["preparedHandoffDrafts"][number]) {
+  return [
+    "# Prepared Codex handoff from Orchestrator Batch",
+    "",
+    "Source:",
+    `- orchestrator_action: ${draft.sourceActionId}`,
+    `- orchestrator_run: ${draft.sourceRunId}`,
+    `- Confidence: ${draft.confidenceLevel}`,
+    "",
+    "Current project state:",
+    "- This prepared handoff was created from an owner-reviewed batch dry run.",
+    "- It is stored in the Handoff Inbox for manual owner review and copy.",
+    "",
+    "Reason for next action:",
+    draft.reason,
+    "",
+    "Exact suggested Codex prompt:",
+    draft.prompt,
+    "",
+    "Required verification:",
+    "- npm run source:check",
+    "- npm run typecheck",
+    "- npm run build",
+    "- Run any smoke test named by the selected action.",
+    "",
+    "Expected result:",
+    draft.expectedOutcome,
+    "",
+    "Guardrails preserved:",
+    "- No automatic Codex execution.",
+    "- No GitHub issue creation.",
+    "- No label changes.",
+    "- No production deploy.",
+    "- No paid resources.",
+    "- No migrations.",
+    "- No secrets/env changes.",
+    "- No repository visibility changes.",
+    "- No generated app auto-merge.",
+    ...draft.guardrails.map((guardrail) => `- ${guardrail}`),
+    "",
+    "Dependencies:",
+    ...(draft.dependencies.length ? draft.dependencies.map((dependency) => `- ${dependency}`) : ["- Owner reviews and manually sends this prompt."]),
     "",
     "Owner action:",
     "Review this prepared handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
