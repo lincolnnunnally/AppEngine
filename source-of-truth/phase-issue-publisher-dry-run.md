@@ -17,7 +17,7 @@ Phase Issue Publisher Dry Run answers:
 - What guardrails still apply?
 - What is the next safe action?
 
-This step lets AppEngine show the owner exactly what would happen before any real GitHub issue is created.
+This step lets AppEngine show the owner exactly what would happen before any real GitHub issue is created. Real issue creation, if approved later, is handled by `source-of-truth/phase-issue-publisher-manual-mode.md`.
 
 ## Input Artifact
 
@@ -91,6 +91,8 @@ The dry-run artifact must include exact issue payload previews for a later real 
 ```
 
 Payload previews are not GitHub issues. They must not call the GitHub API.
+
+After the owner approves the payload previews, use `source-of-truth/phase-issue-publisher-manual-mode.md` for the controlled manual publish path. Manual mode must still default to no-op unless explicitly enabled.
 
 ## Owner-Readable Output
 
