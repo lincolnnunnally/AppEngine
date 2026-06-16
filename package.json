@@ -56,6 +56,7 @@
     "smoke:trial-result-review": "node scripts/smoke-trial-result-review.js",
     "smoke:orchestrator-run": "node scripts/smoke-orchestrator-run.js",
     "smoke:orchestrator-action-queue": "node scripts/smoke-orchestrator-action-queue.js",
+    "smoke:orchestrator-action-queue-ui": "node scripts/smoke-orchestrator-action-queue-ui.js",
     "smoke:orchestrator-handoff-bridge": "node scripts/smoke-orchestrator-handoff-bridge.js",
     "smoke:pending-check-resolution": "node scripts/smoke-pending-check-resolution.js",
     "smoke:e2e-pilot": "node scripts/smoke-e2e-command-pilot.js",
