@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary } from "./handoff-relay";
+import type { PendingCheckResolution } from "./pending-check-resolution";
 import type { ProjectMemory } from "./project-memory";
 import type { RealProjectTrialSummary } from "./real-project-trial";
 
@@ -26,6 +27,7 @@ export type OrchestratorRun = {
     realProjectTrial: OrchestratorInputReference;
     designIntentProfile: OrchestratorInputReference;
     appPortfolioRegistry: OrchestratorInputReference;
+    pendingCheckResolution: OrchestratorInputReference;
   };
   nextActionPrompt: {
     prompt: string;
@@ -42,6 +44,7 @@ export type OrchestratorInput = {
   projectMemory: ProjectMemory;
   handoffs?: HandoffRelaySummary[];
   trials?: RealProjectTrialSummary[];
+  pendingCheckResolution?: PendingCheckResolution;
 };
 
 type OrchestratorInputReference = {
@@ -92,11 +95,12 @@ export function createOrchestratorRun(input: OrchestratorInput, now = new Date()
   const projectMemory = input.projectMemory;
   const latestHandoff = newest(input.handoffs || [], "receivedAt");
   const latestTrial = newest(input.trials || [], "createdAt");
+  const pendingCheckResolution = input.pendingCheckResolution;
   const blockers = projectMemory.currentBlockers
     .map((item) => item.text)
     .filter((text) => text && isActionableBlocker(text))
     .slice(0, 5);
-  const decision = chooseNextAction({ projectMemory, latestHandoff, latestTrial, blockers });
+  const decision = chooseNextAction({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution, blockers });
   const createdAt = now.toISOString();
   const id = `orchestrator_run_${now.getTime().toString(36)}`;
 
@@ -114,8 +118,8 @@ export function createOrchestratorRun(input: OrchestratorInput, now = new Date()
       currentBlockers: blockers,
       recommendedNextAction: projectMemory.latestProjectState.recommendedNextAction
     },
-    inputArtifacts: buildInputReferences({ projectMemory, latestHandoff, latestTrial }),
-    nextActionPrompt: buildNextPrompt({ decision, projectMemory, latestHandoff, latestTrial }),
+    inputArtifacts: buildInputReferences({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution }),
+    nextActionPrompt: buildNextPrompt({ decision, projectMemory, latestHandoff, latestTrial, pendingCheckResolution }),
     evidence: decision.evidence,
     ownerReadableSummary: `AppEngine chose ${decision.action.replace(/_/g, " ")} because ${decision.reason}`,
     guardrails: defaultGuardrails()
@@ -126,13 +130,53 @@ function chooseNextAction({
   projectMemory,
   latestHandoff,
   latestTrial,
+  pendingCheckResolution,
   blockers
 }: {
   projectMemory: ProjectMemory;
   latestHandoff: HandoffRelaySummary | null;
   latestTrial: RealProjectTrialSummary | null;
+  pendingCheckResolution?: PendingCheckResolution;
   blockers: string[];
 }) {
+  if (pendingCheckResolution) {
+    if (pendingCheckResolution.status === "blocked_by_failed_check") {
+      return {
+        status: "blocked" as const,
+        action: "fix_failed_check_before_review",
+        reason: "Pending Check Resolution found a failed check, and failing checks must not be bypassed.",
+        evidence: pendingCheckResolution.evidence
+      };
+    }
+
+    if (pendingCheckResolution.status === "blocked_by_required_pending") {
+      return {
+        status: "blocked" as const,
+        action: "wait_for_required_checks",
+        reason: "Required or blocking checks have not passed yet.",
+        evidence: pendingCheckResolution.evidence
+      };
+    }
+
+    if (pendingCheckResolution.status === "waiting_for_timeout") {
+      return {
+        status: "needs_owner_approval" as const,
+        action: "wait_for_external_pending_timeout",
+        reason: "An external advisory check is still pending but has not exceeded the configured stale-check threshold.",
+        evidence: pendingCheckResolution.evidence
+      };
+    }
+
+    if (pendingCheckResolution.status === "review_ready_with_advisory_pending") {
+      return {
+        status: "needs_owner_approval" as const,
+        action: "owner_review_with_advisory_pending_check",
+        reason: "Required checks passed and the only unresolved signal is an external advisory status pending beyond the timeout.",
+        evidence: pendingCheckResolution.evidence
+      };
+    }
+  }
+
   if (blockers.length) {
     return {
       status: "blocked" as const,
@@ -194,12 +238,14 @@ function buildNextPrompt({
   decision,
   projectMemory,
   latestHandoff,
-  latestTrial
+  latestTrial,
+  pendingCheckResolution
 }: {
   decision: ReturnType<typeof chooseNextAction>;
   projectMemory: ProjectMemory;
   latestHandoff: HandoffRelaySummary | null;
   latestTrial: RealProjectTrialSummary | null;
+  pendingCheckResolution?: PendingCheckResolution;
 }): OrchestratorRun["nextActionPrompt"] {
   const prompt = [
     "Proceed with the next AppEngine safe action selected by the Manual Orchestrator.",
@@ -225,12 +271,18 @@ function buildNextPrompt({
       ? `- ${latestTrial.ownerReadableSummary}\n- Next safe action: ${latestTrial.nextSafeAction}\n- Recommended packet: ${latestTrial.recommendedPacketType}`
       : "- No real project trial is available.",
     "",
+    "Pending check context:",
+    pendingCheckResolution
+      ? `- ${pendingCheckResolution.ownerReadableSummary}\n- Status: ${pendingCheckResolution.status}\n- Next safe action: ${pendingCheckResolution.nextSafeAction}`
+      : "- No pending_check_resolution artifact is available.",
+    "",
     "Use these existing AppEngine artifacts where possible:",
     "- project_memory",
     "- handoff_relay_summary",
     "- real_project_trial",
     "- design_intent_profile",
     "- app_portfolio_registry",
+    "- pending_check_resolution when PR checks are stuck pending",
     "",
     "Guardrails:",
     "- Do not trigger Codex automatically.",
@@ -257,7 +309,8 @@ function buildNextPrompt({
       "source-of-truth/handoff-relay-reducer.md",
       "source-of-truth/real-project-trial-runner.md",
       "source-of-truth/design-intent-engine.md",
-      "source-of-truth/app-portfolio-registry.md"
+      "source-of-truth/app-portfolio-registry.md",
+      "source-of-truth/pending-check-resolution-policy.md"
     ]
   };
 }
@@ -265,11 +318,13 @@ function buildNextPrompt({
 function buildInputReferences({
   projectMemory,
   latestHandoff,
-  latestTrial
+  latestTrial,
+  pendingCheckResolution
 }: {
   projectMemory: ProjectMemory;
   latestHandoff: HandoffRelaySummary | null;
   latestTrial: RealProjectTrialSummary | null;
+  pendingCheckResolution?: PendingCheckResolution;
 }): OrchestratorRun["inputArtifacts"] {
   return {
     projectMemory: {
@@ -303,6 +358,12 @@ function buildInputReferences({
         ? `${latestTrial.project.name} is represented as the active portfolio candidate.`
         : "Portfolio registry should be loaded before new app or vNext packet work.",
       sourceFiles: ["source-of-truth/app-portfolio-registry.md"]
+    },
+    pendingCheckResolution: {
+      kind: "pending_check_resolution",
+      status: pendingCheckResolution ? "available" : "missing",
+      summary: pendingCheckResolution?.ownerReadableSummary || "No stale/pending check resolution has been produced for this orchestrator run.",
+      sourceFiles: ["source-of-truth/pending-check-resolution-policy.md"]
     }
   };
 }
@@ -314,7 +375,11 @@ function expectedOutcomeFor(action: string) {
     review_open_pr_before_next_work: "Owner reviews the open PR and decides whether it is ready before AppEngine advances.",
     review_latest_trial_and_prepare_next_packet: "Owner reviews the latest trial and prepares the correct packet path without starting implementation.",
     follow_project_memory_next_action: "Carry out the next Project Memory action in owner-review mode only.",
-    create_real_project_trial: "Generate a real-project trial summary before packet or build work."
+    create_real_project_trial: "Generate a real-project trial summary before packet or build work.",
+    fix_failed_check_before_review: "Fix the failed check before review or merge decisions continue.",
+    wait_for_required_checks: "Wait for required checks to pass or create a focused check-resolution task.",
+    wait_for_external_pending_timeout: "Wait until the advisory external pending status crosses the configured timeout.",
+    owner_review_with_advisory_pending_check: "Owner may review the PR with the stale external status clearly marked advisory, but AppEngine must not auto-merge."
   };
 
   return outcomes[action] || "Produce the next owner-reviewed AppEngine action without external side effects.";

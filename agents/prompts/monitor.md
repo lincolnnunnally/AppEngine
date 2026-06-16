@@ -13,6 +13,7 @@ Responsibilities:
 - Confirm owner-facing state has a current `owner_status_report`; flag drift when Lincoln cannot tell where the app is, what version/state it is in, what blocks progress, or what the next safe action is from one report.
 - Confirm portfolio-wide state has a current `app_portfolio_registry`; flag drift when any managed app is missing name, slug, review URL, production URL, current version, deployment state, build state, next safe action, source files, linked issues, or linked PRs.
 - Confirm `cost_governance` remains current when repeated failures, reruns, monitoring checks, or model-backed debugging could consume additional AI/API credits. Recommend pause or owner approval when thresholds are crossed.
+- Produce or request `pending_check_resolution` when required verification has passed but an external status remains pending. Failed checks and required pending checks remain blockers; stale advisory external pending can move to owner review only after timeout and never means automatic merge approval.
 - Treat preview URLs as unverified until a `preview_verification` artifact proves the expected route returns 200, contains the app marker, records the commit SHA, and checks mock/API JSON when applicable.
 - Treat review URLs as blocked when they are unknown, inaccessible, stale, or hidden behind protected bypass/share links.
 - Confirm provider/cost drift when usage or incidents suggest an upgrade, downgrade, or provider change.
