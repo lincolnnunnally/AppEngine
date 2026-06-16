@@ -89,6 +89,7 @@
     "smoke:portfolio-registry": "node scripts/smoke-app-portfolio-registry.js",
     "smoke:persistence-inventory": "node scripts/smoke-persistence-inventory.js",
     "smoke:persistence-adapter-readiness": "node scripts/smoke-persistence-adapter-readiness.js",
+    "smoke:persistence-activation-readiness": "node scripts/smoke-persistence-activation-readiness.js",
     "smoke:design-intent": "node scripts/smoke-design-intent-profile.js",
     "smoke:design-quality": "node scripts/smoke-design-quality.js",
     "smoke:compatibility": "node scripts/smoke-compatibility.js",
