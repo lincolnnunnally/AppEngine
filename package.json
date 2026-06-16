@@ -98,6 +98,7 @@
     "smoke:audit-trail-owner-visibility": "node scripts/smoke-audit-trail-owner-visibility.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
+    "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
     "smoke:storage-provider-plan": "node scripts/smoke-storage-provider-plan.js",
     "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",
     "smoke:spark-approved-preview": "node scripts/smoke-spark-approved-preview.js",
