@@ -27,6 +27,7 @@ ChatGPT handoff issue or natural request
 -> problem_portfolio_routing when the clarified problem or vision becomes a portfolio candidate
 -> solution_candidate_review before App Build Packet, vNext Packet, or non-app solution plan requests
 -> candidate_packet_bridge when review is approved and a packet draft is needed
+-> packet_draft_approval before a packet draft can become a final packet
 -> intake packet
 -> app selection
 -> correct workflow
@@ -41,6 +42,8 @@ Use `source-of-truth/problem-portfolio-routing-standard.md` after `problem_solut
 Use `source-of-truth/solution-candidate-review-gate.md` after `problem_portfolio_routing` to decide whether the tracked candidate needs clarification, is blocked, or is ready for an App Build Packet request, vNext Packet request, or non-app solution plan request.
 
 Use `source-of-truth/candidate-to-packet-bridge.md` after approved `solution_candidate_review` to create a review-ready packet draft without creating phase issues, triggering Codex build work, or deploying anything.
+
+Use `source-of-truth/packet-draft-approval-gate.md` after `candidate_packet_bridge` to approve, revise, reject, or block the packet draft before any final App Build Packet, vNext Packet, or Non-App Solution Plan can be created.
 
 ## Request Types
 
