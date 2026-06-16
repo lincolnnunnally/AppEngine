@@ -211,6 +211,10 @@ Phase Start Approval must not:
 - change repository visibility
 - auto-merge generated app code
 
+## Next Dry-Run Step
+
+After this gate returns `approved_for_manual_phase_start`, use `source-of-truth/execution-label-dry-run.md` to preview the exact label changes before any real GitHub label mutation. The dry run must not add labels or trigger Codex build work.
+
 ## Success Criteria
 
 The gate is working when:
