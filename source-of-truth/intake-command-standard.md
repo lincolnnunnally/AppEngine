@@ -30,6 +30,7 @@ ChatGPT handoff issue or natural request
 -> packet_draft_approval before a packet draft can become a final packet
 -> final_packet_materialization after approval and before phase creation
 -> phase_creation_approval before phase issues can be generated
+-> phase_issue_generation to draft bounded phase issues before any GitHub issue creation
 -> intake packet
 -> app selection
 -> correct workflow
@@ -50,6 +51,8 @@ Use `source-of-truth/packet-draft-approval-gate.md` after `candidate_packet_brid
 Use `source-of-truth/final-packet-materialization.md` after approved `packet_draft_approval` to create the final planning packet without creating phase issues, triggering Codex build work, or deploying anything.
 
 Use `source-of-truth/phase-creation-approval-gate.md` after `final_packet_materialization` to approve, revise, reject, or block whether phase issues may be generated. The approval gate itself must not create phase issues or trigger build work.
+
+Use `source-of-truth/phase-issue-generation.md` after approved `phase_creation_approval` to create bounded, reviewable phase issue drafts with labels and guardrails before any live GitHub issue is created. This generator must not create GitHub issues, trigger Codex build work, deploy, provision, migrate, change secrets/env, or auto-merge generated app code.
 
 ## Request Types
 

@@ -15,7 +15,7 @@ The Phase Creation Approval Gate answers:
 - Are provider/cost and security/privacy risks still blocked or safe?
 - Are owner approval notes recorded?
 
-This is the final safety checkpoint before AppEngine may generate executable phase work in a later step.
+This is the final safety checkpoint before AppEngine may generate bounded phase issue drafts in a later step. The later generator is defined in `source-of-truth/phase-issue-generation.md` and still must not create live GitHub issues or trigger build work.
 
 ## Input Artifact
 
@@ -71,6 +71,8 @@ Every `phase_creation_approval` must use one of these statuses:
 - `blocked_by_scope`
 
 Only `approved_for_phase_creation` may recommend later phase issue generation. Even then, this gate does not create phase issues.
+
+After this gate approves phase creation, use `source-of-truth/phase-issue-generation.md` to draft bounded phase issues for owner review before any live GitHub issue is created.
 
 ## Required Approval Checks
 
@@ -225,6 +227,7 @@ Required source-of-truth files:
 - `source-of-truth/packet-draft-approval-gate.md`
 - `source-of-truth/final-packet-materialization.md`
 - `source-of-truth/phase-creation-approval-gate.md`
+- `source-of-truth/phase-issue-generation.md`
 - `source-of-truth/app-portfolio-registry.md`
 
 ## Guardrails
