@@ -139,6 +139,17 @@ export function HandoffRelayControlCenter({
     projectMemory.futureImprovements.length +
     projectMemory.progressHistory.length +
     projectMemory.ownerFeedback.length;
+  const openDraftsAndHandoffs = handoffs.filter(
+    (handoff) =>
+      handoff.source === "orchestrator_prepared_handoff" ||
+      ["prepared", "draft", "open", "mergeable"].includes(handoff.extracted.mergeStatus)
+  ).length;
+  const queuedActions = orchestratorActionQueue.filter((action) => action.status === "queued").length;
+  const preparedActions = orchestratorActionQueue.filter((action) => action.status === "prepared_handoff").length;
+  const blockerSummary = projectMemory.currentBlockers.length
+    ? `${projectMemory.currentBlockers.length} blocker${projectMemory.currentBlockers.length === 1 ? "" : "s"} recorded`
+    : "No current blockers recorded";
+  const openDraftSummary = `${openDraftsAndHandoffs} open handoff${openDraftsAndHandoffs === 1 ? "" : "s"} · ${queuedActions} queued · ${preparedActions} prepared`;
 
   async function loadInbox() {
     setBusyAction("refresh");
@@ -534,6 +545,13 @@ export function HandoffRelayControlCenter({
         <span className="status-chip">{trialRuns.length} trial run{trialRuns.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{trialReviews.length} trial review{trialReviews.length === 1 ? "" : "s"}</span>
         {error ? <span className="error-chip">{error}</span> : null}
+      </section>
+
+      <section className="owner-quick-status-grid" data-testid="owner-control-center-status">
+        <StateBlock label="Current Project State" value={projectMemory.latestProjectState.currentState} />
+        <StateBlock label="Next Safe Action" value={selectedOrchestratorRun?.selectedNextSafeAction || projectMemory.latestProjectState.recommendedNextAction} />
+        <StateBlock label="Blockers" value={error || blockerSummary} />
+        <StateBlock label="Open Drafts/Handoffs" value={openDraftSummary} />
       </section>
 
       <section className="panel pending-check-policy-panel" data-testid="pending-check-resolution-policy">

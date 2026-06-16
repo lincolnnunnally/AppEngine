@@ -1565,6 +1565,18 @@ label {
   gap: 10px;
 }
 
+.owner-quick-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.owner-quick-status-grid .handoff-state-block {
+  min-height: 132px;
+  border-color: #b9d8d2;
+  background: #f7fbfa;
+}
+
 .handoff-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr);
@@ -2023,6 +2035,7 @@ label {
     .handoff-state-grid,
     .handoff-analysis-grid,
     .handoff-prompt-meta,
+    .owner-quick-status-grid,
     .pending-check-grid,
     .project-memory-summary-grid,
     .project-memory-lists,
