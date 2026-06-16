@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { AuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
 import type { OrchestratorActionQueueItem, OrchestratorActionStatus, OrchestratorRun } from "@/lib/engine/orchestrator-run";
 import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
@@ -31,6 +32,11 @@ type TrialResultReviewPayload = {
 type OrchestratorRunPayload = {
   runs: OrchestratorRun[];
   actionQueue: OrchestratorActionQueueItem[];
+  storage: string;
+};
+
+type AuditTrailPayload = {
+  report: AuditTrailOwnerVisibilityReport;
   storage: string;
 };
 
@@ -68,6 +74,7 @@ export function HandoffRelayControlCenter({
   initialTrialReviews,
   initialOrchestratorRuns,
   initialOrchestratorActionQueue,
+  initialAuditTrailReport,
   initialStorage
 }: {
   initialHandoffs: HandoffRelaySummary[];
@@ -77,6 +84,7 @@ export function HandoffRelayControlCenter({
   initialTrialReviews: TrialResultReview[];
   initialOrchestratorRuns: OrchestratorRun[];
   initialOrchestratorActionQueue: OrchestratorActionQueueItem[];
+  initialAuditTrailReport: AuditTrailOwnerVisibilityReport;
   initialStorage: string;
 }) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
@@ -86,6 +94,7 @@ export function HandoffRelayControlCenter({
   const [trialReviews, setTrialReviews] = useState(initialTrialReviews);
   const [orchestratorRuns, setOrchestratorRuns] = useState(initialOrchestratorRuns);
   const [orchestratorActionQueue, setOrchestratorActionQueue] = useState(initialOrchestratorActionQueue);
+  const [auditTrailReport, setAuditTrailReport] = useState(initialAuditTrailReport);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
@@ -150,6 +159,24 @@ export function HandoffRelayControlCenter({
     ? `${projectMemory.currentBlockers.length} blocker${projectMemory.currentBlockers.length === 1 ? "" : "s"} recorded`
     : "No current blockers recorded";
   const openDraftSummary = `${openDraftsAndHandoffs} open handoff${openDraftsAndHandoffs === 1 ? "" : "s"} · ${queuedActions} queued · ${preparedActions} prepared`;
+
+  async function loadAuditTrail() {
+    setBusyAction("audit-refresh");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/audit-trail");
+      const payload = await readJsonResponse<AuditTrailPayload>(response, "Audit trail refresh failed");
+      setAuditTrailReport(payload.report);
+      setStorage(payload.storage || "local_mock_jsonl");
+      setStatus("Audit trail refreshed");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Audit trail refresh failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
 
   async function loadInbox() {
     setBusyAction("refresh");
@@ -544,6 +571,7 @@ export function HandoffRelayControlCenter({
         <span className="status-chip">{orchestratorRuns.length} orchestrator run{orchestratorRuns.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{trialRuns.length} trial run{trialRuns.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{trialReviews.length} trial review{trialReviews.length === 1 ? "" : "s"}</span>
+        <span className="status-chip">{auditTrailReport.events.length} audit event{auditTrailReport.events.length === 1 ? "" : "s"}</span>
         {error ? <span className="error-chip">{error}</span> : null}
       </section>
 
@@ -571,6 +599,56 @@ export function HandoffRelayControlCenter({
           <StateBlock label="Advisory" value="Old external pending statuses, such as stale Vercel signals, may become reviewable after timeout." />
           <StateBlock label="Blocking" value="Any failed check, missing required check, failed preview verification, production action, migration, or paid resource stays blocked." />
           <StateBlock label="Timeout" value="Default threshold is 45 minutes, configurable with APPENGINE_PENDING_CHECK_TIMEOUT_MINUTES." />
+        </div>
+      </section>
+
+      <section className="panel audit-trail-panel" data-testid="audit-trail-owner-visibility">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Audit Trail</p>
+            <h2>Recent safe owner-visible events</h2>
+            <p>{auditTrailReport.ownerReadableSummary}</p>
+          </div>
+          <div className="orchestrator-actions">
+            <span className="handoff-state-pill">Local/mock only</span>
+            <button className="button" type="button" onClick={() => void loadAuditTrail()} disabled={Boolean(busyAction)}>
+              {busyAction === "audit-refresh" ? "Refreshing..." : "Refresh Audit Trail"}
+            </button>
+          </div>
+        </div>
+
+        <div className="audit-event-list">
+          {auditTrailReport.events.length ? (
+            auditTrailReport.events.map((event) => (
+              <article className="audit-event-card" key={event.id}>
+                <div className="handoff-section-heading">
+                  <div>
+                    <p className="eyebrow">{new Date(event.eventTime).toLocaleString()}</p>
+                    <h3>{event.eventType.replace(/_/g, " ")}</h3>
+                  </div>
+                  <span className="handoff-state-pill">{event.safeStatus.replace(/_/g, " ")}</span>
+                </div>
+                <p>{event.summary}</p>
+                <div className="handoff-state-grid">
+                  <StateBlock label="Source" value={`${event.source}: ${event.sourceId}`} />
+                  <StateBlock label="Subject" value={event.subjectId || "No safe subject recorded"} />
+                  <StateBlock label="safe status" value={event.safeStatus.replace(/_/g, " ")} />
+                  <StateBlock label="Private fields filtered" value={event.privateFieldsFiltered ? "Yes" : "No private fields detected"} />
+                </div>
+                <ListBlock
+                  label="Metadata preview"
+                  items={event.metadataPreview.map((item) => `${item.key}: ${item.value}`)}
+                  empty="No owner-safe metadata preview."
+                />
+              </article>
+            ))
+          ) : (
+            <div className="handoff-empty-state">
+              <p className="eyebrow">No events yet</p>
+              <h3>Audit trail is ready</h3>
+              <p>AppEngine will show filtered local/mock events here after intake, handoff, orchestrator, Spark, or readiness actions are recorded.</p>
+            </div>
+          )}
         </div>
       </section>
 
