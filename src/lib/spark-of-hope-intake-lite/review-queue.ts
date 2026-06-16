@@ -3,6 +3,9 @@ export const sparkReviewStatuses = [
   "needs_review",
   "approved_for_preview",
   "needs_followup",
+  "follow_up_needed",
+  "encouragement_sent",
+  "ready_for_public_preview",
   "hidden"
 ] as const;
 
@@ -18,6 +21,8 @@ export type SparkReviewQueueItem = {
   submittedAt: string;
   safetyModerationNote: string;
   ownerReviewNotes: string;
+  followUpNotes: string;
+  recommendedNextStep: string;
 };
 
 export const sparkReviewQueueStorageKey = "spark-of-hope-intake-lite.review-queue.v1";
@@ -58,7 +63,9 @@ export function createSparkReviewQueueItem({
     safetyModerationNote:
       "Private preview only. Do not publish, auto-share, expose contact details, or start mentor matching from this queue.",
     ownerReviewNotes:
-      "Review for safety, consent, clarity, and whether the story needs follow-up before it can be used in any preview workflow."
+      "Review for safety, consent, clarity, and whether the story needs follow-up before it can be used in any preview workflow.",
+    followUpNotes: "No follow-up notes yet.",
+    recommendedNextStep: "Review privately before any encouragement or preview action."
   };
 }
 
@@ -72,6 +79,20 @@ export function updateSparkReviewQueueStatus(
   };
 }
 
+export function updateSparkReviewQueueFollowUp(
+  item: SparkReviewQueueItem,
+  followUp: {
+    followUpNotes?: string;
+    recommendedNextStep?: string;
+  }
+): SparkReviewQueueItem {
+  return {
+    ...item,
+    followUpNotes: normalizeEditableQueueText(followUp.followUpNotes, item.followUpNotes),
+    recommendedNextStep: normalizeEditableQueueText(followUp.recommendedNextStep, item.recommendedNextStep)
+  };
+}
+
 export function getApprovedSparkPreviewItems(items: SparkReviewQueueItem[]) {
   return items.filter((item) => item.status === "approved_for_preview");
 }
@@ -79,13 +100,17 @@ export function getApprovedSparkPreviewItems(items: SparkReviewQueueItem[]) {
 export function buildSparkReviewQueueNextPrompt(items: SparkReviewQueueItem[]) {
   const needsReviewCount = items.filter((item) => item.status === "new" || item.status === "needs_review").length;
   const approvedCount = items.filter((item) => item.status === "approved_for_preview").length;
+  const followUpCount = items.filter(
+    (item) => item.status === "needs_followup" || item.status === "follow_up_needed"
+  ).length;
+  const readyForPreviewCount = items.filter((item) => item.status === "ready_for_public_preview").length;
 
   return [
     "Next Spark of Hope Intake Lite improvement:",
     "",
     "Review the local Spark Review Queue Lite behavior and propose the next safe persistence/admin improvement.",
     "",
-    `Current queue summary: ${items.length} local/mock item(s), ${needsReviewCount} needing review, ${approvedCount} approved for preview.`,
+    `Current queue summary: ${items.length} local/mock item(s), ${needsReviewCount} needing review, ${followUpCount} needing follow-up, ${readyForPreviewCount} ready for public preview review, ${approvedCount} approved for preview.`,
     "",
     "Guardrails:",
     "- Keep production blocked.",
@@ -93,6 +118,7 @@ export function buildSparkReviewQueueNextPrompt(items: SparkReviewQueueItem[]) {
     "- Do not apply migrations.",
     "- Do not expose private story body, email, or contact details.",
     "- Do not auto-share stories or start mentor matching.",
+    "- Do not publicly show ready_for_public_preview items until an owner explicitly changes them to approved_for_preview.",
     "- Do not trigger Codex, create GitHub issues, or apply labels automatically.",
     "",
     "Expected result:",
@@ -106,4 +132,12 @@ export function isSparkReviewStatus(value: string): value is SparkReviewStatus {
 
 function cleanQueueText(value?: string | null) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+}
+
+function normalizeEditableQueueText(value: string | undefined, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  return value.replace(/\r\n/g, "\n").slice(0, 1200);
 }

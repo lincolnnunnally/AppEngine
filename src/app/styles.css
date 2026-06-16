@@ -1239,6 +1239,23 @@ label {
   background: #ffffff;
 }
 
+.spark-review-follow-up {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.spark-review-follow-up label {
+  color: #25332b;
+  font-size: 0.82rem;
+  text-transform: none;
+}
+
+.spark-review-follow-up textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
 .spark-review-notes {
   background: #fff8ef;
 }

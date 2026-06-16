@@ -10,6 +10,7 @@ import {
   sparkReviewQueueGuardrails,
   sparkReviewQueueStorageKey,
   sparkReviewStatuses,
+  updateSparkReviewQueueFollowUp,
   updateSparkReviewQueueStatus,
   type SparkReviewQueueItem,
   type SparkReviewStatus
@@ -48,7 +49,15 @@ export default function SparkOfHopeIntakeLitePage() {
 
       const parsedItems = JSON.parse(storedItems) as SparkReviewQueueItem[];
       if (Array.isArray(parsedItems)) {
-        setReviewQueueItems(parsedItems.filter((item) => item && isSparkReviewStatus(item.status)));
+        setReviewQueueItems(
+          parsedItems
+            .filter((item) => item && isSparkReviewStatus(item.status))
+            .map((item) => ({
+              ...item,
+              followUpNotes: item.followUpNotes || "No follow-up notes yet.",
+              recommendedNextStep: item.recommendedNextStep || "Review privately before any encouragement or preview action."
+            }))
+        );
       }
     } catch {
       setReviewQueueItems([]);
@@ -67,6 +76,18 @@ export default function SparkOfHopeIntakeLitePage() {
 
   function updateReviewStatus(id: string, status: SparkReviewStatus) {
     saveReviewQueue(reviewQueueItems.map((item) => (item.id === id ? updateSparkReviewQueueStatus(item, status) : item)));
+  }
+
+  function updateReviewFollowUp(
+    id: string,
+    followUp: {
+      followUpNotes?: string;
+      recommendedNextStep?: string;
+    }
+  ) {
+    saveReviewQueue(
+      reviewQueueItems.map((item) => (item.id === id ? updateSparkReviewQueueFollowUp(item, followUp) : item))
+    );
   }
 
   async function copySparkReviewPrompt() {
@@ -392,6 +413,35 @@ export default function SparkOfHopeIntakeLitePage() {
                   </dl>
 
                   <p className="spark-review-owner-note">{item.ownerReviewNotes}</p>
+
+                  <div className="spark-review-follow-up">
+                    <label>
+                      Follow-up notes
+                      <textarea
+                        value={item.followUpNotes}
+                        onChange={(event) =>
+                          updateReviewFollowUp(item.id, {
+                            followUpNotes: event.target.value,
+                            recommendedNextStep: item.recommendedNextStep
+                          })
+                        }
+                        placeholder="What needs follow-up, clarification, or care before any next step?"
+                      />
+                    </label>
+                    <label>
+                      Recommended next step
+                      <input
+                        value={item.recommendedNextStep}
+                        onChange={(event) =>
+                          updateReviewFollowUp(item.id, {
+                            followUpNotes: item.followUpNotes,
+                            recommendedNextStep: event.target.value
+                          })
+                        }
+                        placeholder="Example: Send encouragement, hold for review, or prepare for preview approval."
+                      />
+                    </label>
+                  </div>
                 </article>
               ))
             ) : (
