@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { listHandoffRelaySummaries, saveHandoffRelaySummary } from "@/lib/engine/handoff-relay";
+import { loadProjectMemory } from "@/lib/engine/project-memory";
 
 export async function GET() {
   try {
@@ -10,6 +11,7 @@ export async function GET() {
 
     return NextResponse.json({
       handoffs: await listHandoffRelaySummaries(),
+      projectMemory: await loadProjectMemory(),
       storage: process.env.VERCEL === "1" ? "mock-memory" : "local"
     });
   } catch (caught) {
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     const rawText = typeof payload.rawText === "string" ? payload.rawText : "";
     const handoff = await saveHandoffRelaySummary(rawText);
 
-    return NextResponse.json({ handoff }, { status: 201 });
+    return NextResponse.json({ handoff, projectMemory: await loadProjectMemory() }, { status: 201 });
   } catch (caught) {
     return relayError(caught, "Handoff analysis failed");
   }

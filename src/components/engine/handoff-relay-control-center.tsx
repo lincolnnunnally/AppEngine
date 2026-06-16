@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
+import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
 
 type HandoffRelayPayload = {
   handoffs: HandoffRelaySummary[];
+  projectMemory: ProjectMemory;
   storage: string;
 };
 
@@ -17,13 +19,32 @@ const feedbackOptions: Array<{ id: HandoffFeedbackChoice; label: string }> = [
   { id: "unnecessary_complexity", label: "Unnecessary complexity" }
 ];
 
-export function HandoffRelayControlCenter({ initialHandoffs, initialStorage }: { initialHandoffs: HandoffRelaySummary[]; initialStorage: string }) {
+const memoryFeedbackOptions: Array<{ id: ProjectMemoryFeedbackChoice; label: string }> = [
+  { id: "important_decision", label: "Important decision" },
+  { id: "lesson_learned", label: "Lesson learned" },
+  { id: "bad_direction", label: "Bad direction" },
+  { id: "keep_doing_this", label: "Keep doing this" },
+  { id: "future_improvement", label: "Future improvement" }
+];
+
+export function HandoffRelayControlCenter({
+  initialHandoffs,
+  initialProjectMemory,
+  initialStorage
+}: {
+  initialHandoffs: HandoffRelaySummary[];
+  initialProjectMemory: ProjectMemory;
+  initialStorage: string;
+}) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
+  const [projectMemory, setProjectMemory] = useState(initialProjectMemory);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
   const [selectedFeedback, setSelectedFeedback] = useState<HandoffFeedbackChoice[]>([]);
   const [feedbackNote, setFeedbackNote] = useState("");
+  const [selectedMemoryFeedback, setSelectedMemoryFeedback] = useState<ProjectMemoryFeedbackChoice[]>([]);
+  const [memoryFeedbackNote, setMemoryFeedbackNote] = useState("");
   const [status, setStatus] = useState("Ready to receive a handoff");
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState("");
@@ -31,6 +52,19 @@ export function HandoffRelayControlCenter({ initialHandoffs, initialStorage }: {
     () => handoffs.find((handoff) => handoff.id === selectedId) || handoffs[0] || null,
     [handoffs, selectedId]
   );
+  const memoryItemCount =
+    projectMemory.majorDecisions.length +
+    projectMemory.acceptedApproaches.length +
+    projectMemory.rejectedApproaches.length +
+    projectMemory.completedMilestones.length +
+    projectMemory.currentBlockers.length +
+    projectMemory.openQuestions.length +
+    projectMemory.architectureDecisions.length +
+    projectMemory.designPreferences.length +
+    projectMemory.lessonsLearned.length +
+    projectMemory.futureImprovements.length +
+    projectMemory.progressHistory.length +
+    projectMemory.ownerFeedback.length;
 
   async function loadInbox() {
     setBusyAction("refresh");
@@ -40,6 +74,7 @@ export function HandoffRelayControlCenter({ initialHandoffs, initialStorage }: {
       const response = await fetch("/api/engine/handoff-relay");
       const payload = await readJsonResponse<HandoffRelayPayload>(response, "Inbox refresh failed");
       setHandoffs(payload.handoffs || []);
+      setProjectMemory(payload.projectMemory);
       setStorage(payload.storage || "local");
       setSelectedId((current) => current || payload.handoffs?.[0]?.id || "");
       setStatus("Inbox refreshed");
@@ -67,9 +102,10 @@ export function HandoffRelayControlCenter({ initialHandoffs, initialStorage }: {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ rawText })
       });
-      const payload = await readJsonResponse<{ handoff: HandoffRelaySummary }>(response, "Handoff analysis failed");
+      const payload = await readJsonResponse<{ handoff: HandoffRelaySummary; projectMemory: ProjectMemory }>(response, "Handoff analysis failed");
       const nextHandoffs = [payload.handoff, ...handoffs.filter((handoff) => handoff.id !== payload.handoff.id)];
       setHandoffs(nextHandoffs);
+      setProjectMemory(payload.projectMemory);
       setSelectedId(payload.handoff.id);
       setRawText("");
       setSelectedFeedback([]);
@@ -116,8 +152,45 @@ export function HandoffRelayControlCenter({ initialHandoffs, initialStorage }: {
     setStatus("Prompt copied for owner review");
   }
 
+  async function saveProjectMemoryFeedback() {
+    if (!selectedMemoryFeedback.length && !memoryFeedbackNote.trim()) {
+      setError("Mark a memory category or add a note first.");
+      setStatus("Needs memory feedback");
+      return;
+    }
+
+    setBusyAction("memory");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/project-memory/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          choices: selectedMemoryFeedback,
+          note: memoryFeedbackNote,
+          sourceHandoffId: selectedHandoff?.id || null
+        })
+      });
+      const payload = await readJsonResponse<{ projectMemory: ProjectMemory }>(response, "Project memory feedback failed");
+      setProjectMemory(payload.projectMemory);
+      setSelectedMemoryFeedback([]);
+      setMemoryFeedbackNote("");
+      setStatus("Project memory updated");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Project memory feedback failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   function toggleFeedback(choice: HandoffFeedbackChoice) {
     setSelectedFeedback((current) => (current.includes(choice) ? current.filter((item) => item !== choice) : [...current, choice]));
+  }
+
+  function toggleMemoryFeedback(choice: ProjectMemoryFeedbackChoice) {
+    setSelectedMemoryFeedback((current) => (current.includes(choice) ? current.filter((item) => item !== choice) : [...current, choice]));
   }
 
   function selectHandoff(handoff: HandoffRelaySummary) {
@@ -149,7 +222,79 @@ export function HandoffRelayControlCenter({ initialHandoffs, initialStorage }: {
       <section className="handoff-status-row" aria-live="polite">
         <span className="status-chip">{status}</span>
         <span className="status-chip">{handoffs.length} handoff{handoffs.length === 1 ? "" : "s"}</span>
+        <span className="status-chip">{memoryItemCount} memory item{memoryItemCount === 1 ? "" : "s"}</span>
         {error ? <span className="error-chip">{error}</span> : null}
+      </section>
+
+      <section className="panel project-memory-panel" data-testid="project-memory-engine">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Project Memory Engine</p>
+            <h2>{projectMemory.latestProjectState.currentState}</h2>
+            <p>AppEngine remembers decisions, progress, blockers, lessons, and the current next safe action.</p>
+          </div>
+          <span className="handoff-state-pill">Updated {new Date(projectMemory.updatedAt).toLocaleDateString()}</span>
+        </div>
+
+        <div className="project-memory-summary-grid">
+          <StateBlock label="Current State" value={projectMemory.latestProjectState.currentState} />
+          <StateBlock label="Recent Progress" value={projectMemory.latestProjectState.latestProgress} />
+          <StateBlock label="Recommended Next Action" value={projectMemory.latestProjectState.recommendedNextAction} />
+        </div>
+
+        <div className="project-memory-lists">
+          <ListBlock
+            label="Current Blockers"
+            items={projectMemory.currentBlockers.map((item) => item.text)}
+            empty="No current blockers recorded."
+          />
+          <ListBlock label="Open Questions" items={projectMemory.openQuestions.map((item) => item.text)} empty="No open questions recorded." />
+          <ListBlock
+            label="Recent Progress"
+            items={projectMemory.progressHistory.slice(0, 5).map((item) => item.text)}
+            empty="No progress history yet."
+          />
+        </div>
+
+        <div className="project-memory-summaries">
+          <StateBlock label="Executive Summary" value={projectMemory.summaries.executive} />
+          <StateBlock label="Technical Summary" value={projectMemory.summaries.technical} />
+          <StateBlock label="Project Status Summary" value={projectMemory.summaries.projectStatus} />
+        </div>
+
+        <div className="project-memory-feedback">
+          <div>
+            <p className="eyebrow">Memory Feedback</p>
+            <h3>Mark what AppEngine should remember</h3>
+            <p>These notes become memory items only. They do not trigger Codex or create GitHub work.</p>
+          </div>
+          <div className="handoff-feedback-options">
+            {memoryFeedbackOptions.map((option) => (
+              <label className="handoff-feedback-choice" key={option.id}>
+                <input
+                  type="checkbox"
+                  checked={selectedMemoryFeedback.includes(option.id)}
+                  onChange={() => toggleMemoryFeedback(option.id)}
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+          <label className="handoff-paste-label">
+            Memory note
+            <textarea
+              value={memoryFeedbackNote}
+              onChange={(event) => setMemoryFeedbackNote(event.target.value)}
+              placeholder="What should AppEngine remember for future handoffs?"
+            />
+          </label>
+          <div className="action-row">
+            <button className="button" type="button" onClick={() => void saveProjectMemoryFeedback()} disabled={busyAction === "memory"}>
+              {busyAction === "memory" ? "Saving..." : "Save Project Memory"}
+            </button>
+            <span className="handoff-safe-note">Memory feedback stays local/mock and owner-reviewed.</span>
+          </div>
+        </div>
       </section>
 
       <section className="handoff-layout">

@@ -40,7 +40,9 @@ function createSummary(text) {
     kind: "handoff_relay_summary",
     schemaVersion: 1,
     id: `handoff_${Date.now().toString(36)}`,
+    receivedAt: new Date().toISOString(),
     source: "codex_handoff_paste",
+    rawText: raw,
     extracted: {
       prNumber,
       prTitle,
