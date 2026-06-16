@@ -13,6 +13,7 @@ export type AgentArtifactKind =
   | "phase_issue_generation"
   | "phase_issue_publish_approval"
   | "phase_issue_publisher_dry_run"
+  | "phase_issue_publisher_manual"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"
