@@ -5,6 +5,7 @@ export type AgentArtifactKind =
   | "chatgpt_handoff_packet"
   | "handoff_relay_summary"
   | "project_memory"
+  | "real_project_trial"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"

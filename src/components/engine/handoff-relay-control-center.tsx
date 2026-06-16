@@ -3,10 +3,17 @@
 import { useMemo, useState } from "react";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
 import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
+import type { RealProjectTrialSummary, TrialProjectCandidate } from "@/lib/engine/real-project-trial";
 
 type HandoffRelayPayload = {
   handoffs: HandoffRelaySummary[];
   projectMemory: ProjectMemory;
+  storage: string;
+};
+
+type RealProjectTrialPayload = {
+  candidates: TrialProjectCandidate[];
+  trials: RealProjectTrialSummary[];
   storage: string;
 };
 
@@ -30,17 +37,32 @@ const memoryFeedbackOptions: Array<{ id: ProjectMemoryFeedbackChoice; label: str
 export function HandoffRelayControlCenter({
   initialHandoffs,
   initialProjectMemory,
+  initialTrialCandidates,
+  initialTrialRuns,
   initialStorage
 }: {
   initialHandoffs: HandoffRelaySummary[];
   initialProjectMemory: ProjectMemory;
+  initialTrialCandidates: TrialProjectCandidate[];
+  initialTrialRuns: RealProjectTrialSummary[];
   initialStorage: string;
 }) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
   const [projectMemory, setProjectMemory] = useState(initialProjectMemory);
+  const [trialCandidates, setTrialCandidates] = useState(initialTrialCandidates);
+  const [trialRuns, setTrialRuns] = useState(initialTrialRuns);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
+  const [selectedTrialCandidate, setSelectedTrialCandidate] = useState(initialTrialCandidates[0]?.slug || "");
+  const [selectedTrialId, setSelectedTrialId] = useState(initialTrialRuns[0]?.id || "");
+  const [manualTrial, setManualTrial] = useState({
+    name: "",
+    problem: "",
+    targetAudience: "",
+    desiredTransformation: "",
+    designIntent: ""
+  });
   const [selectedFeedback, setSelectedFeedback] = useState<HandoffFeedbackChoice[]>([]);
   const [feedbackNote, setFeedbackNote] = useState("");
   const [selectedMemoryFeedback, setSelectedMemoryFeedback] = useState<ProjectMemoryFeedbackChoice[]>([]);
@@ -52,6 +74,11 @@ export function HandoffRelayControlCenter({
     () => handoffs.find((handoff) => handoff.id === selectedId) || handoffs[0] || null,
     [handoffs, selectedId]
   );
+  const selectedTrial = useMemo(
+    () => trialRuns.find((trial) => trial.id === selectedTrialId) || trialRuns[0] || null,
+    [trialRuns, selectedTrialId]
+  );
+  const usingManualTrial = selectedTrialCandidate === "manual";
   const memoryItemCount =
     projectMemory.majorDecisions.length +
     projectMemory.acceptedApproaches.length +
@@ -80,6 +107,26 @@ export function HandoffRelayControlCenter({
       setStatus("Inbox refreshed");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Inbox refresh failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function loadTrials() {
+    setBusyAction("trial-refresh");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/real-project-trial");
+      const payload = await readJsonResponse<RealProjectTrialPayload>(response, "Trial refresh failed");
+      setTrialCandidates(payload.candidates || []);
+      setTrialRuns(payload.trials || []);
+      setStorage(payload.storage || "local");
+      setSelectedTrialId((current) => current || payload.trials?.[0]?.id || "");
+      setStatus("Trial runs refreshed");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Trial refresh failed");
       setStatus("Needs attention");
     } finally {
       setBusyAction("");
@@ -119,6 +166,39 @@ export function HandoffRelayControlCenter({
     }
   }
 
+  async function submitRealProjectTrial() {
+    const body = usingManualTrial
+      ? {
+          manualProject: {
+            ...manualTrial,
+            recommendedPacketType: "app_build_packet"
+          }
+        }
+      : { selectedCandidateSlug: selectedTrialCandidate };
+
+    setBusyAction("trial");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/real-project-trial", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = await readJsonResponse<{ trial: RealProjectTrialSummary; projectMemory: ProjectMemory }>(response, "Trial run failed");
+      const nextTrials = [payload.trial, ...trialRuns.filter((trial) => trial.id !== payload.trial.id)];
+      setTrialRuns(nextTrials);
+      setProjectMemory(payload.projectMemory);
+      setSelectedTrialId(payload.trial.id);
+      setStatus("Trial summary generated");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Trial run failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function saveFeedback() {
     if (!selectedHandoff) {
       setError("Select a handoff first.");
@@ -150,6 +230,13 @@ export function HandoffRelayControlCenter({
 
     await navigator.clipboard.writeText(selectedHandoff.nextPrompt.prompt);
     setStatus("Prompt copied for owner review");
+  }
+
+  async function copyTrialPrompt() {
+    if (!selectedTrial) return;
+
+    await navigator.clipboard.writeText(selectedTrial.nextPrompt.prompt);
+    setStatus("Trial prompt copied for owner review");
   }
 
   async function saveProjectMemoryFeedback() {
@@ -223,6 +310,7 @@ export function HandoffRelayControlCenter({
         <span className="status-chip">{status}</span>
         <span className="status-chip">{handoffs.length} handoff{handoffs.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{memoryItemCount} memory item{memoryItemCount === 1 ? "" : "s"}</span>
+        <span className="status-chip">{trialRuns.length} trial run{trialRuns.length === 1 ? "" : "s"}</span>
         {error ? <span className="error-chip">{error}</span> : null}
       </section>
 
@@ -295,6 +383,173 @@ export function HandoffRelayControlCenter({
             <span className="handoff-safe-note">Memory feedback stays local/mock and owner-reviewed.</span>
           </div>
         </div>
+      </section>
+
+      <section className="panel trial-runner-panel" data-testid="real-project-trial-runner">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Real Project Trial Runner</p>
+            <h2>Prove AppEngine on real work</h2>
+            <p>Select Spark of Hope or capture a manual trial. AppEngine summarizes the work and drafts the next prompt for review only.</p>
+          </div>
+          <button className="button" type="button" onClick={() => void loadTrials()} disabled={Boolean(busyAction)}>
+            {busyAction === "trial-refresh" ? "Refreshing..." : "Refresh Trials"}
+          </button>
+        </div>
+
+        <div className="trial-runner-grid">
+          <section className="trial-entry-card">
+            <label className="handoff-paste-label">
+              Trial project
+              <select value={selectedTrialCandidate} onChange={(event) => setSelectedTrialCandidate(event.target.value)}>
+                {trialCandidates.map((candidate) => (
+                  <option key={candidate.slug} value={candidate.slug}>
+                    {candidate.name}
+                  </option>
+                ))}
+                <option value="manual">Enter trial manually</option>
+              </select>
+            </label>
+
+            {usingManualTrial ? (
+              <div className="trial-manual-grid">
+                <label className="handoff-paste-label">
+                  Project name
+                  <input
+                    value={manualTrial.name}
+                    onChange={(event) => setManualTrial((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="Example: Community Help Desk"
+                  />
+                </label>
+                <label className="handoff-paste-label">
+                  Affected people
+                  <input
+                    value={manualTrial.targetAudience}
+                    onChange={(event) => setManualTrial((current) => ({ ...current, targetAudience: event.target.value }))}
+                    placeholder="Who is this for?"
+                  />
+                </label>
+                <label className="handoff-paste-label">
+                  Problem being solved
+                  <textarea
+                    value={manualTrial.problem}
+                    onChange={(event) => setManualTrial((current) => ({ ...current, problem: event.target.value }))}
+                    placeholder="What is broken, confusing, painful, slow, or missing?"
+                  />
+                </label>
+                <label className="handoff-paste-label">
+                  Desired change
+                  <textarea
+                    value={manualTrial.desiredTransformation}
+                    onChange={(event) => setManualTrial((current) => ({ ...current, desiredTransformation: event.target.value }))}
+                    placeholder="What should be different for the people involved?"
+                  />
+                </label>
+                <label className="handoff-paste-label">
+                  Design intent
+                  <textarea
+                    value={manualTrial.designIntent}
+                    onChange={(event) => setManualTrial((current) => ({ ...current, designIntent: event.target.value }))}
+                    placeholder="How should this feel? Warm, professional, playful, ministry/community, operational?"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="trial-candidate-preview">
+                {trialCandidates
+                  .filter((candidate) => candidate.slug === selectedTrialCandidate)
+                  .map((candidate) => (
+                    <div className="handoff-state-grid" key={candidate.slug}>
+                      <StateBlock label="Problem" value={candidate.problem} />
+                      <StateBlock label="Audience" value={candidate.targetAudience} />
+                      <StateBlock label="Desired transformation" value={candidate.desiredTransformation} />
+                      <StateBlock label="Recommended packet" value={formatPacketType(candidate.recommendedPacketType)} />
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            <div className="action-row">
+              <button className="button primary" type="button" onClick={() => void submitRealProjectTrial()} disabled={Boolean(busyAction)}>
+                {busyAction === "trial" ? "Generating..." : "Generate Trial Summary"}
+              </button>
+              <span className="handoff-safe-note">Trial mode only: no Codex run, issue, label, deploy, migration, paid resource, or auto-merge.</span>
+            </div>
+          </section>
+
+          <aside className="trial-history-card">
+            <p className="eyebrow">Trial History</p>
+            <h3>Newest first</h3>
+            <div className="handoff-inbox-list">
+              {trialRuns.length ? (
+                trialRuns.map((trial) => (
+                  <button
+                    className={`handoff-inbox-item ${trial.id === selectedTrial?.id ? "selected" : ""}`}
+                    key={trial.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTrialId(trial.id);
+                      setStatus("Trial selected");
+                      setError("");
+                    }}
+                  >
+                    <span>{new Date(trial.createdAt).toLocaleString()}</span>
+                    <strong>{trial.project.name}</strong>
+                    <p>{trial.ownerReadableSummary}</p>
+                    <small>{trial.nextSafeAction}</small>
+                  </button>
+                ))
+              ) : (
+                <p>No trial runs yet.</p>
+              )}
+            </div>
+          </aside>
+        </div>
+
+        {selectedTrial ? (
+          <div className="trial-summary-layout">
+            <section className="trial-summary-card">
+              <div className="handoff-section-heading">
+                <div>
+                  <p className="eyebrow">Trial Run Summary</p>
+                  <h2>{selectedTrial.project.name}</h2>
+                </div>
+                <span className="handoff-state-pill">{formatPacketType(selectedTrial.recommendedPacketType)}</span>
+              </div>
+              <div className="handoff-analysis-grid">
+                <StateBlock label="Problem being solved" value={selectedTrial.problemBeingSolved} />
+                <StateBlock label="Target audience" value={selectedTrial.targetAudience} />
+                <StateBlock label="Desired transformation" value={selectedTrial.desiredTransformation} />
+                <StateBlock label="Design intent" value={selectedTrial.designIntent} />
+                <StateBlock label="Current stage" value={selectedTrial.currentStage} />
+                <StateBlock label="Next safe action" value={selectedTrial.nextSafeAction} />
+                <ListBlock label="Risks and blockers" items={selectedTrial.risksBlockers} empty="No risks recorded." />
+                <ListBlock
+                  label="Artifacts used"
+                  items={Object.values(selectedTrial.artifactInputs).map((artifact) => `${artifact.kind}: ${artifact.status}`)}
+                  empty="No artifact inputs recorded."
+                />
+              </div>
+            </section>
+
+            <section className="trial-prompt-card">
+              <div className="handoff-section-heading">
+                <div>
+                  <p className="eyebrow">Next Prompt</p>
+                  <h2>Copy only after review</h2>
+                </div>
+                <button className="button accent" type="button" onClick={() => void copyTrialPrompt()}>
+                  Copy Trial Prompt
+                </button>
+              </div>
+              <textarea className="handoff-prompt-box trial-prompt-box" readOnly value={selectedTrial.nextPrompt.prompt} />
+              <div className="handoff-prompt-meta">
+                <StateBlock label="Reason" value={selectedTrial.nextPrompt.reason} />
+                <StateBlock label="Expected outcome" value={selectedTrial.nextPrompt.expectedOutcome} />
+              </div>
+            </section>
+          </div>
+        ) : null}
       </section>
 
       <section className="handoff-layout">
@@ -493,6 +748,16 @@ function ListBlock({ label, items, empty }: { label: string; items: string[]; em
       )}
     </div>
   );
+}
+
+function formatPacketType(value: string) {
+  const labels: Record<string, string> = {
+    app_build_packet: "App Build Packet",
+    vnext_packet: "vNext Packet",
+    non_app_solution_plan: "Non-App Solution Plan"
+  };
+
+  return labels[value] || value;
 }
 
 async function readJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
