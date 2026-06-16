@@ -100,6 +100,7 @@
     "smoke:audit-trail-lite": "node scripts/smoke-audit-trail-lite.js",
     "smoke:audit-trail-owner-visibility": "node scripts/smoke-audit-trail-owner-visibility.js",
     "smoke:runtime-monitoring-lite": "node scripts/smoke-runtime-monitoring-lite.js",
+    "smoke:launch-blocker-report": "node scripts/smoke-launch-blocker-report.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
