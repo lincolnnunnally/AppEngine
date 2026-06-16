@@ -38,6 +38,7 @@ shared_context_files:
   - source-of-truth/orchestrator-decision-trace-action-queue.md
   - source-of-truth/orchestrator-batch-dry-run.md
   - source-of-truth/orchestrator-batch-handoff-prepare.md
+  - source-of-truth/orchestrator-approved-handoff-export.md
   - source-of-truth/orchestrator-to-handoff-bridge.md
   - source-of-truth/pending-check-resolution-policy.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
@@ -192,6 +193,7 @@ agents:
       - trial_result_review
       - orchestrator_run
       - orchestrator_batch_handoff_prepare
+      - orchestrator_approved_handoff_export
       - pending_check_resolution
       - problem_solution_intake
       - problem_portfolio_routing
