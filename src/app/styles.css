@@ -1099,6 +1099,17 @@ label {
   box-shadow: var(--shadow);
 }
 
+.spark-reminder-section {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  border: 1px solid #d9c9a5;
+  border-radius: 8px;
+  padding: 22px;
+  background: #fff8ef;
+  box-shadow: var(--shadow);
+}
+
 .spark-approved-preview-section {
   display: grid;
   gap: 18px;
@@ -1134,6 +1145,12 @@ label {
 }
 
 .spark-approved-preview-section .spark-review-header > span {
+  background: #ffffff;
+}
+
+.spark-reminder-section .spark-review-header > span {
+  border-color: #d9c9a5;
+  color: #7b5a22;
   background: #ffffff;
 }
 

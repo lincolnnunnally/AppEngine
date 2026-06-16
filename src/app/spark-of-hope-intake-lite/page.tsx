@@ -15,6 +15,17 @@ import {
   type SparkReviewQueueItem,
   type SparkReviewStatus
 } from "@/lib/spark-of-hope-intake-lite/review-queue";
+import {
+  buildSparkReminderNextPrompt,
+  createSparkReminderQueueItem,
+  isSparkReminderStatus,
+  sparkReminderQueueGuardrails,
+  sparkReminderQueueStorageKey,
+  sparkReminderStatuses,
+  updateSparkReminderStatus,
+  type SparkReminderQueueItem,
+  type SparkReminderStatus
+} from "@/lib/spark-of-hope-intake-lite/reminder-queue";
 
 type SubmitState =
   | { status: "idle" }
@@ -26,10 +37,13 @@ export default function SparkOfHopeIntakeLitePage() {
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
   const [storyLength, setStoryLength] = useState(0);
   const [reviewQueueItems, setReviewQueueItems] = useState<SparkReviewQueueItem[]>([]);
+  const [reminderQueueItems, setReminderQueueItems] = useState<SparkReminderQueueItem[]>([]);
   const [reviewPromptCopied, setReviewPromptCopied] = useState("Ready to copy");
+  const [reminderPromptCopied, setReminderPromptCopied] = useState("Ready to copy");
   const canSubmit = submitState.status !== "submitting";
   const approvedPreviewItems = getApprovedSparkPreviewItems(reviewQueueItems);
   const reviewPrompt = buildSparkReviewQueueNextPrompt(reviewQueueItems);
+  const reminderPrompt = buildSparkReminderNextPrompt(reminderQueueItems);
 
   const statusText =
     submitState.status === "success"
@@ -62,6 +76,20 @@ export default function SparkOfHopeIntakeLitePage() {
     } catch {
       setReviewQueueItems([]);
     }
+
+    try {
+      const storedReminderItems = window.localStorage.getItem(sparkReminderQueueStorageKey);
+      if (!storedReminderItems) {
+        return;
+      }
+
+      const parsedReminderItems = JSON.parse(storedReminderItems) as SparkReminderQueueItem[];
+      if (Array.isArray(parsedReminderItems)) {
+        setReminderQueueItems(parsedReminderItems.filter((item) => item && isSparkReminderStatus(item.status)));
+      }
+    } catch {
+      setReminderQueueItems([]);
+    }
   }, []);
 
   function saveReviewQueue(items: SparkReviewQueueItem[]) {
@@ -76,6 +104,20 @@ export default function SparkOfHopeIntakeLitePage() {
 
   function updateReviewStatus(id: string, status: SparkReviewStatus) {
     saveReviewQueue(reviewQueueItems.map((item) => (item.id === id ? updateSparkReviewQueueStatus(item, status) : item)));
+  }
+
+  function saveReminderQueue(items: SparkReminderQueueItem[]) {
+    setReminderQueueItems(items);
+
+    try {
+      window.localStorage.setItem(sparkReminderQueueStorageKey, JSON.stringify(items));
+    } catch {
+      setReminderPromptCopied("Local reminder queue could not be saved in this browser.");
+    }
+  }
+
+  function updateReminderStatus(id: string, status: SparkReminderStatus) {
+    saveReminderQueue(reminderQueueItems.map((item) => (item.id === id ? updateSparkReminderStatus(item, status) : item)));
   }
 
   function updateReviewFollowUp(
@@ -96,6 +138,15 @@ export default function SparkOfHopeIntakeLitePage() {
       setReviewPromptCopied("Prompt copied");
     } catch {
       setReviewPromptCopied("Copy unavailable");
+    }
+  }
+
+  async function copySparkReminderPrompt() {
+    try {
+      await navigator.clipboard.writeText(reminderPrompt);
+      setReminderPromptCopied("Prompt copied");
+    } catch {
+      setReminderPromptCopied("Copy unavailable");
     }
   }
 
@@ -123,7 +174,9 @@ export default function SparkOfHopeIntakeLitePage() {
           storyBody: formData.get("storyBody"),
           mayReview: formData.get("mayReview") === "on",
           mayContact: formData.get("mayContact") === "on",
-          mayPrepareEncouragement: formData.get("mayPrepareEncouragement") === "on"
+          mayPrepareEncouragement: formData.get("mayPrepareEncouragement") === "on",
+          reminderPreference: formData.get("reminderPreference"),
+          reminderNote: formData.get("reminderNote")
         })
       });
     } catch {
@@ -151,8 +204,18 @@ export default function SparkOfHopeIntakeLitePage() {
       categoryOrStruggle: String(formData.get("categoryOrStruggle") || ""),
       hopeOutcome: String(formData.get("hopeOutcome") || "")
     });
+    const reminderQueueItem = createSparkReminderQueueItem({
+      reference: result.reference || "SOH-LITE-PREVIEW",
+      preferredName: String(formData.get("preferredName") || ""),
+      storyTitle: String(formData.get("storyTitle") || ""),
+      preference: String(formData.get("reminderPreference") || "none"),
+      reminderNote: String(formData.get("reminderNote") || "")
+    });
 
     saveReviewQueue([reviewQueueItem, ...reviewQueueItems]);
+    if (reminderQueueItem) {
+      saveReminderQueue([reminderQueueItem, ...reminderQueueItems]);
+    }
     form.reset();
     setStoryLength(0);
     setSubmitState({
@@ -171,6 +234,7 @@ export default function SparkOfHopeIntakeLitePage() {
         <div>
           <a href="#approved-preview">Approved preview</a>
           <a href="#review-queue">Review queue</a>
+          <a href="#reminders">Reminders</a>
           <a href="#privacy">Privacy</a>
           <a href="#share">Share a story</a>
         </div>
@@ -244,6 +308,21 @@ export default function SparkOfHopeIntakeLitePage() {
           <label>
             Hope outcome
             <input name="hopeOutcome" type="text" placeholder="What kind of hope or encouragement would help?" />
+          </label>
+
+          <label>
+            Follow-up testimony reminder
+            <select name="reminderPreference" defaultValue="none">
+              <option value="none">No reminder for now</option>
+              <option value="one_week">Ask me in about one week</option>
+              <option value="one_month">Ask me in about one month</option>
+              <option value="after_encouragement">Ask after encouragement is prepared</option>
+            </select>
+          </label>
+
+          <label>
+            Reminder note
+            <input name="reminderNote" type="text" placeholder="Optional note for the owner review queue" />
           </label>
 
           <label>
@@ -353,6 +432,96 @@ export default function SparkOfHopeIntakeLitePage() {
             </p>
           </div>
         )}
+      </section>
+
+      <section className="spark-reminder-section" id="reminders" data-testid="spark-reminder-lite">
+        <div className="spark-review-header">
+          <div>
+            <p className="eyebrow">Contributor Reminder Lite</p>
+            <h2>Local reminder review queue</h2>
+            <p>
+              This owner-visible list helps remember who may want to share a follow-up testimony later. It does not send
+              emails, texts, push notifications, or publish anything.
+            </p>
+          </div>
+          <span>{reminderQueueItems.length} reminder item{reminderQueueItems.length === 1 ? "" : "s"}</span>
+        </div>
+
+        <div className="spark-review-body">
+          <div className="spark-review-list" aria-live="polite">
+            {reminderQueueItems.length ? (
+              reminderQueueItems.map((item) => (
+                <article className="spark-review-card" key={item.id}>
+                  <div className="spark-review-card-header">
+                    <div>
+                      <span>{item.safeIdentifier}</span>
+                      <h3>{item.titleOrName}</h3>
+                    </div>
+                    <label>
+                      Reminder status
+                      <select
+                        value={item.status}
+                        onChange={(event) => updateReminderStatus(item.id, event.target.value as SparkReminderStatus)}
+                      >
+                        {sparkReminderStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status.replaceAll("_", " ")}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <dl className="spark-review-details">
+                    <div>
+                      <dt>Preference</dt>
+                      <dd>{item.preferenceLabel}</dd>
+                    </div>
+                    <div>
+                      <dt>Submitted</dt>
+                      <dd>{new Date(item.submittedAt).toLocaleString()}</dd>
+                    </div>
+                    <div>
+                      <dt>Reminder note</dt>
+                      <dd>{item.reminderNote}</dd>
+                    </div>
+                    <div>
+                      <dt>Safety note</dt>
+                      <dd>{item.safetyNote}</dd>
+                    </div>
+                  </dl>
+
+                  <p className="spark-review-owner-note">{item.ownerReviewNote}</p>
+                </article>
+              ))
+            ) : (
+              <div className="spark-review-empty">
+                <strong>No reminder requests yet.</strong>
+                <p>Reminder preferences stay local/mock and never send messages automatically.</p>
+              </div>
+            )}
+          </div>
+
+          <aside className="spark-review-notes" aria-label="Spark reminder guardrails and next prompt">
+            <div>
+              <p className="eyebrow">Reminder guardrails</p>
+              <ul>
+                {sparkReminderQueueGuardrails.map((guardrail) => (
+                  <li key={guardrail}>{guardrail}</li>
+                ))}
+              </ul>
+            </div>
+
+            <label>
+              Copyable reminder prompt
+              <textarea readOnly value={reminderPrompt} />
+            </label>
+            <button className="button secondary" type="button" onClick={copySparkReminderPrompt}>
+              Copy reminder prompt
+            </button>
+            <p className="spark-helper">{reminderPromptCopied}</p>
+          </aside>
+        </div>
       </section>
 
       <section className="spark-review-section" id="review-queue" data-testid="spark-review-queue-lite">
