@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
-import { listOrchestratorRuns, saveOrchestratorRun } from "@/lib/engine/orchestrator-run";
+import { listOrchestratorActionQueue, listOrchestratorRuns, saveOrchestratorRun } from "@/lib/engine/orchestrator-run";
 import { loadProjectMemory, updateProjectMemoryFromOrchestratorRun } from "@/lib/engine/project-memory";
 import { listRealProjectTrials } from "@/lib/engine/real-project-trial";
 
@@ -13,6 +13,7 @@ export async function GET() {
 
     return NextResponse.json({
       runs: await listOrchestratorRuns(),
+      actionQueue: await listOrchestratorActionQueue(),
       storage: process.env.VERCEL === "1" ? "mock-memory" : "local"
     });
   } catch (caught) {
@@ -30,7 +31,14 @@ export async function POST() {
     const run = await saveOrchestratorRun({ projectMemory, handoffs, trials });
     const updatedProjectMemory = await updateProjectMemoryFromOrchestratorRun(run);
 
-    return NextResponse.json({ run, projectMemory: updatedProjectMemory }, { status: 201 });
+    return NextResponse.json(
+      {
+        run,
+        actionQueue: await listOrchestratorActionQueue(),
+        projectMemory: updatedProjectMemory
+      },
+      { status: 201 }
+    );
   } catch (caught) {
     return orchestratorError(caught, "Manual orchestrator run failed");
   }

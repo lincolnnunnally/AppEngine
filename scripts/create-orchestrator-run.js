@@ -31,23 +31,38 @@ function createOrchestratorRun({ projectMemory, handoffs, trials, pendingCheckRe
     .slice(0, 5);
   const decision = chooseNextAction({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution, blockers });
   const createdAt = new Date().toISOString();
+  const id = `orchestrator_run_${Date.now().toString(36)}`;
+  const projectStateSummary = {
+    currentState: projectMemory.latestProjectState.currentState,
+    latestProgress: projectMemory.latestProjectState.latestProgress,
+    currentBlockers: blockers,
+    recommendedNextAction: projectMemory.latestProjectState.recommendedNextAction
+  };
+  const inputArtifacts = buildInputArtifacts({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution });
+  const nextActionPrompt = buildPrompt({ decision, projectMemory, latestHandoff, latestTrial, pendingCheckResolution });
+  const decisionTrace = buildDecisionTrace({
+    decision,
+    projectStateSummary,
+    inputArtifacts,
+    blockers,
+    latestHandoff,
+    pendingCheckResolution
+  });
+  const actionQueue = buildActionQueue({ runId: id, createdAt, decision, nextActionPrompt });
 
   return {
     kind: "orchestrator_run",
     schemaVersion: 1,
-    id: `orchestrator_run_${Date.now().toString(36)}`,
+    id,
     createdAt,
     status: decision.status,
     selectedNextSafeAction: decision.action,
     reason: decision.reason,
-    projectStateSummary: {
-      currentState: projectMemory.latestProjectState.currentState,
-      latestProgress: projectMemory.latestProjectState.latestProgress,
-      currentBlockers: blockers,
-      recommendedNextAction: projectMemory.latestProjectState.recommendedNextAction
-    },
-    inputArtifacts: buildInputArtifacts({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution }),
-    nextActionPrompt: buildPrompt({ decision, projectMemory, latestHandoff, latestTrial, pendingCheckResolution }),
+    projectStateSummary,
+    inputArtifacts,
+    decisionTrace,
+    actionQueue,
+    nextActionPrompt,
     evidence: decision.evidence,
     ownerReadableSummary: `AppEngine chose ${decision.action.replace(/_/g, " ")} because ${decision.reason}`,
     guardrails: defaultGuardrails()
@@ -251,8 +266,87 @@ function buildPrompt({ decision, projectMemory, latestHandoff, latestTrial, pend
   };
 }
 
+function buildDecisionTrace({ decision, projectStateSummary, inputArtifacts, blockers, latestHandoff, pendingCheckResolution }) {
+  const handoffBlockers = latestHandoff?.extracted?.blockers?.filter(isActionableBlocker) || [];
+  const blockersFound = [...blockers, ...handoffBlockers];
+  const confidence = confidenceFor({ decision, inputArtifacts, blockersFound, pendingCheckResolution });
+
+  return {
+    inputsConsidered: Object.values(inputArtifacts).map((artifactEntry) => ({
+      kind: artifactEntry.kind,
+      status: artifactEntry.status,
+      summary: artifactEntry.summary
+    })),
+    currentProjectState: projectStateSummary,
+    blockersFound,
+    selectedAction: decision.action,
+    selectionReason: decision.reason,
+    confidenceLevel: confidence.level,
+    confidenceReason: confidence.reason,
+    evidence: decision.evidence,
+    guardrailsConsidered: [
+      "manual button only",
+      "owner approval only",
+      "no Codex auto-execution",
+      "no GitHub issue creation",
+      "no label changes",
+      "no production deploy",
+      "no paid resources",
+      "no migrations",
+      "no secrets/env changes",
+      "no repository visibility changes",
+      "no generated app auto-merge"
+    ]
+  };
+}
+
+function buildActionQueue({ runId, createdAt, decision, nextActionPrompt }) {
+  const status = decision.status === "blocked" ? "blocked" : "queued";
+  const action = {
+    id: `orchestrator_action_${runId.replace(/^orchestrator_run_/, "")}_${Math.abs(hashText(decision.action)).toString(36)}`,
+    sourceRunId: runId,
+    action: decision.action,
+    title: decision.action.replace(/_/g, " "),
+    status,
+    reason: decision.reason,
+    ownerApprovalRequired: decision.status !== "ran_successfully",
+    prompt: nextActionPrompt.prompt,
+    expectedOutcome: nextActionPrompt.expectedOutcome,
+    dependencies: nextActionPrompt.dependencies,
+    guardrails: [
+      "Do not trigger Codex automatically.",
+      "Do not create GitHub issues.",
+      "Do not apply labels.",
+      "Do not deploy production.",
+      "Do not create paid resources.",
+      "Do not apply migrations.",
+      "Do not add secrets or env vars.",
+      "Do not change repository visibility.",
+      "Do not auto-merge generated app code."
+    ],
+    createdAt,
+    updatedAt: createdAt,
+    completedAt: null,
+    storage: "local_mock"
+  };
+
+  return {
+    kind: "orchestrator_action_queue",
+    schemaVersion: 1,
+    storage: "local_mock",
+    items: [action],
+    ownerReadableSummary:
+      status === "blocked"
+        ? `Action ${action.title} is blocked and must not advance until the blocker is resolved.`
+        : `Action ${action.title} is queued for owner review. It will not trigger Codex or mutate GitHub automatically.`,
+    guardrails: defaultGuardrails()
+  };
+}
+
 function updateMemory(memory, run) {
   const progress = item("progress", run.ownerReadableSummary, run.createdAt, ["manual-orchestrator"]);
+  const queuedActions = run.actionQueue.items.filter((action) => action.status === "queued" || action.status === "prepared_handoff");
+  const completedActions = run.actionQueue.items.filter((action) => action.status === "completed");
 
   return {
     ...memory,
@@ -263,19 +357,62 @@ function updateMemory(memory, run) {
       latestProgress: run.ownerReadableSummary,
       recommendedNextAction: run.nextActionPrompt.expectedOutcome
     },
-    completedMilestones: [item("completed_milestone", run.ownerReadableSummary, run.createdAt, ["manual-orchestrator"]), ...memory.completedMilestones].slice(0, 20),
+    completedMilestones: [
+      item("completed_milestone", run.ownerReadableSummary, run.createdAt, ["manual-orchestrator"]),
+      ...completedActions.map((action) => item("completed_milestone", `Completed queued orchestrator action: ${action.title}.`, run.createdAt, ["manual-orchestrator"])),
+      ...memory.completedMilestones
+    ].slice(0, 20),
     currentBlockers:
       run.status === "blocked"
         ? [...run.evidence.map((line) => item("current_blocker", line, run.createdAt, ["manual-orchestrator"])), ...memory.currentBlockers].slice(0, 20)
         : memory.currentBlockers,
-    progressHistory: [progress, ...memory.progressHistory].slice(0, 30),
-    futureImprovements: [item("future_improvement", run.nextActionPrompt.expectedOutcome, run.createdAt, ["manual-orchestrator"]), ...memory.futureImprovements].slice(0, 20),
+    progressHistory: [
+      progress,
+      item("progress", `Decision trace considered ${run.decisionTrace.inputsConsidered.length} input(s) and selected ${run.decisionTrace.selectedAction}.`, run.createdAt, ["manual-orchestrator"]),
+      ...run.actionQueue.items.map((action) =>
+        item("progress", `Action queue item ${action.id} is ${action.status.replace(/_/g, " ")}: ${action.expectedOutcome}`, run.createdAt, ["manual-orchestrator"])
+      ),
+      ...memory.progressHistory
+    ].slice(0, 30),
+    futureImprovements: [
+      item("future_improvement", run.nextActionPrompt.expectedOutcome, run.createdAt, ["manual-orchestrator"]),
+      ...queuedActions.map((action) => item("future_improvement", `Queued orchestrator action: ${action.title}.`, run.createdAt, ["manual-orchestrator"])),
+      ...memory.futureImprovements
+    ].slice(0, 20),
     guardrails: defaultGuardrails(),
     summaries: {
       executive: `AppEngine is ${run.status.replace(/_/g, " ")}. Latest progress: ${run.ownerReadableSummary} Next: ${run.nextActionPrompt.expectedOutcome}`,
       technical: `Manual orchestrator used ${Object.keys(run.inputArtifacts).join(", ")} and selected ${run.selectedNextSafeAction}.`,
       projectStatus: `Current blockers: ${run.projectStateSummary.currentBlockers.length}. Evidence: ${run.evidence.length}.`
     }
+  };
+}
+
+function confidenceFor({ decision, inputArtifacts, blockersFound, pendingCheckResolution }) {
+  if (decision.status === "blocked") {
+    return {
+      level: "high",
+      reason: blockersFound.length || pendingCheckResolution ? "The decision is based on explicit blocker evidence." : "The orchestrator selected a blocked state."
+    };
+  }
+
+  if (decision.status === "needs_owner_approval") {
+    return {
+      level: "high",
+      reason: "The decision preserves owner review before any external action can happen."
+    };
+  }
+
+  if (decision.action === "create_real_project_trial") {
+    return {
+      level: "medium",
+      reason: "The decision is useful and safe, but it depends on missing context being filled by the next owner-reviewed step."
+    };
+  }
+
+  return {
+    level: "high",
+    reason: "The decision is supported by current Project Memory and available AppEngine artifacts."
   };
 }
 

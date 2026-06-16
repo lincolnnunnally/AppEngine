@@ -6,6 +6,42 @@ import type { ProjectMemory } from "./project-memory";
 import type { RealProjectTrialSummary } from "./real-project-trial";
 
 export type OrchestratorRunStatus = "ready_to_run" | "ran_successfully" | "needs_owner_approval" | "blocked" | "failed_honestly";
+export type OrchestratorConfidenceLevel = "low" | "medium" | "high";
+export type OrchestratorActionStatus = "queued" | "prepared_handoff" | "owner_approved" | "blocked" | "completed";
+
+export type OrchestratorDecisionTrace = {
+  inputsConsidered: Array<{
+    kind: string;
+    status: OrchestratorInputReference["status"];
+    summary: string;
+  }>;
+  currentProjectState: OrchestratorRun["projectStateSummary"];
+  blockersFound: string[];
+  selectedAction: string;
+  selectionReason: string;
+  confidenceLevel: OrchestratorConfidenceLevel;
+  confidenceReason: string;
+  evidence: string[];
+  guardrailsConsidered: string[];
+};
+
+export type OrchestratorActionQueueItem = {
+  id: string;
+  sourceRunId: string;
+  action: string;
+  title: string;
+  status: OrchestratorActionStatus;
+  reason: string;
+  ownerApprovalRequired: boolean;
+  prompt: string;
+  expectedOutcome: string;
+  dependencies: string[];
+  guardrails: string[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  storage: "local_mock";
+};
 
 export type OrchestratorRun = {
   kind: "orchestrator_run";
@@ -28,6 +64,15 @@ export type OrchestratorRun = {
     designIntentProfile: OrchestratorInputReference;
     appPortfolioRegistry: OrchestratorInputReference;
     pendingCheckResolution: OrchestratorInputReference;
+  };
+  decisionTrace: OrchestratorDecisionTrace;
+  actionQueue: {
+    kind: "orchestrator_action_queue";
+    schemaVersion: 1;
+    storage: "local_mock";
+    items: OrchestratorActionQueueItem[];
+    ownerReadableSummary: string;
+    guardrails: OrchestratorGuardrails;
   };
   nextActionPrompt: {
     prompt: string;
@@ -70,11 +115,12 @@ type OrchestratorGuardrails = {
 
 type StoreShape = {
   runs: OrchestratorRun[];
+  actionQueue: OrchestratorActionQueueItem[];
 };
 
 const storeDir = join(process.cwd(), ".app-engine");
 const storePath = join(storeDir, "orchestrator-runs.json");
-let memoryStore: StoreShape = { runs: [] };
+let memoryStore: StoreShape = { runs: [], actionQueue: [] };
 
 export async function listOrchestratorRuns() {
   const store = await readStore();
@@ -82,13 +128,73 @@ export async function listOrchestratorRuns() {
   return store.runs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function listOrchestratorActionQueue() {
+  const store = await readStore();
+
+  return store.actionQueue.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function saveOrchestratorRun(input: OrchestratorInput) {
   const store = await readStore();
   const run = createOrchestratorRun(input);
   store.runs = [run, ...store.runs].slice(0, 50);
+  store.actionQueue = mergeActionQueue(store.actionQueue, run.actionQueue.items).slice(0, 100);
   await writeStore(store);
 
   return run;
+}
+
+export async function updateOrchestratorActionStatus(
+  actionId: string,
+  status: OrchestratorActionStatus,
+  now = new Date()
+) {
+  const store = await readStore();
+  const updatedAt = now.toISOString();
+  let updatedAction: OrchestratorActionQueueItem | null = null;
+
+  store.actionQueue = store.actionQueue.map((action) => {
+    if (action.id !== actionId) return action;
+
+    updatedAction = {
+      ...action,
+      status,
+      updatedAt,
+      completedAt: status === "completed" ? updatedAt : action.completedAt
+    };
+
+    return updatedAction;
+  });
+
+  store.runs = store.runs.map((run) => ({
+    ...run,
+    actionQueue: {
+      ...run.actionQueue,
+      items: run.actionQueue.items.map((action) =>
+        action.id === actionId && updatedAction
+          ? {
+              ...action,
+              status,
+              updatedAt,
+              completedAt: status === "completed" ? updatedAt : action.completedAt
+            }
+          : action
+      )
+    }
+  }));
+
+  await writeStore(store);
+
+  return updatedAction;
+}
+
+export async function markOrchestratorActionPreparedHandoff(runId: string, now = new Date()) {
+  const store = await readStore();
+  const action = store.actionQueue.find((candidate) => candidate.sourceRunId === runId);
+
+  if (!action) return null;
+
+  return updateOrchestratorActionStatus(action.id, "prepared_handoff", now);
 }
 
 export function createOrchestratorRun(input: OrchestratorInput, now = new Date()): OrchestratorRun {
@@ -103,6 +209,23 @@ export function createOrchestratorRun(input: OrchestratorInput, now = new Date()
   const decision = chooseNextAction({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution, blockers });
   const createdAt = now.toISOString();
   const id = `orchestrator_run_${now.getTime().toString(36)}`;
+  const projectStateSummary = {
+    currentState: projectMemory.latestProjectState.currentState,
+    latestProgress: projectMemory.latestProjectState.latestProgress,
+    currentBlockers: blockers,
+    recommendedNextAction: projectMemory.latestProjectState.recommendedNextAction
+  };
+  const inputArtifacts = buildInputReferences({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution });
+  const nextActionPrompt = buildNextPrompt({ decision, projectMemory, latestHandoff, latestTrial, pendingCheckResolution });
+  const decisionTrace = buildDecisionTrace({
+    decision,
+    projectStateSummary,
+    inputArtifacts,
+    blockers,
+    latestHandoff,
+    pendingCheckResolution
+  });
+  const actionQueue = buildActionQueue({ runId: id, createdAt, decision, nextActionPrompt });
 
   return {
     kind: "orchestrator_run",
@@ -112,16 +235,114 @@ export function createOrchestratorRun(input: OrchestratorInput, now = new Date()
     status: decision.status,
     selectedNextSafeAction: decision.action,
     reason: decision.reason,
-    projectStateSummary: {
-      currentState: projectMemory.latestProjectState.currentState,
-      latestProgress: projectMemory.latestProjectState.latestProgress,
-      currentBlockers: blockers,
-      recommendedNextAction: projectMemory.latestProjectState.recommendedNextAction
-    },
-    inputArtifacts: buildInputReferences({ projectMemory, latestHandoff, latestTrial, pendingCheckResolution }),
-    nextActionPrompt: buildNextPrompt({ decision, projectMemory, latestHandoff, latestTrial, pendingCheckResolution }),
+    projectStateSummary,
+    inputArtifacts,
+    decisionTrace,
+    actionQueue,
+    nextActionPrompt,
     evidence: decision.evidence,
     ownerReadableSummary: `AppEngine chose ${decision.action.replace(/_/g, " ")} because ${decision.reason}`,
+    guardrails: defaultGuardrails()
+  };
+}
+
+function buildDecisionTrace({
+  decision,
+  projectStateSummary,
+  inputArtifacts,
+  blockers,
+  latestHandoff,
+  pendingCheckResolution
+}: {
+  decision: ReturnType<typeof chooseNextAction>;
+  projectStateSummary: OrchestratorRun["projectStateSummary"];
+  inputArtifacts: OrchestratorRun["inputArtifacts"];
+  blockers: string[];
+  latestHandoff: HandoffRelaySummary | null;
+  pendingCheckResolution?: PendingCheckResolution;
+}): OrchestratorDecisionTrace {
+  const handoffBlockers = latestHandoff?.extracted.blockers.filter(isActionableBlocker) || [];
+  const blockersFound = [...blockers, ...handoffBlockers];
+  const confidence = confidenceFor({ decision, inputArtifacts, blockersFound, pendingCheckResolution });
+
+  return {
+    inputsConsidered: Object.values(inputArtifacts).map((artifact) => ({
+      kind: artifact.kind,
+      status: artifact.status,
+      summary: artifact.summary
+    })),
+    currentProjectState: projectStateSummary,
+    blockersFound,
+    selectedAction: decision.action,
+    selectionReason: decision.reason,
+    confidenceLevel: confidence.level,
+    confidenceReason: confidence.reason,
+    evidence: decision.evidence,
+    guardrailsConsidered: [
+      "manual button only",
+      "owner approval only",
+      "no Codex auto-execution",
+      "no GitHub issue creation",
+      "no label changes",
+      "no production deploy",
+      "no paid resources",
+      "no migrations",
+      "no secrets/env changes",
+      "no repository visibility changes",
+      "no generated app auto-merge"
+    ]
+  };
+}
+
+function buildActionQueue({
+  runId,
+  createdAt,
+  decision,
+  nextActionPrompt
+}: {
+  runId: string;
+  createdAt: string;
+  decision: ReturnType<typeof chooseNextAction>;
+  nextActionPrompt: OrchestratorRun["nextActionPrompt"];
+}): OrchestratorRun["actionQueue"] {
+  const status: OrchestratorActionStatus = decision.status === "blocked" ? "blocked" : "queued";
+  const action: OrchestratorActionQueueItem = {
+    id: `orchestrator_action_${runId.replace(/^orchestrator_run_/, "")}_${hashText(decision.action)}`,
+    sourceRunId: runId,
+    action: decision.action,
+    title: decision.action.replace(/_/g, " "),
+    status,
+    reason: decision.reason,
+    ownerApprovalRequired: decision.status !== "ran_successfully",
+    prompt: nextActionPrompt.prompt,
+    expectedOutcome: nextActionPrompt.expectedOutcome,
+    dependencies: nextActionPrompt.dependencies,
+    guardrails: [
+      "Do not trigger Codex automatically.",
+      "Do not create GitHub issues.",
+      "Do not apply labels.",
+      "Do not deploy production.",
+      "Do not create paid resources.",
+      "Do not apply migrations.",
+      "Do not add secrets or env vars.",
+      "Do not change repository visibility.",
+      "Do not auto-merge generated app code."
+    ],
+    createdAt,
+    updatedAt: createdAt,
+    completedAt: null,
+    storage: "local_mock"
+  };
+
+  return {
+    kind: "orchestrator_action_queue",
+    schemaVersion: 1,
+    storage: "local_mock",
+    items: [action],
+    ownerReadableSummary:
+      status === "blocked"
+        ? `Action ${action.title} is blocked and must not advance until the blocker is resolved.`
+        : `Action ${action.title} is queued for owner review. It will not trigger Codex or mutate GitHub automatically.`,
     guardrails: defaultGuardrails()
   };
 }
@@ -385,6 +606,54 @@ function expectedOutcomeFor(action: string) {
   return outcomes[action] || "Produce the next owner-reviewed AppEngine action without external side effects.";
 }
 
+function confidenceFor({
+  decision,
+  inputArtifacts,
+  blockersFound,
+  pendingCheckResolution
+}: {
+  decision: ReturnType<typeof chooseNextAction>;
+  inputArtifacts: OrchestratorRun["inputArtifacts"];
+  blockersFound: string[];
+  pendingCheckResolution?: PendingCheckResolution;
+}): { level: OrchestratorConfidenceLevel; reason: string } {
+  if (decision.status === "blocked") {
+    return {
+      level: "high",
+      reason: blockersFound.length || pendingCheckResolution ? "The decision is based on explicit blocker evidence." : "The orchestrator selected a blocked state."
+    };
+  }
+
+  if (decision.status === "needs_owner_approval") {
+    return {
+      level: "high",
+      reason: "The decision preserves owner review before any external action can happen."
+    };
+  }
+
+  if (decision.action === "create_real_project_trial") {
+    return {
+      level: "medium",
+      reason: "The decision is useful and safe, but it depends on missing context being filled by the next owner-reviewed step."
+    };
+  }
+
+  return {
+    level: "high",
+    reason: "The decision is supported by current Project Memory and available AppEngine artifacts."
+  };
+}
+
+function mergeActionQueue(existing: OrchestratorActionQueueItem[], incoming: OrchestratorActionQueueItem[]) {
+  const byId = new Map<string, OrchestratorActionQueueItem>();
+
+  for (const action of [...incoming, ...existing]) {
+    byId.set(action.id, normalizeActionQueueItem(action));
+  }
+
+  return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 function newest<T extends Record<string, unknown>>(items: T[], key: keyof T) {
   return (
     [...items].sort((a, b) => String(b[key] || "").localeCompare(String(a[key] || "")))[0] ||
@@ -440,10 +709,11 @@ async function readStore(): Promise<StoreShape> {
     const parsed = JSON.parse(raw) as Partial<StoreShape>;
 
     return {
-      runs: Array.isArray(parsed.runs) ? parsed.runs.map(normalizeRun).filter(isOrchestratorRun) : []
+      runs: Array.isArray(parsed.runs) ? parsed.runs.map(normalizeRun).filter(isOrchestratorRun) : [],
+      actionQueue: Array.isArray(parsed.actionQueue) ? parsed.actionQueue.map(normalizeActionQueueItem) : []
     };
   } catch {
-    return { runs: [] };
+    return { runs: [], actionQueue: [] };
   }
 }
 
@@ -465,6 +735,8 @@ function normalizeRun(value: unknown): OrchestratorRun | null {
   return {
     ...run,
     status: isRunStatus(run.status) ? run.status : "failed_honestly",
+    decisionTrace: normalizeDecisionTrace(run),
+    actionQueue: normalizeRunActionQueue(run),
     guardrails: defaultGuardrails()
   };
 }
@@ -475,4 +747,102 @@ function isOrchestratorRun(value: OrchestratorRun | null): value is Orchestrator
 
 function isRunStatus(value: string): value is OrchestratorRunStatus {
   return ["ready_to_run", "ran_successfully", "needs_owner_approval", "blocked", "failed_honestly"].includes(value);
+}
+
+function normalizeDecisionTrace(run: OrchestratorRun): OrchestratorDecisionTrace {
+  if (run.decisionTrace?.selectedAction) {
+    return {
+      ...run.decisionTrace,
+      confidenceLevel: isConfidenceLevel(run.decisionTrace.confidenceLevel) ? run.decisionTrace.confidenceLevel : "medium",
+      guardrailsConsidered: Array.isArray(run.decisionTrace.guardrailsConsidered)
+        ? run.decisionTrace.guardrailsConsidered
+        : []
+    };
+  }
+
+  return {
+    inputsConsidered: Object.values(run.inputArtifacts || {}).map((artifact) => ({
+      kind: artifact.kind,
+      status: artifact.status,
+      summary: artifact.summary
+    })),
+    currentProjectState: run.projectStateSummary,
+    blockersFound: run.status === "blocked" ? run.evidence : run.projectStateSummary.currentBlockers,
+    selectedAction: run.selectedNextSafeAction,
+    selectionReason: run.reason,
+    confidenceLevel: "medium",
+    confidenceReason: "Legacy run normalized without an original decision trace.",
+    evidence: run.evidence,
+    guardrailsConsidered: []
+  };
+}
+
+function normalizeRunActionQueue(run: OrchestratorRun): OrchestratorRun["actionQueue"] {
+  if (run.actionQueue?.kind === "orchestrator_action_queue") {
+    return {
+      ...run.actionQueue,
+      storage: "local_mock",
+      items: Array.isArray(run.actionQueue.items) ? run.actionQueue.items.map(normalizeActionQueueItem) : [],
+      guardrails: defaultGuardrails()
+    };
+  }
+
+	  return buildActionQueue({
+    runId: run.id,
+    createdAt: run.createdAt,
+    decision: {
+      status:
+        run.status === "blocked"
+          ? "blocked"
+          : run.status === "needs_owner_approval"
+            ? "needs_owner_approval"
+            : "ran_successfully",
+      action: run.selectedNextSafeAction,
+      reason: run.reason,
+      evidence: run.evidence
+    },
+    nextActionPrompt: run.nextActionPrompt
+  });
+}
+
+function normalizeActionQueueItem(value: unknown): OrchestratorActionQueueItem {
+  const action = value as Partial<OrchestratorActionQueueItem>;
+  const createdAt = action.createdAt || new Date(0).toISOString();
+
+  return {
+    id: action.id || `orchestrator_action_${hashText(`${action.sourceRunId}:${action.action}:${createdAt}`)}`,
+    sourceRunId: action.sourceRunId || "unknown_orchestrator_run",
+    action: action.action || "unknown_next_safe_action",
+    title: action.title || String(action.action || "unknown next safe action").replace(/_/g, " "),
+    status: isActionStatus(action.status || "") ? (action.status as OrchestratorActionStatus) : "queued",
+    reason: action.reason || "No action reason was recorded.",
+    ownerApprovalRequired: Boolean(action.ownerApprovalRequired),
+    prompt: action.prompt || "",
+    expectedOutcome: action.expectedOutcome || "Review this queued action before any external work proceeds.",
+    dependencies: Array.isArray(action.dependencies) ? action.dependencies : [],
+    guardrails: Array.isArray(action.guardrails) ? action.guardrails : [],
+    createdAt,
+    updatedAt: action.updatedAt || createdAt,
+    completedAt: action.completedAt || null,
+    storage: "local_mock"
+  };
+}
+
+function isActionStatus(value: string): value is OrchestratorActionStatus {
+  return ["queued", "prepared_handoff", "owner_approved", "blocked", "completed"].includes(value);
+}
+
+function isConfidenceLevel(value: string): value is OrchestratorConfidenceLevel {
+  return ["low", "medium", "high"].includes(value);
+}
+
+function hashText(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash).toString(36);
 }
