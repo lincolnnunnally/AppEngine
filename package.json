@@ -62,6 +62,7 @@
     "smoke:orchestrator-batch-handoff-prepare": "node scripts/smoke-orchestrator-batch-handoff-prepare.js",
     "smoke:orchestrator-approved-handoff-export": "node scripts/smoke-orchestrator-approved-handoff-export.js",
     "smoke:orchestrator-handoff-bridge": "node scripts/smoke-orchestrator-handoff-bridge.js",
+    "smoke:autonomy-roadmap": "node scripts/smoke-autonomy-roadmap.js",
     "smoke:owner-control-center-status": "node scripts/smoke-owner-control-center-status.js",
     "smoke:production-readiness-snapshot": "node scripts/smoke-production-readiness-snapshot.js",
     "smoke:pending-check-resolution": "node scripts/smoke-pending-check-resolution.js",
