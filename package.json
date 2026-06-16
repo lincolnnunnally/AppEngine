@@ -102,6 +102,7 @@
     "smoke:runtime-monitoring-lite": "node scripts/smoke-runtime-monitoring-lite.js",
     "smoke:launch-blocker-report": "node scripts/smoke-launch-blocker-report.js",
     "smoke:final-production-closure-plan": "node scripts/smoke-final-production-closure-plan.js",
+    "smoke:durable-schema-migration-dry-run": "node scripts/smoke-durable-schema-migration-dry-run.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
