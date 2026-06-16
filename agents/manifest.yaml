@@ -43,6 +43,7 @@ shared_context_files:
   - source-of-truth/phase-issue-publisher-dry-run.md
   - source-of-truth/phase-issue-publisher-manual-mode.md
   - source-of-truth/published-phase-issue-registry.md
+  - source-of-truth/phase-start-approval-gate.md
   - source-of-truth/intake-command-standard.md
   - source-of-truth/app-selection-standard.md
   - source-of-truth/end-to-end-command-test-standard.md
@@ -185,6 +186,7 @@ agents:
       - phase_issue_publisher_dry_run
       - phase_issue_publisher_manual
       - published_phase_issue_registry
+      - phase_start_approval
       - intake_packet
       - pilot_app_build
       - build_completion_plan
