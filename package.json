@@ -87,6 +87,7 @@
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",
+    "smoke:spark-approved-preview": "node scripts/smoke-spark-approved-preview.js",
     "smoke:spark-review-queue-lite": "node scripts/smoke-spark-review-queue-lite.js",
     "smoke:vnext-packet": "node scripts/smoke-vnext-packet.js",
     "smoke:release-gate": "node scripts/smoke-release-gate.js",

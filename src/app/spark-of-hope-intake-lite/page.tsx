@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   buildSparkReviewQueueNextPrompt,
   createSparkReviewQueueItem,
+  getApprovedSparkPreviewItems,
   isSparkReviewStatus,
   sparkReviewQueueGuardrails,
   sparkReviewQueueStorageKey,
@@ -26,6 +27,7 @@ export default function SparkOfHopeIntakeLitePage() {
   const [reviewQueueItems, setReviewQueueItems] = useState<SparkReviewQueueItem[]>([]);
   const [reviewPromptCopied, setReviewPromptCopied] = useState("Ready to copy");
   const canSubmit = submitState.status !== "submitting";
+  const approvedPreviewItems = getApprovedSparkPreviewItems(reviewQueueItems);
   const reviewPrompt = buildSparkReviewQueueNextPrompt(reviewQueueItems);
 
   const statusText =
@@ -146,6 +148,7 @@ export default function SparkOfHopeIntakeLitePage() {
           Spark of Hope Intake Lite
         </Link>
         <div>
+          <a href="#approved-preview">Approved preview</a>
           <a href="#review-queue">Review queue</a>
           <a href="#privacy">Privacy</a>
           <a href="#share">Share a story</a>
@@ -294,6 +297,41 @@ export default function SparkOfHopeIntakeLitePage() {
             </div>
           </div>
         </aside>
+      </section>
+
+      <section className="spark-approved-preview-section" id="approved-preview" data-testid="spark-approved-preview">
+        <div className="spark-review-header">
+          <div>
+            <p className="eyebrow">Approved public preview</p>
+            <h2>Only approved stories appear here.</h2>
+            <p>
+              This local preview list shows safe metadata only for items marked approved for preview. New, hidden,
+              needs-review, and needs-follow-up items stay out of this public-facing section.
+            </p>
+          </div>
+          <span>{approvedPreviewItems.length} approved item{approvedPreviewItems.length === 1 ? "" : "s"}</span>
+        </div>
+
+        {approvedPreviewItems.length ? (
+          <div className="spark-approved-preview-list" aria-live="polite">
+            {approvedPreviewItems.map((item) => (
+              <article className="spark-approved-preview-card" key={item.id}>
+                <span>{item.categoryOrStruggle}</span>
+                <h3>{item.titleOrName}</h3>
+                <p>{item.hopeOutcome}</p>
+                <small>{item.safeIdentifier}</small>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="spark-review-empty">
+            <strong>No approved preview stories yet.</strong>
+            <p>
+              Submitted items stay private until the owner changes one to approved for preview. Nothing is publicly
+              promoted, shared, or matched automatically.
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="spark-review-section" id="review-queue" data-testid="spark-review-queue-lite">
