@@ -29,6 +29,7 @@ ChatGPT handoff issue or natural request
 -> candidate_packet_bridge when review is approved and a packet draft is needed
 -> packet_draft_approval before a packet draft can become a final packet
 -> final_packet_materialization after approval and before phase creation
+-> phase_creation_approval before phase issues can be generated
 -> intake packet
 -> app selection
 -> correct workflow
@@ -47,6 +48,8 @@ Use `source-of-truth/candidate-to-packet-bridge.md` after approved `solution_can
 Use `source-of-truth/packet-draft-approval-gate.md` after `candidate_packet_bridge` to approve, revise, reject, or block the packet draft before any final App Build Packet, vNext Packet, or Non-App Solution Plan can be created.
 
 Use `source-of-truth/final-packet-materialization.md` after approved `packet_draft_approval` to create the final planning packet without creating phase issues, triggering Codex build work, or deploying anything.
+
+Use `source-of-truth/phase-creation-approval-gate.md` after `final_packet_materialization` to approve, revise, reject, or block whether phase issues may be generated. The approval gate itself must not create phase issues or trigger build work.
 
 ## Request Types
 

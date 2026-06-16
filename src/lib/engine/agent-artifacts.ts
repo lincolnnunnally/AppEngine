@@ -9,6 +9,7 @@ export type AgentArtifactKind =
   | "candidate_packet_bridge"
   | "packet_draft_approval"
   | "final_packet_materialization"
+  | "phase_creation_approval"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"

@@ -42,6 +42,7 @@ source-of-truth/solution-candidate-review-gate.md
 source-of-truth/candidate-to-packet-bridge.md
 source-of-truth/packet-draft-approval-gate.md
 source-of-truth/final-packet-materialization.md
+source-of-truth/phase-creation-approval-gate.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
@@ -403,6 +404,14 @@ Local final packet materialization verification:
 
 ```bash
 npm run smoke:final-packet-materialization
+```
+
+`scripts/create-phase-creation-approval.js` reviews a `final_packet_materialization` artifact and approves, revises, rejects, or blocks whether phase issues may be generated, without creating the phase issues itself.
+
+Local phase creation approval verification:
+
+```bash
+npm run smoke:phase-creation-approval
 ```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
