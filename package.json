@@ -86,6 +86,7 @@
     "smoke:intake": "node scripts/smoke-intake-packet.js",
     "smoke:identity-registry": "node scripts/smoke-identity-registry.js",
     "smoke:portfolio-registry": "node scripts/smoke-app-portfolio-registry.js",
+    "smoke:persistence-inventory": "node scripts/smoke-persistence-inventory.js",
     "smoke:design-intent": "node scripts/smoke-design-intent-profile.js",
     "smoke:design-quality": "node scripts/smoke-design-quality.js",
     "smoke:compatibility": "node scripts/smoke-compatibility.js",
