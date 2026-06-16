@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { HandoffRelaySummary } from "./handoff-relay";
+import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
 import type { TrialResultReview } from "./real-project-trial";
 
@@ -301,6 +301,73 @@ export async function updateProjectMemoryFromPreparedHandoff(handoff: HandoffRel
     lessonsLearned: mergeItems(current.lessonsLearned, [...bridgeItems.lessonsLearned, ...handoffItems.lessonsLearned]),
     futureImprovements: current.futureImprovements,
     progressHistory: mergeItems(current.progressHistory, [...bridgeItems.progressHistory, ...handoffItems.progressHistory], 30),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromHandoffExport(handoff: HandoffRelaySummary, exportOutput: OrchestratorApprovedHandoffExport) {
+  const current = await loadProjectMemory();
+  const createdAt = exportOutput.createdAt;
+  const tags = ["orchestrator-approved-handoff-export", handoff.id];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "Approved handoff export ready",
+      latestProgress: exportOutput.ownerReadableSummary,
+      recommendedNextAction: "Lincoln may copy the exported Codex-ready prompt from the Handoff Inbox and send it manually.",
+      lastHandoffId: handoff.id
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item("major_decision", `Prepared handoff ${handoff.id} was owner-approved for manual Codex prompt export.`, handoff.id, createdAt, tags)
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Use owner-approved handoff exports to create copyable Codex-ready prompts without triggering Codex automatically.",
+        handoff.id,
+        createdAt,
+        tags
+      )
+    ]),
+    completedMilestones: mergeItems(current.completedMilestones, [
+      item("completed_milestone", `Export-ready handoff created for ${handoff.extracted.prTitle}.`, handoff.id, createdAt, tags)
+    ]),
+    currentBlockers: current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "Owner-approved handoff exports store exact prompts, verification, expected result, and guardrails while preserving manual execution.",
+        handoff.id,
+        createdAt,
+        tags
+      )
+    ]),
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "A prepared handoff becomes safer when export approval is explicit and recorded before Lincoln copies the prompt.",
+        handoff.id,
+        createdAt,
+        tags
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", exportOutput.ownerReadableSummary, handoff.id, createdAt, tags),
+        item("progress", `Expected result: ${exportOutput.expectedResult}`, handoff.id, createdAt, tags)
+      ],
+      30
+    ),
     ownerFeedback: current.ownerFeedback,
     guardrails: defaultGuardrails()
   };

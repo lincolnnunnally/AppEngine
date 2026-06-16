@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OrchestratorBatchDryRun, OrchestratorRun } from "./orchestrator-run";
-import { updateProjectMemoryFromHandoff, updateProjectMemoryFromPreparedHandoff } from "./project-memory";
+import { updateProjectMemoryFromHandoff, updateProjectMemoryFromHandoffExport, updateProjectMemoryFromPreparedHandoff } from "./project-memory";
 
 export type HandoffFeedbackChoice =
   | "good_direction"
@@ -10,6 +10,18 @@ export type HandoffFeedbackChoice =
   | "needs_redesign"
   | "duplicate_work"
   | "unnecessary_complexity";
+
+export type HandoffExportApprovalStatus = "not_requested" | "owner_approved_for_export" | "exported" | "rejected";
+
+export type HandoffExportRecord = {
+  approvalStatus: HandoffExportApprovalStatus;
+  approvedAt: string | null;
+  exportedAt: string | null;
+  exportedPrompt: string;
+  verification: string[];
+  expectedResult: string;
+  guardrails: string[];
+};
 
 export type HandoffRelaySummary = {
   kind: "handoff_relay_summary";
@@ -50,6 +62,7 @@ export type HandoffRelaySummary = {
     improvementCandidate: string;
     updatedAt: string | null;
   };
+  exportApproval: HandoffExportRecord;
   ownerReadableSummary: string;
   guardrails: {
     ownerApprovalOnly: true;
@@ -62,6 +75,32 @@ export type HandoffRelaySummary = {
     noSecretsOrEnvChanges: true;
     repositoryVisibilityUnchanged: true;
     noGeneratedAppAutoMerge: true;
+  };
+};
+
+export type OrchestratorApprovedHandoffExport = {
+  kind: "orchestrator_approved_handoff_export";
+  schemaVersion: 1;
+  id: string;
+  createdAt: string;
+  handoffId: string;
+  source: HandoffRelaySummary["source"];
+  approvalStatus: "owner_approved_for_export";
+  exportedPrompt: string;
+  guardrails: string[];
+  verification: string[];
+  expectedResult: string;
+  ownerReadableSummary: string;
+  execution: {
+    codexTriggered: false;
+    githubIssuesCreated: false;
+    labelsApplied: false;
+    productionDeployed: false;
+    paidResourcesCreated: false;
+    migrationsApplied: false;
+    secretsOrEnvChanged: false;
+    repositoryVisibilityChanged: false;
+    generatedAppAutoMerged: false;
   };
 };
 
@@ -149,6 +188,7 @@ export function createHandoffRelaySummary(rawText: string, now = new Date()): Ha
       improvementCandidate: "",
       updatedAt: null
     },
+    exportApproval: createDefaultExportRecord(),
     ownerReadableSummary: buildOwnerSummary({ prNumber, prTitle, mergeStatus, currentStatus, recommendedNextAction }),
     guardrails: defaultGuardrails()
   };
@@ -339,6 +379,84 @@ export async function updateHandoffRelayFeedback(handoffId: string, choices: Han
   await writeStore(store);
 
   return store.handoffs[index];
+}
+
+export function createHandoffExportReadyOutput(handoff: HandoffRelaySummary, now = new Date()): OrchestratorApprovedHandoffExport {
+  if (handoff.source !== "orchestrator_prepared_handoff" || handoff.extracted.mergeStatus !== "prepared") {
+    throw new Error("Only prepared orchestrator handoffs may be exported for owner-approved Codex prompts.");
+  }
+
+  const verification = limit(
+    [
+      ...handoff.extracted.verificationResults,
+      "Required verification: npm run source:check",
+      "Required verification: npm run typecheck",
+      "Required verification: npm run build"
+    ],
+    10
+  );
+  const guardrails = buildExportGuardrails(handoff);
+
+  return {
+    kind: "orchestrator_approved_handoff_export",
+    schemaVersion: 1,
+    id: `handoff_export_${now.getTime().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now.toISOString(),
+    handoffId: handoff.id,
+    source: handoff.source,
+    approvalStatus: "owner_approved_for_export",
+    exportedPrompt: handoff.nextPrompt.prompt,
+    guardrails,
+    verification,
+    expectedResult: handoff.nextPrompt.expectedOutcome,
+    ownerReadableSummary: `Prepared handoff ${handoff.id} is owner-approved for manual export. Lincoln can copy the Codex-ready prompt, but AppEngine did not send it or start work automatically.`,
+    execution: {
+      codexTriggered: false,
+      githubIssuesCreated: false,
+      labelsApplied: false,
+      productionDeployed: false,
+      paidResourcesCreated: false,
+      migrationsApplied: false,
+      secretsOrEnvChanged: false,
+      repositoryVisibilityChanged: false,
+      generatedAppAutoMerged: false
+    }
+  };
+}
+
+export async function approveAndExportPreparedHandoff(handoffId: string, now = new Date()) {
+  const store = await readStore();
+  const index = store.handoffs.findIndex((handoff) => handoff.id === handoffId);
+
+  if (index === -1) {
+    throw new Error("Handoff not found.");
+  }
+
+  const handoff = store.handoffs[index];
+  const output = createHandoffExportReadyOutput(handoff, now);
+  store.handoffs[index] = {
+    ...handoff,
+    exportApproval: {
+      approvalStatus: "exported",
+      approvedAt: output.createdAt,
+      exportedAt: output.createdAt,
+      exportedPrompt: output.exportedPrompt,
+      verification: output.verification,
+      expectedResult: output.expectedResult,
+      guardrails: output.guardrails
+    },
+    projectState: {
+      ...handoff.projectState,
+      currentStatus: "Prepared handoff approved for manual export",
+      recommendedNextAction: "Lincoln may copy the exported Codex-ready prompt from the Handoff Inbox and send it manually."
+    },
+    ownerReadableSummary: `${handoff.ownerReadableSummary} Export is owner-approved and ready to copy; no automatic execution occurred.`
+  };
+
+  await writeStore(store);
+  await updateProjectMemoryFromHandoffExport(store.handoffs[index], output);
+
+  return output;
 }
 
 function extractPrNumber(text: string) {
@@ -665,6 +783,38 @@ function defaultGuardrails(): HandoffRelaySummary["guardrails"] {
   };
 }
 
+function createDefaultExportRecord(): HandoffExportRecord {
+  return {
+    approvalStatus: "not_requested",
+    approvedAt: null,
+    exportedAt: null,
+    exportedPrompt: "",
+    verification: [],
+    expectedResult: "",
+    guardrails: []
+  };
+}
+
+function buildExportGuardrails(handoff: HandoffRelaySummary) {
+  const guardrails = [
+    ...Object.entries(handoff.guardrails)
+      .filter(([, preserved]) => preserved)
+      .map(([key]) => formatAction(key)),
+    ...handoff.extracted.guardrailsPreserved,
+    "No automatic Codex execution",
+    "No GitHub issue creation",
+    "No label changes",
+    "No production deploy",
+    "No paid resources",
+    "No migrations",
+    "No secrets/env changes",
+    "No repository visibility changes",
+    "No generated app auto-merge"
+  ];
+
+  return limit(guardrails, 14);
+}
+
 function cleanLine(line: string) {
   return line
     .replace(/^[-*]\s*/, "")
@@ -709,7 +859,7 @@ async function readStore(): Promise<StoreShape> {
     const parsed = JSON.parse(raw) as StoreShape;
 
     return {
-      handoffs: Array.isArray(parsed.handoffs) ? parsed.handoffs : []
+      handoffs: Array.isArray(parsed.handoffs) ? parsed.handoffs.map(normalizeHandoffRelaySummary) : []
     };
   } catch {
     return { handoffs: [] };
@@ -728,4 +878,18 @@ async function writeStore(store: StoreShape) {
 
 function createId(now: Date) {
   return `handoff_${now.getTime().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeHandoffRelaySummary(handoff: HandoffRelaySummary): HandoffRelaySummary {
+  return {
+    ...handoff,
+    exportApproval: {
+      ...createDefaultExportRecord(),
+      ...(handoff.exportApproval || {})
+    },
+    guardrails: {
+      ...defaultGuardrails(),
+      ...(handoff.guardrails || {})
+    }
+  };
 }

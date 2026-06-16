@@ -11,6 +11,7 @@ export type AgentArtifactKind =
   | "orchestrator_action_queue"
   | "orchestrator_batch_dry_run"
   | "orchestrator_batch_handoff_prepare"
+  | "orchestrator_approved_handoff_export"
   | "pending_check_resolution"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
