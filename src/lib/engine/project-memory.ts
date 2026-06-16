@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary } from "./handoff-relay";
-import type { OrchestratorRun } from "./orchestrator-run";
+import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
 import type { TrialResultReview } from "./real-project-trial";
 
 export type ProjectMemoryFeedbackChoice =
@@ -217,6 +217,56 @@ export async function updateProjectMemoryFromOrchestratorRun(run: OrchestratorRu
     futureImprovements: mergeItems(current.futureImprovements, memoryItems.futureImprovements),
     progressHistory: mergeItems(current.progressHistory, memoryItems.progressHistory, 30),
     ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromOrchestratorAction(action: OrchestratorActionQueueItem) {
+  const current = await loadProjectMemory();
+  const createdAt = action.updatedAt;
+  const completed = action.status === "completed";
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      ...current.latestProjectState,
+      currentState: completed ? "Orchestrator action completed" : `Orchestrator action ${action.status.replace(/_/g, " ")}`,
+      latestProgress: `${action.title} is ${action.status.replace(/_/g, " ")}.`,
+      recommendedNextAction: completed
+        ? "Run the Manual Orchestrator again to choose the next safe action from updated Project Memory."
+        : action.expectedOutcome
+    },
+    completedMilestones: completed
+      ? mergeItems(
+          current.completedMilestones,
+          [item("completed_milestone", `Completed queued orchestrator action: ${action.title}.`, null, createdAt, ["orchestrator-action-queue"], "system")]
+        )
+      : current.completedMilestones,
+    futureImprovements: completed
+      ? current.futureImprovements
+      : mergeItems(
+          current.futureImprovements,
+          [item("future_improvement", `Queued orchestrator action: ${action.title}.`, null, createdAt, ["orchestrator-action-queue"], "system")]
+        ),
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item(
+          "progress",
+          `Orchestrator action ${action.id} moved to ${action.status.replace(/_/g, " ")}: ${action.expectedOutcome}`,
+          null,
+          createdAt,
+          ["orchestrator-action-queue", action.status],
+          "system"
+        )
+      ],
+      30
+    ),
     guardrails: defaultGuardrails()
   };
 
@@ -450,6 +500,8 @@ function buildItemsFromOrchestratorRun(run: OrchestratorRun) {
     run.status === "blocked"
       ? run.evidence.map((line) => item("current_blocker", line, null, createdAt, sourceTags, "system"))
       : [];
+  const queuedItems = run.actionQueue.items.filter((action) => action.status === "queued" || action.status === "prepared_handoff");
+  const completedItems = run.actionQueue.items.filter((action) => action.status === "completed");
 
   return {
     majorDecisions: [
@@ -465,7 +517,12 @@ function buildItemsFromOrchestratorRun(run: OrchestratorRun) {
     acceptedApproaches: [
       item("accepted_approach", "Keep manual orchestrator runs owner-reviewed and side-effect free.", null, createdAt, sourceTags, "system")
     ],
-    completedMilestones: [item("completed_milestone", run.ownerReadableSummary, null, createdAt, sourceTags, "system")],
+    completedMilestones: [
+      item("completed_milestone", run.ownerReadableSummary, null, createdAt, sourceTags, "system"),
+      ...completedItems.map((action) =>
+        item("completed_milestone", `Completed queued orchestrator action: ${action.title}.`, null, createdAt, sourceTags, "system")
+      )
+    ],
     currentBlockers: blockerItems,
     openQuestions:
       run.status === "needs_owner_approval"
@@ -481,13 +538,44 @@ function buildItemsFromOrchestratorRun(run: OrchestratorRun) {
         "system"
       )
     ],
-    lessonsLearned: [item("lesson_learned", `Manual orchestrator evidence: ${run.evidence.join(" | ")}`, null, createdAt, sourceTags, "system")],
+    lessonsLearned: [
+      item("lesson_learned", `Manual orchestrator evidence: ${run.evidence.join(" | ")}`, null, createdAt, sourceTags, "system"),
+      item(
+        "lesson_learned",
+        `Manual orchestrator confidence: ${run.decisionTrace.confidenceLevel} - ${run.decisionTrace.confidenceReason}`,
+        null,
+        createdAt,
+        sourceTags,
+        "system"
+      )
+    ],
     futureImprovements: [
-      item("future_improvement", run.nextActionPrompt.expectedOutcome, null, createdAt, sourceTags, "system")
+      item("future_improvement", run.nextActionPrompt.expectedOutcome, null, createdAt, sourceTags, "system"),
+      ...queuedItems.map((action) =>
+        item("future_improvement", `Queued orchestrator action: ${action.title}.`, null, createdAt, sourceTags, "system")
+      )
     ],
     progressHistory: [
       item("progress", run.ownerReadableSummary, null, createdAt, sourceTags, "system"),
-      item("progress", run.nextActionPrompt.expectedOutcome, null, createdAt, sourceTags, "system")
+      item("progress", run.nextActionPrompt.expectedOutcome, null, createdAt, sourceTags, "system"),
+      item(
+        "progress",
+        `Decision trace considered ${run.decisionTrace.inputsConsidered.length} input(s) and selected ${run.decisionTrace.selectedAction}.`,
+        null,
+        createdAt,
+        sourceTags,
+        "system"
+      ),
+      ...run.actionQueue.items.map((action) =>
+        item(
+          "progress",
+          `Action queue item ${action.id} is ${action.status.replace(/_/g, " ")}: ${action.expectedOutcome}`,
+          null,
+          createdAt,
+          sourceTags,
+          "system"
+        )
+      )
     ]
   };
 }
