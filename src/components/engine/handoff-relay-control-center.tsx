@@ -388,6 +388,37 @@ export function HandoffRelayControlCenter({
     setStatus("Orchestrator prompt copied for owner review");
   }
 
+  async function prepareOrchestratorHandoff() {
+    if (!selectedOrchestratorRun) {
+      setError("Run or select an orchestrator result first.");
+      setStatus("Needs orchestrator run");
+      return;
+    }
+
+    setBusyAction("orchestrator-handoff");
+    setError("");
+
+    try {
+      const response = await fetch(`/api/engine/orchestrator-run/${selectedOrchestratorRun.id}/handoff`, { method: "POST" });
+      const payload = await readJsonResponse<{ handoff: HandoffRelaySummary; projectMemory: ProjectMemory }>(
+        response,
+        "Prepared handoff failed"
+      );
+      const nextHandoffs = [payload.handoff, ...handoffs.filter((handoff) => handoff.id !== payload.handoff.id)];
+      setHandoffs(nextHandoffs);
+      setProjectMemory(payload.projectMemory);
+      setSelectedId(payload.handoff.id);
+      setSelectedFeedback([]);
+      setFeedbackNote("");
+      setStatus("Prepared Codex handoff saved to inbox");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Prepared handoff failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function saveProjectMemoryFeedback() {
     if (!selectedMemoryFeedback.length && !memoryFeedbackNote.trim()) {
       setError("Mark a memory category or add a note first.");
@@ -617,9 +648,19 @@ export function HandoffRelayControlCenter({
                 <p className="eyebrow">Generated Next Action</p>
                 <h3>Copy only after review</h3>
               </div>
-              <button className="button accent" type="button" onClick={() => void copyOrchestratorPrompt()} disabled={!selectedOrchestratorRun}>
-                Copy Orchestrator Prompt
-              </button>
+              <div className="orchestrator-actions">
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => void prepareOrchestratorHandoff()}
+                  disabled={!selectedOrchestratorRun || Boolean(busyAction)}
+                >
+                  {busyAction === "orchestrator-handoff" ? "Preparing..." : "Prepare Codex Handoff"}
+                </button>
+                <button className="button accent" type="button" onClick={() => void copyOrchestratorPrompt()} disabled={!selectedOrchestratorRun}>
+                  Copy Orchestrator Prompt
+                </button>
+              </div>
             </div>
             <textarea
               className="handoff-prompt-box orchestrator-prompt-box"
@@ -1001,11 +1042,12 @@ export function HandoffRelayControlCenter({
                     <p className="eyebrow">Project State Summary</p>
                     <h2>{selectedHandoff.projectState.currentStatus}</h2>
                   </div>
-                  <span className="handoff-state-pill">{selectedHandoff.extracted.mergeStatus}</span>
+                  <span className="handoff-state-pill">{formatHandoffSource(selectedHandoff.source)}</span>
                 </div>
                 <div className="handoff-state-grid">
                   <StateBlock label="Latest milestone" value={selectedHandoff.projectState.latestCompletedMilestone} />
                   <StateBlock label="Recommended next action" value={selectedHandoff.projectState.recommendedNextAction} />
+                  <StateBlock label="Handoff status" value={selectedHandoff.extracted.mergeStatus} />
                   <StateBlock
                     label="Open PRs"
                     value={selectedHandoff.projectState.openPrs.length ? selectedHandoff.projectState.openPrs.join(" | ") : "None detected"}
@@ -1020,7 +1062,9 @@ export function HandoffRelayControlCenter({
                     <p className="eyebrow">Handoff Analysis</p>
                     <h2>{selectedHandoff.extracted.prTitle}</h2>
                   </div>
-                  <span className="handoff-state-pill">{selectedHandoff.extracted.prNumber ? `PR #${selectedHandoff.extracted.prNumber}` : "No PR detected"}</span>
+                  <span className="handoff-state-pill">
+                    {selectedHandoff.extracted.prNumber ? `PR #${selectedHandoff.extracted.prNumber}` : formatHandoffSource(selectedHandoff.source)}
+                  </span>
                 </div>
                 <div className="handoff-analysis-grid">
                   <StateBlock label="Branch" value={selectedHandoff.extracted.branch} />
@@ -1106,7 +1150,7 @@ export function HandoffRelayControlCenter({
                     onClick={() => selectHandoff(handoff)}
                   >
                     <span>{new Date(handoff.receivedAt).toLocaleString()}</span>
-                    <strong>{handoff.extracted.prNumber ? `PR #${handoff.extracted.prNumber}` : "Handoff"}</strong>
+                    <strong>{handoff.extracted.prNumber ? `PR #${handoff.extracted.prNumber}` : formatHandoffSource(handoff.source)}</strong>
                     <p>{handoff.extracted.prTitle}</p>
                     <small>{handoff.projectState.recommendedNextAction}</small>
                   </button>
@@ -1161,6 +1205,10 @@ function ListBlock({ label, items, empty }: { label: string; items: string[]; em
       )}
     </div>
   );
+}
+
+function formatHandoffSource(source: HandoffRelaySummary["source"]) {
+  return source === "orchestrator_prepared_handoff" ? "Prepared handoff" : "Pasted handoff";
 }
 
 function formatPacketType(value: string) {
