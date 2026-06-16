@@ -34,6 +34,7 @@ shared_context_files:
   - source-of-truth/project-memory-engine.md
   - source-of-truth/real-project-trial-runner.md
   - source-of-truth/trial-result-review-loop.md
+  - source-of-truth/manual-orchestrator-run-button.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
@@ -184,6 +185,7 @@ agents:
       - project_memory
       - real_project_trial
       - trial_result_review
+      - orchestrator_run
       - problem_solution_intake
       - problem_portfolio_routing
       - solution_candidate_review

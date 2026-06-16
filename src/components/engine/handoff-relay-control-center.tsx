@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
+import type { OrchestratorRun } from "@/lib/engine/orchestrator-run";
 import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
 import type {
   RealProjectTrialSummary,
@@ -24,6 +25,11 @@ type RealProjectTrialPayload = {
 
 type TrialResultReviewPayload = {
   reviews: TrialResultReview[];
+  storage: string;
+};
+
+type OrchestratorRunPayload = {
+  runs: OrchestratorRun[];
   storage: string;
 };
 
@@ -59,6 +65,7 @@ export function HandoffRelayControlCenter({
   initialTrialCandidates,
   initialTrialRuns,
   initialTrialReviews,
+  initialOrchestratorRuns,
   initialStorage
 }: {
   initialHandoffs: HandoffRelaySummary[];
@@ -66,6 +73,7 @@ export function HandoffRelayControlCenter({
   initialTrialCandidates: TrialProjectCandidate[];
   initialTrialRuns: RealProjectTrialSummary[];
   initialTrialReviews: TrialResultReview[];
+  initialOrchestratorRuns: OrchestratorRun[];
   initialStorage: string;
 }) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
@@ -73,12 +81,14 @@ export function HandoffRelayControlCenter({
   const [trialCandidates, setTrialCandidates] = useState(initialTrialCandidates);
   const [trialRuns, setTrialRuns] = useState(initialTrialRuns);
   const [trialReviews, setTrialReviews] = useState(initialTrialReviews);
+  const [orchestratorRuns, setOrchestratorRuns] = useState(initialOrchestratorRuns);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
   const [selectedTrialCandidate, setSelectedTrialCandidate] = useState(initialTrialCandidates[0]?.slug || "");
   const [selectedTrialId, setSelectedTrialId] = useState(initialTrialRuns[0]?.id || "");
   const [selectedTrialReviewId, setSelectedTrialReviewId] = useState(initialTrialReviews[0]?.id || "");
+  const [selectedOrchestratorRunId, setSelectedOrchestratorRunId] = useState(initialOrchestratorRuns[0]?.id || "");
   const [trialReviewStatus, setTrialReviewStatus] = useState<TrialResultReviewStatus>("useful");
   const [trialReviewNote, setTrialReviewNote] = useState("");
   const [manualTrial, setManualTrial] = useState({
@@ -106,6 +116,10 @@ export function HandoffRelayControlCenter({
   const selectedTrialReview = useMemo(
     () => trialReviews.find((review) => review.id === selectedTrialReviewId) || trialReviews[0] || null,
     [trialReviews, selectedTrialReviewId]
+  );
+  const selectedOrchestratorRun = useMemo(
+    () => orchestratorRuns.find((run) => run.id === selectedOrchestratorRunId) || orchestratorRuns[0] || null,
+    [orchestratorRuns, selectedOrchestratorRunId]
   );
   const usingManualTrial = selectedTrialCandidate === "manual";
   const memoryItemCount =
@@ -175,6 +189,45 @@ export function HandoffRelayControlCenter({
       setStatus("Trial reviews refreshed");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Trial review refresh failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function loadOrchestratorRuns() {
+    setBusyAction("orchestrator-refresh");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/orchestrator-run");
+      const payload = await readJsonResponse<OrchestratorRunPayload>(response, "Orchestrator refresh failed");
+      setOrchestratorRuns(payload.runs || []);
+      setStorage(payload.storage || "local");
+      setSelectedOrchestratorRunId((current) => current || payload.runs?.[0]?.id || "");
+      setStatus("Orchestrator runs refreshed");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Orchestrator refresh failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function runOrchestrator() {
+    setBusyAction("orchestrator");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/orchestrator-run", { method: "POST" });
+      const payload = await readJsonResponse<{ run: OrchestratorRun; projectMemory: ProjectMemory }>(response, "Manual orchestrator run failed");
+      const nextRuns = [payload.run, ...orchestratorRuns.filter((run) => run.id !== payload.run.id)];
+      setOrchestratorRuns(nextRuns);
+      setProjectMemory(payload.projectMemory);
+      setSelectedOrchestratorRunId(payload.run.id);
+      setStatus("Next safe step selected");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Manual orchestrator run failed");
       setStatus("Needs attention");
     } finally {
       setBusyAction("");
@@ -328,6 +381,13 @@ export function HandoffRelayControlCenter({
     setStatus("Trial review prompt copied for owner review");
   }
 
+  async function copyOrchestratorPrompt() {
+    if (!selectedOrchestratorRun) return;
+
+    await navigator.clipboard.writeText(selectedOrchestratorRun.nextActionPrompt.prompt);
+    setStatus("Orchestrator prompt copied for owner review");
+  }
+
   async function saveProjectMemoryFeedback() {
     if (!selectedMemoryFeedback.length && !memoryFeedbackNote.trim()) {
       setError("Mark a memory category or add a note first.");
@@ -399,6 +459,7 @@ export function HandoffRelayControlCenter({
         <span className="status-chip">{status}</span>
         <span className="status-chip">{handoffs.length} handoff{handoffs.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{memoryItemCount} memory item{memoryItemCount === 1 ? "" : "s"}</span>
+        <span className="status-chip">{orchestratorRuns.length} orchestrator run{orchestratorRuns.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{trialRuns.length} trial run{trialRuns.length === 1 ? "" : "s"}</span>
         <span className="status-chip">{trialReviews.length} trial review{trialReviews.length === 1 ? "" : "s"}</span>
         {error ? <span className="error-chip">{error}</span> : null}
@@ -473,6 +534,112 @@ export function HandoffRelayControlCenter({
             <span className="handoff-safe-note">Memory feedback stays local/mock and owner-reviewed.</span>
           </div>
         </div>
+      </section>
+
+      <section className="panel orchestrator-panel" data-testid="manual-orchestrator-run">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Manual Orchestrator</p>
+            <h2>Let AppEngine choose the next safe step</h2>
+            <p>Press one button. AppEngine reads memory, handoffs, trials, design intent, and portfolio context, then drafts the next action for owner review.</p>
+          </div>
+          <div className="orchestrator-actions">
+            <button className="button" type="button" onClick={() => void loadOrchestratorRuns()} disabled={Boolean(busyAction)}>
+              {busyAction === "orchestrator-refresh" ? "Refreshing..." : "Refresh Runs"}
+            </button>
+            <button className="button primary" type="button" onClick={() => void runOrchestrator()} disabled={Boolean(busyAction)}>
+              {busyAction === "orchestrator" ? "Deciding..." : "Run next safe step"}
+            </button>
+          </div>
+        </div>
+
+        <div className="orchestrator-layout">
+          <section className="orchestrator-decision-card">
+            {selectedOrchestratorRun ? (
+              <>
+                <div className="handoff-section-heading">
+                  <div>
+                    <p className="eyebrow">Decision</p>
+                    <h3>{selectedOrchestratorRun.selectedNextSafeAction.replace(/_/g, " ")}</h3>
+                  </div>
+                  <span className="handoff-state-pill">{selectedOrchestratorRun.status.replace(/_/g, " ")}</span>
+                </div>
+                <div className="handoff-state-grid">
+                  <StateBlock label="Why this action" value={selectedOrchestratorRun.reason} />
+                  <StateBlock label="Current state" value={selectedOrchestratorRun.projectStateSummary.currentState} />
+                  <StateBlock label="Latest progress" value={selectedOrchestratorRun.projectStateSummary.latestProgress} />
+                  <StateBlock label="Expected outcome" value={selectedOrchestratorRun.nextActionPrompt.expectedOutcome} />
+                  <ListBlock label="Evidence" items={selectedOrchestratorRun.evidence} empty="No evidence recorded." />
+                  <ListBlock label="Current blockers" items={selectedOrchestratorRun.projectStateSummary.currentBlockers} empty="No blockers recorded." />
+                </div>
+                <div className="orchestrator-artifact-grid">
+                  {Object.values(selectedOrchestratorRun.inputArtifacts).map((artifact) => (
+                    <div className="orchestrator-artifact" key={artifact.kind}>
+                      <span>{artifact.kind}</span>
+                      <strong>{artifact.status}</strong>
+                      <p>{artifact.summary}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="handoff-empty-state">
+                <p className="eyebrow">Ready</p>
+                <h3>No orchestrator run yet</h3>
+                <p>Run the first manual orchestrator step when you want AppEngine to draft the next safe action from current state.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="orchestrator-prompt-card">
+            <div className="handoff-section-heading">
+              <div>
+                <p className="eyebrow">Generated Next Action</p>
+                <h3>Copy only after review</h3>
+              </div>
+              <button className="button accent" type="button" onClick={() => void copyOrchestratorPrompt()} disabled={!selectedOrchestratorRun}>
+                Copy Orchestrator Prompt
+              </button>
+            </div>
+            <textarea
+              className="handoff-prompt-box orchestrator-prompt-box"
+              readOnly
+              value={selectedOrchestratorRun?.nextActionPrompt.prompt || "Run the manual orchestrator to draft the next safe prompt."}
+            />
+            <div className="handoff-prompt-meta">
+              <StateBlock label="Reason" value={selectedOrchestratorRun?.nextActionPrompt.reason || "Waiting for a run."} />
+              <StateBlock label="Dependencies" value={selectedOrchestratorRun?.nextActionPrompt.dependencies.join(" | ") || "Waiting for a run."} />
+            </div>
+          </section>
+        </div>
+
+        <aside className="trial-history-card orchestrator-history-card">
+          <p className="eyebrow">Orchestrator History</p>
+          <h3>Newest first</h3>
+          <div className="handoff-inbox-list">
+            {orchestratorRuns.length ? (
+              orchestratorRuns.map((run) => (
+                <button
+                  className={`handoff-inbox-item ${run.id === selectedOrchestratorRun?.id ? "selected" : ""}`}
+                  key={run.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedOrchestratorRunId(run.id);
+                    setStatus("Orchestrator run selected");
+                    setError("");
+                  }}
+                >
+                  <span>{new Date(run.createdAt).toLocaleString()}</span>
+                  <strong>{run.status.replace(/_/g, " ")}</strong>
+                  <p>{run.ownerReadableSummary}</p>
+                  <small>{run.nextActionPrompt.expectedOutcome}</small>
+                </button>
+              ))
+            ) : (
+              <p>No orchestrator runs stored yet.</p>
+            )}
+          </div>
+        </aside>
       </section>
 
       <section className="panel trial-runner-panel" data-testid="real-project-trial-runner">
@@ -965,8 +1132,8 @@ function ListBlock({ label, items, empty }: { label: string; items: string[]; em
       <span>{label}</span>
       {items.length ? (
         <ul>
-          {items.map((item) => (
-            <li key={item}>{item}</li>
+          {items.map((item, index) => (
+            <li key={`${label}-${index}-${item}`}>{item}</li>
           ))}
         </ul>
       ) : (

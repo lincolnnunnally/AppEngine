@@ -7,6 +7,7 @@ export type AgentArtifactKind =
   | "project_memory"
   | "real_project_trial"
   | "trial_result_review"
+  | "orchestrator_run"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"

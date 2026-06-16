@@ -1195,6 +1195,81 @@ label {
   margin: 0;
 }
 
+.orchestrator-panel {
+  display: grid;
+  gap: 16px;
+  background: #f4f7fb;
+}
+
+.orchestrator-panel > .handoff-section-heading p {
+  max-width: 780px;
+  margin: 0;
+}
+
+.orchestrator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.orchestrator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.orchestrator-decision-card,
+.orchestrator-prompt-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #cbd9ea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.orchestrator-artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.orchestrator-artifact {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fbff;
+  overflow-wrap: anywhere;
+}
+
+.orchestrator-artifact span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.orchestrator-artifact strong {
+  display: block;
+  margin: 6px 0;
+  color: var(--blue);
+  text-transform: capitalize;
+}
+
+.orchestrator-artifact p {
+  margin: 0;
+}
+
+.orchestrator-prompt-box {
+  min-height: 420px;
+}
+
+.orchestrator-history-card {
+  background: #ffffff;
+}
+
 .trial-runner-panel {
   display: grid;
   gap: 16px;
@@ -1513,6 +1588,8 @@ label {
     .project-memory-summary-grid,
     .project-memory-lists,
     .project-memory-summaries,
+    .orchestrator-layout,
+    .orchestrator-artifact-grid,
     .trial-runner-grid,
     .trial-summary-layout,
     .trial-review-layout,

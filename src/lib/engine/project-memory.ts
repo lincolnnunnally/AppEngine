@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary } from "./handoff-relay";
+import type { OrchestratorRun } from "./orchestrator-run";
 import type { TrialResultReview } from "./real-project-trial";
 
 export type ProjectMemoryFeedbackChoice =
@@ -191,6 +192,40 @@ export async function updateProjectMemoryFromTrialReview(review: TrialResultRevi
   return summarized;
 }
 
+export async function updateProjectMemoryFromOrchestratorRun(run: OrchestratorRun) {
+  const current = await loadProjectMemory();
+  const createdAt = run.createdAt;
+  const memoryItems = buildItemsFromOrchestratorRun(run);
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: `Manual orchestrator ${run.status.replace(/_/g, " ")}`,
+      latestProgress: run.ownerReadableSummary,
+      recommendedNextAction: run.nextActionPrompt.expectedOutcome,
+      lastHandoffId: current.latestProjectState.lastHandoffId
+    },
+    majorDecisions: mergeItems(current.majorDecisions, memoryItems.majorDecisions),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, memoryItems.acceptedApproaches),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones: mergeItems(current.completedMilestones, memoryItems.completedMilestones),
+    currentBlockers: memoryItems.currentBlockers.length ? memoryItems.currentBlockers : current.currentBlockers,
+    openQuestions: mergeItems(current.openQuestions, memoryItems.openQuestions),
+    architectureDecisions: current.architectureDecisions,
+    designPreferences: mergeItems(current.designPreferences, memoryItems.designPreferences),
+    lessonsLearned: mergeItems(current.lessonsLearned, memoryItems.lessonsLearned),
+    futureImprovements: mergeItems(current.futureImprovements, memoryItems.futureImprovements),
+    progressHistory: mergeItems(current.progressHistory, memoryItems.progressHistory, 30),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
 function buildItemsFromHandoff(handoff: HandoffRelaySummary) {
   const createdAt = handoff.receivedAt;
   const sourceHandoffId = handoff.id;
@@ -311,6 +346,55 @@ function buildItemsFromTrialReview(review: TrialResultReview) {
       item("progress", review.nextPrompt.expectedOutcome, null, createdAt, ["trial-review"], "system")
     ],
     ownerFeedback: [ownerFeedback]
+  };
+}
+
+function buildItemsFromOrchestratorRun(run: OrchestratorRun) {
+  const createdAt = run.createdAt;
+  const sourceTags = ["manual-orchestrator", run.selectedNextSafeAction];
+  const blockerItems =
+    run.status === "blocked"
+      ? run.evidence.map((line) => item("current_blocker", line, null, createdAt, sourceTags, "system"))
+      : [];
+
+  return {
+    majorDecisions: [
+      item(
+        "major_decision",
+        `Manual orchestrator selected ${run.selectedNextSafeAction.replace(/_/g, " ")} with status ${run.status.replace(/_/g, " ")}.`,
+        null,
+        createdAt,
+        sourceTags,
+        "system"
+      )
+    ],
+    acceptedApproaches: [
+      item("accepted_approach", "Keep manual orchestrator runs owner-reviewed and side-effect free.", null, createdAt, sourceTags, "system")
+    ],
+    completedMilestones: [item("completed_milestone", run.ownerReadableSummary, null, createdAt, sourceTags, "system")],
+    currentBlockers: blockerItems,
+    openQuestions:
+      run.status === "needs_owner_approval"
+        ? [item("open_question", "Owner approval is needed before this orchestrator-selected action proceeds.", null, createdAt, sourceTags, "system")]
+        : [],
+    designPreferences: [
+      item(
+        "design_preference",
+        run.inputArtifacts.designIntentProfile.summary,
+        null,
+        createdAt,
+        ["manual-orchestrator", "design-intent"],
+        "system"
+      )
+    ],
+    lessonsLearned: [item("lesson_learned", `Manual orchestrator evidence: ${run.evidence.join(" | ")}`, null, createdAt, sourceTags, "system")],
+    futureImprovements: [
+      item("future_improvement", run.nextActionPrompt.expectedOutcome, null, createdAt, sourceTags, "system")
+    ],
+    progressHistory: [
+      item("progress", run.ownerReadableSummary, null, createdAt, sourceTags, "system"),
+      item("progress", run.nextActionPrompt.expectedOutcome, null, createdAt, sourceTags, "system")
+    ]
   };
 }
 
