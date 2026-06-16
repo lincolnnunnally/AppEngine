@@ -105,6 +105,7 @@
     "smoke:durable-schema-migration-dry-run": "node scripts/smoke-durable-schema-migration-dry-run.js",
     "smoke:production-auth-owner-confirmation": "node scripts/smoke-production-auth-owner-confirmation.js",
     "smoke:controlled-production-release-gate": "node scripts/smoke-controlled-production-release-gate.js",
+    "smoke:controlled-use-readiness-summary": "node scripts/smoke-controlled-use-readiness-summary.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
