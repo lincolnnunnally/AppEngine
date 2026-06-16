@@ -156,6 +156,8 @@ request_phase_creation_approval
 
 That later approval decides whether phase issues may be created. This materializer must not create phase issues.
 
+The required later approval is `source-of-truth/phase-creation-approval-gate.md`.
+
 ## Follow-Up Issue Requirements
 
 Any follow-up issue from this materializer must be a final-packet review or phase-creation approval request, not implementation.
@@ -184,6 +186,7 @@ Required source-of-truth files:
 - `source-of-truth/candidate-to-packet-bridge.md`
 - `source-of-truth/packet-draft-approval-gate.md`
 - `source-of-truth/final-packet-materialization.md`
+- `source-of-truth/phase-creation-approval-gate.md`
 - `source-of-truth/app-portfolio-registry.md`
 - `source-of-truth/app-build-packet.md` when final packet type is `app_build_packet`
 - `source-of-truth/app-improvement-vnext-packet.md` when final packet type is `vnext_packet`
