@@ -188,6 +188,10 @@ Published Phase Issue Registry must not:
 - change repository visibility
 - auto-merge generated app code
 
+## Next Approval Step
+
+After published issues are recorded, use `source-of-truth/phase-start-approval-gate.md` before any issue receives an execution label. Phase start approval must verify registry membership, phase order, previous required phase completion or non-requirement, guardrails, acceptance criteria, risk safety, and owner approval notes. It must not add labels or trigger Codex build work.
+
 ## Success Criteria
 
 The registry is working when:
