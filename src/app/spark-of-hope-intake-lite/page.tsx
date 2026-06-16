@@ -26,6 +26,7 @@ import {
   type SparkReminderQueueItem,
   type SparkReminderStatus
 } from "@/lib/spark-of-hope-intake-lite/reminder-queue";
+import { getSparkPublicTrialReadiness } from "@/lib/spark-of-hope-intake-lite/public-trial-readiness";
 
 type SubmitState =
   | { status: "idle" }
@@ -42,6 +43,7 @@ export default function SparkOfHopeIntakeLitePage() {
   const [reminderPromptCopied, setReminderPromptCopied] = useState("Ready to copy");
   const canSubmit = submitState.status !== "submitting";
   const approvedPreviewItems = getApprovedSparkPreviewItems(reviewQueueItems);
+  const publicTrialReadiness = getSparkPublicTrialReadiness({ reviewQueueItems, approvedPreviewItems });
   const reviewPrompt = buildSparkReviewQueueNextPrompt(reviewQueueItems);
   const reminderPrompt = buildSparkReminderNextPrompt(reminderQueueItems);
 
@@ -233,6 +235,7 @@ export default function SparkOfHopeIntakeLitePage() {
         </Link>
         <div>
           <a href="#approved-preview">Approved preview</a>
+          <a href="#trial-readiness">Trial readiness</a>
           <a href="#review-queue">Review queue</a>
           <a href="#reminders">Reminders</a>
           <a href="#privacy">Privacy</a>
@@ -251,6 +254,7 @@ export default function SparkOfHopeIntakeLitePage() {
           <div className="spark-pill-row" aria-label="Preview guardrails">
             <span>Private by default</span>
             <span>Review-gated storage</span>
+            <span>Not emergency support</span>
             <span>No paid resources</span>
           </div>
         </div>
@@ -432,6 +436,42 @@ export default function SparkOfHopeIntakeLitePage() {
             </p>
           </div>
         )}
+      </section>
+
+      <section className="spark-public-trial-section" id="trial-readiness" data-testid="spark-public-trial-readiness">
+        <div className="spark-review-header">
+          <div>
+            <p className="eyebrow">Limited public trial gate</p>
+            <h2>{publicTrialReadiness.readyForLimitedPublicTesting ? "Ready for limited public testing review." : "Not ready for limited public testing yet."}</h2>
+            <p>{publicTrialReadiness.ownerReadableSummary}</p>
+          </div>
+          <span>{publicTrialReadiness.gateStatus.replaceAll("_", " ")}</span>
+        </div>
+
+        <div className="spark-safety-callout" role="note">
+          <strong>{publicTrialReadiness.safetyLanguage.previewOnly}</strong>
+          <p>{publicTrialReadiness.safetyLanguage.notEmergencySupport}</p>
+          <p>{publicTrialReadiness.safetyLanguage.crisisSupportPlaceholder}</p>
+        </div>
+
+        <div className="spark-public-trial-grid">
+          {publicTrialReadiness.checklist.map((item) => (
+            <article className={`spark-trial-check ${item.status}`} key={item.id}>
+              <span>{item.status.replaceAll("_", " ")}</span>
+              <h3>{item.label}</h3>
+              <p>{item.note}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="spark-trial-guardrails">
+          <h3>Trial guardrails</h3>
+          <ul>
+            {publicTrialReadiness.guardrails.map((guardrail) => (
+              <li key={guardrail}>{guardrail}</li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="spark-reminder-section" id="reminders" data-testid="spark-reminder-lite">
