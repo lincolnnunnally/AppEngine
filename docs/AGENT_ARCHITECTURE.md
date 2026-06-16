@@ -211,6 +211,7 @@ The packet defines:
 - Super Admin registry entry
 - Provider/Cost review
 - Deployment Environment plan
+- Design Intent profile
 - Design Quality Gate plan
 - UX Review plan
 - Compatibility Test Plan
@@ -228,6 +229,7 @@ architecture
 provider_cost
 data_model
 identity_auth
+design_intent
 ui_design
 design_quality
 ux_review
@@ -253,6 +255,8 @@ Provider/Cost reviews must declare provider reuse, preview cost posture, product
 Cost Governance reviews model/API credit usage separately from provider costs. The `cost_governance` artifact tracks monthly, project, app, and issue spend, classifies tasks as cheap, medium, or expensive, applies warning/pause/owner-approval thresholds, and lets Build Completion pause or request approval before consuming more credits.
 
 Deployment Environment plans must declare Vercel frontend settings, Render/API backend settings when needed, database provider, environment variable names without values, preview URL, production URL or approval gate, custom domain/subdomain, logs, health checks, and rollback notes.
+
+Design Intent profiles define the audience, sophistication level, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, references, things to avoid, and output guidance before UI generation or design review. The `design_intent_profile` artifact keeps AppEngine from defaulting to generic UI.
 
 Design Quality Gates require Designer and Customer Perspective review before Release Gate approval. The `design_review` artifact checks simple navigation, one clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
 
@@ -355,7 +359,7 @@ Every agent workflow must load:
 - Life Produces Life product doctrine
 - App Charter
 - App Build Packet when the work is a generated app, major rebuild, or complex multi-phase workflow
-- Identity/Auth, Super Admin Registry, Provider/Cost, Deployment Environment, Design Quality Gate, UX Review, Compatibility, and Release Gate standards when the work moves toward launch
+- Identity/Auth, Super Admin Registry, Provider/Cost, Deployment Environment, Design Intent, Design Quality Gate, UX Review, Compatibility, and Release Gate standards when the work moves toward launch
 - App Improvement and vNext Packet standard when the work improves an existing app
 - Current Context
 - Active Task
@@ -492,6 +496,8 @@ npm run smoke:execution-label-dry-run
 `scripts/create-provider-cost-standard.js` creates a provider/cost review and focused provider approval follow-up tasks.
 
 `scripts/create-cost-governance-standard.js` creates a model/API cost governance artifact, budget threshold decision, model routing recommendation, and budget follow-up tasks.
+
+`scripts/create-design-intent-profile.js` creates a `design_intent_profile` artifact and owner-readable design intent summary before generated-app UI is designed, built, or reviewed. It captures audience, user sophistication, desired feeling, brand personality, trust needs, accessibility needs, visual style profile, references, things to avoid, and output guidance so apps do not default to generic UI.
 
 `scripts/create-release-gate-standard.js` creates a Deployment Environment plan, Release Gate, and focused preview/release/monitor follow-up tasks.
 

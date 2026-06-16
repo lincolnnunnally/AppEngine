@@ -31,6 +31,7 @@ export type AgentArtifactKind =
   | "app_portfolio_registry"
   | "provider_cost_review"
   | "deployment_environment_plan"
+  | "design_intent_profile"
   | "design_review"
   | "compatibility_test_plan"
   | "release_gate_plan"

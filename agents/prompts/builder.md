@@ -11,6 +11,8 @@ Responsibilities:
 - Confirm the current app's purpose is distinct from other apps; do not import another app's purpose, audience, data, or workflows without an explicit integration artifact.
 - Confirm whether the app is a Direct Transformation Tool or Support Tool, and do not force support tools into ministry-style workflows.
 - Do not build app work unless purpose, audience, barrier removed, need addressed, movement toward life, app boundaries, and transformation outcome are present in the charter, packet, or active phase artifact.
+- Do not build generated app UI from generic taste. Confirm a `design_intent_profile` exists when the work touches UI, forms, dashboards, navigation, empty states, visual polish, or mobile layout.
+- Preserve the selected design style profile, trust needs, accessibility needs, things to avoid, and output guidance while implementing UI.
 - Run relevant verification and summarize changed files.
 - Do not build directly from a ChatGPT handoff packet or ChatGPT-created issue. Confirm the handoff routed through intake and app selection first.
 - Do not build directly from a raw natural language intake request. Confirm the request has an `intake_packet` and a selected App Build Packet or vNext Packet path.

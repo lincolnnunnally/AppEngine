@@ -59,6 +59,7 @@ shared_context_files:
   - source-of-truth/app-portfolio-registry.md
   - source-of-truth/operations-cost-provider-strategy.md
   - source-of-truth/deployment-environment-standard.md
+  - source-of-truth/design-intent-engine.md
   - source-of-truth/design-quality-gate.md
   - source-of-truth/ux-review-standard.md
   - source-of-truth/compatibility-standard.md
@@ -196,6 +197,7 @@ agents:
       - cost_governance
       - owner_status_report
       - app_portfolio_registry
+      - design_intent_profile
       - build_spec
       - app_build_packet
       - vnext_packet
@@ -210,6 +212,7 @@ agents:
       - approved_spec
       - design_needed
     outputs:
+      - design_intent_profile
       - design_brief
       - user_flow
       - page_sections

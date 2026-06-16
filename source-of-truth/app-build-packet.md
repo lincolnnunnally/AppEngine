@@ -30,6 +30,7 @@ Each packet must define:
 - Super Admin registry entry or planned entry
 - Provider/cost review
 - Deployment Environment plan
+- Design Intent profile
 - Design Quality Gate
 - UX Review
 - Compatibility Test Plan
@@ -51,6 +52,7 @@ Complicated apps must be split into these phases. Agents may add subphases, but 
 | provider_cost | Review operations, provider reuse, estimated cost tier, paid resources, and upgrade triggers before provisioning. | ai:plan |
 | data_model | Define database schema, ownership, privacy, seed data, and migrations. | ai:build |
 | identity_auth | Define auth provider, roles, memberships, permissions, and protected routes. | ai:build |
+| design_intent | Capture audience, feeling, trust, accessibility, visual style preference, references, and things to avoid before UI design. | ai:plan |
 | ui_design | Define user flows, screens, content, accessibility, and design direction. | ai:build |
 | design_quality | Review navigation, primary actions, mobile layout, copy, spacing, contrast, trust, and emotional fit. | ai:review |
 | ux_review | Review mobile, empty states, error states, onboarding, admin screens, and release-blocking UX confusion. | ai:review |
@@ -105,6 +107,10 @@ Every generated app must include a Deployment Environment plan before preview or
 Use `source-of-truth/deployment-environment-standard.md` for the required shape.
 
 ## Design Quality Requirement
+
+Every generated app must include a Design Intent profile before UI generation, visual direction, design polish, or design review. The packet must state target audience, user sophistication, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, examples/references if provided, things to avoid, and output guidance for colors, typography, spacing, cards, forms, dashboards, navigation, buttons, empty states, and mobile layout.
+
+Use `source-of-truth/design-intent-engine.md` for the required shape.
 
 Every generated app must include a Design Quality Gate and UX Review before Release Gate approval. The packet must state Designer review, Customer Perspective review, simple navigation, clear primary action, mobile-first layout, readable copy, accessible spacing and contrast, trust-building elements, audience-specific emotional fit, empty states, error states, onboarding, and admin screens.
 

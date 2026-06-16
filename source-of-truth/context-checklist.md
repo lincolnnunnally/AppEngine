@@ -37,6 +37,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Operations, Cost, and Provider Strategy Standard for generated apps, provider provisioning, cost review, deployment environments, and launch work
 - Cost Governance and Model Routing Standard for model/API credit spend, task classification, thresholds, and owner approval
 - Deployment Environment Standard for generated apps, major rebuilds, preview deploys, and launch work
+- Design Intent Engine before generated-app UI design, UI build, UI review, or visual polish
 - Design Quality Gate for generated apps, major rebuilds, and launch work
 - UX Review Standard for generated apps, user workflow testing, mobile testing, and launch work
 - Compatibility Standard for generated apps, Safari/mobile readiness, common browser testing, and launch work
@@ -107,13 +108,15 @@ All agent workflows must load and answer this checklist before taking action.
 56. Does the active agent run have cost governance with monthly/project/app/issue spend, remaining budget, task class, thresholds, and budget-aware next action when model/API credits may be consumed?
 57. Does cost governance say to continue, continue with a cheaper model, pause, or request owner approval?
 58. Does the app have a Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain, logs, health, and rollback notes?
-59. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
-60. Does the app have Designer and Customer Perspective review before Release Gate approval?
-61. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
-62. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
-63. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
-64. Are any core files, docs, prompts, context, or issue links missing?
-65. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+59. Does the app have a `design_intent_profile` with target audience, user sophistication, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, examples/references if provided, things to avoid, and output guidance before UI generation or review?
+60. Does the design intent fit the app charter and prevent generic UI or purpose bleed from another app?
+61. Does the app have a Design Quality Gate covering navigation, primary action, mobile, copy, spacing, contrast, trust, emotional fit, empty states, error states, onboarding, and admin screens?
+62. Does the app have Designer and Customer Perspective review before Release Gate approval?
+63. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
+64. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
+65. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
+66. Are any core files, docs, prompts, context, or issue links missing?
+67. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 
