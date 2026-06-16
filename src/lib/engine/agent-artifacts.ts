@@ -11,6 +11,7 @@ export type AgentArtifactKind =
   | "final_packet_materialization"
   | "phase_creation_approval"
   | "phase_issue_generation"
+  | "phase_issue_publish_approval"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"

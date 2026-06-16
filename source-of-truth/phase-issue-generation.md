@@ -93,7 +93,7 @@ For `non_app_solution_plan`, generate bounded non-code phase issue drafts such a
 - `implementation_checklist`
 - `review_measurement`
 
-Phase drafts are not GitHub issues until a later explicit issue-creation step is approved.
+Phase drafts are not GitHub issues until `source-of-truth/phase-issue-publish-approval-gate.md` approves publication and a later explicit issue-creation step runs.
 
 ## Owner-Readable Output
 
@@ -211,6 +211,7 @@ Every generated phase issue draft must list:
 - `source-of-truth/final-packet-materialization.md`
 - `source-of-truth/phase-creation-approval-gate.md`
 - `source-of-truth/phase-issue-generation.md`
+- `source-of-truth/phase-issue-publish-approval-gate.md`
 - `source-of-truth/app-portfolio-registry.md`
 
 Phase-specific drafts should add phase-specific standards such as `app-build-packet`, `app-improvement-vnext-packet`, provider/cost, identity/auth, design quality, compatibility, release gate, or deployment environment standards when relevant.

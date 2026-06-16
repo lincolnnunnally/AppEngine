@@ -44,6 +44,7 @@ source-of-truth/packet-draft-approval-gate.md
 source-of-truth/final-packet-materialization.md
 source-of-truth/phase-creation-approval-gate.md
 source-of-truth/phase-issue-generation.md
+source-of-truth/phase-issue-publish-approval-gate.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
@@ -421,6 +422,14 @@ Local phase issue generation verification:
 
 ```bash
 npm run smoke:phase-issue-generation
+```
+
+`scripts/create-phase-issue-publish-approval.js` reviews `phase_issue_generation` drafts and approves, revises, rejects, or blocks whether they may be published as real GitHub issues. It does not publish issues or trigger Codex build work.
+
+Local phase issue publish approval verification:
+
+```bash
+npm run smoke:phase-issue-publish-approval
 ```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
