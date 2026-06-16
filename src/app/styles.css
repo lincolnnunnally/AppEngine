@@ -987,7 +987,8 @@ label {
 }
 
 .spark-form-panel input,
-.spark-form-panel textarea {
+.spark-form-panel textarea,
+.spark-form-panel select {
   background: #fffdf8;
 }
 
@@ -1085,6 +1086,128 @@ label {
 
 .spark-note-grid p {
   margin: 6px 0 0;
+}
+
+.spark-review-section {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.spark-review-header,
+.spark-review-body,
+.spark-review-card-header {
+  display: grid;
+  gap: 16px;
+}
+
+.spark-review-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.spark-review-header > span {
+  border: 1px solid #b9d8d2;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--teal);
+  background: var(--green-soft);
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.spark-review-body {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  align-items: start;
+}
+
+.spark-review-list,
+.spark-review-notes {
+  display: grid;
+  gap: 12px;
+}
+
+.spark-review-card,
+.spark-review-empty,
+.spark-review-notes {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #f9fbfb;
+}
+
+.spark-review-card-header {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.35fr);
+  align-items: start;
+}
+
+.spark-review-card-header span,
+.spark-review-details dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.spark-review-card-header h3 {
+  margin: 4px 0 0;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+}
+
+.spark-review-card-header label,
+.spark-review-notes label {
+  color: #25332b;
+  font-size: 0.82rem;
+  text-transform: none;
+}
+
+.spark-review-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.spark-review-details div {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.spark-review-details dd {
+  margin: 4px 0 0;
+  color: #344138;
+  font-weight: 700;
+}
+
+.spark-review-owner-note {
+  border-left: 4px solid var(--teal);
+  margin: 0;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.spark-review-notes {
+  background: #fff8ef;
+}
+
+.spark-review-notes ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.spark-review-notes textarea {
+  min-height: 280px;
+  background: #fffdf8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
 }
 
 .problem-intake-layout {
@@ -1820,6 +1943,10 @@ label {
     .form-grid,
     .spark-hero,
     .spark-layout,
+    .spark-review-header,
+    .spark-review-body,
+    .spark-review-card-header,
+    .spark-review-details,
     .problem-intake-layout,
     .intake-choice-grid,
     .owner-control-header,

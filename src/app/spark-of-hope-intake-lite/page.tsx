@@ -1,7 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import {
+  buildSparkReviewQueueNextPrompt,
+  createSparkReviewQueueItem,
+  isSparkReviewStatus,
+  sparkReviewQueueGuardrails,
+  sparkReviewQueueStorageKey,
+  sparkReviewStatuses,
+  updateSparkReviewQueueStatus,
+  type SparkReviewQueueItem,
+  type SparkReviewStatus
+} from "@/lib/spark-of-hope-intake-lite/review-queue";
 
 type SubmitState =
   | { status: "idle" }
@@ -12,7 +23,10 @@ type SubmitState =
 export default function SparkOfHopeIntakeLitePage() {
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
   const [storyLength, setStoryLength] = useState(0);
+  const [reviewQueueItems, setReviewQueueItems] = useState<SparkReviewQueueItem[]>([]);
+  const [reviewPromptCopied, setReviewPromptCopied] = useState("Ready to copy");
   const canSubmit = submitState.status !== "submitting";
+  const reviewPrompt = buildSparkReviewQueueNextPrompt(reviewQueueItems);
 
   const statusText =
     submitState.status === "success"
@@ -21,7 +35,46 @@ export default function SparkOfHopeIntakeLitePage() {
         ? "Needs attention"
         : submitState.status === "submitting"
           ? "Submitting preview"
-          : "Preview mode";
+        : "Preview mode";
+
+  useEffect(() => {
+    try {
+      const storedItems = window.localStorage.getItem(sparkReviewQueueStorageKey);
+      if (!storedItems) {
+        return;
+      }
+
+      const parsedItems = JSON.parse(storedItems) as SparkReviewQueueItem[];
+      if (Array.isArray(parsedItems)) {
+        setReviewQueueItems(parsedItems.filter((item) => item && isSparkReviewStatus(item.status)));
+      }
+    } catch {
+      setReviewQueueItems([]);
+    }
+  }, []);
+
+  function saveReviewQueue(items: SparkReviewQueueItem[]) {
+    setReviewQueueItems(items);
+
+    try {
+      window.localStorage.setItem(sparkReviewQueueStorageKey, JSON.stringify(items));
+    } catch {
+      setReviewPromptCopied("Local queue could not be saved in this browser.");
+    }
+  }
+
+  function updateReviewStatus(id: string, status: SparkReviewStatus) {
+    saveReviewQueue(reviewQueueItems.map((item) => (item.id === id ? updateSparkReviewQueueStatus(item, status) : item)));
+  }
+
+  async function copySparkReviewPrompt() {
+    try {
+      await navigator.clipboard.writeText(reviewPrompt);
+      setReviewPromptCopied("Prompt copied");
+    } catch {
+      setReviewPromptCopied("Copy unavailable");
+    }
+  }
 
   async function submitStory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,6 +95,8 @@ export default function SparkOfHopeIntakeLitePage() {
           preferredName: formData.get("preferredName"),
           email: formData.get("email"),
           storyTitle: formData.get("storyTitle"),
+          categoryOrStruggle: formData.get("categoryOrStruggle"),
+          hopeOutcome: formData.get("hopeOutcome"),
           storyBody: formData.get("storyBody"),
           mayReview: formData.get("mayReview") === "on",
           mayContact: formData.get("mayContact") === "on",
@@ -66,6 +121,15 @@ export default function SparkOfHopeIntakeLitePage() {
       return;
     }
 
+    const reviewQueueItem = createSparkReviewQueueItem({
+      reference: result.reference || "SOH-LITE-PREVIEW",
+      preferredName: String(formData.get("preferredName") || ""),
+      storyTitle: String(formData.get("storyTitle") || ""),
+      categoryOrStruggle: String(formData.get("categoryOrStruggle") || ""),
+      hopeOutcome: String(formData.get("hopeOutcome") || "")
+    });
+
+    saveReviewQueue([reviewQueueItem, ...reviewQueueItems]);
     form.reset();
     setStoryLength(0);
     setSubmitState({
@@ -82,6 +146,7 @@ export default function SparkOfHopeIntakeLitePage() {
           Spark of Hope Intake Lite
         </Link>
         <div>
+          <a href="#review-queue">Review queue</a>
           <a href="#privacy">Privacy</a>
           <a href="#share">Share a story</a>
         </div>
@@ -137,6 +202,24 @@ export default function SparkOfHopeIntakeLitePage() {
           <label>
             Short title
             <input name="storyTitle" type="text" placeholder="A small moment of hope" />
+          </label>
+
+          <label>
+            Category or struggle
+            <select name="categoryOrStruggle" defaultValue="">
+              <option value="">Choose a private review category</option>
+              <option value="Discouragement">Discouragement</option>
+              <option value="Grief or loss">Grief or loss</option>
+              <option value="Family or community">Family or community</option>
+              <option value="Recovery or rebuilding">Recovery or rebuilding</option>
+              <option value="Serving others">Serving others</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+
+          <label>
+            Hope outcome
+            <input name="hopeOutcome" type="text" placeholder="What kind of hope or encouragement would help?" />
           </label>
 
           <label>
@@ -211,6 +294,96 @@ export default function SparkOfHopeIntakeLitePage() {
             </div>
           </div>
         </aside>
+      </section>
+
+      <section className="spark-review-section" id="review-queue" data-testid="spark-review-queue-lite">
+        <div className="spark-review-header">
+          <div>
+            <p className="eyebrow">Spark Review Queue Lite</p>
+            <h2>Private queue for preview submissions</h2>
+            <p>
+              Submitted stories appear here as safe review metadata only. The queue does not publish stories, expose
+              contact details, trigger follow-up, or start mentor matching.
+            </p>
+          </div>
+          <span>{reviewQueueItems.length} local item{reviewQueueItems.length === 1 ? "" : "s"}</span>
+        </div>
+
+        <div className="spark-review-body">
+          <div className="spark-review-list" aria-live="polite">
+            {reviewQueueItems.length ? (
+              reviewQueueItems.map((item) => (
+                <article className="spark-review-card" key={item.id}>
+                  <div className="spark-review-card-header">
+                    <div>
+                      <span>{item.safeIdentifier}</span>
+                      <h3>{item.titleOrName}</h3>
+                    </div>
+                    <label>
+                      Status
+                      <select
+                        value={item.status}
+                        onChange={(event) => updateReviewStatus(item.id, event.target.value as SparkReviewStatus)}
+                      >
+                        {sparkReviewStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status.replaceAll("_", " ")}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <dl className="spark-review-details">
+                    <div>
+                      <dt>Category/struggle</dt>
+                      <dd>{item.categoryOrStruggle}</dd>
+                    </div>
+                    <div>
+                      <dt>Hope outcome</dt>
+                      <dd>{item.hopeOutcome}</dd>
+                    </div>
+                    <div>
+                      <dt>Submitted</dt>
+                      <dd>{new Date(item.submittedAt).toLocaleString()}</dd>
+                    </div>
+                    <div>
+                      <dt>Safety/moderation</dt>
+                      <dd>{item.safetyModerationNote}</dd>
+                    </div>
+                  </dl>
+
+                  <p className="spark-review-owner-note">{item.ownerReviewNotes}</p>
+                </article>
+              ))
+            ) : (
+              <div className="spark-review-empty">
+                <strong>No local preview submissions yet.</strong>
+                <p>Submit the form once to create a private review queue item in this browser.</p>
+              </div>
+            )}
+          </div>
+
+          <aside className="spark-review-notes" aria-label="Spark review guardrails and next prompt">
+            <div>
+              <p className="eyebrow">Guardrails</p>
+              <ul>
+                {sparkReviewQueueGuardrails.map((guardrail) => (
+                  <li key={guardrail}>{guardrail}</li>
+                ))}
+              </ul>
+            </div>
+
+            <label>
+              Copyable next prompt
+              <textarea readOnly value={reviewPrompt} />
+            </label>
+            <button className="button secondary" type="button" onClick={copySparkReviewPrompt}>
+              Copy next prompt
+            </button>
+            <p className="spark-helper">{reviewPromptCopied}</p>
+          </aside>
+        </div>
       </section>
     </main>
   );
