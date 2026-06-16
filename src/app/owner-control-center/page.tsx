@@ -4,6 +4,7 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadProjectMemory } from "@/lib/engine/project-memory";
+import { listRealProjectTrials, listTrialProjectCandidates } from "@/lib/engine/real-project-trial";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,11 @@ export default async function OwnerControlCenterPage() {
     redirect("/");
   }
 
-  const [handoffs, projectMemory] = await Promise.all([listHandoffRelaySummaries(), loadProjectMemory()]);
+  const [handoffs, projectMemory, trialRuns] = await Promise.all([
+    listHandoffRelaySummaries(),
+    loadProjectMemory(),
+    listRealProjectTrials()
+  ]);
 
   return (
     <main className="shell wide-shell owner-control-page">
@@ -27,6 +32,8 @@ export default async function OwnerControlCenterPage() {
       <HandoffRelayControlCenter
         initialHandoffs={handoffs}
         initialProjectMemory={projectMemory}
+        initialTrialCandidates={listTrialProjectCandidates()}
+        initialTrialRuns={trialRuns}
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
     </main>
