@@ -41,6 +41,7 @@ source-of-truth/problem-portfolio-routing-standard.md
 source-of-truth/solution-candidate-review-gate.md
 source-of-truth/candidate-to-packet-bridge.md
 source-of-truth/packet-draft-approval-gate.md
+source-of-truth/final-packet-materialization.md
 source-of-truth/intake-command-standard.md
 source-of-truth/app-selection-standard.md
 source-of-truth/end-to-end-command-test-standard.md
@@ -394,6 +395,14 @@ Local packet draft approval verification:
 
 ```bash
 npm run smoke:packet-draft-approval
+```
+
+`scripts/create-final-packet-materialization.js` turns an approved `packet_draft_approval` into a final App Build Packet, vNext Packet, or Non-App Solution Plan without creating phase issues or triggering build work.
+
+Local final packet materialization verification:
+
+```bash
+npm run smoke:final-packet-materialization
 ```
 
 `scripts/create-intake-packet.js` creates an intake packet and routes natural language requests to App Build Packet, vNext Packet, or clarification follow-ups.
