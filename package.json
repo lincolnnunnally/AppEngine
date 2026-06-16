@@ -96,6 +96,7 @@
     "smoke:owner-status": "node scripts/smoke-owner-status-report.js",
     "smoke:audit-trail-lite": "node scripts/smoke-audit-trail-lite.js",
     "smoke:audit-trail-owner-visibility": "node scripts/smoke-audit-trail-owner-visibility.js",
+    "smoke:runtime-monitoring-lite": "node scripts/smoke-runtime-monitoring-lite.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:storage-provider-plan": "node scripts/smoke-storage-provider-plan.js",
