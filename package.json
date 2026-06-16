@@ -60,6 +60,7 @@
     "smoke:orchestrator-batch-dry-run": "node scripts/smoke-orchestrator-batch-dry-run.js",
     "smoke:orchestrator-batch-handoff-prepare": "node scripts/smoke-orchestrator-batch-handoff-prepare.js",
     "smoke:orchestrator-handoff-bridge": "node scripts/smoke-orchestrator-handoff-bridge.js",
+    "smoke:owner-control-center-status": "node scripts/smoke-owner-control-center-status.js",
     "smoke:pending-check-resolution": "node scripts/smoke-pending-check-resolution.js",
     "smoke:e2e-pilot": "node scripts/smoke-e2e-command-pilot.js",
     "smoke:problem-solution-intake": "node scripts/smoke-problem-solution-intake.js",
