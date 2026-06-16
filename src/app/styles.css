@@ -1201,13 +1201,20 @@ label {
   background: #fffaf0;
 }
 
+.trial-review-panel {
+  display: grid;
+  gap: 16px;
+  background: #f7fbfa;
+}
+
 .trial-runner-panel > .handoff-section-heading p {
   max-width: 760px;
   margin: 0;
 }
 
 .trial-runner-grid,
-.trial-summary-layout {
+.trial-summary-layout,
+.trial-review-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.36fr);
   gap: 14px;
@@ -1217,7 +1224,8 @@ label {
 .trial-entry-card,
 .trial-history-card,
 .trial-summary-card,
-.trial-prompt-card {
+.trial-prompt-card,
+.trial-review-card {
   display: grid;
   gap: 12px;
 }
@@ -1263,6 +1271,27 @@ label {
 .trial-prompt-card {
   border-top: 1px solid var(--line);
   padding-top: 14px;
+}
+
+.trial-review-card {
+  border: 1px solid #c9dad6;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.trial-review-card h3 {
+  margin: 0;
+}
+
+.trial-review-card p {
+  margin: 0;
+}
+
+.trial-review-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .trial-prompt-box {
@@ -1486,7 +1515,9 @@ label {
     .project-memory-summaries,
     .trial-runner-grid,
     .trial-summary-layout,
+    .trial-review-layout,
     .trial-manual-grid,
+    .trial-review-options,
     .handoff-feedback-options,
     .form-grid label:first-child {
     grid-template-columns: 1fr;

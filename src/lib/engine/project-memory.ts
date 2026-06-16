@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary } from "./handoff-relay";
+import type { TrialResultReview } from "./real-project-trial";
 
 export type ProjectMemoryFeedbackChoice =
   | "important_decision"
@@ -157,6 +158,39 @@ export async function addProjectMemoryFeedback({
   return summarized;
 }
 
+export async function updateProjectMemoryFromTrialReview(review: TrialResultReview) {
+  const current = await loadProjectMemory();
+  const createdAt = review.createdAt;
+  const memoryItems = buildItemsFromTrialReview(review);
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: `${review.project.name} trial reviewed as ${review.reviewStatus.replace(/_/g, " ")}`,
+      latestProgress: review.ownerReadableSummary,
+      recommendedNextAction: review.nextPrompt.expectedOutcome,
+      lastHandoffId: current.latestProjectState.lastHandoffId
+    },
+    majorDecisions: mergeItems(current.majorDecisions, memoryItems.majorDecisions),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, memoryItems.acceptedApproaches),
+    rejectedApproaches: mergeItems(current.rejectedApproaches, memoryItems.rejectedApproaches),
+    completedMilestones: mergeItems(current.completedMilestones, memoryItems.completedMilestones),
+    currentBlockers: memoryItems.currentBlockers.length ? memoryItems.currentBlockers : current.currentBlockers,
+    openQuestions: mergeItems(current.openQuestions, memoryItems.openQuestions),
+    designPreferences: mergeItems(current.designPreferences, memoryItems.designPreferences),
+    lessonsLearned: mergeItems(current.lessonsLearned, memoryItems.lessonsLearned),
+    futureImprovements: mergeItems(current.futureImprovements, memoryItems.futureImprovements),
+    progressHistory: mergeItems(current.progressHistory, memoryItems.progressHistory, 30),
+    ownerFeedback: mergeItems(current.ownerFeedback, memoryItems.ownerFeedback, 30),
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
 function buildItemsFromHandoff(handoff: HandoffRelaySummary) {
   const createdAt = handoff.receivedAt;
   const sourceHandoffId = handoff.id;
@@ -231,6 +265,52 @@ function buildItemsFromFeedback({
     lessonsLearned: ownerFeedback.filter((entry) => entry.category === "lesson_learned"),
     futureImprovements: ownerFeedback.filter((entry) => entry.category === "future_improvement"),
     ownerFeedback
+  };
+}
+
+function buildItemsFromTrialReview(review: TrialResultReview) {
+  const createdAt = review.createdAt;
+  const note = review.ownerNote || review.improvementCandidate.summary;
+  const ownerFeedback = item(
+    "future_improvement",
+    `${review.project.name} trial review (${review.reviewStatus.replace(/_/g, " ")}): ${note}`,
+    null,
+    createdAt,
+    ["trial-review", review.reviewStatus],
+    "system"
+  );
+
+  return {
+    majorDecisions:
+      review.reviewStatus === "ready_for_next_packet"
+        ? [item("major_decision", `${review.project.name} is ready for the next packet path.`, null, createdAt, ["trial-review"], "system")]
+        : [],
+    acceptedApproaches: ["useful", "ready_for_next_packet"].includes(review.reviewStatus)
+      ? review.usefulSignals.map((signal) => item("accepted_approach", signal, null, createdAt, ["trial-review"], "system"))
+      : [],
+    rejectedApproaches:
+      review.reviewStatus === "wrong_direction"
+        ? [item("rejected_approach", review.improvementCandidate.summary, null, createdAt, ["trial-review"], "system")]
+        : [],
+    completedMilestones: [item("completed_milestone", review.ownerReadableSummary, null, createdAt, ["trial-review"], "system")],
+    currentBlockers: ["needs_clarification", "wrong_direction", "missing_requirement", "design_mismatch"].includes(review.reviewStatus)
+      ? review.concerns.map((concern) => item("current_blocker", concern, null, createdAt, ["trial-review"], "system"))
+      : [],
+    openQuestions:
+      review.reviewStatus === "needs_clarification"
+        ? [item("open_question", review.improvementCandidate.summary, null, createdAt, ["trial-review"], "system")]
+        : [],
+    designPreferences:
+      review.reviewStatus === "design_mismatch"
+        ? [item("design_preference", review.improvementCandidate.summary, null, createdAt, ["trial-review"], "system")]
+        : [],
+    lessonsLearned: [item("lesson_learned", `Trial feedback: ${review.improvementCandidate.summary}`, null, createdAt, ["trial-review"], "system")],
+    futureImprovements: [item("future_improvement", review.improvementCandidate.title, null, createdAt, ["trial-review"], "system")],
+    progressHistory: [
+      item("progress", review.ownerReadableSummary, null, createdAt, ["trial-review"], "system"),
+      item("progress", review.nextPrompt.expectedOutcome, null, createdAt, ["trial-review"], "system")
+    ],
+    ownerFeedback: [ownerFeedback]
   };
 }
 
