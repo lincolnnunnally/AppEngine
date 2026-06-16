@@ -167,6 +167,14 @@ The Manual Orchestrator must not:
 
 The generated prompt may recommend a next action, but Lincoln must approve and send it manually.
 
+## Handoff Bridge
+
+The Manual Orchestrator may hand its result to the Orchestrator to Handoff Bridge.
+
+That bridge may save a prepared `handoff_relay_summary` in the Handoff Inbox so Lincoln can review and copy the prompt from the same relay surface used for pasted handoffs.
+
+The bridge still must not send prompts, trigger Codex, create GitHub issues, apply labels, deploy, migrate, create paid resources, change secrets/env vars, change repository visibility, or auto-merge.
+
 ## Success Criteria
 
 The feature works when Lincoln can press one button, see what AppEngine decided and why, copy a next prompt, and see Project Memory update without AppEngine taking any external action automatically.

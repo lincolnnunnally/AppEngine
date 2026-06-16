@@ -80,6 +80,8 @@ Owner Control Center should include:
 
 Feedback becomes a draft improvement candidate only.
 
+The Handoff Inbox may also receive prepared handoffs from the Orchestrator to Handoff Bridge. These entries should be labeled as prepared handoffs, preserve the source `orchestrator_run`, and expose the generated Codex prompt in the same copyable review box used for pasted handoffs.
+
 ## Design Intent
 
 Use the AppEngine default `design_intent_profile`:

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { updateProjectMemoryFromHandoff } from "./project-memory";
+import type { OrchestratorRun } from "./orchestrator-run";
+import { updateProjectMemoryFromHandoff, updateProjectMemoryFromPreparedHandoff } from "./project-memory";
 
 export type HandoffFeedbackChoice =
   | "good_direction"
@@ -15,7 +16,7 @@ export type HandoffRelaySummary = {
   schemaVersion: 1;
   id: string;
   receivedAt: string;
-  source: "codex_handoff_paste";
+  source: "codex_handoff_paste" | "orchestrator_prepared_handoff";
   rawText: string;
   extracted: {
     prNumber: number | null;
@@ -169,6 +170,71 @@ export async function saveHandoffRelaySummary(rawText: string) {
   return summary;
 }
 
+export function createPreparedHandoffFromOrchestratorRun(run: OrchestratorRun, now = new Date()): HandoffRelaySummary {
+  const rawText = buildPreparedHandoffText(run);
+  const summary = createHandoffRelaySummary(rawText, now);
+  const action = formatAction(run.selectedNextSafeAction);
+
+  return {
+    ...summary,
+    id: `handoff_from_${run.id}`,
+    source: "orchestrator_prepared_handoff",
+    extracted: {
+      ...summary.extracted,
+      prNumber: null,
+      prTitle: `Prepared Codex handoff: ${action}`,
+      branch: "not applicable",
+      mergeStatus: "prepared",
+      verificationResults: limit(
+        [
+          "Required verification: npm run source:check",
+          "Required verification: npm run typecheck",
+          "Required verification: npm run build",
+          ...summary.extracted.verificationResults
+        ],
+        8
+      ),
+      completedWork: limit([`Manual Orchestrator selected ${action}.`, `Prepared handoff created from ${run.id}.`, ...summary.extracted.completedWork], 8),
+      guardrailsPreserved: limit([...summary.extracted.guardrailsPreserved, ...Object.entries(run.guardrails).map(([key]) => formatAction(key))], 8),
+      dependencies: limit([...run.nextActionPrompt.dependencies, ...summary.extracted.dependencies], 8)
+    },
+    projectState: {
+      currentStatus: `Prepared handoff from Manual Orchestrator: ${run.status.replace(/_/g, " ")}`,
+      latestCompletedMilestone: run.ownerReadableSummary,
+      openPrs: [],
+      recommendedNextAction: "Review the prepared Codex handoff in the Handoff Inbox, copy it if it is right, then send it manually.",
+      remainingMajorMilestones: [
+        "Owner reviews prepared handoff",
+        "Owner copies prompt from Handoff Inbox",
+        "Codex receives the prompt only when Lincoln sends it",
+        "Verification evidence is recorded after the next action"
+      ]
+    },
+    nextPrompt: {
+      prompt: run.nextActionPrompt.prompt,
+      reason: run.nextActionPrompt.reason,
+      dependencies: run.nextActionPrompt.dependencies,
+      expectedOutcome: run.nextActionPrompt.expectedOutcome
+    },
+    feedback: {
+      ...summary.feedback,
+      improvementCandidate: ""
+    },
+    ownerReadableSummary: `Prepared Codex handoff from ${run.id}. Next safe action: ${action}. It is waiting in the Handoff Inbox for owner review and copy.`,
+    guardrails: defaultGuardrails()
+  };
+}
+
+export async function savePreparedHandoffFromOrchestratorRun(run: OrchestratorRun) {
+  const store = await readStore();
+  const summary = createPreparedHandoffFromOrchestratorRun(run);
+  store.handoffs = [summary, ...store.handoffs.filter((handoff) => handoff.id !== summary.id)].slice(0, 50);
+  await writeStore(store);
+  await updateProjectMemoryFromPreparedHandoff(summary, run);
+
+  return summary;
+}
+
 export async function updateHandoffRelayFeedback(handoffId: string, choices: HandoffFeedbackChoice[], note: string) {
   const store = await readStore();
   const index = store.handoffs.findIndex((handoff) => handoff.id === handoffId);
@@ -229,6 +295,7 @@ function extractBranch(text: string) {
 }
 
 function extractMergeStatus(text: string) {
+  if (/\bprepared\s+(codex\s+)?handoff\b/i.test(text)) return "prepared";
   if (/\bmerged\b|\bconfirmed merged\b|\bmerge commit\b/i.test(text)) return "merged";
   if (/\bmergeable\b|\bready to merge\b/i.test(text)) return "mergeable";
   if (/\bdraft\b/i.test(text)) return "draft";
@@ -405,6 +472,58 @@ function buildImprovementCandidate(summary: HandoffRelaySummary, choices: Handof
     .join("\n");
 }
 
+function buildPreparedHandoffText(run: OrchestratorRun) {
+  return [
+    "# Prepared Codex handoff from Manual Orchestrator",
+    "",
+    "Source:",
+    `- orchestrator_run: ${run.id}`,
+    `- Created: ${run.createdAt}`,
+    `- Status: ${run.status}`,
+    "",
+    "Current project state:",
+    `- State: ${run.projectStateSummary.currentState}`,
+    `- Latest progress: ${run.projectStateSummary.latestProgress}`,
+    `- Recommended next action: ${run.projectStateSummary.recommendedNextAction}`,
+    run.projectStateSummary.currentBlockers.length ? `- Current blockers: ${run.projectStateSummary.currentBlockers.join(" | ")}` : "- Current blockers: none recorded",
+    "",
+    "Reason for next action:",
+    run.reason,
+    "",
+    "Exact suggested Codex prompt:",
+    run.nextActionPrompt.prompt,
+    "",
+    "Required verification:",
+    "- npm run source:check",
+    "- npm run typecheck",
+    "- npm run build",
+    "- Run any smoke test named by the selected action.",
+    "",
+    "Expected result:",
+    run.nextActionPrompt.expectedOutcome,
+    "",
+    "Guardrails preserved:",
+    "- No automatic Codex execution.",
+    "- No GitHub issue creation.",
+    "- No label changes.",
+    "- No production deploy.",
+    "- No paid resources.",
+    "- No migrations.",
+    "- No secrets/env changes.",
+    "- No repository visibility changes.",
+    "- No generated app auto-merge.",
+    "",
+    "Dependencies:",
+    ...run.nextActionPrompt.dependencies.map((dependency) => `- ${dependency}`),
+    "",
+    "Evidence:",
+    ...(run.evidence.length ? run.evidence.map((entry) => `- ${entry}`) : ["- No extra evidence recorded."]),
+    "",
+    "Owner action:",
+    "Review this prepared handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
+  ].join("\n");
+}
+
 function defaultGuardrails(): HandoffRelaySummary["guardrails"] {
   return {
     ownerApprovalOnly: true,
@@ -439,6 +558,10 @@ function limit(values: string[], count = 8) {
 
 function formatFeedbackChoice(choice: HandoffFeedbackChoice) {
   return choice.replace(/_/g, " ");
+}
+
+function formatAction(value: string) {
+  return value.replace(/_/g, " ");
 }
 
 function isFeedbackChoice(value: string): value is HandoffFeedbackChoice {

@@ -35,6 +35,7 @@ shared_context_files:
   - source-of-truth/real-project-trial-runner.md
   - source-of-truth/trial-result-review-loop.md
   - source-of-truth/manual-orchestrator-run-button.md
+  - source-of-truth/orchestrator-to-handoff-bridge.md
   - source-of-truth/pending-check-resolution-policy.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-to-solution-intake-standard.md

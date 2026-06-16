@@ -226,6 +226,41 @@ export async function updateProjectMemoryFromOrchestratorRun(run: OrchestratorRu
   return summarized;
 }
 
+export async function updateProjectMemoryFromPreparedHandoff(handoff: HandoffRelaySummary, run: OrchestratorRun) {
+  const current = await loadProjectMemory();
+  const createdAt = handoff.receivedAt;
+  const handoffItems = buildItemsFromHandoff(handoff);
+  const bridgeItems = buildItemsFromPreparedHandoff(handoff, run);
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "Prepared Codex handoff waiting for owner review",
+      latestProgress: handoff.ownerReadableSummary,
+      recommendedNextAction: "Open the Handoff Inbox, review the prepared Codex prompt, and copy it manually if it is right.",
+      lastHandoffId: handoff.id
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [...bridgeItems.majorDecisions, ...handoffItems.majorDecisions]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [...bridgeItems.acceptedApproaches, ...handoffItems.acceptedApproaches]),
+    rejectedApproaches: mergeItems(current.rejectedApproaches, handoffItems.rejectedApproaches),
+    completedMilestones: mergeItems(current.completedMilestones, [...bridgeItems.completedMilestones, ...handoffItems.completedMilestones]),
+    currentBlockers: handoffItems.currentBlockers.length ? handoffItems.currentBlockers : current.currentBlockers,
+    openQuestions: mergeItems(current.openQuestions, handoffItems.openQuestions),
+    architectureDecisions: mergeItems(current.architectureDecisions, bridgeItems.architectureDecisions),
+    designPreferences: mergeItems(current.designPreferences, handoffItems.designPreferences),
+    lessonsLearned: mergeItems(current.lessonsLearned, [...bridgeItems.lessonsLearned, ...handoffItems.lessonsLearned]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(current.progressHistory, [...bridgeItems.progressHistory, ...handoffItems.progressHistory], 30),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
 function buildItemsFromHandoff(handoff: HandoffRelaySummary) {
   const createdAt = handoff.receivedAt;
   const sourceHandoffId = handoff.id;
@@ -271,6 +306,65 @@ function buildItemsFromHandoff(handoff: HandoffRelaySummary) {
     progressHistory: [
       item("progress", handoff.ownerReadableSummary, sourceHandoffId, createdAt, ["handoff"]),
       item("progress", handoff.projectState.recommendedNextAction, sourceHandoffId, createdAt, ["next-action"])
+    ]
+  };
+}
+
+function buildItemsFromPreparedHandoff(handoff: HandoffRelaySummary, run: OrchestratorRun) {
+  const createdAt = handoff.receivedAt;
+  const sourceHandoffId = handoff.id;
+  const sourceTags = ["orchestrator-handoff-bridge", run.selectedNextSafeAction];
+
+  return {
+    majorDecisions: [
+      item(
+        "major_decision",
+        `Manual Orchestrator output ${run.id} was saved as prepared handoff ${handoff.id}.`,
+        sourceHandoffId,
+        createdAt,
+        sourceTags
+      )
+    ],
+    acceptedApproaches: [
+      item(
+        "accepted_approach",
+        "Use the Handoff Inbox as the owner-reviewed relay for Manual Orchestrator prompts.",
+        sourceHandoffId,
+        createdAt,
+        sourceTags
+      )
+    ],
+    completedMilestones: [
+      item("completed_milestone", handoff.ownerReadableSummary, sourceHandoffId, createdAt, sourceTags),
+      item(
+        "completed_milestone",
+        `Prepared handoff includes current state, reason, prompt, guardrails, verification, and expected result for ${run.selectedNextSafeAction.replace(/_/g, " ")}.`,
+        sourceHandoffId,
+        createdAt,
+        sourceTags
+      )
+    ],
+    architectureDecisions: [
+      item(
+        "architecture_decision",
+        "Manual Orchestrator outputs become handoff_relay_summary records before Lincoln copies the prompt; they do not trigger Codex or GitHub work.",
+        sourceHandoffId,
+        createdAt,
+        sourceTags
+      )
+    ],
+    lessonsLearned: [
+      item(
+        "lesson_learned",
+        "A generated next safe action is more useful when it can be reviewed and copied from the Handoff Inbox.",
+        sourceHandoffId,
+        createdAt,
+        sourceTags
+      )
+    ],
+    progressHistory: [
+      item("progress", handoff.ownerReadableSummary, sourceHandoffId, createdAt, sourceTags),
+      item("progress", handoff.nextPrompt.expectedOutcome, sourceHandoffId, createdAt, sourceTags)
     ]
   };
 }
