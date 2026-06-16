@@ -1162,6 +1162,39 @@ label {
   align-items: start;
 }
 
+.project-memory-panel {
+  display: grid;
+  gap: 14px;
+  background: #f8fbf8;
+}
+
+.project-memory-summary-grid,
+.project-memory-lists,
+.project-memory-summaries {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-memory-lists {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.project-memory-feedback {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.project-memory-feedback h3 {
+  margin-bottom: 4px;
+}
+
+.project-memory-feedback p {
+  margin: 0;
+}
+
 .handoff-main,
 .handoff-sidebar,
 .handoff-inbox-panel,
@@ -1374,6 +1407,9 @@ label {
     .handoff-state-grid,
     .handoff-analysis-grid,
     .handoff-prompt-meta,
+    .project-memory-summary-grid,
+    .project-memory-lists,
+    .project-memory-summaries,
     .handoff-feedback-options,
     .form-grid label:first-child {
     grid-template-columns: 1fr;

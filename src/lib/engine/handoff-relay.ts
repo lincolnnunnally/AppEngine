@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { updateProjectMemoryFromHandoff } from "./project-memory";
 
 export type HandoffFeedbackChoice =
   | "good_direction"
@@ -163,6 +164,7 @@ export async function saveHandoffRelaySummary(rawText: string) {
   const summary = createHandoffRelaySummary(rawText);
   store.handoffs = [summary, ...store.handoffs].slice(0, 50);
   await writeStore(store);
+  await updateProjectMemoryFromHandoff(summary);
 
   return summary;
 }
