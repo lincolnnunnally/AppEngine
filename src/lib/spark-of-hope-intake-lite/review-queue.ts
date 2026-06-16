@@ -72,6 +72,10 @@ export function updateSparkReviewQueueStatus(
   };
 }
 
+export function getApprovedSparkPreviewItems(items: SparkReviewQueueItem[]) {
+  return items.filter((item) => item.status === "approved_for_preview");
+}
+
 export function buildSparkReviewQueueNextPrompt(items: SparkReviewQueueItem[]) {
   const needsReviewCount = items.filter((item) => item.status === "new" || item.status === "needs_review").length;
   const approvedCount = items.filter((item) => item.status === "approved_for_preview").length;

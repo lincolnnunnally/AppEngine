@@ -1099,6 +1099,17 @@ label {
   box-shadow: var(--shadow);
 }
 
+.spark-approved-preview-section {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  border: 1px solid #b9d8d2;
+  border-radius: 8px;
+  padding: 22px;
+  background: var(--green-soft);
+  box-shadow: var(--shadow);
+}
+
 .spark-review-header,
 .spark-review-body,
 .spark-review-card-header {
@@ -1120,6 +1131,42 @@ label {
   font-size: 0.78rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.spark-approved-preview-section .spark-review-header > span {
+  background: #ffffff;
+}
+
+.spark-approved-preview-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.spark-approved-preview-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #b9d8d2;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.spark-approved-preview-card span,
+.spark-approved-preview-card small {
+  color: var(--teal);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.spark-approved-preview-card h3 {
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+}
+
+.spark-approved-preview-card p {
+  margin: 0;
 }
 
 .spark-review-body {
@@ -1947,6 +1994,7 @@ label {
     .spark-review-body,
     .spark-review-card-header,
     .spark-review-details,
+    .spark-approved-preview-list,
     .problem-intake-layout,
     .intake-choice-grid,
     .owner-control-header,
