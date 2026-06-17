@@ -1827,6 +1827,109 @@ label {
   gap: 18px;
 }
 
+.build-loop-completion-dashboard {
+  background:
+    linear-gradient(135deg, rgba(244, 251, 247, 0.96), rgba(255, 248, 236, 0.94)),
+    #fbfdf9;
+  display: grid;
+  gap: 18px;
+}
+
+.build-loop-status-pill {
+  align-self: start;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 9px 12px;
+  text-transform: uppercase;
+}
+
+.build-loop-summary-grid,
+.build-loop-step-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.build-loop-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.build-loop-summary-grid section,
+.build-loop-step-card,
+.build-loop-attention,
+.build-loop-copyable-action,
+.build-loop-guardrails {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 14px;
+}
+
+.build-loop-summary-grid span,
+.build-loop-step-heading span,
+.build-loop-step-heading small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.build-loop-summary-grid p,
+.build-loop-step-card p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.build-loop-step-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.build-loop-step-card {
+  display: grid;
+  gap: 10px;
+}
+
+.build-loop-step-card h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.build-loop-step-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.build-loop-status-completed {
+  border-color: rgba(34, 122, 91, 0.34);
+  background: rgba(236, 250, 243, 0.9);
+}
+
+.build-loop-status-ready,
+.build-loop-status-in_progress,
+.build-loop-status-verification_needed,
+.build-loop-status-ready_for_builder,
+.build-loop-status-result_received {
+  border-color: rgba(185, 134, 42, 0.32);
+  background: rgba(255, 249, 232, 0.92);
+}
+
+.build-loop-status-blocked,
+.build-loop-status-failed,
+.build-loop-status-not_started {
+  border-color: rgba(167, 74, 58, 0.28);
+  background: rgba(255, 244, 240, 0.92);
+}
+
+.guardrail-list.warning span {
+  color: #7a3d17;
+  background: #fff1d6;
+}
+
 .first-packet-draft-output {
   display: grid;
   gap: 16px;
@@ -3187,6 +3290,8 @@ label {
     .first-packet-section-grid.three,
     .first-packet-route-grid,
     .build-execution-layout,
+    .build-loop-summary-grid,
+    .build-loop-step-grid,
     .real-opportunity-form-grid,
     .real-opportunity-review-grid,
     .real-opportunity-review-form,

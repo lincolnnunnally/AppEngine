@@ -15,6 +15,7 @@ import {
   type HandoffRelaySummary
 } from "@/lib/engine/handoff-relay";
 import {
+  updateProjectMemoryFromBuildLoopCompletion,
   updateProjectMemoryFromBuildExecutionRequest,
   updateProjectMemoryFromBuildExecutionRequestExport,
   updateProjectMemoryFromBuilderResultIntake
@@ -33,6 +34,7 @@ export type BuildExecutionRequestStatus =
 export type BuildExecutionOwnerApprovalStatus = "owner_review_required" | "owner_approved" | "rejected";
 export type BuildExecutionRequestReviewStatus = "needs_review" | "owner_approved" | "blocked" | "exported_for_builder";
 export type BuildExecutionBuilderResultStatus = "passed" | "failed" | "needs_verification";
+export type BuildLoopStepStatus = "not_started" | "ready" | "in_progress" | "blocked" | "completed";
 
 export type BuildExecutionHandoffSourceKind =
   | "handoff_inbox"
@@ -96,6 +98,58 @@ export type BuildExecutionBuilderResultIntake = {
   followUpPrompt: string | null;
   ownerReadableSummary: string;
   guardrails: {
+    noAutoMerge: true;
+    noCodexAutoExecution: true;
+    noGitHubIssueCreation: true;
+    noLabelChanges: true;
+    noProductionDeploy: true;
+    noPaidResources: true;
+    noLiveMigrations: true;
+    noSecretsOrEnvChanges: true;
+    repositoryVisibilityUnchanged: true;
+  };
+};
+
+export type BuildLoopCompletionStepId =
+  | "source_request"
+  | "packet_draft"
+  | "build_execution_request"
+  | "exported_builder_handoff"
+  | "builder_result_received"
+  | "verification_status"
+  | "portfolio_update"
+  | "next_safe_action";
+
+export type BuildLoopCompletionStep = {
+  id: BuildLoopCompletionStepId;
+  label: string;
+  status: BuildLoopStepStatus;
+  summary: string;
+  evidence: string[];
+  blockers: string[];
+  missingInformation: string[];
+};
+
+export type BuildLoopCompletionDashboard = {
+  kind: "build_loop_completion_dashboard";
+  schemaVersion: 1;
+  generatedAt: string;
+  requestId: string | null;
+  targetProjectSlice: string;
+  sourceProblemOrOpportunity: string;
+  packetDraftTitle: string | null;
+  buildExecutionStatus: BuildExecutionRequestStatus | "not_started";
+  verificationStatus: BuildExecutionBuilderResultStatus | "not_started";
+  reviewUrl: string | null;
+  steps: BuildLoopCompletionStep[];
+  blockers: string[];
+  missingInformation: string[];
+  nextSafeAction: string;
+  copyableNextActionPrompt: string | null;
+  ownerReadableSummary: string;
+  guardrails: {
+    derivedFromExistingStateOnly: true;
+    noParallelTracker: true;
     noAutoMerge: true;
     noCodexAutoExecution: true;
     noGitHubIssueCreation: true;
@@ -200,6 +254,216 @@ export function buildExecutionRequestGuardrails() {
 export async function listBuildExecutionRequests() {
   const store = await readBuildExecutionRequestStore();
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function loadBuildLoopCompletionDashboard(now = new Date()) {
+  const requests = await listBuildExecutionRequests();
+  return createBuildLoopCompletionDashboard(requests[0] || null, now);
+}
+
+export function createBuildLoopCompletionDashboard(
+  request: BuildExecutionRequestRecord | null,
+  now = new Date()
+): BuildLoopCompletionDashboard {
+  const generatedAt = now.toISOString();
+
+  if (!request) {
+    const steps: BuildLoopCompletionStep[] = [
+      buildLoopStep(
+        "source_request",
+        "Source problem or opportunity",
+        "not_started",
+        "No build execution request exists yet.",
+        [],
+        [],
+        ["Prepared handoff or packet draft"]
+      ),
+      buildLoopStep("packet_draft", "Packet draft", "not_started", "No packet draft is attached yet.", [], [], ["Packet draft"]),
+      buildLoopStep(
+        "build_execution_request",
+        "Build execution request",
+        "not_started",
+        "No build execution request has been created.",
+        [],
+        [],
+        ["Build execution request"]
+      ),
+      buildLoopStep(
+        "exported_builder_handoff",
+        "Exported builder handoff",
+        "not_started",
+        "No owner-approved builder handoff has been exported.",
+        [],
+        [],
+        ["Owner-approved builder handoff"]
+      ),
+      buildLoopStep(
+        "builder_result_received",
+        "Builder result received",
+        "not_started",
+        "No builder result has been imported.",
+        [],
+        [],
+        ["Builder/Codex result"]
+      ),
+      buildLoopStep(
+        "verification_status",
+        "Verification status",
+        "not_started",
+        "Verification cannot begin until a builder result is imported.",
+        [],
+        [],
+        ["Builder result verification"]
+      ),
+      buildLoopStep(
+        "portfolio_update",
+        "Portfolio update",
+        "not_started",
+        "Portfolio state will update after build execution state exists.",
+        [],
+        [],
+        ["Build execution state"]
+      ),
+      buildLoopStep(
+        "next_safe_action",
+        "Next safe action",
+        "ready",
+        "Prepare a handoff or packet draft, then create a build execution request.",
+        [],
+        [],
+        []
+      )
+    ];
+
+    return {
+      kind: "build_loop_completion_dashboard",
+      schemaVersion: 1,
+      generatedAt,
+      requestId: null,
+      targetProjectSlice: "No active build loop",
+      sourceProblemOrOpportunity: "No build execution request has been created yet.",
+      packetDraftTitle: null,
+      buildExecutionStatus: "not_started",
+      verificationStatus: "not_started",
+      reviewUrl: null,
+      steps,
+      blockers: [],
+      missingInformation: uniqueValues(steps.flatMap((step) => step.missingInformation)),
+      nextSafeAction: "Prepare a handoff or packet draft, then create a build execution request.",
+      copyableNextActionPrompt:
+        "Prepare an AppEngine handoff or packet draft, then create a build execution request from the Owner Control Center. Do not trigger Codex automatically.",
+      ownerReadableSummary: "No build loop is active yet. AppEngine is waiting for a prepared handoff or packet draft.",
+      guardrails: buildLoopCompletionGuardrails()
+    };
+  }
+
+  const latestResult = request.latestBuilderResult;
+  const steps: BuildLoopCompletionStep[] = [
+    buildLoopStep(
+      "source_request",
+      "Source problem or opportunity",
+      "completed",
+      request.sourceHandoff.title,
+      [request.sourceHandoff.id, request.sourceHandoff.sourceKind],
+      [],
+      []
+    ),
+    buildLoopStep(
+      "packet_draft",
+      "Packet draft",
+      request.sourcePacketDraft ? "completed" : "blocked",
+      request.sourcePacketDraft
+        ? `${request.sourcePacketDraft.title} is attached to this build loop.`
+        : "No packet draft is attached to this build loop.",
+      request.sourcePacketDraft ? [request.sourcePacketDraft.id, request.sourcePacketDraft.status] : [],
+      [],
+      request.sourcePacketDraft ? [] : ["Packet draft"]
+    ),
+    buildLoopStep(
+      "build_execution_request",
+      "Build execution request",
+      request.executionStatus === "draft" ? "ready" : "completed",
+      request.ownerReadableSummary,
+      [request.id, request.executionStatus],
+      [],
+      []
+    ),
+    buildLoopStep(
+      "exported_builder_handoff",
+      "Exported builder handoff",
+      request.exportedBuilderHandoffId ? "completed" : request.reviewStatus === "blocked" ? "blocked" : "ready",
+      request.exportedBuilderHandoffId
+        ? `Builder handoff exported to Handoff Inbox as ${request.exportedBuilderHandoffId}.`
+        : "Builder handoff is not exported yet.",
+      request.exportedBuilderHandoffId ? [request.exportedBuilderHandoffId] : [],
+      request.reviewStatus === "blocked" ? ["Owner blocked the build execution request."] : [],
+      request.exportedBuilderHandoffId ? [] : ["Owner-approved exported builder handoff"]
+    ),
+    buildLoopStep(
+      "builder_result_received",
+      "Builder result received",
+      latestResult ? "completed" : request.exportedBuilderHandoffId ? "ready" : "not_started",
+      latestResult ? latestResult.ownerReadableSummary : "No builder result has been imported yet.",
+      latestResult ? [latestResult.id, latestResult.prNumber ? `PR #${latestResult.prNumber}` : latestResult.branch || "builder result"] : [],
+      [],
+      latestResult ? [] : ["Builder result handoff"]
+    ),
+    buildLoopStep(
+      "verification_status",
+      "Verification status",
+      verificationStepStatus(request, latestResult),
+      latestResult
+        ? `${latestResult.passFailStatus.replaceAll("_", " ")}. ${latestResult.nextSafeAction}`
+        : "Verification is waiting on a builder result.",
+      latestResult ? latestResult.verificationCommandsRun : [],
+      latestResult?.blockers || [],
+      latestResult ? [] : ["Verification evidence"]
+    ),
+    buildLoopStep(
+      "portfolio_update",
+      "Portfolio update",
+      request.executionStatus === "completed" || request.executionStatus === "blocked" || latestResult ? "completed" : "ready",
+      latestResult
+        ? "Portfolio Dashboard can derive status from this build execution request and latest builder result."
+        : "Portfolio Dashboard can show this build execution request while result evidence is pending.",
+      ["app_portfolio_registry", request.id],
+      [],
+      []
+    ),
+    buildLoopStep(
+      "next_safe_action",
+      "Next safe action",
+      request.executionStatus === "blocked" ? "blocked" : request.executionStatus === "completed" ? "completed" : "ready",
+      determineBuildLoopNextSafeAction(request),
+      [],
+      request.executionStatus === "blocked" ? latestResult?.blockers || ["Build loop is blocked."] : [],
+      []
+    )
+  ];
+
+  const blockers = uniqueValues(steps.flatMap((step) => step.blockers));
+  const missingInformation = uniqueValues(steps.flatMap((step) => step.missingInformation));
+  const nextSafeAction = determineBuildLoopNextSafeAction(request);
+
+  return {
+    kind: "build_loop_completion_dashboard",
+    schemaVersion: 1,
+    generatedAt,
+    requestId: request.id,
+    targetProjectSlice: request.targetProjectSlice,
+    sourceProblemOrOpportunity: request.sourceHandoff.title,
+    packetDraftTitle: request.sourcePacketDraft?.title || null,
+    buildExecutionStatus: request.executionStatus,
+    verificationStatus: latestResult?.passFailStatus || "not_started",
+    reviewUrl: latestResult?.reviewUrl || null,
+    steps,
+    blockers,
+    missingInformation,
+    nextSafeAction,
+    copyableNextActionPrompt: buildLoopCopyableNextActionPrompt(request, blockers, missingInformation),
+    ownerReadableSummary: `Build loop for ${request.targetProjectSlice}: ${request.executionStatus.replaceAll("_", " ")}. ${nextSafeAction}`,
+    guardrails: buildLoopCompletionGuardrails()
+  };
 }
 
 export async function listBuildExecutionHandoffSources() {
@@ -548,6 +812,10 @@ export async function intakeBuilderResult(
   store.records[index] = updated;
   await writeBuildExecutionRequestStore(store);
   await updateProjectMemoryFromBuilderResultIntake(updated, parsed);
+  const buildLoopDashboard = createBuildLoopCompletionDashboard(updated, now);
+  if (updated.executionStatus === "completed" || updated.executionStatus === "blocked") {
+    await updateProjectMemoryFromBuildLoopCompletion(updated, buildLoopDashboard);
+  }
   await getAppEngineAuditTrail().append({
     type: "builder_result_intake_received",
     actor: { type: "owner", id: "Lincoln" },
@@ -567,8 +835,138 @@ export async function intakeBuilderResult(
       productionDeployed: false
     }
   });
+  if (updated.executionStatus === "completed" || updated.executionStatus === "blocked") {
+    await getAppEngineAuditTrail().append({
+      type: "build_loop_completion_recorded",
+      actor: { type: "system", id: "AppEngine" },
+      summary: buildLoopDashboard.ownerReadableSummary,
+      subjectId: updated.id,
+      metadata: {
+        requestId: updated.id,
+        executionStatus: updated.executionStatus,
+        verificationStatus: parsed.passFailStatus,
+        blockerCount: buildLoopDashboard.blockers.length,
+        missingInformationCount: buildLoopDashboard.missingInformation.length,
+        noAutoMerge: true,
+        codexTriggered: false,
+        githubIssuesCreated: false,
+        labelsApplied: false,
+        productionDeployed: false
+      }
+    });
+  }
 
   return { record: updated, builderResult: parsed };
+}
+
+function buildLoopCompletionGuardrails(): BuildLoopCompletionDashboard["guardrails"] {
+  return {
+    derivedFromExistingStateOnly: true,
+    noParallelTracker: true,
+    noAutoMerge: true,
+    noCodexAutoExecution: true,
+    noGitHubIssueCreation: true,
+    noLabelChanges: true,
+    noProductionDeploy: true,
+    noPaidResources: true,
+    noLiveMigrations: true,
+    noSecretsOrEnvChanges: true,
+    repositoryVisibilityUnchanged: true
+  };
+}
+
+function buildLoopStep(
+  id: BuildLoopCompletionStepId,
+  label: string,
+  status: BuildLoopStepStatus,
+  summary: string,
+  evidence: string[],
+  blockers: string[],
+  missingInformation: string[]
+): BuildLoopCompletionStep {
+  return {
+    id,
+    label,
+    status,
+    summary,
+    evidence: uniqueValues(evidence).slice(0, 8),
+    blockers: uniqueValues(blockers).slice(0, 8),
+    missingInformation: uniqueValues(missingInformation).slice(0, 8)
+  };
+}
+
+function verificationStepStatus(
+  request: BuildExecutionRequestRecord,
+  result: BuildExecutionBuilderResultIntake | null
+): BuildLoopStepStatus {
+  if (!result) return request.exportedBuilderHandoffId ? "ready" : "not_started";
+  if (request.executionStatus === "blocked" || result.passFailStatus === "failed") return "blocked";
+  if (request.executionStatus === "completed" && result.passFailStatus === "passed") return "completed";
+  return "in_progress";
+}
+
+function determineBuildLoopNextSafeAction(request: BuildExecutionRequestRecord) {
+  if (request.executionStatus === "blocked") {
+    return request.latestBuilderResult?.followUpPrompt
+      ? "Review the focused follow-up prompt before asking Codex for another fix."
+      : "Review blockers and decide whether to revise, abandon, or create a focused follow-up.";
+  }
+
+  if (request.executionStatus === "completed") {
+    return "Owner review can decide whether to merge, keep watching, or start the next safe AppEngine action.";
+  }
+
+  if (!request.sourcePacketDraft) {
+    return "Attach or prepare a packet draft before treating this build loop as complete.";
+  }
+
+  if (!request.exportedBuilderHandoffId) {
+    return "Owner should review the build execution request and export the builder handoff when ready.";
+  }
+
+  if (!request.latestBuilderResult) {
+    return "Paste the builder/Codex result into Builder Result Intake when it comes back.";
+  }
+
+  if (request.executionStatus === "verification_needed") {
+    return "Run or review verification evidence before deciding whether this build loop is complete.";
+  }
+
+  return request.latestBuilderResult.nextSafeAction;
+}
+
+function buildLoopCopyableNextActionPrompt(
+  request: BuildExecutionRequestRecord,
+  blockers: string[],
+  missingInformation: string[]
+) {
+  if (request.executionStatus === "completed") return null;
+
+  const needs = [...blockers, ...missingInformation];
+  const target = request.targetProjectSlice;
+
+  if (request.latestBuilderResult?.followUpPrompt) {
+    return request.latestBuilderResult.followUpPrompt;
+  }
+
+  return [
+    `Continue the AppEngine build loop for ${target}.`,
+    "",
+    `Current state: ${request.executionStatus.replaceAll("_", " ")}`,
+    `Next safe action: ${determineBuildLoopNextSafeAction(request)}`,
+    needs.length ? `Blockers or missing information: ${needs.join("; ")}` : "Blockers or missing information: none recorded.",
+    "",
+    "Guardrails:",
+    "- Do not deploy production.",
+    "- Do not create paid resources.",
+    "- Do not apply migrations.",
+    "- Do not change secrets or env vars.",
+    "- Do not create GitHub issues or labels.",
+    "- Do not auto-merge generated app code.",
+    "",
+    "Verification:",
+    ...request.verificationCommands.map((command) => `- ${command}`)
+  ].join("\n");
 }
 
 function buildSourceFromHandoff(
@@ -1017,6 +1415,10 @@ function uniqueSources(sources: BuildExecutionHandoffSource[]) {
     seen.add(source.sourceHandoffId);
     return true;
   });
+}
+
+function uniqueValues(values: string[]) {
+  return uniqueStrings(values.map((value) => value.trim()).filter(Boolean));
 }
 
 function uniqueStrings(values: string[]) {
