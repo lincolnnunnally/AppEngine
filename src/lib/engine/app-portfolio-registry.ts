@@ -1,4 +1,5 @@
 import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { getLifeCoreOverview } from "@/lib/engine/life-core";
 import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
 import { listOpportunityAppEngineCandidates } from "@/lib/engine/opportunity-appengine-candidate";
@@ -155,6 +156,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     opportunityCandidates,
     opportunityBuildPacketBridges,
     realOpportunityResultReviews,
+    handoffs,
     problemIntakes,
     lifeCoreOverview,
     rawLifeCoreStore
@@ -168,6 +170,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     listOpportunityAppEngineCandidates(),
     listOpportunityBuildPacketBridges(),
     listRealOpportunityResultReviews(),
+    listHandoffRelaySummaries(),
     listProblemIntakeRecords(),
     getLifeCoreOverview(),
     readRawLifeCoreStore()
@@ -183,7 +186,8 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
       opportunityActionPlans,
       opportunityCandidates,
       opportunityBuildPacketBridges,
-      realOpportunityResultReviews
+      realOpportunityResultReviews,
+      handoffs
     }),
     deriveLifeCoreEntry(seedEntries[2], lifeCoreOverview, Boolean(rawLifeCoreStore)),
     deriveSparkEntry(seedEntries[3], sparkCapability),
@@ -291,6 +295,7 @@ function deriveOpportunityEntry(
     opportunityCandidates: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>;
     opportunityBuildPacketBridges: Awaited<ReturnType<typeof listOpportunityBuildPacketBridges>>;
     realOpportunityResultReviews: Awaited<ReturnType<typeof listRealOpportunityResultReviews>>;
+    handoffs: Awaited<ReturnType<typeof listHandoffRelaySummaries>>;
   }
 ): AppPortfolioEntry {
   const liveCount =
@@ -300,7 +305,8 @@ function deriveOpportunityEntry(
     state.opportunityActionPlans.length +
     state.opportunityCandidates.length +
     state.opportunityBuildPacketBridges.length +
-    state.realOpportunityResultReviews.length;
+    state.realOpportunityResultReviews.length +
+    state.handoffs.filter((handoff) => handoff.source === "opportunity_prepared_handoff").length;
 
   if (!liveCount) return seed;
 
@@ -311,6 +317,8 @@ function deriveOpportunityEntry(
   const latestBridge = state.opportunityBuildPacketBridges[0] || null;
   const latestReview = state.realOpportunityResultReviews[0] || null;
   const reviewReady = latestReview?.reviewStatus === "ready_for_next_appengine_action";
+  const latestPreparedHandoff =
+    state.handoffs.find((handoff) => handoff.source === "opportunity_prepared_handoff") || null;
   const buildPacketBridgeVisibility = buildOpportunityBridgeVisibility({
     latestBridge,
     latestCandidate,
@@ -325,15 +333,18 @@ function deriveOpportunityEntry(
     ...(latestPath?.blockers || []),
     latestCandidate && !latestBridge ? "Candidate exists, packet bridge not prepared yet." : "",
     latestReview?.portfolioStateUpdate.blocker || "",
+    latestPreparedHandoff ? "Prepared AppEngine handoff is waiting in the Handoff Inbox for owner review/copy." : "",
     "No public production URL yet; remains inside AppEngine controlled-use flow."
   ];
 
   return {
     ...seed,
-    status: reviewReady
+    status: latestPreparedHandoff
+      ? "prepared AppEngine handoff waiting in Handoff Inbox"
+      : reviewReady
       ? "real Opportunity result reviewed · ready for next AppEngine action"
       : `${state.opportunityIntakes.length} intake${state.opportunityIntakes.length === 1 ? "" : "s"} · ${state.opportunityCandidates.length} candidate${state.opportunityCandidates.length === 1 ? "" : "s"}`,
-    buildState: reviewReady
+    buildState: latestPreparedHandoff || reviewReady
       ? "owner_approval_required"
       : latestBridge
         ? "owner_approval_required"
@@ -342,8 +353,10 @@ function deriveOpportunityEntry(
           : latestPlan || latestPath
             ? "planned"
             : "ready_for_build",
-    nextSafeAction: reviewReady
-      ? "continue_internal_trial"
+    nextSafeAction: latestPreparedHandoff
+      ? "await_owner_review"
+      : reviewReady
+        ? "continue_internal_trial"
       : latestBridge
         ? "await_owner_review"
         : latestCandidate
@@ -354,7 +367,9 @@ function deriveOpportunityEntry(
     blockers: uniqueStrings(blockers),
     stateSource: "live_state",
     buildPacketBridgeVisibility,
-    sourceArtifact: latestReview
+    sourceArtifact: latestPreparedHandoff
+      ? { kind: "handoff_relay_summary", id: latestPreparedHandoff.id, summary: latestPreparedHandoff.ownerReadableSummary }
+      : latestReview
       ? { kind: "real_opportunity_result_review", id: latestReview.id, summary: latestReview.ownerReadableSummary }
       : latestBridge
       ? { kind: "opportunity_build_packet_bridge", id: latestBridge.id, summary: latestBridge.title }
@@ -366,6 +381,7 @@ function deriveOpportunityEntry(
           ? { kind: "opportunity_solution_path", id: latestPath.id, summary: latestPath.title }
           : { kind: "opportunity_intake", id: latestIntake?.id, summary: latestIntake?.title || "Opportunity intake state" },
     lastUpdated:
+      latestPreparedHandoff?.receivedAt ||
       latestReview?.updatedAt ||
       latestBridge?.updatedAt ||
       latestCandidate?.updatedAt ||

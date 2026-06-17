@@ -157,6 +157,7 @@ export function HandoffRelayControlCenter({
   const openDraftsAndHandoffs = handoffs.filter(
     (handoff) =>
       handoff.source === "orchestrator_prepared_handoff" ||
+      handoff.source === "opportunity_prepared_handoff" ||
       ["prepared", "draft", "open", "mergeable"].includes(handoff.extracted.mergeStatus)
   ).length;
   const queuedActions = orchestratorActionQueue.filter((action) => action.status === "queued").length;
@@ -1527,7 +1528,9 @@ function ListBlock({ label, items, empty }: { label: string; items: string[]; em
 }
 
 function formatHandoffSource(source: HandoffRelaySummary["source"]) {
-  return source === "orchestrator_prepared_handoff" ? "Prepared handoff" : "Pasted handoff";
+  if (source === "orchestrator_prepared_handoff") return "Prepared handoff";
+  if (source === "opportunity_prepared_handoff") return "Prepared Opportunity handoff";
+  return "Pasted handoff";
 }
 
 function formatPacketType(value: string) {

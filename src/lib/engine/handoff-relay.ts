@@ -1,8 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { getAppEngineAuditTrail } from "./audit-trail-lite";
 import type { OrchestratorBatchDryRun, OrchestratorRun } from "./orchestrator-run";
 import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
 import { updateProjectMemoryFromHandoff, updateProjectMemoryFromHandoffExport, updateProjectMemoryFromPreparedHandoff } from "./project-memory.ts";
+import type { RealOpportunityResultReviewRecord } from "./real-opportunity-result-review";
 
 export type HandoffFeedbackChoice =
   | "good_direction"
@@ -29,7 +31,7 @@ export type HandoffRelaySummary = {
   schemaVersion: 1;
   id: string;
   receivedAt: string;
-  source: "codex_handoff_paste" | "orchestrator_prepared_handoff";
+  source: "codex_handoff_paste" | "orchestrator_prepared_handoff" | "opportunity_prepared_handoff";
   rawText: string;
   extracted: {
     prNumber: number | null;
@@ -351,6 +353,110 @@ export async function savePreparedHandoffFromOrchestratorBatchDraft(
   store.handoffs = [summary, ...store.handoffs.filter((handoff) => handoff.id !== summary.id)].slice(0, 50);
   await writeStore(store);
   await updateProjectMemoryFromHandoff(summary);
+
+  return summary;
+}
+
+export function createPreparedHandoffFromReadyOpportunityResultReview(
+  review: RealOpportunityResultReviewRecord,
+  now = new Date()
+): HandoffRelaySummary {
+  if (review.reviewStatus !== "ready_for_next_appengine_action") {
+    throw new Error("Only real Opportunity result reviews marked ready_for_next_appengine_action can prepare an AppEngine action handoff.");
+  }
+
+  const rawText = buildReadyOpportunityPreparedHandoffText(review);
+  const summary = createHandoffRelaySummary(rawText, now);
+
+  return {
+    ...summary,
+    id: `handoff_from_${review.id}`,
+    source: "opportunity_prepared_handoff",
+    extracted: {
+      ...summary.extracted,
+      prNumber: null,
+      prTitle: "Prepared AppEngine handoff: ready Opportunity result",
+      branch: "not applicable",
+      mergeStatus: "prepared",
+      verificationResults: limit(
+        [
+          "Required verification: npm run source:check",
+          "Required verification: npm run smoke:ready-opportunity-appengine-handoff",
+          "Required verification: npm run smoke:real-opportunity-result-review",
+          "Required verification: npm run typecheck",
+          "Required verification: npm run build"
+        ],
+        8
+      ),
+      completedWork: limit(
+        [
+          `Real Opportunity result review ${review.id} is marked ready for next AppEngine action.`,
+          `Prepared handoff created from ${review.exampleId}.`,
+          `Packet draft bridge state: ${review.resultSnapshot.packetDraftBridgeState}.`
+        ],
+        8
+      ),
+      guardrailsPreserved: limit(
+        [
+          "No automatic Codex execution.",
+          "No GitHub issue creation.",
+          "No label changes.",
+          "No production deploy.",
+          "No paid resources.",
+          "No live migrations.",
+          "No secrets/env changes.",
+          "No repository visibility changes.",
+          "No final packet created automatically."
+        ],
+        10
+      ),
+      dependencies: limit(review.nextAppEngineAction.dependencies, 8)
+    },
+    projectState: {
+      currentStatus: "Ready Opportunity result prepared for AppEngine action",
+      latestCompletedMilestone: review.ownerReadableSummary,
+      openPrs: [],
+      recommendedNextAction: "Review the prepared AppEngine handoff in the Handoff Inbox, copy it if it is right, then send it manually.",
+      remainingMajorMilestones: [
+        "Owner reviews prepared Opportunity handoff",
+        "Owner copies the AppEngine-ready prompt",
+        "Codex receives the prompt only when Lincoln sends it",
+        "Verification evidence is recorded after the next AppEngine action"
+      ]
+    },
+    nextPrompt: {
+      prompt: buildReadyOpportunityActionPrompt(review),
+      reason: "Lincoln marked the real Opportunity result ready for the next AppEngine action.",
+      dependencies: review.nextAppEngineAction.dependencies,
+      expectedOutcome:
+        "A focused next AppEngine action can be reviewed and executed manually without automatic Codex execution, issue creation, labels, deployment, paid resources, migrations, or final packet creation."
+    },
+    ownerReadableSummary: `Prepared AppEngine action handoff from real Opportunity result review ${review.id}. It is waiting in the Handoff Inbox for owner review and copy.`,
+    guardrails: defaultGuardrails()
+  };
+}
+
+export async function savePreparedHandoffFromReadyOpportunityResultReview(review: RealOpportunityResultReviewRecord) {
+  const store = await readStore();
+  const summary = createPreparedHandoffFromReadyOpportunityResultReview(review);
+  store.handoffs = [summary, ...store.handoffs.filter((handoff) => handoff.id !== summary.id)].slice(0, 50);
+  await writeStore(store);
+  await updateProjectMemoryFromHandoff(summary);
+  await getAppEngineAuditTrail().append({
+    type: "handoff_prepared",
+    actor: { type: "owner", id: "Lincoln" },
+    summary: summary.ownerReadableSummary,
+    subjectId: summary.id,
+    metadata: {
+      sourceReviewId: review.id,
+      sourceExampleId: review.exampleId,
+      fullLoopTrialId: review.fullLoopTrialId,
+      codexTriggered: false,
+      githubIssuesCreated: false,
+      labelsApplied: false,
+      finalPacketCreated: false
+    }
+  });
 
   return summary;
 }
@@ -767,6 +873,110 @@ function buildBatchPreparedHandoffText(draft: OrchestratorBatchDryRun["preparedH
     "",
     "Owner action:",
     "Review this prepared handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
+  ].join("\n");
+}
+
+function buildReadyOpportunityPreparedHandoffText(review: RealOpportunityResultReviewRecord) {
+  const prompt = buildReadyOpportunityActionPrompt(review);
+
+  return [
+    "# Prepared AppEngine handoff from ready Opportunity result",
+    "",
+    "Source:",
+    `- real_opportunity_result_review: ${review.id}`,
+    `- real_opportunity_example_runner: ${review.exampleId}`,
+    `- opportunity_full_loop_trial: ${review.fullLoopTrialId}`,
+    `- Status: ${review.reviewStatus}`,
+    "",
+    "Current project state:",
+    "- Lincoln reviewed a real Opportunity result and marked it ready for the next AppEngine action.",
+    "- It is stored in the Handoff Inbox for manual owner review and copy.",
+    "",
+    "Opportunity result:",
+    `- Original problem/vision: ${review.resultSnapshot.originalProblemOrVision}`,
+    `- Clarified opportunity: ${review.resultSnapshot.clarification}`,
+    `- Selected solution path: ${review.resultSnapshot.solutionPath}`,
+    `- Action plan: ${review.resultSnapshot.actionPlan}`,
+    `- Candidate type: ${review.resultSnapshot.appEngineCandidate}`,
+    `- Packet draft bridge state: ${review.resultSnapshot.packetDraftBridgeState}`,
+    `- Next safe AppEngine action: ${review.resultSnapshot.nextSafeAction}`,
+    review.ownerNotes ? `- Owner notes: ${review.ownerNotes}` : "- Owner notes: none",
+    "",
+    "Exact suggested Codex prompt:",
+    prompt,
+    "",
+    "Required verification:",
+    "- npm run source:check",
+    "- npm run smoke:ready-opportunity-appengine-handoff",
+    "- npm run smoke:real-opportunity-result-review",
+    "- npm run typecheck",
+    "- npm run build",
+    "",
+    "Expected result:",
+    "A focused next AppEngine action is ready for owner review and manual execution, without automatic Codex execution or final packet creation.",
+    "",
+    "Guardrails preserved:",
+    "- No automatic Codex execution.",
+    "- No GitHub issue creation.",
+    "- No label changes.",
+    "- No production deploy.",
+    "- No paid resources.",
+    "- No live migrations.",
+    "- No secrets/env changes.",
+    "- No repository visibility changes.",
+    "- No final packet created automatically.",
+    "",
+    "Dependencies:",
+    ...review.nextAppEngineAction.dependencies.map((dependency) => `- ${dependency}`),
+    "",
+    "Owner action:",
+    "Review this prepared AppEngine handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
+  ].join("\n");
+}
+
+function buildReadyOpportunityActionPrompt(review: RealOpportunityResultReviewRecord) {
+  return [
+    "Proceed with the next AppEngine action from this owner-approved real Opportunity result.",
+    "",
+    "Context:",
+    `- Source review: ${review.id}`,
+    `- Source example: ${review.exampleId}`,
+    `- Full-loop trial: ${review.fullLoopTrialId}`,
+    `- Original problem/vision: ${review.resultSnapshot.originalProblemOrVision}`,
+    `- Clarified opportunity: ${review.resultSnapshot.clarification}`,
+    `- Selected solution path: ${review.resultSnapshot.solutionPath}`,
+    `- Action plan: ${review.resultSnapshot.actionPlan}`,
+    `- Candidate type: ${review.resultSnapshot.appEngineCandidate}`,
+    `- Packet draft bridge state: ${review.resultSnapshot.packetDraftBridgeState}`,
+    `- Owner notes: ${review.ownerNotes || "None"}`,
+    "",
+    "Goal:",
+    "Prepare the next reviewable AppEngine action from this Opportunity result without skipping owner approval gates.",
+    "",
+    "Next safe AppEngine action:",
+    review.resultSnapshot.nextSafeAction,
+    "",
+    "Required verification:",
+    "- npm run source:check",
+    "- npm run smoke:ready-opportunity-appengine-handoff",
+    "- npm run smoke:real-opportunity-result-review",
+    "- npm run typecheck",
+    "- npm run build",
+    "",
+    "Expected result:",
+    review.nextAppEngineAction.expectedOutcome,
+    "",
+    "Guardrails:",
+    "- Do not trigger Codex automatically from AppEngine.",
+    "- Do not create GitHub issues.",
+    "- Do not apply labels.",
+    "- Do not create final packets automatically.",
+    "- Do not deploy production.",
+    "- Do not create paid resources.",
+    "- Do not run live migrations.",
+    "- Do not add secrets or env vars.",
+    "- Do not change repository visibility.",
+    "- Keep Lincoln in owner review control."
   ].join("\n");
 }
 

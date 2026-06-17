@@ -77,6 +77,7 @@
     "smoke:opportunity-controlled-use-readiness": "node scripts/smoke-opportunity-controlled-use-readiness.js",
     "smoke:real-opportunity-example-runner": "node scripts/smoke-real-opportunity-example-runner.js",
     "smoke:real-opportunity-result-review": "node scripts/smoke-real-opportunity-result-review.js",
+    "smoke:ready-opportunity-appengine-handoff": "node scripts/smoke-ready-opportunity-appengine-handoff.js",
     "smoke:candidate-to-packet-draft-action": "node scripts/smoke-candidate-to-packet-draft-action.js",
     "smoke:life-core": "node scripts/smoke-life-core.js",
     "smoke:portfolio-build-packet-bridge-visibility": "node scripts/smoke-portfolio-build-packet-bridge-visibility.js",
