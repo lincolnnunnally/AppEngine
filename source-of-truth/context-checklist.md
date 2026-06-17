@@ -21,6 +21,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Opportunity Intake Foundation when customer-facing problem/opportunity intake, public front-door routing, or ecosystem-destination framing is involved
 - Opportunity Clarification Engine when an `opportunity_intake` needs to become a clarified owner-reviewable opportunity profile before problem-to-solution routing
 - Opportunity Solution Path Router when an `opportunity_clarification` needs a recommended path before packets, issues, handoffs, or implementation
+- Opportunity Action Plan Draft when an `opportunity_solution_path` needs a practical first action plan before packets, issues, handoffs, or implementation
 - Problem-To-Solution Intake Standard for problem-first, vision-first, and hybrid starts
 - Problem Intake To Portfolio Routing Standard for accepted problem/vision candidates before packets or implementation
 - Solution Candidate Review Gate before candidate packet or plan requests
@@ -87,6 +88,8 @@ All agent workflows must load and answer this checklist before taking action.
 - Does Opportunity Clarification preserve the boundary that ecosystem apps/services are not assumed built and owner review is required before problem_solution_intake, portfolio routing, packet creation, issue creation, Codex handoff, or implementation?
 - If an `opportunity_clarification` is being routed, does an `opportunity_solution_path` artifact name recommended path, reason, first practical step, needed resources, blockers, confidence, next AppEngine prompt, and no-build/no-Codex guardrails?
 - Does Opportunity Solution Path Router avoid assuming ecosystem services are built and preserve owner review before problem_solution_intake, packet creation, GitHub issue creation, Codex handoff, or implementation?
+- If an `opportunity_solution_path` is being turned into practical owner action, does an `opportunity_action_plan` artifact name the opportunity summary, recommended path, first 3 practical steps, AppEngine help, owner/community leader clarification needs, needed resources, risks/blockers, suggested timeline, next review prompt, and no-build/no-Codex guardrails?
+- Does Opportunity Action Plan Draft preserve owner review before packet creation, GitHub issue creation, Codex handoff, implementation, or assumptions that ecosystem services are built?
 14. If this starts from a problem, vision, or hybrid of both, does a `problem_solution_intake` artifact classify the mode, questions, solution shape, missing context, routing, and next safe action before build work?
 15. If the problem/vision is accepted as a candidate, does `problem_portfolio_routing` map it into `app_portfolio_registry` before any App Build Packet or vNext Packet is created?
 16. Does the selected candidate type avoid forcing every problem into an app when a website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution is more fitting?

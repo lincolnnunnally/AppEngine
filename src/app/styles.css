@@ -1504,13 +1504,16 @@ label {
 .opportunity-clarification-panel,
 .opportunity-clarification-output,
 .opportunity-solution-path-panel,
-.opportunity-solution-path-output {
+.opportunity-solution-path-output,
+.opportunity-action-plan-panel,
+.opportunity-action-plan-output {
   display: grid;
   gap: 14px;
 }
 
 .opportunity-clarification-panel,
-.opportunity-solution-path-panel {
+.opportunity-solution-path-panel,
+.opportunity-action-plan-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -1519,6 +1522,23 @@ label {
 
 .opportunity-solution-path-panel {
   background: #f7efd8;
+}
+
+.opportunity-action-plan-panel {
+  background: #fff8ef;
+}
+
+.action-plan-list,
+.compact-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.action-plan-list li,
+.compact-list li {
+  margin: 6px 0;
+  color: var(--ink);
+  line-height: 1.45;
 }
 
 .owner-control-header {

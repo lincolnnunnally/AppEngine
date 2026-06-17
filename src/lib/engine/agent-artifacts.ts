@@ -16,6 +16,7 @@ export type AgentArtifactKind =
   | "opportunity_intake"
   | "opportunity_clarification"
   | "opportunity_solution_path"
+  | "opportunity_action_plan"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"

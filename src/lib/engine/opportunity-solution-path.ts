@@ -101,6 +101,11 @@ export async function listOpportunitySolutionPaths() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function getOpportunitySolutionPath(pathId: string) {
+  const store = await readOpportunitySolutionPathStore();
+  return store.records.find((record) => record.id === pathId) || null;
+}
+
 export async function createOpportunitySolutionPath(input: { clarificationId?: unknown }) {
   const clarificationId = typeof input.clarificationId === "string" ? input.clarificationId.trim() : "";
 
