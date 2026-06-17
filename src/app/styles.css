@@ -1508,7 +1508,10 @@ label {
 .opportunity-action-plan-panel,
 .opportunity-action-plan-output,
 .opportunity-appengine-candidate-panel,
-.opportunity-appengine-candidate-output {
+.opportunity-appengine-candidate-output,
+.opportunity-packet-draft-panel,
+.opportunity-full-loop-panel,
+.opportunity-full-loop-output {
   display: grid;
   gap: 14px;
 }
@@ -1516,7 +1519,8 @@ label {
 .opportunity-clarification-panel,
 .opportunity-solution-path-panel,
 .opportunity-action-plan-panel,
-.opportunity-appengine-candidate-panel {
+.opportunity-appengine-candidate-panel,
+.opportunity-packet-draft-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -1533,6 +1537,55 @@ label {
 
 .opportunity-appengine-candidate-panel {
   background: #f5f1ff;
+}
+
+.opportunity-packet-draft-panel {
+  background: #eff8ff;
+}
+
+.opportunity-full-loop-panel {
+  background:
+    linear-gradient(135deg, rgba(239, 248, 255, 0.94), rgba(242, 251, 247, 0.94)),
+    #f7fbff;
+}
+
+.trial-step-list {
+  display: grid;
+  gap: 10px;
+}
+
+.trial-step {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.trial-step span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.trial-step p {
+  margin: 0;
+}
+
+.trial-step small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.trial-step.blocked {
+  border-color: #f0b4a6;
+  background: #fff6f3;
+}
+
+.trial-step.not_started {
+  opacity: 0.74;
 }
 
 .action-plan-list,

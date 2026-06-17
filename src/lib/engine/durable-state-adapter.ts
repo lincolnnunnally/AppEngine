@@ -15,6 +15,7 @@ export type AppEngineStateKind =
   | "opportunity_action_plan"
   | "opportunity_appengine_candidate"
   | "opportunity_build_packet_bridge"
+  | "opportunity_full_loop_trial"
   | "life_core"
   | "problem_intake"
   | "problem_intake_feedback"
@@ -97,6 +98,7 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("opportunity_action_plan", "Opportunity Action Plan", "local_json", "sensitive", true, true, "Owner-reviewable first action plans generated from Opportunity Solution Path records."),
   store("opportunity_appengine_candidate", "Opportunity AppEngine Candidate", "local_json", "sensitive", true, true, "Owner-reviewable AppEngine solution candidates generated from Opportunity Action Plan records."),
   store("opportunity_build_packet_bridge", "Opportunity Build Packet Bridge", "local_json", "sensitive", true, true, "Owner-approved packet draft bridges generated from Opportunity AppEngine Candidate records."),
+  store("opportunity_full_loop_trial", "Opportunity Full Loop Trial", "local_json", "sensitive", true, true, "Owner-triggered proof that Opportunity intake can reach packet draft readiness without automatic execution."),
   store("life_core", "Life Produces Life Core", "local_json", "public_safe", false, false, "Read-only foundation preview data for shared ecosystem journey, experience, testimony, opportunity, and feed contracts."),
   store("problem_intake", "Problem Intake Lite", "local_json", "sensitive", true, true, "Submitted problems and visions can contain personal stories or private operations context."),
   store("problem_intake_feedback", "Problem Intake Lite", "local_json", "private", true, false, "Owner feedback about intake quality and missing context."),

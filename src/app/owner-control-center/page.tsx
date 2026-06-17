@@ -13,6 +13,7 @@ import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan
 import { listOpportunityAppEngineCandidates } from "@/lib/engine/opportunity-appengine-candidate";
 import { listOpportunityBuildPacketBridges } from "@/lib/engine/opportunity-build-packet-bridge";
 import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
+import { listOpportunityFullLoopTrials } from "@/lib/engine/opportunity-full-loop-trial";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
 import { listOrchestratorActionQueue, listOrchestratorRuns } from "@/lib/engine/orchestrator-run";
@@ -42,6 +43,7 @@ export default async function OwnerControlCenterPage() {
     opportunityActionPlans,
     opportunityAppEngineCandidates,
     opportunityBuildPacketBridges,
+    opportunityFullLoopTrials,
     problemIntakeRecords,
     portfolioRegistry
   ] = await Promise.all([
@@ -59,6 +61,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunityActionPlans(),
     listOpportunityAppEngineCandidates(),
     listOpportunityBuildPacketBridges(),
+    listOpportunityFullLoopTrials(),
     listProblemIntakeRecords(),
     loadOwnerPortfolioRegistry()
   ]);
@@ -95,6 +98,7 @@ export default async function OwnerControlCenterPage() {
         initialAppEngineCandidates={opportunityAppEngineCandidates}
         initialBuildPacketBridges={opportunityBuildPacketBridges}
         initialSolutionPaths={opportunitySolutionPaths}
+        initialFullLoopTrials={opportunityFullLoopTrials}
       />
       <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
     </main>
