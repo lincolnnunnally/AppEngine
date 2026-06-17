@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { OpportunityActionPlanRecord, OpportunityActionPlanType } from "@/lib/engine/opportunity-action-plan";
 import type {
   OpportunityClarificationRecord,
   OpportunityClarificationRoute,
@@ -58,21 +59,36 @@ const confidenceLabels: Record<OpportunitySolutionPathConfidence, string> = {
   high: "High confidence"
 };
 
+const actionPlanLabels: Record<OpportunityActionPlanType, string> = {
+  app_tool_workflow_plan: "App/tool/workflow plan",
+  content_resource_plan: "Content/resource plan",
+  community_ministry_model_plan: "Community/ministry model plan",
+  ecosystem_service_later_plan: "Ecosystem-service-later plan",
+  needs_more_info_plan: "Needs-more-info plan"
+};
+
 export function OwnerOpportunityQueue({
+  initialActionPlans,
   initialClarifications,
   initialRecords,
   initialSolutionPaths
 }: {
+  initialActionPlans: OpportunityActionPlanRecord[];
   initialClarifications: OpportunityClarificationRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
 }) {
   const [records] = useState(initialRecords);
+  const [actionPlans, setActionPlans] = useState(initialActionPlans);
   const [clarifications, setClarifications] = useState(initialClarifications);
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
+  const [isDraftingPlan, setIsDraftingPlan] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [isRoutingPath, setIsRoutingPath] = useState(false);
+  const [actionPlanNotice, setActionPlanNotice] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -85,6 +101,9 @@ export function OwnerOpportunityQueue({
     : null;
   const selectedSolutionPath = selectedClarification
     ? solutionPaths.find((path) => path.clarificationId === selectedClarification.id)
+    : null;
+  const selectedActionPlan = selectedSolutionPath
+    ? actionPlans.find((plan) => plan.solutionPathId === selectedSolutionPath.id)
     : null;
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
@@ -163,6 +182,46 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsRoutingPath(false);
+    }
+  }
+
+  async function draftSelectedActionPlan() {
+    if (!selectedSolutionPath) return;
+
+    setIsDraftingPlan(true);
+    setActionPlanNotice(null);
+
+    try {
+      const response = await fetch("/api/opportunity-action-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          solutionPathId: selectedSolutionPath.id
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The action plan could not be created.");
+      }
+
+      setActionPlans((current) => [
+        result.record,
+        ...current.filter((item) => item.solutionPathId !== selectedSolutionPath.id)
+      ]);
+      setActionPlanNotice({
+        type: "success",
+        message: "Action plan saved. No packet, Codex run, issue, label, deploy, migration, paid resource, or env change was triggered."
+      });
+    } catch (caught) {
+      setActionPlanNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The action plan could not be created."
+      });
+    } finally {
+      setIsDraftingPlan(false);
     }
   }
 
@@ -413,6 +472,109 @@ export function OwnerOpportunityQueue({
                           <section>
                             <p className="eyebrow">Next AppEngine Action Prompt</p>
                             <textarea className="copyable-prompt-box" readOnly value={selectedSolutionPath.nextAppEngineActionPrompt} />
+                          </section>
+
+                          <section className="opportunity-action-plan-panel">
+                            <div className="queue-header">
+                              <div>
+                                <p className="eyebrow">Action Plan Draft</p>
+                                <h3>First practical plan</h3>
+                              </div>
+                              <button
+                                className="button accent"
+                                disabled={isDraftingPlan}
+                                onClick={draftSelectedActionPlan}
+                                type="button"
+                              >
+                                {isDraftingPlan
+                                  ? "Drafting..."
+                                  : selectedActionPlan
+                                    ? "Refresh action plan"
+                                    : "Draft action plan"}
+                              </button>
+                            </div>
+
+                            {actionPlanNotice ? (
+                              <div className={`workflow-feedback${actionPlanNotice.type === "error" ? " error" : ""}`} role="status">
+                                <strong>{actionPlanNotice.type === "success" ? "Action plan saved" : "Needs attention"}</strong>
+                                <p>{actionPlanNotice.message}</p>
+                              </div>
+                            ) : null}
+
+                            {selectedActionPlan ? (
+                              <div className="opportunity-action-plan-output" data-testid="opportunity-action-plan-output">
+                                <div className="artifact-strip">
+                                  <span>{actionPlanLabels[selectedActionPlan.planType]}</span>
+                                  <span>{solutionPathLabels[selectedActionPlan.recommendedSolutionPath]}</span>
+                                </div>
+
+                                <section className="next-action-band">
+                                  <span>Opportunity summary</span>
+                                  <strong>{selectedActionPlan.opportunitySummary}</strong>
+                                </section>
+
+                                <section>
+                                  <p className="eyebrow">First 3 practical steps</p>
+                                  <ol className="action-plan-list">
+                                    {selectedActionPlan.firstPracticalSteps.map((step) => (
+                                      <li key={step}>{step}</li>
+                                    ))}
+                                  </ol>
+                                </section>
+
+                                <div className="detail-grid">
+                                  <section>
+                                    <span>What AppEngine can help with</span>
+                                    <ul className="compact-list">
+                                      {selectedActionPlan.appEngineCanHelpWith.map((item) => (
+                                        <li key={item}>{item}</li>
+                                      ))}
+                                    </ul>
+                                  </section>
+                                  <section>
+                                    <span>What must be clarified</span>
+                                    <ul className="compact-list">
+                                      {selectedActionPlan.ownerMustClarify.map((item) => (
+                                        <li key={item}>{item}</li>
+                                      ))}
+                                    </ul>
+                                  </section>
+                                </div>
+
+                                <section>
+                                  <p className="eyebrow">Needed resources</p>
+                                  <div className="guardrail-list">
+                                    {selectedActionPlan.neededResources.map((resource) => (
+                                      <span key={resource}>{resource}</span>
+                                    ))}
+                                  </div>
+                                </section>
+
+                                <section>
+                                  <p className="eyebrow">Risks / blockers</p>
+                                  <div className="guardrail-list">
+                                    {selectedActionPlan.risksBlockers.map((risk) => (
+                                      <span key={risk}>{risk}</span>
+                                    ))}
+                                  </div>
+                                </section>
+
+                                <section className="next-action-band">
+                                  <span>Suggested timeline</span>
+                                  <strong>{selectedActionPlan.suggestedTimeline}</strong>
+                                </section>
+
+                                <section>
+                                  <p className="eyebrow">Next Review Prompt</p>
+                                  <textarea className="copyable-prompt-box" readOnly value={selectedActionPlan.nextReviewPrompt} />
+                                </section>
+                              </div>
+                            ) : (
+                              <div className="empty-state">
+                                <strong>No action plan yet</strong>
+                                <p>Draft a practical owner-review plan before creating packets, issues, labels, or Codex handoffs.</p>
+                              </div>
+                            )}
                           </section>
                         </div>
                       ) : (

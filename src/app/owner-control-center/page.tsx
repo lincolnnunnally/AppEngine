@@ -7,6 +7,7 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadInternalControlledUseRunbook } from "@/lib/engine/internal-controlled-use-runbook";
+import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
 import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
@@ -34,6 +35,7 @@ export default async function OwnerControlCenterPage() {
     opportunityIntakeRecords,
     opportunityClarifications,
     opportunitySolutionPaths,
+    opportunityActionPlans,
     problemIntakeRecords
   ] = await Promise.all([
     listHandoffRelaySummaries(),
@@ -47,6 +49,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunityIntakeRecords(),
     listOpportunityClarifications(),
     listOpportunitySolutionPaths(),
+    listOpportunityActionPlans(),
     listProblemIntakeRecords()
   ]);
 
@@ -77,6 +80,7 @@ export default async function OwnerControlCenterPage() {
       <OwnerOpportunityQueue
         initialClarifications={opportunityClarifications}
         initialRecords={opportunityIntakeRecords}
+        initialActionPlans={opportunityActionPlans}
         initialSolutionPaths={opportunitySolutionPaths}
       />
       <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
