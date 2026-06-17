@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BuildLoopCompletionDashboardPanel } from "@/components/engine/build-loop-completion-dashboard-panel";
+import { BuildLoopControlledUseReadinessPanel } from "@/components/engine/build-loop-controlled-use-readiness-panel";
 import { BuildExecutionRequestPanel } from "@/components/engine/build-execution-request-panel";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
@@ -13,6 +14,7 @@ import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/compone
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
+import { loadBuildLoopControlledUseReadiness } from "@/lib/engine/build-loop-controlled-use-readiness";
 import {
   listBuildExecutionHandoffSources,
   listBuildExecutionRequests,
@@ -58,6 +60,7 @@ export default async function OwnerControlCenterPage() {
     buildExecutionSources,
     buildExecutionRequests,
     buildLoopCompletionDashboard,
+    buildLoopControlledUseReadiness,
     auditTrailReport,
     internalControlledUse,
     opportunityIntakeRecords,
@@ -85,6 +88,7 @@ export default async function OwnerControlCenterPage() {
     listBuildExecutionHandoffSources(),
     listBuildExecutionRequests(),
     loadBuildLoopCompletionDashboard(),
+    loadBuildLoopControlledUseReadiness(),
     loadAuditTrailOwnerVisibilityReport(),
     loadInternalControlledUseRunbook(),
     listOpportunityIntakeRecords(),
@@ -131,6 +135,7 @@ export default async function OwnerControlCenterPage() {
       />
       <BuildExecutionRequestPanel initialSources={buildExecutionSources} initialRequests={buildExecutionRequests} />
       <BuildLoopCompletionDashboardPanel report={buildLoopCompletionDashboard} />
+      <BuildLoopControlledUseReadinessPanel report={buildLoopControlledUseReadiness} />
       <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
       <OpportunityInternalUseCompletionCheckPanel report={opportunityInternalUseCompletionCheck} />
       <FirstRealEcosystemBuildRequestPanel

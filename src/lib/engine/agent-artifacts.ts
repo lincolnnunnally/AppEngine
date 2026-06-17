@@ -21,6 +21,7 @@ export type AgentArtifactKind =
   | "opportunity_build_packet_bridge"
   | "opportunity_full_loop_trial"
   | "opportunity_controlled_use_readiness"
+  | "build_loop_controlled_use_readiness"
   | "real_opportunity_example_runner"
   | "real_opportunity_result_review"
   | "problem_solution_intake"
