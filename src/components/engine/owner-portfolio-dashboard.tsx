@@ -116,6 +116,8 @@ function PortfolioEntryCard({ app }: { app: AppPortfolioEntry }) {
         </div>
       </dl>
 
+      {app.buildPacketBridgeVisibility ? <BuildPacketBridgePanel app={app} /> : null}
+
       <section className="portfolio-blocker-list">
         <h3>Blockers</h3>
         {app.blockers.length ? (
@@ -129,6 +131,63 @@ function PortfolioEntryCard({ app }: { app: AppPortfolioEntry }) {
         )}
       </section>
     </article>
+  );
+}
+
+function BuildPacketBridgePanel({ app }: { app: AppPortfolioEntry }) {
+  const bridge = app.buildPacketBridgeVisibility;
+
+  if (!bridge) return null;
+
+  return (
+    <section className="portfolio-bridge-panel" aria-label={`${app.name} build packet bridge visibility`}>
+      <div className="portfolio-bridge-heading">
+        <div>
+          <h3>Build-packet bridge</h3>
+          <p>{bridge.buildPacketBridgeState}</p>
+        </div>
+        <strong>{bridge.ownerApprovalStatus}</strong>
+      </div>
+
+      <dl className="portfolio-bridge-grid">
+        <div>
+          <dt>Candidate state</dt>
+          <dd>{bridge.candidateState}</dd>
+        </div>
+        <div>
+          <dt>Recommended draft</dt>
+          <dd>{bridge.recommendedPacketDraftType}</dd>
+        </div>
+        <div>
+          <dt>Next AppEngine action</dt>
+          <dd>{bridge.nextSafeAppEngineAction}</dd>
+        </div>
+        <div>
+          <dt>Source artifact evidence</dt>
+          <dd>
+            {bridge.sourceArtifactEvidence.map((artifact) => (
+              <small key={`${artifact.kind}-${artifact.id || artifact.summary}`}>
+                {formatToken(artifact.kind)}
+                {artifact.id ? ` · ${artifact.id}` : ""}: {artifact.summary}
+              </small>
+            ))}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="portfolio-bridge-missing">
+        <h4>Missing information</h4>
+        {bridge.missingInformation.length ? (
+          <ul>
+            {bridge.missingInformation.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No missing information recorded.</p>
+        )}
+      </div>
+    </section>
   );
 }
 

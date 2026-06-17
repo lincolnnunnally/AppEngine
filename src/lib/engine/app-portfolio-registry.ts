@@ -82,6 +82,16 @@ export type AppPortfolioSourceArtifact = {
   summary: string;
 };
 
+export type AppPortfolioBuildPacketBridgeVisibility = {
+  candidateState: string;
+  buildPacketBridgeState: string;
+  recommendedPacketDraftType: string;
+  ownerApprovalStatus: string;
+  missingInformation: string[];
+  nextSafeAppEngineAction: string;
+  sourceArtifactEvidence: AppPortfolioSourceArtifact[];
+};
+
 export type AppPortfolioEntry = {
   name: string;
   slug: string;
@@ -100,6 +110,7 @@ export type AppPortfolioEntry = {
   evidenceLinks: AppPortfolioLink[];
   stateSource: AppPortfolioStateSource;
   sourceArtifact: AppPortfolioSourceArtifact;
+  buildPacketBridgeVisibility?: AppPortfolioBuildPacketBridgeVisibility;
   lastUpdated: string;
 };
 
@@ -285,10 +296,17 @@ function deriveOpportunityEntry(
   const latestPlan = state.opportunityActionPlans[0] || null;
   const latestPath = state.opportunitySolutionPaths[0] || null;
   const latestIntake = state.opportunityIntakes[0] || null;
+  const buildPacketBridgeVisibility = buildOpportunityBridgeVisibility({
+    latestCandidate,
+    latestPlan,
+    latestPath,
+    latestIntake
+  });
   const blockers = [
     ...(latestCandidate?.risksBlockers || []),
     ...(latestPlan?.risksBlockers || []),
     ...(latestPath?.blockers || []),
+    latestCandidate ? "Candidate exists, packet bridge not prepared yet." : "",
     "No public production URL yet; remains inside AppEngine controlled-use flow."
   ];
 
@@ -299,6 +317,7 @@ function deriveOpportunityEntry(
     nextSafeAction: latestCandidate ? "stop_for_owner_approval" : latestPlan || latestPath ? "await_owner_review" : "create_planning_issue",
     blockers: uniqueStrings(blockers),
     stateSource: "live_state",
+    buildPacketBridgeVisibility,
     sourceArtifact: latestCandidate
       ? { kind: "opportunity_appengine_candidate", id: latestCandidate.id, summary: latestCandidate.title }
       : latestPlan
@@ -460,6 +479,20 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
         kind: "app_portfolio_registry_seed",
         summary: "Seeded Opportunity entry used until opportunity intake or routing records exist."
       },
+      buildPacketBridgeVisibility: {
+        candidateState: "no opportunity candidate created yet",
+        buildPacketBridgeState: "packet bridge not prepared yet",
+        recommendedPacketDraftType: "not selected yet",
+        ownerApprovalStatus: "owner review required before packet bridge",
+        missingInformation: ["Submit or select an Opportunity candidate before packet draft routing."],
+        nextSafeAppEngineAction: "Use Opportunity intake and candidate bridge before preparing a packet draft.",
+        sourceArtifactEvidence: [
+          {
+            kind: "app_portfolio_registry_seed",
+            summary: "Seeded Opportunity entry; no live opportunity_build_packet_bridge state exists."
+          }
+        ]
+      },
       lastUpdated: generatedAt
     },
     {
@@ -569,6 +602,88 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
 
 async function readRawLifeCoreStore() {
   return getAppEngineStateAdapter().readJson<{ schemaVersion: 1 } | null>({ kind: "life_core" }, null);
+}
+
+function buildOpportunityBridgeVisibility(state: {
+  latestCandidate: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>[number] | null;
+  latestPlan: Awaited<ReturnType<typeof listOpportunityActionPlans>>[number] | null;
+  latestPath: Awaited<ReturnType<typeof listOpportunitySolutionPaths>>[number] | null;
+  latestIntake: Awaited<ReturnType<typeof listOpportunityIntakeRecords>>[number] | null;
+}): AppPortfolioBuildPacketBridgeVisibility {
+  const evidence = [
+    state.latestCandidate
+      ? {
+          kind: "opportunity_appengine_candidate",
+          id: state.latestCandidate.id,
+          summary: state.latestCandidate.title
+        }
+      : null,
+    state.latestPlan
+      ? {
+          kind: "opportunity_action_plan",
+          id: state.latestPlan.id,
+          summary: state.latestPlan.title
+        }
+      : null,
+    state.latestPath
+      ? {
+          kind: "opportunity_solution_path",
+          id: state.latestPath.id,
+          summary: state.latestPath.title
+        }
+      : null,
+    state.latestIntake
+      ? {
+          kind: "opportunity_intake",
+          id: state.latestIntake.id,
+          summary: state.latestIntake.title
+        }
+      : null
+  ].filter(Boolean) as AppPortfolioSourceArtifact[];
+
+  if (state.latestCandidate) {
+    const missingInformation = uniqueStrings([
+      ...state.latestCandidate.missingOwnerDecisions,
+      ...state.latestCandidate.risksBlockers,
+      "Owner approval is required before candidate_packet_bridge or packet draft preparation."
+    ]);
+
+    return {
+      candidateState: `${state.latestCandidate.candidateType.replaceAll("_", " ")} exists`,
+      buildPacketBridgeState: "candidate exists, packet bridge not prepared yet",
+      recommendedPacketDraftType: state.latestCandidate.recommendedArtifactToCreateNext,
+      ownerApprovalStatus: "owner approval required before packet bridge",
+      missingInformation,
+      nextSafeAppEngineAction: state.latestCandidate.copyableNextAppEnginePrompt,
+      sourceArtifactEvidence: evidence
+    };
+  }
+
+  if (state.latestPlan) {
+    return {
+      candidateState: "action plan exists, AppEngine candidate not created yet",
+      buildPacketBridgeState: "packet bridge not prepared yet",
+      recommendedPacketDraftType: state.latestPlan.planType,
+      ownerApprovalStatus: "owner review required before candidate creation",
+      missingInformation: uniqueStrings([
+        ...state.latestPlan.ownerMustClarify,
+        ...state.latestPlan.risksBlockers,
+        "Create or approve an Opportunity AppEngine candidate before packet bridge visibility can advance."
+      ]),
+      nextSafeAppEngineAction: state.latestPlan.nextReviewPrompt,
+      sourceArtifactEvidence: evidence
+    };
+  }
+
+  return {
+    candidateState: state.latestPath ? "solution path exists, action plan not drafted yet" : "intake exists, candidate not created yet",
+    buildPacketBridgeState: "packet bridge not prepared yet",
+    recommendedPacketDraftType: "not selected yet",
+    ownerApprovalStatus: "owner review required before packet bridge",
+    missingInformation: ["Opportunity must reach action plan and AppEngine candidate before packet draft routing."],
+    nextSafeAppEngineAction: "Continue Opportunity clarification, solution path, action plan, and candidate review before packet bridge work.",
+    sourceArtifactEvidence: evidence
+  };
 }
 
 function normalizeNextSafeAction(value: string, fallback: AppPortfolioNextSafeAction): AppPortfolioNextSafeAction {
