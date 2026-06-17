@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { BuildExecutionRequestRecord } from "./build-execution-request";
+import type { BuildExecutionBuilderHandoffExport, BuildExecutionRequestRecord } from "./build-execution-request";
 import type { FirstEcosystemBuildPacketDraftRecord } from "./first-ecosystem-build-packet-draft";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
@@ -464,6 +464,100 @@ export async function updateProjectMemoryFromBuildExecutionRequest(request: Buil
       [
         item("progress", request.ownerReadableSummary, request.sourceHandoff.id, createdAt, tags, "system"),
         item("progress", `Target project/slice: ${request.targetProjectSlice}.`, request.sourceHandoff.id, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromBuildExecutionRequestExport(
+  request: BuildExecutionRequestRecord,
+  exportOutput: BuildExecutionBuilderHandoffExport
+) {
+  const current = await loadProjectMemory();
+  const createdAt = exportOutput.createdAt;
+  const tags = ["build-execution-request-export", request.reviewStatus, request.sourceHandoff.sourceKind];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "Build execution request exported for builder handoff",
+      latestProgress: request.ownerReadableSummary,
+      recommendedNextAction: "Open the Handoff Inbox, review the exported builder prompt, and copy it manually only if it is right.",
+      lastHandoffId: request.exportedBuilderHandoffId || request.sourceHandoff.id
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item(
+        "major_decision",
+        `Build execution request ${request.id} was owner-approved and exported as a manual builder handoff.`,
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Export builder-ready prompts into the Handoff Inbox before any Codex auto-execution exists.",
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    completedMilestones: mergeItems(current.completedMilestones, [
+      item("completed_milestone", exportOutput.expectedResult, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system")
+    ]),
+    currentBlockers: mergeItems(
+      current.currentBlockers,
+      [
+        item(
+          "current_blocker",
+          "Builder handoff is exported, but Codex execution remains manual until Lincoln copies and sends the prompt.",
+          request.exportedBuilderHandoffId || request.sourceHandoff.id,
+          createdAt,
+          tags,
+          "system"
+        )
+      ],
+      20
+    ),
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "Build execution exports bridge owner-approved requests to Handoff Relay without creating issues, labels, deployments, migrations, secrets, or automatic Codex runs.",
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "The next safe step after packet draft readiness is an owner-approved builder handoff, not direct automation.",
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", request.ownerReadableSummary, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system"),
+        item("progress", `Exported prompt target: ${exportOutput.targetProjectSlice}.`, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system")
       ],
       30
     ),
