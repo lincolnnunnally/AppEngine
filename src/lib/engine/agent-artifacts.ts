@@ -23,6 +23,7 @@ export type AgentArtifactKind =
   | "opportunity_controlled_use_readiness"
   | "build_loop_controlled_use_readiness"
   | "first_real_build_loop_run"
+  | "first_real_build_result_intake"
   | "real_opportunity_example_runner"
   | "real_opportunity_result_review"
   | "problem_solution_intake"

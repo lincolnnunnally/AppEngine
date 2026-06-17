@@ -749,6 +749,96 @@ export async function updateProjectMemoryFromBuildLoopCompletion(
   return summarized;
 }
 
+export async function updateProjectMemoryFromFirstRealBuildResultIntake(
+  run: FirstRealBuildLoopRunRecord,
+  result: BuildExecutionBuilderResultIntake
+) {
+  const current = await loadProjectMemory();
+  const createdAt = result.createdAt;
+  const tags = ["first-real-build-result-intake", "life-core", result.passFailStatus];
+  const reviewReady = Boolean(run.verificationReview?.lifeCoreSliceReviewReady);
+  const missingOrFailed = run.verificationReview?.failedOrMissingVerification || [];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: reviewReady ? "First Life Core build result review-ready" : "First Life Core build result needs review",
+      latestProgress: run.ownerReadableSummary,
+      recommendedNextAction: run.nextSafeAction.replace(/_/g, " "),
+      lastHandoffId: run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id
+    },
+    majorDecisions: current.majorDecisions,
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "First real Life Core builder output is imported through the AppEngine build loop before any merge, deployment, or follow-up action.",
+        run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones: reviewReady
+      ? mergeItems(current.completedMilestones, [
+          item(
+            "completed_milestone",
+            "First real Life Core build result is imported with passing verification evidence and a review URL.",
+            run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id,
+            createdAt,
+            tags,
+            "system"
+          )
+        ])
+      : current.completedMilestones,
+    currentBlockers: missingOrFailed.length
+      ? mergeItems(
+          current.currentBlockers,
+          missingOrFailed.map((blocker) =>
+            item(
+              "current_blocker",
+              blocker,
+              run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id,
+              createdAt,
+              tags,
+              "system"
+            )
+          ),
+          20
+        )
+      : current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: current.architectureDecisions,
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "The first real build loop is useful only when builder output, verification evidence, portfolio state, memory, and audit trail all update together.",
+        run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", result.ownerReadableSummary, run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id, createdAt, tags, "system"),
+        item("progress", `Life Core review-ready: ${reviewReady ? "yes" : "no"}.`, run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
 export async function updateProjectMemoryFromOpportunityBuildPacketBridge(bridge: OpportunityBuildPacketBridgeRecord) {
   const current = await loadProjectMemory();
   const createdAt = bridge.createdAt;

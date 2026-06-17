@@ -9,7 +9,9 @@ import type {
 export function FirstRealBuildLoopRunPanel({ initialRecords }: { initialRecords: FirstRealBuildLoopRunRecord[] }) {
   const [records, setRecords] = useState(initialRecords);
   const [isRunning, setIsRunning] = useState(false);
+  const [isImportingResult, setIsImportingResult] = useState(false);
   const [message, setMessage] = useState("");
+  const [builderResultText, setBuilderResultText] = useState("");
   const latestRecord = records[0] || null;
 
   async function runBuildLoop() {
@@ -36,6 +38,45 @@ export function FirstRealBuildLoopRunPanel({ initialRecords }: { initialRecords:
       setMessage(caught instanceof Error ? caught.message : "The first real build loop run could not be prepared.");
     } finally {
       setIsRunning(false);
+    }
+  }
+
+  async function importFirstBuildResult() {
+    if (!latestRecord) return;
+
+    setIsImportingResult(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/first-real-build-loop-run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "result",
+          runId: latestRecord.id,
+          resultText: builderResultText
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The first build result could not be imported.");
+      }
+
+      const record = result.record as FirstRealBuildLoopRunRecord;
+      setRecords((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+      setBuilderResultText("");
+      setMessage(
+        record.verificationReview?.lifeCoreSliceReviewReady
+          ? "First build result imported. Life Core is review-ready, and merge/deploy decisions remain owner-controlled."
+          : "First build result imported. AppEngine found missing or failed verification that needs owner review."
+      );
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "The first build result could not be imported.");
+    } finally {
+      setIsImportingResult(false);
     }
   }
 
@@ -81,6 +122,10 @@ export function FirstRealBuildLoopRunPanel({ initialRecords }: { initialRecords:
               <p>{latestRecord.builderResultIntakePlaceholder.status.replaceAll("_", " ")}</p>
             </section>
             <section>
+              <span>Life Core review-ready</span>
+              <p>{latestRecord.verificationReview?.lifeCoreSliceReviewReady ? "Yes" : "No"}</p>
+            </section>
+            <section>
               <span>Next safe action</span>
               <p>{latestRecord.nextSafeAction.replaceAll("_", " ")}</p>
             </section>
@@ -95,14 +140,82 @@ export function FirstRealBuildLoopRunPanel({ initialRecords }: { initialRecords:
             </div>
           </section>
 
+          <section className="first-real-build-result-intake" data-testid="first-real-build-result-intake">
+            <div>
+              <p className="eyebrow">Paste First Build Result</p>
+              <h2>Import the Life Core builder result</h2>
+              <p>
+                Paste the actual builder/Codex result here. AppEngine will parse the PR, branch, changed files,
+                verification status, blockers, review URL, and next safe action, then update the build loop without
+                merging, deploying, or triggering Codex.
+              </p>
+            </div>
+            <textarea
+              className="copyable-prompt-box"
+              onChange={(event) => setBuilderResultText(event.target.value)}
+              placeholder="Paste builder result text, including PR number, branch, files changed, verification run, blockers, review URL, and next safe action."
+              value={builderResultText}
+            />
+            <button
+              className="button accent"
+              disabled={isImportingResult || builderResultText.trim().length < 20}
+              onClick={importFirstBuildResult}
+              type="button"
+            >
+              {isImportingResult ? "Importing result..." : "Import first build result"}
+            </button>
+
+            {latestRecord.builderResultIntake ? (
+              <div className="first-real-build-result-summary" data-testid="first-real-build-result-summary">
+                <div className="detail-grid">
+                  <section>
+                    <span>PR</span>
+                    <p>{latestRecord.builderResultIntake.prNumber ? `#${latestRecord.builderResultIntake.prNumber}` : "Not found"}</p>
+                  </section>
+                  <section>
+                    <span>Branch</span>
+                    <p>{latestRecord.builderResultIntake.branch || "Not found"}</p>
+                  </section>
+                  <section>
+                    <span>Verification</span>
+                    <p>{latestRecord.builderResultIntake.passFailStatus.replaceAll("_", " ")}</p>
+                  </section>
+                  <section>
+                    <span>Review URL</span>
+                    <p>{latestRecord.builderResultIntake.reviewUrl || "Not found"}</p>
+                  </section>
+                </div>
+                <div className="first-real-build-result-notes">
+                  <section>
+                    <span>Changed files</span>
+                    <p>{latestRecord.builderResultIntake.changedFiles.length ? latestRecord.builderResultIntake.changedFiles.join("; ") : "No changed files parsed."}</p>
+                  </section>
+                  <section>
+                    <span>Failed or missing verification</span>
+                    <p>
+                      {latestRecord.verificationReview?.failedOrMissingVerification.length
+                        ? latestRecord.verificationReview.failedOrMissingVerification.join(" ")
+                        : "No failed or missing verification recorded."}
+                    </p>
+                  </section>
+                  <section>
+                    <span>Next safe action</span>
+                    <p>{latestRecord.builderResultIntake.nextSafeAction}</p>
+                  </section>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
           <section>
             <p className="eyebrow">What Lincoln does next</p>
             <div className="next-action-band">
-              <strong>Copy the builder prompt, run it manually, then paste the builder result back into Builder Result Intake.</strong>
-              <p>
-                The run is intentionally stopped at builder output. Result intake and verification review will complete
-                after the builder/Codex handoff comes back.
-              </p>
+              <strong>
+                {latestRecord.verificationReview?.lifeCoreSliceReviewReady
+                  ? "Review the Life Core slice and decide whether it should move toward merge."
+                  : "Copy the builder prompt, run it manually, then paste the builder result here."}
+              </strong>
+              <p>{latestRecord.verificationReview?.summary || "The run is intentionally stopped at builder output. Result intake and verification review will complete after the builder/Codex handoff comes back."}</p>
             </div>
           </section>
 
