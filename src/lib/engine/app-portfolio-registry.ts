@@ -2,6 +2,7 @@ import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
 import { getLifeCoreOverview } from "@/lib/engine/life-core";
 import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
 import { listOpportunityAppEngineCandidates } from "@/lib/engine/opportunity-appengine-candidate";
+import { listOpportunityBuildPacketBridges } from "@/lib/engine/opportunity-build-packet-bridge";
 import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
@@ -151,6 +152,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     opportunitySolutionPaths,
     opportunityActionPlans,
     opportunityCandidates,
+    opportunityBuildPacketBridges,
     problemIntakes,
     lifeCoreOverview,
     rawLifeCoreStore
@@ -162,6 +164,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     listOpportunitySolutionPaths(),
     listOpportunityActionPlans(),
     listOpportunityAppEngineCandidates(),
+    listOpportunityBuildPacketBridges(),
     listProblemIntakeRecords(),
     getLifeCoreOverview(),
     readRawLifeCoreStore()
@@ -175,7 +178,8 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
       opportunityClarifications,
       opportunitySolutionPaths,
       opportunityActionPlans,
-      opportunityCandidates
+      opportunityCandidates,
+      opportunityBuildPacketBridges
     }),
     deriveLifeCoreEntry(seedEntries[2], lifeCoreOverview, Boolean(rawLifeCoreStore)),
     deriveSparkEntry(seedEntries[3], sparkCapability),
@@ -281,6 +285,7 @@ function deriveOpportunityEntry(
     opportunitySolutionPaths: Awaited<ReturnType<typeof listOpportunitySolutionPaths>>;
     opportunityActionPlans: Awaited<ReturnType<typeof listOpportunityActionPlans>>;
     opportunityCandidates: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>;
+    opportunityBuildPacketBridges: Awaited<ReturnType<typeof listOpportunityBuildPacketBridges>>;
   }
 ): AppPortfolioEntry {
   const liveCount =
@@ -288,7 +293,8 @@ function deriveOpportunityEntry(
     state.opportunityClarifications.length +
     state.opportunitySolutionPaths.length +
     state.opportunityActionPlans.length +
-    state.opportunityCandidates.length;
+    state.opportunityCandidates.length +
+    state.opportunityBuildPacketBridges.length;
 
   if (!liveCount) return seed;
 
@@ -296,29 +302,34 @@ function deriveOpportunityEntry(
   const latestPlan = state.opportunityActionPlans[0] || null;
   const latestPath = state.opportunitySolutionPaths[0] || null;
   const latestIntake = state.opportunityIntakes[0] || null;
+  const latestBridge = state.opportunityBuildPacketBridges[0] || null;
   const buildPacketBridgeVisibility = buildOpportunityBridgeVisibility({
+    latestBridge,
     latestCandidate,
     latestPlan,
     latestPath,
     latestIntake
   });
   const blockers = [
+    ...(latestBridge?.missingInformation || []),
     ...(latestCandidate?.risksBlockers || []),
     ...(latestPlan?.risksBlockers || []),
     ...(latestPath?.blockers || []),
-    latestCandidate ? "Candidate exists, packet bridge not prepared yet." : "",
+    latestCandidate && !latestBridge ? "Candidate exists, packet bridge not prepared yet." : "",
     "No public production URL yet; remains inside AppEngine controlled-use flow."
   ];
 
   return {
     ...seed,
     status: `${state.opportunityIntakes.length} intake${state.opportunityIntakes.length === 1 ? "" : "s"} · ${state.opportunityCandidates.length} candidate${state.opportunityCandidates.length === 1 ? "" : "s"}`,
-    buildState: latestCandidate ? "owner_approval_required" : latestPlan || latestPath ? "planned" : "ready_for_build",
-    nextSafeAction: latestCandidate ? "stop_for_owner_approval" : latestPlan || latestPath ? "await_owner_review" : "create_planning_issue",
+    buildState: latestBridge ? "owner_approval_required" : latestCandidate ? "owner_approval_required" : latestPlan || latestPath ? "planned" : "ready_for_build",
+    nextSafeAction: latestBridge ? "await_owner_review" : latestCandidate ? "stop_for_owner_approval" : latestPlan || latestPath ? "await_owner_review" : "create_planning_issue",
     blockers: uniqueStrings(blockers),
     stateSource: "live_state",
     buildPacketBridgeVisibility,
-    sourceArtifact: latestCandidate
+    sourceArtifact: latestBridge
+      ? { kind: "opportunity_build_packet_bridge", id: latestBridge.id, summary: latestBridge.title }
+      : latestCandidate
       ? { kind: "opportunity_appengine_candidate", id: latestCandidate.id, summary: latestCandidate.title }
       : latestPlan
         ? { kind: "opportunity_action_plan", id: latestPlan.id, summary: latestPlan.title }
@@ -326,6 +337,7 @@ function deriveOpportunityEntry(
           ? { kind: "opportunity_solution_path", id: latestPath.id, summary: latestPath.title }
           : { kind: "opportunity_intake", id: latestIntake?.id, summary: latestIntake?.title || "Opportunity intake state" },
     lastUpdated:
+      latestBridge?.updatedAt ||
       latestCandidate?.updatedAt ||
       latestPlan?.updatedAt ||
       latestPath?.updatedAt ||
@@ -605,12 +617,20 @@ async function readRawLifeCoreStore() {
 }
 
 function buildOpportunityBridgeVisibility(state: {
+  latestBridge: Awaited<ReturnType<typeof listOpportunityBuildPacketBridges>>[number] | null;
   latestCandidate: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>[number] | null;
   latestPlan: Awaited<ReturnType<typeof listOpportunityActionPlans>>[number] | null;
   latestPath: Awaited<ReturnType<typeof listOpportunitySolutionPaths>>[number] | null;
   latestIntake: Awaited<ReturnType<typeof listOpportunityIntakeRecords>>[number] | null;
 }): AppPortfolioBuildPacketBridgeVisibility {
   const evidence = [
+    state.latestBridge
+      ? {
+          kind: "opportunity_build_packet_bridge",
+          id: state.latestBridge.id,
+          summary: state.latestBridge.title
+        }
+      : null,
     state.latestCandidate
       ? {
           kind: "opportunity_appengine_candidate",
@@ -640,6 +660,18 @@ function buildOpportunityBridgeVisibility(state: {
         }
       : null
   ].filter(Boolean) as AppPortfolioSourceArtifact[];
+
+  if (state.latestBridge) {
+    return {
+      candidateState: `${state.latestBridge.sourceCandidate.candidateType.replaceAll("_", " ")} approved for packet draft`,
+      buildPacketBridgeState: state.latestBridge.status.replaceAll("_", " "),
+      recommendedPacketDraftType: state.latestBridge.packetType,
+      ownerApprovalStatus: state.latestBridge.ownerApprovalStatus.replaceAll("_", " "),
+      missingInformation: state.latestBridge.missingInformation,
+      nextSafeAppEngineAction: state.latestBridge.nextSafeAction.replaceAll("_", " "),
+      sourceArtifactEvidence: evidence
+    };
+  }
 
   if (state.latestCandidate) {
     const missingInformation = uniqueStrings([

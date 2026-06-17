@@ -6,6 +6,7 @@ export type AppEngineAuditEventType =
   | "handoff_prepared"
   | "orchestrator_action_queued"
   | "orchestrator_action_exported"
+  | "opportunity_packet_draft_prepared"
   | "spark_item_reviewed"
   | "readiness_snapshot_generated";
 
@@ -65,6 +66,7 @@ export const supportedAuditEventTypes: AppEngineAuditEventType[] = [
   "handoff_prepared",
   "orchestrator_action_queued",
   "orchestrator_action_exported",
+  "opportunity_packet_draft_prepared",
   "spark_item_reviewed",
   "readiness_snapshot_generated"
 ];

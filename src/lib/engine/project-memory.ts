@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
+import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
 import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
 import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
 import type { TrialResultReview } from "./real-project-trial";
@@ -367,6 +368,89 @@ export async function updateProjectMemoryFromHandoffExport(handoff: HandoffRelay
       [
         item("progress", exportOutput.ownerReadableSummary, handoff.id, createdAt, tags),
         item("progress", `Expected result: ${exportOutput.expectedResult}`, handoff.id, createdAt, tags)
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromOpportunityBuildPacketBridge(bridge: OpportunityBuildPacketBridgeRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = bridge.createdAt;
+  const tags = ["opportunity-build-packet-bridge", bridge.packetType, bridge.candidateId];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "Opportunity packet draft prepared for owner review",
+      latestProgress: bridge.ownerReadableSummary,
+      recommendedNextAction: "Review the prepared packet draft before any final packet, Codex run, GitHub issue, label, or deploy exists.",
+      lastHandoffId: current.latestProjectState.lastHandoffId
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item(
+        "major_decision",
+        `Owner approved Opportunity candidate ${bridge.sourceCandidate.title} for ${bridge.packetType.replace(/_/g, " ")} preparation.`,
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Prepare Opportunity packet drafts through the existing candidate packet bridge standard while keeping final packets, Codex, issues, labels, and deploys blocked.",
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    completedMilestones: mergeItems(current.completedMilestones, [
+      item("completed_milestone", bridge.ownerReadableSummary, null, createdAt, tags, "system")
+    ]),
+    currentBlockers: bridge.missingInformation.length
+      ? mergeItems(
+          current.currentBlockers,
+          bridge.missingInformation.map((missing) => item("current_blocker", missing, null, createdAt, tags, "system")),
+          20
+        )
+      : current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "Opportunity build packet bridge stores adapter-backed local/mock packet draft records and reuses source-of-truth/candidate-to-packet-bridge.md.",
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "Owner-visible packet draft preparation is useful only when it records source evidence, missing information, and next safe action.",
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", bridge.ownerReadableSummary, null, createdAt, tags, "system"),
+        item("progress", `Next safe action: ${bridge.nextSafeAction.replace(/_/g, " ")}.`, null, createdAt, tags, "system")
       ],
       30
     ),
