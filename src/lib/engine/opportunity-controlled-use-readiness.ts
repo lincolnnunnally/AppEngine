@@ -116,6 +116,7 @@ export async function loadOpportunityControlledUseReadiness(now = new Date()): P
   const opportunityAuditEvents = auditEvents.filter(
     (event) =>
       event.type === "opportunity_full_loop_trial_ran" ||
+      event.type === "real_opportunity_example_ran" ||
       event.type === "opportunity_packet_draft_prepared" ||
       event.type === "intake_submitted"
   );
