@@ -1839,6 +1839,40 @@ label {
   background: #fff6f3;
 }
 
+.first-real-build-loop-step.needs_verification {
+  border-color: rgba(185, 134, 42, 0.32);
+  background: #fffaf0;
+}
+
+.first-real-build-result-intake,
+.first-real-build-result-summary,
+.first-real-build-result-notes {
+  display: grid;
+  gap: 12px;
+}
+
+.first-real-build-result-intake {
+  border: 1px solid rgba(70, 120, 113, 0.22);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(244, 251, 247, 0.72);
+}
+
+.first-real-build-result-notes section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  overflow-wrap: anywhere;
+}
+
+.first-real-build-result-notes span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .first-real-build-seed-grid span,
 .first-real-build-loop-step span {
   color: var(--muted);

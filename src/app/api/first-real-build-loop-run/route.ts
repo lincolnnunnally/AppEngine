@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import {
   firstRealBuildLoopRunGuardrails,
+  intakeFirstRealBuildResult,
   listFirstRealBuildLoopRuns,
   runFirstRealBuildLoopRun
 } from "@/lib/engine/first-real-build-loop-run";
@@ -29,12 +30,35 @@ export async function GET() {
   );
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   if (!(await canAccessEngineAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    const body = await request.json().catch(() => ({}));
+    if (body?.action === "result") {
+      const result = await intakeFirstRealBuildResult({
+        runId: body.runId,
+        resultText: body.resultText
+      });
+
+      return NextResponse.json(
+        {
+          ok: true,
+          ...result,
+          records: await listFirstRealBuildLoopRuns(),
+          guardrails: firstRealBuildLoopRunApiGuardrails()
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store"
+          },
+          status: 200
+        }
+      );
+    }
+
     const record = await runFirstRealBuildLoopRun();
 
     return NextResponse.json(
@@ -57,7 +81,7 @@ export async function POST() {
     return NextResponse.json(
       {
         ok: false,
-        message: caught instanceof Error ? caught.message : "The first real build loop run could not be prepared.",
+        message: caught instanceof Error ? caught.message : "The first real build loop run request could not be completed.",
         guardrails: firstRealBuildLoopRunApiGuardrails()
       },
       {
