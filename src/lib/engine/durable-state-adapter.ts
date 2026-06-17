@@ -14,6 +14,7 @@ export type AppEngineStateKind =
   | "spark_story_submissions"
   | "spark_review_queue"
   | "spark_reminder_queue"
+  | "internal_controlled_use_trials"
   | "development_projects";
 
 export type AppEngineStateSensitivity = "public_safe" | "internal" | "private" | "sensitive";
@@ -88,6 +89,7 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("spark_story_submissions", "Spark of Hope Intake Lite", "local_json", "sensitive", true, true, "Hope stories and intake details require privacy boundaries."),
   store("spark_review_queue", "Spark of Hope Intake Lite", "browser_local_storage", "sensitive", true, true, "Review statuses and moderation notes currently live in browser-local state."),
   store("spark_reminder_queue", "Spark of Hope Intake Lite", "browser_local_storage", "sensitive", true, true, "Reminder preferences stay local/mock and must not send messages automatically."),
+  store("internal_controlled_use_trials", "Internal Controlled Use", "local_json", "internal", false, true, "Owner-run first trial state for proving AppEngine can operate internally with adapter-backed stores."),
   store("development_projects", "Engine Development Store", "local_json", "internal", false, false, "Legacy engine project dev store.")
 ];
 

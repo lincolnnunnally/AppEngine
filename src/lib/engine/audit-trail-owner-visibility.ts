@@ -1,4 +1,4 @@
-import { getAppEngineAuditTrail, type AppEngineAuditEvent, type AuditTrailGuardrails } from "./audit-trail-lite";
+import { getAppEngineAuditTrail, type AppEngineAuditEvent, type AuditTrailGuardrails } from "./audit-trail-lite.ts";
 
 export type OwnerVisibleAuditEvent = {
   id: string;
