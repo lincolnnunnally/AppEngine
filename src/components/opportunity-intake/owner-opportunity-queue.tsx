@@ -3,6 +3,10 @@
 import { useState } from "react";
 import type { OpportunityActionPlanRecord, OpportunityActionPlanType } from "@/lib/engine/opportunity-action-plan";
 import type {
+  OpportunityAppEngineCandidateRecord,
+  OpportunityAppEngineCandidateType
+} from "@/lib/engine/opportunity-appengine-candidate";
+import type {
   OpportunityClarificationRecord,
   OpportunityClarificationRoute,
   OpportunityClarificationStatus
@@ -67,28 +71,45 @@ const actionPlanLabels: Record<OpportunityActionPlanType, string> = {
   needs_more_info_plan: "Needs-more-info plan"
 };
 
+const appEngineCandidateLabels: Record<OpportunityAppEngineCandidateType, string> = {
+  app_build_candidate: "App build candidate",
+  workflow_candidate: "Workflow candidate",
+  content_resource_candidate: "Content/resource candidate",
+  community_model_candidate: "Community model candidate",
+  ecosystem_service_later_candidate: "Ecosystem service later",
+  needs_more_info: "Needs more info"
+};
+
 export function OwnerOpportunityQueue({
   initialActionPlans,
+  initialAppEngineCandidates,
   initialClarifications,
   initialRecords,
   initialSolutionPaths
 }: {
   initialActionPlans: OpportunityActionPlanRecord[];
+  initialAppEngineCandidates: OpportunityAppEngineCandidateRecord[];
   initialClarifications: OpportunityClarificationRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
 }) {
   const [records] = useState(initialRecords);
   const [actionPlans, setActionPlans] = useState(initialActionPlans);
+  const [appEngineCandidates, setAppEngineCandidates] = useState(initialAppEngineCandidates);
   const [clarifications, setClarifications] = useState(initialClarifications);
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
+  const [isCreatingCandidate, setIsCreatingCandidate] = useState(false);
   const [isDraftingPlan, setIsDraftingPlan] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [isRoutingPath, setIsRoutingPath] = useState(false);
   const [actionPlanNotice, setActionPlanNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+  const [appEngineCandidateNotice, setAppEngineCandidateNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -104,6 +125,9 @@ export function OwnerOpportunityQueue({
     : null;
   const selectedActionPlan = selectedSolutionPath
     ? actionPlans.find((plan) => plan.solutionPathId === selectedSolutionPath.id)
+    : null;
+  const selectedAppEngineCandidate = selectedActionPlan
+    ? appEngineCandidates.find((candidate) => candidate.actionPlanId === selectedActionPlan.id)
     : null;
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
@@ -222,6 +246,46 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsDraftingPlan(false);
+    }
+  }
+
+  async function createSelectedAppEngineCandidate() {
+    if (!selectedActionPlan) return;
+
+    setIsCreatingCandidate(true);
+    setAppEngineCandidateNotice(null);
+
+    try {
+      const response = await fetch("/api/opportunity-appengine-candidate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          actionPlanId: selectedActionPlan.id
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The AppEngine candidate could not be created.");
+      }
+
+      setAppEngineCandidates((current) => [
+        result.record,
+        ...current.filter((item) => item.actionPlanId !== selectedActionPlan.id)
+      ]);
+      setAppEngineCandidateNotice({
+        type: "success",
+        message: "AppEngine candidate saved. No packet, Codex run, issue, label, deploy, migration, paid resource, or env change was triggered."
+      });
+    } catch (caught) {
+      setAppEngineCandidateNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The AppEngine candidate could not be created."
+      });
+    } finally {
+      setIsCreatingCandidate(false);
     }
   }
 
@@ -567,6 +631,112 @@ export function OwnerOpportunityQueue({
                                 <section>
                                   <p className="eyebrow">Next Review Prompt</p>
                                   <textarea className="copyable-prompt-box" readOnly value={selectedActionPlan.nextReviewPrompt} />
+                                </section>
+
+                                <section className="opportunity-appengine-candidate-panel">
+                                  <div className="queue-header">
+                                    <div>
+                                      <p className="eyebrow">AppEngine Candidate</p>
+                                      <h3>Owner-review bridge</h3>
+                                    </div>
+                                    <button
+                                      className="button accent"
+                                      disabled={isCreatingCandidate}
+                                      onClick={createSelectedAppEngineCandidate}
+                                      type="button"
+                                    >
+                                      {isCreatingCandidate
+                                        ? "Creating..."
+                                        : selectedAppEngineCandidate
+                                          ? "Refresh candidate"
+                                          : "Create AppEngine candidate"}
+                                    </button>
+                                  </div>
+
+                                  {appEngineCandidateNotice ? (
+                                    <div
+                                      className={`workflow-feedback${appEngineCandidateNotice.type === "error" ? " error" : ""}`}
+                                      role="status"
+                                    >
+                                      <strong>
+                                        {appEngineCandidateNotice.type === "success" ? "Candidate saved" : "Needs attention"}
+                                      </strong>
+                                      <p>{appEngineCandidateNotice.message}</p>
+                                    </div>
+                                  ) : null}
+
+                                  {selectedAppEngineCandidate ? (
+                                    <div
+                                      className="opportunity-appengine-candidate-output"
+                                      data-testid="opportunity-appengine-candidate-output"
+                                    >
+                                      <div className="artifact-strip">
+                                        <span>{appEngineCandidateLabels[selectedAppEngineCandidate.candidateType]}</span>
+                                        <span>{confidenceLabels[selectedAppEngineCandidate.confidenceLevel]}</span>
+                                      </div>
+
+                                      <div className="detail-grid">
+                                        <section>
+                                          <span>Source opportunity intake</span>
+                                          <p>{selectedAppEngineCandidate.sourceOpportunityIntake.title}</p>
+                                        </section>
+                                        <section>
+                                          <span>Clarified problem</span>
+                                          <p>{selectedAppEngineCandidate.clarifiedProblem.coreProblem}</p>
+                                        </section>
+                                        <section>
+                                          <span>Solution path</span>
+                                          <p>{solutionPathLabels[selectedAppEngineCandidate.solutionPath.recommendedPath]}</p>
+                                        </section>
+                                        <section>
+                                          <span>Proposed AppEngine work type</span>
+                                          <p>{selectedAppEngineCandidate.proposedAppEngineWorkType}</p>
+                                        </section>
+                                      </div>
+
+                                      <section className="next-action-band">
+                                        <span>Action plan summary</span>
+                                        <strong>{selectedAppEngineCandidate.actionPlanSummary}</strong>
+                                      </section>
+
+                                      <section className="next-action-band">
+                                        <span>Recommended artifact to create next</span>
+                                        <strong>{selectedAppEngineCandidate.recommendedArtifactToCreateNext}</strong>
+                                      </section>
+
+                                      <section>
+                                        <p className="eyebrow">Missing owner decisions</p>
+                                        <div className="guardrail-list">
+                                          {selectedAppEngineCandidate.missingOwnerDecisions.map((decision) => (
+                                            <span key={decision}>{decision}</span>
+                                          ))}
+                                        </div>
+                                      </section>
+
+                                      <section>
+                                        <p className="eyebrow">Risks / blockers</p>
+                                        <div className="guardrail-list">
+                                          {selectedAppEngineCandidate.risksBlockers.map((risk) => (
+                                            <span key={risk}>{risk}</span>
+                                          ))}
+                                        </div>
+                                      </section>
+
+                                      <section>
+                                        <p className="eyebrow">Copyable Next AppEngine Prompt</p>
+                                        <textarea
+                                          className="copyable-prompt-box"
+                                          readOnly
+                                          value={selectedAppEngineCandidate.copyableNextAppEnginePrompt}
+                                        />
+                                      </section>
+                                    </div>
+                                  ) : (
+                                    <div className="empty-state">
+                                      <strong>No AppEngine candidate yet</strong>
+                                      <p>Create a reviewable candidate before any packet, issue, label, or Codex handoff exists.</p>
+                                    </div>
+                                  )}
                                 </section>
                               </div>
                             ) : (

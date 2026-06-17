@@ -47,6 +47,7 @@ shared_context_files:
   - source-of-truth/opportunity-clarification-engine.md
   - source-of-truth/opportunity-solution-path-router.md
   - source-of-truth/opportunity-action-plan-draft.md
+  - source-of-truth/opportunity-appengine-candidate-bridge.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
   - source-of-truth/solution-candidate-review-gate.md
@@ -204,6 +205,7 @@ agents:
       - opportunity_clarification
       - opportunity_solution_path
       - opportunity_action_plan
+      - opportunity_appengine_candidate
       - problem_solution_intake
       - problem_portfolio_routing
       - solution_candidate_review

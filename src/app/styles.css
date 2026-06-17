@@ -1506,14 +1506,17 @@ label {
 .opportunity-solution-path-panel,
 .opportunity-solution-path-output,
 .opportunity-action-plan-panel,
-.opportunity-action-plan-output {
+.opportunity-action-plan-output,
+.opportunity-appengine-candidate-panel,
+.opportunity-appengine-candidate-output {
   display: grid;
   gap: 14px;
 }
 
 .opportunity-clarification-panel,
 .opportunity-solution-path-panel,
-.opportunity-action-plan-panel {
+.opportunity-action-plan-panel,
+.opportunity-appengine-candidate-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -1526,6 +1529,10 @@ label {
 
 .opportunity-action-plan-panel {
   background: #fff8ef;
+}
+
+.opportunity-appengine-candidate-panel {
+  background: #f5f1ff;
 }
 
 .action-plan-list,
