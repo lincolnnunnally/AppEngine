@@ -1,4 +1,5 @@
 import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { listBuildExecutionRequests } from "@/lib/engine/build-execution-request";
 import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { getLifeCoreOverview } from "@/lib/engine/life-core";
@@ -150,6 +151,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
   const [
     projectMemory,
     orchestratorActionQueue,
+    buildExecutionRequests,
     opportunityIntakes,
     opportunityClarifications,
     opportunitySolutionPaths,
@@ -165,6 +167,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
   ] = await Promise.all([
     loadProjectMemory(),
     listOrchestratorActionQueue(),
+    listBuildExecutionRequests(),
     listOpportunityIntakeRecords(),
     listOpportunityClarifications(),
     listOpportunitySolutionPaths(),
@@ -181,7 +184,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
   const sparkCapability = getStoryIntakeCapability();
 
   return buildAppPortfolioRegistry([
-    deriveAppEngineCoreEntry(seedEntries[0], projectMemory, orchestratorActionQueue),
+    deriveAppEngineCoreEntry(seedEntries[0], projectMemory, orchestratorActionQueue, buildExecutionRequests),
     deriveOpportunityEntry(seedEntries[1], {
       opportunityIntakes,
       opportunityClarifications,
@@ -192,7 +195,13 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
       realOpportunityResultReviews,
       handoffs
     }),
-    deriveLifeCoreEntry(seedEntries[2], lifeCoreOverview, Boolean(rawLifeCoreStore), firstEcosystemBuildPacketDrafts),
+    deriveLifeCoreEntry(
+      seedEntries[2],
+      lifeCoreOverview,
+      Boolean(rawLifeCoreStore),
+      firstEcosystemBuildPacketDrafts,
+      buildExecutionRequests
+    ),
     deriveSparkEntry(seedEntries[3], sparkCapability),
     deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates })
   ]);
@@ -250,7 +259,8 @@ export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfol
 function deriveAppEngineCoreEntry(
   seed: AppPortfolioEntry,
   projectMemory: Awaited<ReturnType<typeof loadProjectMemory>>,
-  actionQueue: Awaited<ReturnType<typeof listOrchestratorActionQueue>>
+  actionQueue: Awaited<ReturnType<typeof listOrchestratorActionQueue>>,
+  buildExecutionRequests: Awaited<ReturnType<typeof listBuildExecutionRequests>>
 ): AppPortfolioEntry {
   const memoryItemCount =
     projectMemory.majorDecisions.length +
@@ -260,31 +270,40 @@ function deriveAppEngineCoreEntry(
     projectMemory.currentBlockers.length +
     projectMemory.openQuestions.length +
     projectMemory.progressHistory.length +
-    actionQueue.length;
+    actionQueue.length +
+    buildExecutionRequests.length;
 
   if (!memoryItemCount) return seed;
 
   const blockers = projectMemory.currentBlockers.map((item) => item.text);
   const queuedActions = actionQueue.filter((action) => action.status === "queued").length;
   const preparedActions = actionQueue.filter((action) => action.status === "prepared_handoff").length;
+  const latestBuildExecutionRequest = buildExecutionRequests[0] || null;
 
   return {
     ...seed,
-    status: projectMemory.latestProjectState.currentState || seed.status,
-    buildState: queuedActions || preparedActions ? "owner_approval_required" : seed.buildState,
+    status: latestBuildExecutionRequest ? "build execution request drafted" : projectMemory.latestProjectState.currentState || seed.status,
+    buildState: queuedActions || preparedActions || latestBuildExecutionRequest ? "owner_approval_required" : seed.buildState,
     nextSafeAction: normalizeNextSafeAction(projectMemory.latestProjectState.recommendedNextAction, seed.nextSafeAction),
     blockers: blockers.length ? blockers : seed.blockers,
     evidenceLinks: [
       ...seed.evidenceLinks,
       { label: "Project Memory", url: "/owner-control-center" },
-      { label: "Orchestrator Queue", url: "/owner-control-center" }
+      { label: "Orchestrator Queue", url: "/owner-control-center" },
+      ...(latestBuildExecutionRequest ? [{ label: "Build Execution Request", url: "/owner-control-center" }] : [])
     ],
     stateSource: "live_state",
-    sourceArtifact: {
-      kind: "project_memory",
-      summary: `${memoryItemCount} memory/queue item${memoryItemCount === 1 ? "" : "s"} loaded from AppEngine state.`
-    },
-    lastUpdated: projectMemory.updatedAt || generatedAt
+    sourceArtifact: latestBuildExecutionRequest
+      ? {
+          kind: "build_execution_request",
+          id: latestBuildExecutionRequest.id,
+          summary: latestBuildExecutionRequest.ownerReadableSummary
+        }
+      : {
+          kind: "project_memory",
+          summary: `${memoryItemCount} memory/queue item${memoryItemCount === 1 ? "" : "s"} loaded from AppEngine state.`
+        },
+    lastUpdated: latestBuildExecutionRequest?.updatedAt || projectMemory.updatedAt || generatedAt
   };
 }
 
@@ -399,9 +418,34 @@ function deriveLifeCoreEntry(
   seed: AppPortfolioEntry,
   overview: Awaited<ReturnType<typeof getLifeCoreOverview>>,
   hasStoredOverview: boolean,
-  firstEcosystemBuildPacketDrafts: Awaited<ReturnType<typeof listFirstEcosystemBuildPacketDrafts>>
+  firstEcosystemBuildPacketDrafts: Awaited<ReturnType<typeof listFirstEcosystemBuildPacketDrafts>>,
+  buildExecutionRequests: Awaited<ReturnType<typeof listBuildExecutionRequests>>
 ): AppPortfolioEntry {
   const latestDraft = firstEcosystemBuildPacketDrafts[0] || null;
+  const latestLifeCoreBuildRequest =
+    buildExecutionRequests.find((request) => request.targetProjectSlice.toLowerCase().includes("life produces life core")) || null;
+
+  if (latestLifeCoreBuildRequest) {
+    return {
+      ...seed,
+      status: `build execution request ${latestLifeCoreBuildRequest.executionStatus.replaceAll("_", " ")}`,
+      buildState: "owner_approval_required",
+      nextSafeAction: "await_owner_review",
+      blockers: uniqueStrings([
+        "Owner review is required before builder execution.",
+        "Codex auto-execution, GitHub issue creation, labels, deploys, paid resources, migrations, and secrets/env changes remain blocked.",
+        ...seed.blockers
+      ]),
+      evidenceLinks: [...seed.evidenceLinks, { label: "Build Execution Request", url: "/owner-control-center" }],
+      stateSource: "live_state",
+      sourceArtifact: {
+        kind: "build_execution_request",
+        id: latestLifeCoreBuildRequest.id,
+        summary: latestLifeCoreBuildRequest.ownerReadableSummary
+      },
+      lastUpdated: latestLifeCoreBuildRequest.updatedAt
+    };
+  }
 
   if (latestDraft) {
     return {
@@ -414,10 +458,7 @@ function deriveLifeCoreEntry(
         "Codex execution, GitHub issues, labels, deploys, paid resources, migrations, and secrets/env changes remain blocked.",
         ...seed.blockers
       ]),
-      evidenceLinks: [
-        ...seed.evidenceLinks,
-        { label: "First Ecosystem Build Packet Draft", url: "/owner-control-center" }
-      ],
+      evidenceLinks: [...seed.evidenceLinks, { label: "First Ecosystem Build Packet Draft", url: "/owner-control-center" }],
       stateSource: "live_state",
       sourceArtifact: {
         kind: "first_ecosystem_build_packet_draft",

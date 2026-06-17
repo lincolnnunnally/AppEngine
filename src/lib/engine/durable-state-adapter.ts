@@ -7,6 +7,7 @@ export type AppEngineStateKind =
   | "project_memory"
   | "orchestrator_runs"
   | "orchestrator_action_queue"
+  | "build_execution_requests"
   | "real_project_trials"
   | "trial_result_reviews"
   | "opportunity_intake"
@@ -92,6 +93,7 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("project_memory", "Project Memory", "local_json", "private", true, true, "Project history, decisions, blockers, and next actions."),
   store("orchestrator_runs", "Manual Orchestrator", "local_json", "internal", false, true, "Run artifacts and decision traces."),
   store("orchestrator_action_queue", "Manual Orchestrator", "local_json", "internal", false, true, "Queued next-safe actions and prepared handoff status."),
+  store("build_execution_requests", "Build Execution Connector", "local_json", "private", true, true, "Owner-approved bridge records between prepared handoffs and future builder execution."),
   store("real_project_trials", "Real Project Trial", "local_json", "private", true, true, "Trial summaries may include app ideas and user/audience descriptions."),
   store("trial_result_reviews", "Trial Result Review", "local_json", "private", true, true, "Owner review notes and improvement candidates."),
   store("opportunity_intake", "Opportunity Intake", "local_json", "sensitive", true, true, "Customer-facing problem, opportunity, and solution-path intake records."),
