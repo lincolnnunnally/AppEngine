@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
+import { OpportunityControlledUseReadinessPanel } from "@/components/opportunity-intake/opportunity-controlled-use-readiness-panel";
 import { OwnerOpportunityQueue } from "@/components/opportunity-intake/owner-opportunity-queue";
 import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
@@ -13,6 +14,7 @@ import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan
 import { listOpportunityAppEngineCandidates } from "@/lib/engine/opportunity-appengine-candidate";
 import { listOpportunityBuildPacketBridges } from "@/lib/engine/opportunity-build-packet-bridge";
 import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
+import { loadOpportunityControlledUseReadiness } from "@/lib/engine/opportunity-controlled-use-readiness";
 import { listOpportunityFullLoopTrials } from "@/lib/engine/opportunity-full-loop-trial";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
@@ -44,6 +46,7 @@ export default async function OwnerControlCenterPage() {
     opportunityAppEngineCandidates,
     opportunityBuildPacketBridges,
     opportunityFullLoopTrials,
+    opportunityControlledUseReadiness,
     problemIntakeRecords,
     portfolioRegistry
   ] = await Promise.all([
@@ -62,6 +65,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunityAppEngineCandidates(),
     listOpportunityBuildPacketBridges(),
     listOpportunityFullLoopTrials(),
+    loadOpportunityControlledUseReadiness(),
     listProblemIntakeRecords(),
     loadOwnerPortfolioRegistry()
   ]);
@@ -91,6 +95,7 @@ export default async function OwnerControlCenterPage() {
         initialInternalControlledUse={internalControlledUse}
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
+      <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
       <OwnerOpportunityQueue
         initialClarifications={opportunityClarifications}
         initialRecords={opportunityIntakeRecords}

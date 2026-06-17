@@ -1588,6 +1588,70 @@ label {
   opacity: 0.74;
 }
 
+.opportunity-controlled-use-readiness {
+  background:
+    linear-gradient(135deg, rgba(255, 248, 239, 0.95), rgba(239, 248, 255, 0.95)),
+    #fbfcff;
+  display: grid;
+  gap: 18px;
+}
+
+.opportunity-readiness-status-grid,
+.opportunity-readiness-check-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.opportunity-readiness-check-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.readiness-status-card,
+.readiness-check-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.readiness-status-card span,
+.readiness-check-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.readiness-status-card p,
+.readiness-check-card p {
+  margin: 0;
+}
+
+.readiness-status-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.readiness-status-card.blocked_for_public_use,
+.readiness-status-card.blocked_for_autonomous_execution,
+.readiness-check-card.blocked {
+  border-color: #f0b4a6;
+  background: #fff6f3;
+}
+
+.readiness-status-card.ready_for_internal_controlled_use,
+.readiness-check-card.confirmed {
+  border-color: #b8dbc5;
+  background: #f4fbf7;
+}
+
+.readiness-check-card.not_run_yet {
+  background: #fffaf0;
+}
+
 .action-plan-list,
 .compact-list {
   margin: 0;
@@ -2816,6 +2880,8 @@ label {
     .portfolio-card-grid,
     .portfolio-detail-grid,
     .portfolio-bridge-grid,
+    .opportunity-readiness-status-grid,
+    .opportunity-readiness-check-grid,
     .handoff-hero,
     .handoff-layout,
     .handoff-state-grid,
