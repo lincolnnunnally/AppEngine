@@ -118,6 +118,11 @@ export async function listOpportunityIntakeRecords() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function getOpportunityIntakeRecord(intakeId: string) {
+  const store = await readOpportunityIntakeStore();
+  return store.records.find((record) => record.id === intakeId) || null;
+}
+
 export async function createOpportunityIntakeRecord(input: CreateOpportunityIntakeInput) {
   const now = new Date().toISOString();
   const normalized = normalizeOpportunityIntake(input);

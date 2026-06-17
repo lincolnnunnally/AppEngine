@@ -14,6 +14,7 @@ export type AgentArtifactKind =
   | "orchestrator_approved_handoff_export"
   | "pending_check_resolution"
   | "opportunity_intake"
+  | "opportunity_clarification"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"

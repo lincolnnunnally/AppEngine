@@ -19,6 +19,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Pending Check Resolution Policy when a pull request has stale/pending external status checks after required verification passes
 - ChatGPT Handoff and Issue Creation Packet Standard for conversation-to-GitHub handoffs
 - Opportunity Intake Foundation when customer-facing problem/opportunity intake, public front-door routing, or ecosystem-destination framing is involved
+- Opportunity Clarification Engine when an `opportunity_intake` needs to become a clarified owner-reviewable opportunity profile before problem-to-solution routing
 - Problem-To-Solution Intake Standard for problem-first, vision-first, and hybrid starts
 - Problem Intake To Portfolio Routing Standard for accepted problem/vision candidates before packets or implementation
 - Solution Candidate Review Gate before candidate packet or plan requests
@@ -81,6 +82,8 @@ All agent workflows must load and answer this checklist before taking action.
 - If this assesses production readiness, does a `production_readiness_snapshot` artifact cover auth/admin protection, persistence, privacy/security, deployment readiness, monitoring/logging, cost/resource risk, user-facing UX, remaining blockers, owner-readable summary, and next safe action without changing production, resources, migrations, secrets/env, labels, issues, repository visibility, or merge state?
 12. If this starts from the public Opportunity front door, does an `opportunity_intake` artifact capture problem/pain, affected people, better outcome, current barriers, existing idea/vision if any, desired impact, possible solution type, routing outcome, source-of-truth files, copyable next prompt, and guardrails?
 13. Does Opportunity Intake preserve the boundary that Opportunity is a front door, AppEngine is the production factory, ecosystem apps/services are possible destinations or components, and no destination is assumed to be built?
+- If an `opportunity_intake` is being processed, does an `opportunity_clarification` artifact clarify core problem, affected people, root barriers, desired better future, opportunity statement, first useful step, likely solution type, missing information, status, route, source files, and copyable next prompt?
+- Does Opportunity Clarification preserve the boundary that ecosystem apps/services are not assumed built and owner review is required before problem_solution_intake, portfolio routing, packet creation, issue creation, Codex handoff, or implementation?
 14. If this starts from a problem, vision, or hybrid of both, does a `problem_solution_intake` artifact classify the mode, questions, solution shape, missing context, routing, and next safe action before build work?
 15. If the problem/vision is accepted as a candidate, does `problem_portfolio_routing` map it into `app_portfolio_registry` before any App Build Packet or vNext Packet is created?
 16. Does the selected candidate type avoid forcing every problem into an app when a website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution is more fitting?

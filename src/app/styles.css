@@ -1501,6 +1501,19 @@ label {
   resize: vertical;
 }
 
+.opportunity-clarification-panel,
+.opportunity-clarification-output {
+  display: grid;
+  gap: 14px;
+}
+
+.opportunity-clarification-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f2fbf7;
+}
+
 .owner-control-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.35fr);
