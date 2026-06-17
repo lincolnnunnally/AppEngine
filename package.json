@@ -73,6 +73,7 @@
     "smoke:opportunity-solution-path-router": "node scripts/smoke-opportunity-solution-path-router.js",
     "smoke:opportunity-action-plan-draft": "node scripts/smoke-opportunity-action-plan-draft.js",
     "smoke:opportunity-appengine-candidate-bridge": "node scripts/smoke-opportunity-appengine-candidate-bridge.js",
+    "smoke:candidate-to-packet-draft-action": "node scripts/smoke-candidate-to-packet-draft-action.js",
     "smoke:life-core": "node scripts/smoke-life-core.js",
     "smoke:portfolio-build-packet-bridge-visibility": "node scripts/smoke-portfolio-build-packet-bridge-visibility.js",
     "smoke:live-portfolio-state": "node scripts/smoke-live-portfolio-state.js",

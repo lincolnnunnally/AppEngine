@@ -152,6 +152,11 @@ export async function listOpportunityAppEngineCandidates() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function getOpportunityAppEngineCandidate(candidateId: string) {
+  const store = await readOpportunityAppEngineCandidateStore();
+  return store.records.find((record) => record.id === candidateId) || null;
+}
+
 export async function createOpportunityAppEngineCandidate(input: { actionPlanId?: unknown }) {
   const actionPlanId = typeof input.actionPlanId === "string" ? input.actionPlanId.trim() : "";
 

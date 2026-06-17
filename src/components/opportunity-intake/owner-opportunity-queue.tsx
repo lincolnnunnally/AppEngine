@@ -7,6 +7,10 @@ import type {
   OpportunityAppEngineCandidateType
 } from "@/lib/engine/opportunity-appengine-candidate";
 import type {
+  OpportunityBuildPacketBridgeDraftKind,
+  OpportunityBuildPacketBridgeRecord
+} from "@/lib/engine/opportunity-build-packet-bridge";
+import type {
   OpportunityClarificationRecord,
   OpportunityClarificationRoute,
   OpportunityClarificationStatus
@@ -80,15 +84,24 @@ const appEngineCandidateLabels: Record<OpportunityAppEngineCandidateType, string
   needs_more_info: "Needs more info"
 };
 
+const packetDraftLabels: Record<OpportunityBuildPacketBridgeDraftKind, string> = {
+  app_build_packet_draft: "App Build Packet draft",
+  workflow_solution_plan_draft: "Workflow solution plan draft",
+  content_resource_plan_draft: "Content/resource plan draft",
+  community_model_plan_draft: "Community model plan draft"
+};
+
 export function OwnerOpportunityQueue({
   initialActionPlans,
   initialAppEngineCandidates,
+  initialBuildPacketBridges,
   initialClarifications,
   initialRecords,
   initialSolutionPaths
 }: {
   initialActionPlans: OpportunityActionPlanRecord[];
   initialAppEngineCandidates: OpportunityAppEngineCandidateRecord[];
+  initialBuildPacketBridges: OpportunityBuildPacketBridgeRecord[];
   initialClarifications: OpportunityClarificationRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
@@ -96,9 +109,11 @@ export function OwnerOpportunityQueue({
   const [records] = useState(initialRecords);
   const [actionPlans, setActionPlans] = useState(initialActionPlans);
   const [appEngineCandidates, setAppEngineCandidates] = useState(initialAppEngineCandidates);
+  const [buildPacketBridges, setBuildPacketBridges] = useState(initialBuildPacketBridges);
   const [clarifications, setClarifications] = useState(initialClarifications);
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
+  const [isPreparingPacketDraft, setIsPreparingPacketDraft] = useState(false);
   const [isCreatingCandidate, setIsCreatingCandidate] = useState(false);
   const [isDraftingPlan, setIsDraftingPlan] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
@@ -110,6 +125,9 @@ export function OwnerOpportunityQueue({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [packetDraftNotice, setPacketDraftNotice] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -128,6 +146,9 @@ export function OwnerOpportunityQueue({
     : null;
   const selectedAppEngineCandidate = selectedActionPlan
     ? appEngineCandidates.find((candidate) => candidate.actionPlanId === selectedActionPlan.id)
+    : null;
+  const selectedBuildPacketBridge = selectedAppEngineCandidate
+    ? buildPacketBridges.find((bridge) => bridge.candidateId === selectedAppEngineCandidate.id)
     : null;
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
@@ -286,6 +307,48 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsCreatingCandidate(false);
+    }
+  }
+
+  async function prepareSelectedPacketDraft() {
+    if (!selectedAppEngineCandidate) return;
+
+    setIsPreparingPacketDraft(true);
+    setPacketDraftNotice(null);
+
+    try {
+      const response = await fetch("/api/opportunity-build-packet-bridge", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          candidateId: selectedAppEngineCandidate.id,
+          ownerApproved: true
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The packet draft could not be prepared.");
+      }
+
+      setBuildPacketBridges((current) => [
+        result.record,
+        ...current.filter((item) => item.candidateId !== selectedAppEngineCandidate.id)
+      ]);
+      setPacketDraftNotice({
+        type: "success",
+        message:
+          "Packet draft prepared for owner review. No final packet, Codex run, GitHub issue, label, deploy, migration, paid resource, secret, or env change was triggered."
+      });
+    } catch (caught) {
+      setPacketDraftNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The packet draft could not be prepared."
+      });
+    } finally {
+      setIsPreparingPacketDraft(false);
     }
   }
 
@@ -729,6 +792,112 @@ export function OwnerOpportunityQueue({
                                           readOnly
                                           value={selectedAppEngineCandidate.copyableNextAppEnginePrompt}
                                         />
+                                      </section>
+
+                                      <section className="opportunity-packet-draft-panel">
+                                        <div className="queue-header">
+                                          <div>
+                                            <p className="eyebrow">Packet Draft Bridge</p>
+                                            <h3>Owner-approved packet draft</h3>
+                                          </div>
+                                          <button
+                                            className="button accent"
+                                            disabled={isPreparingPacketDraft}
+                                            onClick={prepareSelectedPacketDraft}
+                                            type="button"
+                                          >
+                                            {isPreparingPacketDraft
+                                              ? "Preparing..."
+                                              : selectedBuildPacketBridge
+                                                ? "Refresh packet draft"
+                                                : "Prepare Packet Draft"}
+                                          </button>
+                                        </div>
+
+                                        {packetDraftNotice ? (
+                                          <div
+                                            className={`workflow-feedback${packetDraftNotice.type === "error" ? " error" : ""}`}
+                                            role="status"
+                                          >
+                                            <strong>{packetDraftNotice.type === "success" ? "Packet draft ready" : "Needs attention"}</strong>
+                                            <p>{packetDraftNotice.message}</p>
+                                          </div>
+                                        ) : null}
+
+                                        {selectedBuildPacketBridge ? (
+                                          <div
+                                            className="opportunity-packet-draft-output"
+                                            data-testid="opportunity-packet-draft-output"
+                                          >
+                                            <div className="artifact-strip">
+                                              <span>{selectedBuildPacketBridge.packetDraftStatus.replaceAll("_", " ")}</span>
+                                              <span>{packetDraftLabels[selectedBuildPacketBridge.packetType]}</span>
+                                              <span>{selectedBuildPacketBridge.ownerApprovalStatus.replaceAll("_", " ")}</span>
+                                            </div>
+
+                                            <div className="detail-grid">
+                                              <section>
+                                                <span>Packet draft status</span>
+                                                <p>{selectedBuildPacketBridge.packetDraftStatus.replaceAll("_", " ")}</p>
+                                              </section>
+                                              <section>
+                                                <span>Packet type</span>
+                                                <p>{packetDraftLabels[selectedBuildPacketBridge.packetType]}</p>
+                                              </section>
+                                              <section>
+                                                <span>Source candidate</span>
+                                                <p>{selectedBuildPacketBridge.sourceCandidate.title}</p>
+                                              </section>
+                                              <section>
+                                                <span>Next safe action</span>
+                                                <p>{selectedBuildPacketBridge.nextSafeAction.replaceAll("_", " ")}</p>
+                                              </section>
+                                            </div>
+
+                                            <section>
+                                              <p className="eyebrow">Missing information</p>
+                                              <div className="guardrail-list">
+                                                {selectedBuildPacketBridge.missingInformation.length ? (
+                                                  selectedBuildPacketBridge.missingInformation.map((item) => (
+                                                    <span key={item}>{item}</span>
+                                                  ))
+                                                ) : (
+                                                  <span>None recorded</span>
+                                                )}
+                                              </div>
+                                            </section>
+
+                                            <section>
+                                              <p className="eyebrow">Source artifact evidence</p>
+                                              <div className="guardrail-list">
+                                                {selectedBuildPacketBridge.sourceArtifactEvidence.map((artifact) => (
+                                                  <span key={`${artifact.kind}-${artifact.id || artifact.summary}`}>
+                                                    {artifact.kind.replaceAll("_", " ")}
+                                                    {artifact.id ? ` · ${artifact.id}` : ""}: {artifact.summary}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </section>
+
+                                            <section>
+                                              <p className="eyebrow">Copyable Packet Draft Review Prompt</p>
+                                              <textarea
+                                                className="copyable-prompt-box"
+                                                readOnly
+                                                value={selectedBuildPacketBridge.copyableNextAppEnginePrompt}
+                                              />
+                                            </section>
+                                          </div>
+                                        ) : (
+                                          <div className="empty-state">
+                                            <strong>Candidate exists, packet bridge not prepared yet</strong>
+                                            <p>
+                                              Owner approval is required before preparing a packet draft. This will not create
+                                              final packets, Codex runs, GitHub issues, labels, deployments, migrations, paid
+                                              resources, secrets, or env changes.
+                                            </p>
+                                          </div>
+                                        )}
                                       </section>
                                     </div>
                                   ) : (
