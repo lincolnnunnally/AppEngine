@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { HandoffRelaySummary } from "@/lib/engine/handoff-relay";
 import type { OpportunityActionPlanRecord, OpportunityActionPlanType } from "@/lib/engine/opportunity-action-plan";
 import type {
   OpportunityAppEngineCandidateRecord,
@@ -147,6 +148,7 @@ export function OwnerOpportunityQueue({
   const [isRunningFullLoopTrial, setIsRunningFullLoopTrial] = useState(false);
   const [isRunningRealExample, setIsRunningRealExample] = useState(false);
   const [isSavingRealExampleReview, setIsSavingRealExampleReview] = useState(false);
+  const [isPreparingReadyOpportunityHandoff, setIsPreparingReadyOpportunityHandoff] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [isRoutingPath, setIsRoutingPath] = useState(false);
   const [actionPlanNotice, setActionPlanNotice] = useState<{ type: "success" | "error"; message: string } | null>(
@@ -167,6 +169,13 @@ export function OwnerOpportunityQueue({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [readyOpportunityHandoffNotice, setReadyOpportunityHandoffNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [preparedReadyOpportunityHandoff, setPreparedReadyOpportunityHandoff] = useState<HandoffRelaySummary | null>(
+    null
+  );
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -424,6 +433,45 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsSavingRealExampleReview(false);
+    }
+  }
+
+  async function prepareReadyOpportunityAppEngineHandoff() {
+    if (!latestRealExampleReview) return;
+
+    setIsPreparingReadyOpportunityHandoff(true);
+    setReadyOpportunityHandoffNotice(null);
+
+    try {
+      const response = await fetch("/api/ready-opportunity-appengine-handoff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          reviewId: latestRealExampleReview.id
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The ready Opportunity handoff could not be prepared.");
+      }
+
+      const handoff = result.handoff as HandoffRelaySummary;
+      setPreparedReadyOpportunityHandoff(handoff);
+      setReadyOpportunityHandoffNotice({
+        type: "success",
+        message:
+          "Prepared AppEngine handoff saved to the Handoff Inbox. Nothing was sent to Codex, no issue was created, no labels were applied, and no final packet or deploy happened."
+      });
+    } catch (caught) {
+      setReadyOpportunityHandoffNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The ready Opportunity handoff could not be prepared."
+      });
+    } finally {
+      setIsPreparingReadyOpportunityHandoff(false);
     }
   }
 
@@ -1006,6 +1054,61 @@ export function OwnerOpportunityQueue({
                 <section>
                   <p className="eyebrow">Copyable Next AppEngine Prompt</p>
                   <textarea className="copyable-prompt-box" readOnly value={latestRealExampleReview.nextAppEngineAction.prompt} />
+                </section>
+                <section className="ready-opportunity-handoff-panel" data-testid="ready-opportunity-appengine-handoff">
+                  <div className="queue-header compact">
+                    <div>
+                      <p className="eyebrow">Prepared Handoff</p>
+                      <h3>Send this ready result to the Handoff Inbox.</h3>
+                      <p>
+                        Creates a copyable AppEngine action handoff from this ready review. It stays manual and does not
+                        trigger Codex, issues, labels, final packets, deploys, migrations, paid resources, or env changes.
+                      </p>
+                    </div>
+                    <button
+                      className="button accent"
+                      disabled={
+                        isPreparingReadyOpportunityHandoff ||
+                        latestRealExampleReview.reviewStatus !== "ready_for_next_appengine_action"
+                      }
+                      onClick={prepareReadyOpportunityAppEngineHandoff}
+                      type="button"
+                    >
+                      {isPreparingReadyOpportunityHandoff ? "Preparing..." : "Prepare AppEngine Handoff"}
+                    </button>
+                  </div>
+
+                  {latestRealExampleReview.reviewStatus !== "ready_for_next_appengine_action" ? (
+                    <p className="handoff-safe-note">
+                      Mark this result ready for next AppEngine action before preparing a handoff.
+                    </p>
+                  ) : null}
+
+                  {readyOpportunityHandoffNotice ? (
+                    <div className={`workflow-feedback${readyOpportunityHandoffNotice.type === "error" ? " error" : ""}`} role="status">
+                      <strong>
+                        {readyOpportunityHandoffNotice.type === "success"
+                          ? "Prepared handoff saved"
+                          : "Prepared handoff needs attention"}
+                      </strong>
+                      <p>{readyOpportunityHandoffNotice.message}</p>
+                    </div>
+                  ) : null}
+
+                  {preparedReadyOpportunityHandoff ? (
+                    <div className="real-opportunity-handoff-output" data-testid="ready-opportunity-appengine-handoff-output">
+                      <div className="artifact-strip">
+                        <span>{preparedReadyOpportunityHandoff.extracted.mergeStatus}</span>
+                        <span>{preparedReadyOpportunityHandoff.source.replaceAll("_", " ")}</span>
+                        <span>{preparedReadyOpportunityHandoff.id}</span>
+                      </div>
+                      <section className="next-action-band">
+                        <span>Saved to Handoff Inbox</span>
+                        <strong>{preparedReadyOpportunityHandoff.ownerReadableSummary}</strong>
+                      </section>
+                      <textarea className="copyable-prompt-box" readOnly value={preparedReadyOpportunityHandoff.nextPrompt.prompt} />
+                    </div>
+                  ) : null}
                 </section>
               </div>
             ) : (

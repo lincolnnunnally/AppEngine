@@ -1552,7 +1552,9 @@ label {
 .real-opportunity-example-panel,
 .real-opportunity-example-output,
 .real-opportunity-result-review,
-.real-opportunity-review-output {
+.real-opportunity-review-output,
+.ready-opportunity-handoff-panel,
+.real-opportunity-handoff-output {
   display: grid;
   gap: 14px;
 }
@@ -1643,6 +1645,18 @@ label {
 
 .real-opportunity-review-form select {
   min-height: 44px;
+}
+
+.ready-opportunity-handoff-panel {
+  border: 1px solid rgba(42, 111, 92, 0.18);
+  border-radius: 8px;
+  background: #f2fbf7;
+  padding: 14px;
+}
+
+.real-opportunity-handoff-output {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
 }
 
 .trial-step-list {
