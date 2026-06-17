@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
+import { FirstRealEcosystemBuildRequestPanel } from "@/components/opportunity-intake/first-real-ecosystem-build-request-panel";
 import { OpportunityControlledUseReadinessPanel } from "@/components/opportunity-intake/opportunity-controlled-use-readiness-panel";
 import { OpportunityInternalUseCompletionCheckPanel } from "@/components/opportunity-intake/opportunity-internal-use-completion-check-panel";
 import { OwnerOpportunityQueue } from "@/components/opportunity-intake/owner-opportunity-queue";
@@ -9,6 +10,10 @@ import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/compone
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
+import {
+  firstRealEcosystemBuildRequestSeed,
+  listFirstRealEcosystemBuildRequests
+} from "@/lib/engine/first-real-ecosystem-build-request";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadInternalControlledUseRunbook } from "@/lib/engine/internal-controlled-use-runbook";
 import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
@@ -52,6 +57,7 @@ export default async function OwnerControlCenterPage() {
     opportunityFullLoopTrials,
     opportunityControlledUseReadiness,
     opportunityInternalUseCompletionCheck,
+    firstRealEcosystemBuildRequests,
     realOpportunityExamples,
     realOpportunityResultReviews,
     problemIntakeRecords,
@@ -74,6 +80,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunityFullLoopTrials(),
     loadOpportunityControlledUseReadiness(),
     loadOpportunityInternalUseCompletionCheck(),
+    listFirstRealEcosystemBuildRequests(),
     listRealOpportunityExamples(),
     listRealOpportunityResultReviews(),
     listProblemIntakeRecords(),
@@ -107,6 +114,10 @@ export default async function OwnerControlCenterPage() {
       />
       <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
       <OpportunityInternalUseCompletionCheckPanel report={opportunityInternalUseCompletionCheck} />
+      <FirstRealEcosystemBuildRequestPanel
+        initialRecords={firstRealEcosystemBuildRequests}
+        seed={firstRealEcosystemBuildRequestSeed}
+      />
       <OwnerOpportunityQueue
         initialClarifications={opportunityClarifications}
         initialRecords={opportunityIntakeRecords}
