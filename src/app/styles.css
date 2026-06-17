@@ -1377,14 +1377,16 @@ label {
   font-size: 0.82rem;
 }
 
-.problem-intake-layout {
+.problem-intake-layout,
+.opportunity-intake-layout {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(420px, 1fr);
   gap: 18px;
   align-items: start;
 }
 
-.problem-intake-copy {
+.problem-intake-copy,
+.opportunity-intake-copy {
   display: grid;
   align-content: start;
   gap: 14px;
@@ -1396,8 +1398,13 @@ label {
 }
 
 .problem-intake-copy h1,
+.opportunity-intake-copy h1,
 .owner-control-header h1 {
   max-width: 760px;
+}
+
+.opportunity-intake-copy {
+  background: linear-gradient(180deg, #f2fbf7 0%, #fff8ef 100%);
 }
 
 .guardrail-strip,
@@ -1419,15 +1426,21 @@ label {
   font-weight: 900;
 }
 
-.problem-intake-form {
+.problem-intake-form,
+.opportunity-intake-form {
   display: grid;
   gap: 16px;
 }
 
-.intake-choice-grid {
+.intake-choice-grid,
+.opportunity-choice-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.opportunity-choice-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .choice-button,
@@ -1474,6 +1487,18 @@ label {
 .owner-control-layout {
   display: grid;
   gap: 16px;
+}
+
+.opportunity-owner-queue {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.copyable-prompt-box {
+  min-height: 240px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 .owner-control-header {
@@ -2214,7 +2239,9 @@ label {
     .spark-approved-preview-list,
     .spark-public-trial-grid,
     .problem-intake-layout,
+    .opportunity-intake-layout,
     .intake-choice-grid,
+    .opportunity-choice-grid,
     .owner-control-header,
     .owner-summary-grid,
     .owner-control-main,
@@ -2250,7 +2277,8 @@ label {
     flex-direction: column;
   }
 
-  .problem-intake-copy {
+  .problem-intake-copy,
+  .opportunity-intake-copy {
     min-height: auto;
   }
 

@@ -9,6 +9,7 @@ export type AppEngineStateKind =
   | "orchestrator_action_queue"
   | "real_project_trials"
   | "trial_result_reviews"
+  | "opportunity_intake"
   | "problem_intake"
   | "problem_intake_feedback"
   | "spark_story_submissions"
@@ -84,6 +85,7 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("orchestrator_action_queue", "Manual Orchestrator", "local_json", "internal", false, true, "Queued next-safe actions and prepared handoff status."),
   store("real_project_trials", "Real Project Trial", "local_json", "private", true, true, "Trial summaries may include app ideas and user/audience descriptions."),
   store("trial_result_reviews", "Trial Result Review", "local_json", "private", true, true, "Owner review notes and improvement candidates."),
+  store("opportunity_intake", "Opportunity Intake", "local_json", "sensitive", true, true, "Customer-facing problem, opportunity, and solution-path intake records."),
   store("problem_intake", "Problem Intake Lite", "local_json", "sensitive", true, true, "Submitted problems and visions can contain personal stories or private operations context."),
   store("problem_intake_feedback", "Problem Intake Lite", "local_json", "private", true, false, "Owner feedback about intake quality and missing context."),
   store("spark_story_submissions", "Spark of Hope Intake Lite", "local_json", "sensitive", true, true, "Hope stories and intake details require privacy boundaries."),
