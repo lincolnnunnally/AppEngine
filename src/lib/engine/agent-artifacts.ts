@@ -20,6 +20,7 @@ export type AgentArtifactKind =
   | "opportunity_appengine_candidate"
   | "opportunity_build_packet_bridge"
   | "opportunity_full_loop_trial"
+  | "opportunity_controlled_use_readiness"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"
