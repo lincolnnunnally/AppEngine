@@ -1697,6 +1697,7 @@ label {
 .portfolio-summary-item span,
 .portfolio-entry-card span,
 .portfolio-detail-grid dt,
+.portfolio-bridge-grid dt,
 .portfolio-blocker-list h3 {
   color: var(--muted);
   font-size: 0.72rem;
@@ -1824,6 +1825,7 @@ label {
 }
 
 .portfolio-detail-grid div,
+.portfolio-bridge-panel,
 .portfolio-blocker-list {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1850,6 +1852,77 @@ label {
 .portfolio-detail-grid small {
   color: var(--muted);
   font-weight: 800;
+}
+
+.portfolio-bridge-panel {
+  display: grid;
+  gap: 12px;
+  background: #f7fbfa;
+}
+
+.portfolio-bridge-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.portfolio-bridge-heading h3,
+.portfolio-bridge-missing h4 {
+  margin: 0 0 5px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.portfolio-bridge-heading p,
+.portfolio-bridge-missing p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.portfolio-bridge-heading strong {
+  border-radius: 999px;
+  padding: 7px 9px;
+  color: var(--blue);
+  background: #edf3fb;
+  font-size: 0.7rem;
+  text-align: right;
+}
+
+.portfolio-bridge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portfolio-bridge-grid div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.portfolio-bridge-grid dd {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.portfolio-bridge-grid small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.portfolio-bridge-missing {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.portfolio-bridge-missing ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .portfolio-blocker-list {
@@ -2689,6 +2762,7 @@ label {
     .portfolio-summary-grid,
     .portfolio-card-grid,
     .portfolio-detail-grid,
+    .portfolio-bridge-grid,
     .handoff-hero,
     .handoff-layout,
     .handoff-state-grid,
