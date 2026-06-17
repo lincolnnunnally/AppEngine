@@ -9,6 +9,7 @@ import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadInternalControlledUseRunbook } from "@/lib/engine/internal-controlled-use-runbook";
 import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
+import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
 import { listOrchestratorActionQueue, listOrchestratorRuns } from "@/lib/engine/orchestrator-run";
 import { loadProjectMemory } from "@/lib/engine/project-memory";
 import { listProblemIntakeRecords } from "@/lib/engine/problem-intake-lite";
@@ -32,6 +33,7 @@ export default async function OwnerControlCenterPage() {
     internalControlledUse,
     opportunityIntakeRecords,
     opportunityClarifications,
+    opportunitySolutionPaths,
     problemIntakeRecords
   ] = await Promise.all([
     listHandoffRelaySummaries(),
@@ -44,6 +46,7 @@ export default async function OwnerControlCenterPage() {
     loadInternalControlledUseRunbook(),
     listOpportunityIntakeRecords(),
     listOpportunityClarifications(),
+    listOpportunitySolutionPaths(),
     listProblemIntakeRecords()
   ]);
 
@@ -71,7 +74,11 @@ export default async function OwnerControlCenterPage() {
         initialInternalControlledUse={internalControlledUse}
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
-      <OwnerOpportunityQueue initialClarifications={opportunityClarifications} initialRecords={opportunityIntakeRecords} />
+      <OwnerOpportunityQueue
+        initialClarifications={opportunityClarifications}
+        initialRecords={opportunityIntakeRecords}
+        initialSolutionPaths={opportunitySolutionPaths}
+      />
       <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
     </main>
   );

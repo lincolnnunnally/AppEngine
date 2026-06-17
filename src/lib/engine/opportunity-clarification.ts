@@ -103,6 +103,11 @@ export async function listOpportunityClarifications() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function getOpportunityClarification(clarificationId: string) {
+  const store = await readOpportunityClarificationStore();
+  return store.records.find((record) => record.id === clarificationId) || null;
+}
+
 export async function createOpportunityClarification(input: { intakeId?: unknown }) {
   const intakeId = typeof input.intakeId === "string" ? input.intakeId.trim() : "";
 

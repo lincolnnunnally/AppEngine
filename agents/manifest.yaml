@@ -45,6 +45,7 @@ shared_context_files:
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/opportunity-intake-foundation.md
   - source-of-truth/opportunity-clarification-engine.md
+  - source-of-truth/opportunity-solution-path-router.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
   - source-of-truth/solution-candidate-review-gate.md
@@ -200,6 +201,7 @@ agents:
       - pending_check_resolution
       - opportunity_intake
       - opportunity_clarification
+      - opportunity_solution_path
       - problem_solution_intake
       - problem_portfolio_routing
       - solution_candidate_review

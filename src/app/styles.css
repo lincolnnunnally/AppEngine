@@ -1502,16 +1502,23 @@ label {
 }
 
 .opportunity-clarification-panel,
-.opportunity-clarification-output {
+.opportunity-clarification-output,
+.opportunity-solution-path-panel,
+.opportunity-solution-path-output {
   display: grid;
   gap: 14px;
 }
 
-.opportunity-clarification-panel {
+.opportunity-clarification-panel,
+.opportunity-solution-path-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
   background: #f2fbf7;
+}
+
+.opportunity-solution-path-panel {
+  background: #f7efd8;
 }
 
 .owner-control-header {
