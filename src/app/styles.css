@@ -1753,13 +1753,25 @@ label {
 }
 
 .readiness-status-card.ready_for_internal_controlled_use,
+.readiness-status-card.usable_for_internal_controlled_use,
 .readiness-check-card.confirmed {
   border-color: #b8dbc5;
   background: #f4fbf7;
 }
 
-.readiness-check-card.not_run_yet {
+.readiness-check-card.not_run_yet,
+.readiness-check-card.missing {
   background: #fffaf0;
+}
+
+.readiness-status-card.blocked_for_public_customer_use,
+.readiness-status-card.blocked_for_autonomous_execution {
+  border-color: #f0b4a6;
+  background: #fff6f3;
+}
+
+.opportunity-internal-use-completion {
+  border-color: #d7e3dc;
 }
 
 .action-plan-list,

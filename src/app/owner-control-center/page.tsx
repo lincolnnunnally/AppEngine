@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
 import { OpportunityControlledUseReadinessPanel } from "@/components/opportunity-intake/opportunity-controlled-use-readiness-panel";
+import { OpportunityInternalUseCompletionCheckPanel } from "@/components/opportunity-intake/opportunity-internal-use-completion-check-panel";
 import { OwnerOpportunityQueue } from "@/components/opportunity-intake/owner-opportunity-queue";
 import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
@@ -17,6 +18,7 @@ import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarific
 import { loadOpportunityControlledUseReadiness } from "@/lib/engine/opportunity-controlled-use-readiness";
 import { listOpportunityFullLoopTrials } from "@/lib/engine/opportunity-full-loop-trial";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
+import { loadOpportunityInternalUseCompletionCheck } from "@/lib/engine/opportunity-internal-use-completion-check";
 import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
 import { listOrchestratorActionQueue, listOrchestratorRuns } from "@/lib/engine/orchestrator-run";
 import { loadProjectMemory } from "@/lib/engine/project-memory";
@@ -49,6 +51,7 @@ export default async function OwnerControlCenterPage() {
     opportunityBuildPacketBridges,
     opportunityFullLoopTrials,
     opportunityControlledUseReadiness,
+    opportunityInternalUseCompletionCheck,
     realOpportunityExamples,
     realOpportunityResultReviews,
     problemIntakeRecords,
@@ -70,6 +73,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunityBuildPacketBridges(),
     listOpportunityFullLoopTrials(),
     loadOpportunityControlledUseReadiness(),
+    loadOpportunityInternalUseCompletionCheck(),
     listRealOpportunityExamples(),
     listRealOpportunityResultReviews(),
     listProblemIntakeRecords(),
@@ -102,6 +106,7 @@ export default async function OwnerControlCenterPage() {
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
       <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
+      <OpportunityInternalUseCompletionCheckPanel report={opportunityInternalUseCompletionCheck} />
       <OwnerOpportunityQueue
         initialClarifications={opportunityClarifications}
         initialRecords={opportunityIntakeRecords}
