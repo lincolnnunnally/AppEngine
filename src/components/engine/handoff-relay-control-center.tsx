@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { AuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
 import type { HandoffFeedbackChoice, HandoffRelaySummary } from "@/lib/engine/handoff-relay";
+import type { InternalControlledUseRunbookPayload, InternalControlledUseStepId } from "@/lib/engine/internal-controlled-use-runbook";
 import type { OrchestratorActionQueueItem, OrchestratorActionStatus, OrchestratorRun } from "@/lib/engine/orchestrator-run";
 import type { ProjectMemory, ProjectMemoryFeedbackChoice } from "@/lib/engine/project-memory";
 import type {
@@ -40,6 +41,8 @@ type AuditTrailPayload = {
   storage: string;
 };
 
+type InternalControlledUsePayload = InternalControlledUseRunbookPayload;
+
 const feedbackOptions: Array<{ id: HandoffFeedbackChoice; label: string }> = [
   { id: "good_direction", label: "Good direction" },
   { id: "wrong_direction", label: "Wrong direction" },
@@ -75,6 +78,7 @@ export function HandoffRelayControlCenter({
   initialOrchestratorRuns,
   initialOrchestratorActionQueue,
   initialAuditTrailReport,
+  initialInternalControlledUse,
   initialStorage
 }: {
   initialHandoffs: HandoffRelaySummary[];
@@ -85,6 +89,7 @@ export function HandoffRelayControlCenter({
   initialOrchestratorRuns: OrchestratorRun[];
   initialOrchestratorActionQueue: OrchestratorActionQueueItem[];
   initialAuditTrailReport: AuditTrailOwnerVisibilityReport;
+  initialInternalControlledUse: InternalControlledUseRunbookPayload;
   initialStorage: string;
 }) {
   const [handoffs, setHandoffs] = useState(initialHandoffs);
@@ -95,6 +100,7 @@ export function HandoffRelayControlCenter({
   const [orchestratorRuns, setOrchestratorRuns] = useState(initialOrchestratorRuns);
   const [orchestratorActionQueue, setOrchestratorActionQueue] = useState(initialOrchestratorActionQueue);
   const [auditTrailReport, setAuditTrailReport] = useState(initialAuditTrailReport);
+  const [internalControlledUse, setInternalControlledUse] = useState(initialInternalControlledUse);
   const [storage, setStorage] = useState(initialStorage);
   const [rawText, setRawText] = useState("");
   const [selectedId, setSelectedId] = useState(initialHandoffs[0]?.id || "");
@@ -159,6 +165,58 @@ export function HandoffRelayControlCenter({
     ? `${projectMemory.currentBlockers.length} blocker${projectMemory.currentBlockers.length === 1 ? "" : "s"} recorded`
     : "No current blockers recorded";
   const openDraftSummary = `${openDraftsAndHandoffs} open handoff${openDraftsAndHandoffs === 1 ? "" : "s"} · ${queuedActions} queued · ${preparedActions} prepared`;
+  const internalTrialCompleted = internalControlledUse.runbook.internalTrialCompleted;
+  const internalTrialNextStep = internalControlledUse.runbook.nextStep;
+
+  function applyInternalControlledUsePayload(payload: InternalControlledUsePayload) {
+    setInternalControlledUse(payload);
+    setProjectMemory(payload.projectMemory);
+    setHandoffs(payload.handoffs || []);
+    setOrchestratorRuns(payload.orchestratorRuns || []);
+    setOrchestratorActionQueue(payload.orchestratorActionQueue || []);
+    setAuditTrailReport(payload.auditTrailReport);
+    setStorage(payload.storage || "adapter_local_mock");
+    setSelectedId((current) => current || payload.handoffs?.[0]?.id || "");
+    setSelectedOrchestratorRunId((current) => current || payload.orchestratorRuns?.[0]?.id || "");
+  }
+
+  async function loadInternalControlledUse() {
+    setBusyAction("internal-controlled-use-refresh");
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/internal-controlled-use");
+      const payload = await readJsonResponse<InternalControlledUsePayload>(response, "Internal controlled-use refresh failed");
+      applyInternalControlledUsePayload(payload);
+      setStatus("Internal controlled-use runbook refreshed");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Internal controlled-use refresh failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function runInternalControlledUseStep(stepId: InternalControlledUseStepId) {
+    setBusyAction(`internal-controlled-use-${stepId}`);
+    setError("");
+
+    try {
+      const response = await fetch("/api/engine/internal-controlled-use", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ stepId })
+      });
+      const payload = await readJsonResponse<InternalControlledUsePayload>(response, "Internal controlled-use step failed");
+      applyInternalControlledUsePayload(payload);
+      setStatus(payload.runbook.internalTrialCompleted ? "Internal controlled-use trial completed" : payload.runbook.ownerReadableSummary);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Internal controlled-use step failed");
+      setStatus("Needs attention");
+    } finally {
+      setBusyAction("");
+    }
+  }
 
   async function loadAuditTrail() {
     setBusyAction("audit-refresh");
@@ -580,6 +638,77 @@ export function HandoffRelayControlCenter({
         <StateBlock label="Next Safe Action" value={selectedOrchestratorRun?.selectedNextSafeAction || projectMemory.latestProjectState.recommendedNextAction} />
         <StateBlock label="Blockers" value={error || blockerSummary} />
         <StateBlock label="Open Drafts/Handoffs" value={openDraftSummary} />
+      </section>
+
+      <section className="panel internal-controlled-use-panel" data-testid="internal-controlled-use-runbook">
+        <div className="handoff-section-heading">
+          <div>
+            <p className="eyebrow">Internal Controlled Use</p>
+            <h2>First Spark trial flow</h2>
+            <p>
+              Walk Spark of Hope through one safe internal loop: intake, private review, preview approval, orchestrator, handoff, memory,
+              and audit. Every step is owner-clicked and uses local/mock adapter-backed state.
+            </p>
+          </div>
+          <div className="orchestrator-actions">
+            <span className={`handoff-state-pill ${internalTrialCompleted ? "success" : ""}`}>
+              {internalTrialCompleted ? "Trial complete" : internalControlledUse.runbook.currentStatus.replace(/_/g, " ")}
+            </span>
+            <button className="button" type="button" onClick={() => void loadInternalControlledUse()} disabled={Boolean(busyAction)}>
+              {busyAction === "internal-controlled-use-refresh" ? "Refreshing..." : "Refresh Runbook"}
+            </button>
+          </div>
+        </div>
+
+        <div className="internal-controlled-use-summary">
+          <StateBlock label="Where this is" value={internalControlledUse.runbook.trial.appName} />
+          <StateBlock label="Next guided step" value={internalTrialNextStep?.title || "All controlled-use steps are complete."} />
+          <StateBlock
+            label="Trial status"
+            value={internalControlledUse.runbook.internalTrialCompleted ? "completed" : internalControlledUse.runbook.currentStatus.replace(/_/g, " ")}
+          />
+          <StateBlock
+            label="Latest evidence"
+            value={internalControlledUse.runbook.trial.evidence[0] || "No internal trial evidence recorded yet."}
+          />
+        </div>
+
+        <div className="internal-runbook-steps">
+          {internalControlledUse.runbook.steps.map((step) => (
+            <article className={`internal-runbook-step ${step.status}`} key={step.id}>
+              <div className="internal-step-number">{step.order}</div>
+              <div>
+                <div className="handoff-section-heading">
+                  <div>
+                    <p className="eyebrow">{step.status.replace(/_/g, " ")}</p>
+                    <h3>{step.title}</h3>
+                  </div>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => void runInternalControlledUseStep(step.id)}
+                    disabled={!step.canRun || Boolean(busyAction)}
+                  >
+                    {busyAction === `internal-controlled-use-${step.id}` ? "Running..." : step.ownerAction}
+                  </button>
+                </div>
+                <p>{step.description}</p>
+                <ListBlock label="Evidence" items={step.evidence} empty={step.canRun ? "Ready to record evidence." : "Waiting for earlier step."} />
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="handoff-guardrail-list">
+          <span>No production deploy</span>
+          <span>No paid resources</span>
+          <span>No live migrations</span>
+          <span>No secrets/env changes</span>
+          <span>No repo visibility changes</span>
+          <span>No Codex auto-execution</span>
+          <span>No GitHub issue creation</span>
+          <span>No label changes</span>
+        </div>
       </section>
 
       <section className="panel pending-check-policy-panel" data-testid="pending-check-resolution-policy">

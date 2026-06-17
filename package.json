@@ -85,6 +85,7 @@
     "smoke:app-build-packet": "node scripts/smoke-app-build-packet.js",
     "smoke:durable-state-adapter": "node scripts/smoke-durable-state-adapter.js",
     "smoke:internal-controlled-state-adapter": "node scripts/smoke-internal-controlled-state-adapter.js",
+    "smoke:internal-controlled-use-runbook": "node scripts/smoke-internal-controlled-use-runbook.js",
     "smoke:neon-persistence-adapter-draft": "node scripts/smoke-neon-persistence-adapter-draft.js",
     "smoke:intake": "node scripts/smoke-intake-packet.js",
     "smoke:identity-registry": "node scripts/smoke-identity-registry.js",

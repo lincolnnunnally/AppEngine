@@ -1704,6 +1704,67 @@ label {
   gap: 10px;
 }
 
+.internal-controlled-use-panel {
+  display: grid;
+  gap: 14px;
+  background: #fffdf8;
+}
+
+.internal-controlled-use-panel > .handoff-section-heading p {
+  max-width: 820px;
+  margin: 0;
+}
+
+.internal-controlled-use-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.internal-runbook-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.internal-runbook-step {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.internal-runbook-step.complete {
+  border-color: #b9d8d2;
+  background: #f7fbfa;
+}
+
+.internal-runbook-step.ready {
+  border-color: #e1d5bd;
+  background: #fffaf0;
+}
+
+.internal-runbook-step p {
+  margin-bottom: 10px;
+}
+
+.internal-step-number {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--teal);
+  font-weight: 900;
+}
+
+.handoff-state-pill.success {
+  color: var(--teal);
+}
+
 .audit-trail-panel {
   display: grid;
   gap: 14px;
@@ -2164,6 +2225,8 @@ label {
     .handoff-analysis-grid,
     .handoff-prompt-meta,
     .owner-quick-status-grid,
+    .internal-controlled-use-summary,
+    .internal-runbook-step,
     .pending-check-grid,
     .audit-event-card .handoff-state-grid,
     .project-memory-summary-grid,
