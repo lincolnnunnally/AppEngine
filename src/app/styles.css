@@ -1550,7 +1550,9 @@ label {
 }
 
 .real-opportunity-example-panel,
-.real-opportunity-example-output {
+.real-opportunity-example-output,
+.real-opportunity-result-review,
+.real-opportunity-review-output {
   display: grid;
   gap: 14px;
 }
@@ -1589,6 +1591,57 @@ label {
 }
 
 .real-opportunity-form-grid select {
+  min-height: 44px;
+}
+
+.real-opportunity-result-review {
+  border: 1px solid rgba(28, 90, 86, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 14px;
+}
+
+.real-opportunity-review-grid,
+.real-opportunity-review-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.real-opportunity-review-grid section,
+.real-opportunity-review-form label {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+}
+
+.real-opportunity-review-grid span,
+.real-opportunity-review-form span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.real-opportunity-review-grid p {
+  color: var(--text);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.real-opportunity-review-grid section:first-child,
+.real-opportunity-review-form label:nth-child(2) {
+  grid-column: 1 / -1;
+}
+
+.real-opportunity-review-form textarea {
+  min-height: 112px;
+}
+
+.real-opportunity-review-form select {
   min-height: 44px;
 }
 
@@ -2926,6 +2979,8 @@ label {
     .opportunity-readiness-status-grid,
     .opportunity-readiness-check-grid,
     .real-opportunity-form-grid,
+    .real-opportunity-review-grid,
+    .real-opportunity-review-form,
     .handoff-hero,
     .handoff-layout,
     .handoff-state-grid,

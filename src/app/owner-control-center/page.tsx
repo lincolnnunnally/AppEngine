@@ -22,6 +22,7 @@ import { listOrchestratorActionQueue, listOrchestratorRuns } from "@/lib/engine/
 import { loadProjectMemory } from "@/lib/engine/project-memory";
 import { listProblemIntakeRecords } from "@/lib/engine/problem-intake-lite";
 import { listRealOpportunityExamples } from "@/lib/engine/real-opportunity-example-runner";
+import { listRealOpportunityResultReviews } from "@/lib/engine/real-opportunity-result-review";
 import { listRealProjectTrials, listTrialProjectCandidates, listTrialResultReviews } from "@/lib/engine/real-project-trial";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ export default async function OwnerControlCenterPage() {
     opportunityFullLoopTrials,
     opportunityControlledUseReadiness,
     realOpportunityExamples,
+    realOpportunityResultReviews,
     problemIntakeRecords,
     portfolioRegistry
   ] = await Promise.all([
@@ -69,6 +71,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunityFullLoopTrials(),
     loadOpportunityControlledUseReadiness(),
     listRealOpportunityExamples(),
+    listRealOpportunityResultReviews(),
     listProblemIntakeRecords(),
     loadOwnerPortfolioRegistry()
   ]);
@@ -108,6 +111,7 @@ export default async function OwnerControlCenterPage() {
         initialSolutionPaths={opportunitySolutionPaths}
         initialFullLoopTrials={opportunityFullLoopTrials}
         initialRealOpportunityExamples={realOpportunityExamples}
+        initialRealOpportunityResultReviews={realOpportunityResultReviews}
       />
       <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
     </main>
