@@ -74,6 +74,7 @@
     "smoke:opportunity-action-plan-draft": "node scripts/smoke-opportunity-action-plan-draft.js",
     "smoke:opportunity-appengine-candidate-bridge": "node scripts/smoke-opportunity-appengine-candidate-bridge.js",
     "smoke:life-core": "node scripts/smoke-life-core.js",
+    "smoke:owner-portfolio-dashboard": "node scripts/smoke-owner-portfolio-dashboard.js",
     "smoke:problem-portfolio-routing": "node scripts/smoke-problem-portfolio-routing.js",
     "smoke:solution-candidate-review": "node scripts/smoke-solution-candidate-review.js",
     "smoke:candidate-packet-bridge": "node scripts/smoke-candidate-packet-bridge.js",

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
+import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
 import { OwnerOpportunityQueue } from "@/components/opportunity-intake/owner-opportunity-queue";
 import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
+import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadInternalControlledUseRunbook } from "@/lib/engine/internal-controlled-use-runbook";
@@ -38,7 +40,8 @@ export default async function OwnerControlCenterPage() {
     opportunitySolutionPaths,
     opportunityActionPlans,
     opportunityAppEngineCandidates,
-    problemIntakeRecords
+    problemIntakeRecords,
+    portfolioRegistry
   ] = await Promise.all([
     listHandoffRelaySummaries(),
     loadProjectMemory(),
@@ -53,7 +56,8 @@ export default async function OwnerControlCenterPage() {
     listOpportunitySolutionPaths(),
     listOpportunityActionPlans(),
     listOpportunityAppEngineCandidates(),
-    listProblemIntakeRecords()
+    listProblemIntakeRecords(),
+    loadOwnerPortfolioRegistry()
   ]);
 
   return (
@@ -68,6 +72,7 @@ export default async function OwnerControlCenterPage() {
           <Link href="/admin">Admin</Link>
         </div>
       </nav>
+      <OwnerPortfolioDashboard registry={portfolioRegistry} />
       <HandoffRelayControlCenter
         initialHandoffs={handoffs}
         initialProjectMemory={projectMemory}

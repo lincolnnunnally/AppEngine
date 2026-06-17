@@ -1676,6 +1676,189 @@ label {
   padding-bottom: 48px;
 }
 
+.owner-portfolio-dashboard {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+  background: #fffdf8;
+}
+
+.portfolio-summary-card {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid #b9d8d2;
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--green-soft);
+}
+
+.portfolio-summary-card span,
+.portfolio-summary-item span,
+.portfolio-entry-card span,
+.portfolio-detail-grid dt,
+.portfolio-blocker-list h3 {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.portfolio-summary-card strong {
+  color: var(--teal);
+  overflow-wrap: anywhere;
+}
+
+.portfolio-summary-card p {
+  margin: 0;
+}
+
+.portfolio-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portfolio-summary-item {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f7fbfa;
+}
+
+.portfolio-summary-item strong {
+  color: var(--blue);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.portfolio-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.portfolio-entry-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.portfolio-entry-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.portfolio-entry-heading h2 {
+  margin-bottom: 6px;
+  font-size: 1.15rem;
+}
+
+.portfolio-entry-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.portfolio-state {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--teal);
+  background: var(--green-soft);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.portfolio-state.production_blocked,
+.portfolio-state.review_blocked,
+.portfolio-state.failed_needs_fix {
+  color: var(--coral);
+  background: #fff0ea;
+}
+
+.portfolio-state.unknown {
+  color: var(--gold);
+  background: #fff8db;
+}
+
+.portfolio-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portfolio-detail-grid div,
+.portfolio-blocker-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfaf7;
+}
+
+.portfolio-detail-grid dt {
+  margin-bottom: 5px;
+}
+
+.portfolio-detail-grid dd {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.portfolio-detail-grid a {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.portfolio-detail-grid small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.portfolio-blocker-list {
+  background: #fff8ef;
+}
+
+.portfolio-blocker-list h3 {
+  margin: 0 0 8px;
+}
+
+.portfolio-blocker-list ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.portfolio-blocker-list p {
+  margin: 0;
+}
+
+.portfolio-guardrail-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.portfolio-guardrail-strip span {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--teal);
+  background: var(--green-soft);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
 .handoff-center {
   display: grid;
   gap: 16px;
@@ -2476,6 +2659,9 @@ label {
     .owner-summary-grid,
     .owner-control-main,
     .detail-grid,
+    .portfolio-summary-grid,
+    .portfolio-card-grid,
+    .portfolio-detail-grid,
     .handoff-hero,
     .handoff-layout,
     .handoff-state-grid,
