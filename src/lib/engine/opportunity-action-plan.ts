@@ -108,6 +108,11 @@ export async function listOpportunityActionPlans() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function getOpportunityActionPlan(actionPlanId: string) {
+  const store = await readOpportunityActionPlanStore();
+  return store.records.find((record) => record.id === actionPlanId) || null;
+}
+
 export async function createOpportunityActionPlan(input: { solutionPathId?: unknown }) {
   const solutionPathId = typeof input.solutionPathId === "string" ? input.solutionPathId.trim() : "";
 
