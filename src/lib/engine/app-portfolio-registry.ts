@@ -1,3 +1,15 @@
+import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { getLifeCoreOverview } from "@/lib/engine/life-core";
+import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
+import { listOpportunityAppEngineCandidates } from "@/lib/engine/opportunity-appengine-candidate";
+import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
+import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
+import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
+import { listOrchestratorActionQueue } from "@/lib/engine/orchestrator-run";
+import { listProblemIntakeRecords } from "@/lib/engine/problem-intake-lite";
+import { loadProjectMemory } from "@/lib/engine/project-memory";
+import { getStoryIntakeCapability } from "@/lib/spark-of-hope-intake-lite/intake";
+
 export type AppPortfolioEntryType =
   | "appengine_core"
   | "opportunity_front_door"
@@ -62,6 +74,14 @@ export type AppPortfolioPullRequestLink = AppPortfolioIssueLink & {
   branch?: string;
 };
 
+export type AppPortfolioStateSource = "live_state" | "derived_state" | "seeded_fallback";
+
+export type AppPortfolioSourceArtifact = {
+  kind: string;
+  id?: string;
+  summary: string;
+};
+
 export type AppPortfolioEntry = {
   name: string;
   slug: string;
@@ -78,6 +98,8 @@ export type AppPortfolioEntry = {
   linkedPRs: AppPortfolioPullRequestLink[];
   blockers: string[];
   evidenceLinks: AppPortfolioLink[];
+  stateSource: AppPortfolioStateSource;
+  sourceArtifact: AppPortfolioSourceArtifact;
   lastUpdated: string;
 };
 
@@ -93,6 +115,7 @@ export type AppPortfolioRegistry = {
     blockedApps: number;
     unknownReviewUrls: number;
     nextSafeActions: Record<string, number>;
+    byStateSource: Record<AppPortfolioStateSource, number>;
   };
   apps: AppPortfolioEntry[];
   guardrails: {
@@ -108,7 +131,45 @@ export type AppPortfolioRegistry = {
 const generatedAt = "2026-06-17T00:00:00.000Z";
 
 export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry> {
-  return buildAppPortfolioRegistry(getSeedPortfolioEntries());
+  const seedEntries = getSeedPortfolioEntries();
+  const [
+    projectMemory,
+    orchestratorActionQueue,
+    opportunityIntakes,
+    opportunityClarifications,
+    opportunitySolutionPaths,
+    opportunityActionPlans,
+    opportunityCandidates,
+    problemIntakes,
+    lifeCoreOverview,
+    rawLifeCoreStore
+  ] = await Promise.all([
+    loadProjectMemory(),
+    listOrchestratorActionQueue(),
+    listOpportunityIntakeRecords(),
+    listOpportunityClarifications(),
+    listOpportunitySolutionPaths(),
+    listOpportunityActionPlans(),
+    listOpportunityAppEngineCandidates(),
+    listProblemIntakeRecords(),
+    getLifeCoreOverview(),
+    readRawLifeCoreStore()
+  ]);
+  const sparkCapability = getStoryIntakeCapability();
+
+  return buildAppPortfolioRegistry([
+    deriveAppEngineCoreEntry(seedEntries[0], projectMemory, orchestratorActionQueue),
+    deriveOpportunityEntry(seedEntries[1], {
+      opportunityIntakes,
+      opportunityClarifications,
+      opportunitySolutionPaths,
+      opportunityActionPlans,
+      opportunityCandidates
+    }),
+    deriveLifeCoreEntry(seedEntries[2], lifeCoreOverview, Boolean(rawLifeCoreStore)),
+    deriveSparkEntry(seedEntries[3], sparkCapability),
+    deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates })
+  ]);
 }
 
 export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfolioRegistry {
@@ -116,6 +177,13 @@ export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfol
     counts[app.nextSafeAction] = (counts[app.nextSafeAction] || 0) + 1;
     return counts;
   }, {});
+  const byStateSource = apps.reduce<Record<AppPortfolioStateSource, number>>(
+    (counts, app) => {
+      counts[app.stateSource] = (counts[app.stateSource] || 0) + 1;
+      return counts;
+    },
+    { live_state: 0, derived_state: 0, seeded_fallback: 0 }
+  );
   const blockedApps = apps.filter(
     (app) =>
       app.blockers.length > 0 ||
@@ -137,7 +205,8 @@ export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfol
       productionLiveApps: apps.filter((app) => app.deploymentState === "production_live").length,
       blockedApps,
       unknownReviewUrls,
-      nextSafeActions
+      nextSafeActions,
+      byStateSource
     },
     apps,
     guardrails: {
@@ -148,7 +217,174 @@ export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfol
       appBoundariesRequired: true
     },
     ownerReadableSummary:
-      "Owner Portfolio Dashboard indexes AppEngine-created apps, ecosystem slices, review paths, production status, and next safe actions from the app_portfolio_registry standard."
+      "Owner Portfolio Dashboard indexes AppEngine-created apps, ecosystem slices, review paths, production status, source artifacts, and next safe actions from the app_portfolio_registry standard."
+  };
+}
+
+function deriveAppEngineCoreEntry(
+  seed: AppPortfolioEntry,
+  projectMemory: Awaited<ReturnType<typeof loadProjectMemory>>,
+  actionQueue: Awaited<ReturnType<typeof listOrchestratorActionQueue>>
+): AppPortfolioEntry {
+  const memoryItemCount =
+    projectMemory.majorDecisions.length +
+    projectMemory.acceptedApproaches.length +
+    projectMemory.rejectedApproaches.length +
+    projectMemory.completedMilestones.length +
+    projectMemory.currentBlockers.length +
+    projectMemory.openQuestions.length +
+    projectMemory.progressHistory.length +
+    actionQueue.length;
+
+  if (!memoryItemCount) return seed;
+
+  const blockers = projectMemory.currentBlockers.map((item) => item.text);
+  const queuedActions = actionQueue.filter((action) => action.status === "queued").length;
+  const preparedActions = actionQueue.filter((action) => action.status === "prepared_handoff").length;
+
+  return {
+    ...seed,
+    status: projectMemory.latestProjectState.currentState || seed.status,
+    buildState: queuedActions || preparedActions ? "owner_approval_required" : seed.buildState,
+    nextSafeAction: normalizeNextSafeAction(projectMemory.latestProjectState.recommendedNextAction, seed.nextSafeAction),
+    blockers: blockers.length ? blockers : seed.blockers,
+    evidenceLinks: [
+      ...seed.evidenceLinks,
+      { label: "Project Memory", url: "/owner-control-center" },
+      { label: "Orchestrator Queue", url: "/owner-control-center" }
+    ],
+    stateSource: "live_state",
+    sourceArtifact: {
+      kind: "project_memory",
+      summary: `${memoryItemCount} memory/queue item${memoryItemCount === 1 ? "" : "s"} loaded from AppEngine state.`
+    },
+    lastUpdated: projectMemory.updatedAt || generatedAt
+  };
+}
+
+function deriveOpportunityEntry(
+  seed: AppPortfolioEntry,
+  state: {
+    opportunityIntakes: Awaited<ReturnType<typeof listOpportunityIntakeRecords>>;
+    opportunityClarifications: Awaited<ReturnType<typeof listOpportunityClarifications>>;
+    opportunitySolutionPaths: Awaited<ReturnType<typeof listOpportunitySolutionPaths>>;
+    opportunityActionPlans: Awaited<ReturnType<typeof listOpportunityActionPlans>>;
+    opportunityCandidates: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>;
+  }
+): AppPortfolioEntry {
+  const liveCount =
+    state.opportunityIntakes.length +
+    state.opportunityClarifications.length +
+    state.opportunitySolutionPaths.length +
+    state.opportunityActionPlans.length +
+    state.opportunityCandidates.length;
+
+  if (!liveCount) return seed;
+
+  const latestCandidate = state.opportunityCandidates[0] || null;
+  const latestPlan = state.opportunityActionPlans[0] || null;
+  const latestPath = state.opportunitySolutionPaths[0] || null;
+  const latestIntake = state.opportunityIntakes[0] || null;
+  const blockers = [
+    ...(latestCandidate?.risksBlockers || []),
+    ...(latestPlan?.risksBlockers || []),
+    ...(latestPath?.blockers || []),
+    "No public production URL yet; remains inside AppEngine controlled-use flow."
+  ];
+
+  return {
+    ...seed,
+    status: `${state.opportunityIntakes.length} intake${state.opportunityIntakes.length === 1 ? "" : "s"} · ${state.opportunityCandidates.length} candidate${state.opportunityCandidates.length === 1 ? "" : "s"}`,
+    buildState: latestCandidate ? "owner_approval_required" : latestPlan || latestPath ? "planned" : "ready_for_build",
+    nextSafeAction: latestCandidate ? "stop_for_owner_approval" : latestPlan || latestPath ? "await_owner_review" : "create_planning_issue",
+    blockers: uniqueStrings(blockers),
+    stateSource: "live_state",
+    sourceArtifact: latestCandidate
+      ? { kind: "opportunity_appengine_candidate", id: latestCandidate.id, summary: latestCandidate.title }
+      : latestPlan
+        ? { kind: "opportunity_action_plan", id: latestPlan.id, summary: latestPlan.title }
+        : latestPath
+          ? { kind: "opportunity_solution_path", id: latestPath.id, summary: latestPath.title }
+          : { kind: "opportunity_intake", id: latestIntake?.id, summary: latestIntake?.title || "Opportunity intake state" },
+    lastUpdated:
+      latestCandidate?.updatedAt ||
+      latestPlan?.updatedAt ||
+      latestPath?.updatedAt ||
+      latestIntake?.updatedAt ||
+      generatedAt
+  };
+}
+
+function deriveLifeCoreEntry(
+  seed: AppPortfolioEntry,
+  overview: Awaited<ReturnType<typeof getLifeCoreOverview>>,
+  hasStoredOverview: boolean
+): AppPortfolioEntry {
+  return {
+    ...seed,
+    status: `${overview.experiences.length} experiences · ${overview.opportunities.length} opportunities · ${overview.feed.length} feed items`,
+    stateSource: hasStoredOverview ? "live_state" : "seeded_fallback",
+    sourceArtifact: {
+      kind: "life_core_overview",
+      summary: hasStoredOverview
+        ? "Loaded from adapter-backed Life Core state."
+        : "Using Life Core seed overview because no stored adapter state exists yet."
+    },
+    lastUpdated: generatedAt
+  };
+}
+
+function deriveSparkEntry(seed: AppPortfolioEntry, capability: ReturnType<typeof getStoryIntakeCapability>): AppPortfolioEntry {
+  const storageBlocked = capability.storage === "preview_controlled_persistence_blocked";
+  const blockers = [
+    ...seed.blockers,
+    "Spark review statuses still depend on browser-local review queue state until durable review persistence is activated.",
+    storageBlocked ? "Controlled preview persistence is configured as blocked in the current environment." : ""
+  ];
+
+  return {
+    ...seed,
+    status: `${capability.mode.replaceAll("_", " ")} · ${capability.storage.replaceAll("_", " ")}`,
+    buildState: capability.storage === "disabled" ? "ready_for_vnext" : storageBlocked ? "review_blocked" : "preview_verified",
+    nextSafeAction: storageBlocked ? "create_fix_issue" : seed.nextSafeAction,
+    blockers: uniqueStrings(blockers),
+    stateSource: "derived_state",
+    sourceArtifact: {
+      kind: "spark_story_intake_capability",
+      summary: `Spark API reports ${capability.mode} with ${capability.storage}.`
+    },
+    lastUpdated: generatedAt
+  };
+}
+
+function deriveFutureEcosystemEntry(
+  seed: AppPortfolioEntry,
+  state: {
+    problemIntakes: Awaited<ReturnType<typeof listProblemIntakeRecords>>;
+    opportunityCandidates: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>;
+  }
+): AppPortfolioEntry {
+  const liveCount = state.problemIntakes.length + state.opportunityCandidates.length;
+
+  if (!liveCount) return seed;
+
+  const latestProblem = state.problemIntakes[0] || null;
+  const latestCandidate = state.opportunityCandidates[0] || null;
+
+  return {
+    ...seed,
+    status: `${state.problemIntakes.length} problem intake${state.problemIntakes.length === 1 ? "" : "s"} · ${state.opportunityCandidates.length} opportunity candidate${state.opportunityCandidates.length === 1 ? "" : "s"}`,
+    buildState: "planned",
+    nextSafeAction: "await_owner_review",
+    blockers: uniqueStrings([
+      "Owner review is required before any candidate becomes a packet, issue, PR, or build.",
+      ...seed.blockers
+    ]),
+    stateSource: "live_state",
+    sourceArtifact: latestCandidate
+      ? { kind: "opportunity_appengine_candidate", id: latestCandidate.id, summary: latestCandidate.title }
+      : { kind: "problem_intake", id: latestProblem?.id, summary: latestProblem?.title || "Problem intake state" },
+    lastUpdated: latestCandidate?.updatedAt || latestProblem?.updatedAt || generatedAt
   };
 }
 
@@ -182,6 +418,11 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
       ],
       blockers: ["Production launch still requires explicit owner approval and durable provider activation."],
       evidenceLinks: [{ label: "Owner Control Center", url: "/owner-control-center" }],
+      stateSource: "seeded_fallback",
+      sourceArtifact: {
+        kind: "app_portfolio_registry_seed",
+        summary: "Seeded AppEngine Core entry used until project memory or orchestrator queue state exists."
+      },
       lastUpdated: generatedAt
     },
     {
@@ -214,6 +455,11 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
       ],
       blockers: ["No public production URL yet; remains inside AppEngine controlled-use flow."],
       evidenceLinks: [{ label: "Opportunity Intake", url: "/opportunity-intake" }],
+      stateSource: "seeded_fallback",
+      sourceArtifact: {
+        kind: "app_portfolio_registry_seed",
+        summary: "Seeded Opportunity entry used until opportunity intake or routing records exist."
+      },
       lastUpdated: generatedAt
     },
     {
@@ -244,6 +490,11 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
       ],
       blockers: ["Needs stable public review URL before owner should have to leave AppEngine to inspect it."],
       evidenceLinks: [{ label: "Life Core Preview", url: "/life-core" }],
+      stateSource: "seeded_fallback",
+      sourceArtifact: {
+        kind: "life_core_overview",
+        summary: "Seeded Life Core overview used until adapter-backed Life Core state exists."
+      },
       lastUpdated: generatedAt
     },
     {
@@ -279,6 +530,11 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
       ],
       blockers: ["Real persistence, public trial approval, and production launch remain blocked by review gates."],
       evidenceLinks: [{ label: "Spark Intake Lite", url: "/spark-of-hope-intake-lite" }],
+      stateSource: "seeded_fallback",
+      sourceArtifact: {
+        kind: "app_portfolio_registry_seed",
+        summary: "Seeded Spark entry used with runtime capability checks until durable review state is available."
+      },
       lastUpdated: generatedAt
     },
     {
@@ -301,9 +557,48 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
       linkedPRs: [],
       blockers: ["Each future app or service needs an approved intake, candidate review, packet, and owner-approved phase path."],
       evidenceLinks: [],
+      stateSource: "seeded_fallback",
+      sourceArtifact: {
+        kind: "app_portfolio_registry_seed",
+        summary: "Seeded future ecosystem placeholder used until intake/candidate records exist."
+      },
       lastUpdated: generatedAt
     }
   ];
+}
+
+async function readRawLifeCoreStore() {
+  return getAppEngineStateAdapter().readJson<{ schemaVersion: 1 } | null>({ kind: "life_core" }, null);
+}
+
+function normalizeNextSafeAction(value: string, fallback: AppPortfolioNextSafeAction): AppPortfolioNextSafeAction {
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  const allowed: AppPortfolioNextSafeAction[] = [
+    "create_planning_issue",
+    "create_implementation_issue",
+    "create_draft_pr",
+    "wait_for_preview",
+    "verify_preview",
+    "verify_review_url",
+    "run_review_gates",
+    "create_fix_issue",
+    "await_owner_review",
+    "stop_for_owner_approval",
+    "pause_for_budget",
+    "request_budget_approval",
+    "prepare_release_gate",
+    "create_vnext_packet",
+    "continue_internal_trial",
+    "unknown"
+  ];
+
+  return allowed.includes(normalized as AppPortfolioNextSafeAction)
+    ? (normalized as AppPortfolioNextSafeAction)
+    : fallback;
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function isUnknownUrl(value: string) {

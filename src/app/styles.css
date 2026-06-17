@@ -1715,7 +1715,7 @@ label {
 
 .portfolio-summary-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1776,6 +1776,33 @@ label {
   background: var(--green-soft);
   font-size: 0.72rem;
   text-transform: uppercase;
+}
+
+.portfolio-state-stack {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.portfolio-source {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: var(--blue);
+  background: #edf3fb;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.portfolio-source.live_state {
+  color: var(--teal);
+  background: var(--green-soft);
+}
+
+.portfolio-source.seeded_fallback {
+  color: var(--gold);
+  background: #fff8db;
 }
 
 .portfolio-state.production_blocked,
