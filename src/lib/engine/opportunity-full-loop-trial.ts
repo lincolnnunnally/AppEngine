@@ -90,6 +90,17 @@ export type OpportunityFullLoopSourceArtifact = {
   summary: string;
 };
 
+export type OpportunityFullLoopTrialInput = {
+  mode?: unknown;
+  problemPain?: unknown;
+  affectedPeople?: unknown;
+  betterOutcome?: unknown;
+  currentBarriers?: unknown;
+  existingIdeaVision?: unknown;
+  desiredImpact?: unknown;
+  possibleSolutionType?: unknown;
+};
+
 type OpportunityFullLoopTrialStore = {
   schemaVersion: 1;
   records: OpportunityFullLoopTrialRecord[];
@@ -124,27 +135,13 @@ export async function listOpportunityFullLoopTrials() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function runOpportunityFullLoopTrial() {
+export async function runOpportunityFullLoopTrial(input: OpportunityFullLoopTrialInput = defaultOpportunityFullLoopInput()) {
   const now = new Date().toISOString();
   const context: TrialContext = {};
   const steps: OpportunityFullLoopTrialStep[] = [];
 
   try {
-    context.intake = await createOpportunityIntakeRecord({
-      mode: "tools",
-      problemPain:
-        "Community leaders hear real needs from people but struggle to turn those needs into clear, safe, reviewable solution work.",
-      affectedPeople: "local ministry leaders, helpers, and people trying to move from a problem toward hope and practical support",
-      betterOutcome:
-        "a guided path that turns a real problem into an owner-reviewed AppEngine packet draft without rushing into code",
-      currentBarriers:
-        "needs are scattered across conversations, solution shape is unclear, owner approval gates must be visible, and premature automation would be risky",
-      existingIdeaVision:
-        "Use Opportunity as the front door and AppEngine as the factory that clarifies, routes, plans, and prepares packet drafts.",
-      desiredImpact:
-        "help Lincoln see whether a submitted problem can become a safe, bounded solution candidate with a next practical action",
-      possibleSolutionType: "app_tool_workflow"
-    });
+    context.intake = await createOpportunityIntakeRecord(input);
     steps.push(completedStep("submit_opportunity_intake", "Submit Opportunity intake", context.intake.title, "opportunity_intake", context.intake.id));
 
     context.clarification = await createOpportunityClarification({ intakeId: context.intake.id });
@@ -461,4 +458,22 @@ async function writeOpportunityFullLoopTrialRecord(record: OpportunityFullLoopTr
       records: [record, ...store.records]
     }
   );
+}
+
+function defaultOpportunityFullLoopInput(): OpportunityFullLoopTrialInput {
+  return {
+    mode: "tools",
+    problemPain:
+      "Community leaders hear real needs from people but struggle to turn those needs into clear, safe, reviewable solution work.",
+    affectedPeople: "local ministry leaders, helpers, and people trying to move from a problem toward hope and practical support",
+    betterOutcome:
+      "a guided path that turns a real problem into an owner-reviewed AppEngine packet draft without rushing into code",
+    currentBarriers:
+      "needs are scattered across conversations, solution shape is unclear, owner approval gates must be visible, and premature automation would be risky",
+    existingIdeaVision:
+      "Use Opportunity as the front door and AppEngine as the factory that clarifies, routes, plans, and prepares packet drafts.",
+    desiredImpact:
+      "help Lincoln see whether a submitted problem can become a safe, bounded solution candidate with a next practical action",
+    possibleSolutionType: "app_tool_workflow"
+  };
 }

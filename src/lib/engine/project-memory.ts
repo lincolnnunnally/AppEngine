@@ -5,6 +5,7 @@ import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-pac
 import type { OpportunityFullLoopTrialRecord } from "./opportunity-full-loop-trial";
 import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
 import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
+import type { RealOpportunityExampleRunRecord } from "./real-opportunity-example-runner";
 import type { TrialResultReview } from "./real-project-trial";
 
 export type ProjectMemoryFeedbackChoice =
@@ -559,6 +560,91 @@ export async function updateProjectMemoryFromOpportunityFullLoopTrial(trial: Opp
       [
         item("progress", trial.ownerReadableSummary, null, createdAt, tags, "system"),
         item("progress", `Next safe action: ${trial.nextSafeAction}`, null, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromRealOpportunityExample(example: RealOpportunityExampleRunRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = example.createdAt;
+  const tags = ["real-opportunity-example", example.exampleContext, example.fullLoopTrialId];
+  const blockedSteps = example.steps.filter((step) => step.status === "blocked");
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState:
+        example.status === "completed"
+          ? "Real Opportunity example reached packet draft readiness"
+          : "Real Opportunity example is blocked",
+      latestProgress: example.ownerReadableSummary,
+      recommendedNextAction: example.nextSafeAction,
+      lastHandoffId: current.latestProjectState.lastHandoffId
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item(
+        "major_decision",
+        `Real Opportunity example accepted for controlled-use run: ${example.sourceInput.problemOrVision}`,
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Run real owner-entered Opportunity examples through the existing controlled-use pipeline before enabling public/customer use or autonomous execution.",
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones:
+      example.status === "completed"
+        ? mergeItems(current.completedMilestones, [
+            item("completed_milestone", example.ownerReadableSummary, null, createdAt, tags, "system")
+          ])
+        : current.completedMilestones,
+    currentBlockers: blockedSteps.length
+      ? mergeItems(
+          current.currentBlockers,
+          blockedSteps.map((step) =>
+            item("current_blocker", `${step.label}: ${step.blocker || step.summary}`, null, createdAt, tags, "system")
+          ),
+          20
+        )
+      : current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: current.architectureDecisions,
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        `Real Opportunity example ran with ${example.steps.filter((step) => step.status === "completed").length} completed steps and ${example.missingInformation.length} missing-information items.`,
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", example.ownerReadableSummary, null, createdAt, tags, "system"),
+        item("progress", `Next safe action: ${example.nextSafeAction}`, null, createdAt, tags, "system")
       ],
       30
     ),

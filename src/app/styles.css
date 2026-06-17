@@ -1549,6 +1549,49 @@ label {
     #f7fbff;
 }
 
+.real-opportunity-example-panel,
+.real-opportunity-example-output {
+  display: grid;
+  gap: 14px;
+}
+
+.real-opportunity-example-panel {
+  background:
+    linear-gradient(135deg, rgba(245, 241, 255, 0.94), rgba(255, 248, 239, 0.94)),
+    #fbf9ff;
+}
+
+.real-opportunity-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.real-opportunity-form-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.real-opportunity-form-grid label:first-child,
+.real-opportunity-form-grid label:nth-child(5) {
+  grid-column: 1 / -1;
+}
+
+.real-opportunity-form-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.real-opportunity-form-grid textarea {
+  min-height: 108px;
+}
+
+.real-opportunity-form-grid select {
+  min-height: 44px;
+}
+
 .trial-step-list {
   display: grid;
   gap: 10px;
@@ -2882,6 +2925,7 @@ label {
     .portfolio-bridge-grid,
     .opportunity-readiness-status-grid,
     .opportunity-readiness-check-grid,
+    .real-opportunity-form-grid,
     .handoff-hero,
     .handoff-layout,
     .handoff-state-grid,

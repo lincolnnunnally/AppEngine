@@ -22,6 +22,10 @@ import type {
   OpportunitySolutionPathRecord,
   OpportunitySolutionPathRoute
 } from "@/lib/engine/opportunity-solution-path";
+import type {
+  RealOpportunityExampleContext,
+  RealOpportunityExampleRunRecord
+} from "@/lib/engine/real-opportunity-example-runner";
 
 const statusLabels: Record<OpportunityStatus, string> = {
   submitted: "Submitted",
@@ -98,6 +102,7 @@ export function OwnerOpportunityQueue({
   initialBuildPacketBridges,
   initialClarifications,
   initialFullLoopTrials,
+  initialRealOpportunityExamples,
   initialRecords,
   initialSolutionPaths
 }: {
@@ -106,6 +111,7 @@ export function OwnerOpportunityQueue({
   initialBuildPacketBridges: OpportunityBuildPacketBridgeRecord[];
   initialClarifications: OpportunityClarificationRecord[];
   initialFullLoopTrials: OpportunityFullLoopTrialRecord[];
+  initialRealOpportunityExamples: RealOpportunityExampleRunRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
 }) {
@@ -115,12 +121,14 @@ export function OwnerOpportunityQueue({
   const [buildPacketBridges, setBuildPacketBridges] = useState(initialBuildPacketBridges);
   const [clarifications, setClarifications] = useState(initialClarifications);
   const [fullLoopTrials, setFullLoopTrials] = useState(initialFullLoopTrials);
+  const [realOpportunityExamples, setRealOpportunityExamples] = useState(initialRealOpportunityExamples);
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
   const [isPreparingPacketDraft, setIsPreparingPacketDraft] = useState(false);
   const [isCreatingCandidate, setIsCreatingCandidate] = useState(false);
   const [isDraftingPlan, setIsDraftingPlan] = useState(false);
   const [isRunningFullLoopTrial, setIsRunningFullLoopTrial] = useState(false);
+  const [isRunningRealExample, setIsRunningRealExample] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [isRoutingPath, setIsRoutingPath] = useState(false);
   const [actionPlanNotice, setActionPlanNotice] = useState<{ type: "success" | "error"; message: string } | null>(
@@ -134,6 +142,9 @@ export function OwnerOpportunityQueue({
     null
   );
   const [fullLoopNotice, setFullLoopNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [realExampleNotice, setRealExampleNotice] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -159,6 +170,84 @@ export function OwnerOpportunityQueue({
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
   const latestFullLoopTrial = fullLoopTrials[0] || null;
+  const latestRealExample = realOpportunityExamples[0] || null;
+  const [realExampleForm, setRealExampleForm] = useState<{
+    problemOrVision: string;
+    affectedPeople: string;
+    betterFuture: string;
+    barriers: string;
+    desiredImpact: string;
+    exampleContext: RealOpportunityExampleContext;
+  }>({
+    problemOrVision: "",
+    affectedPeople: "",
+    betterFuture: "",
+    barriers: "",
+    desiredImpact: "",
+    exampleContext: "lincoln_ecosystem"
+  });
+
+  async function refreshOpportunityArtifacts(intakeId?: string | null) {
+    const [
+      intakeResponse,
+      clarificationResponse,
+      solutionPathResponse,
+      actionPlanResponse,
+      candidateResponse,
+      bridgeResponse,
+      fullLoopResponse,
+      realExampleResponse
+    ] = await Promise.all([
+      fetch("/api/opportunity-intake", { cache: "no-store" }),
+      fetch("/api/opportunity-clarification", { cache: "no-store" }),
+      fetch("/api/opportunity-solution-path", { cache: "no-store" }),
+      fetch("/api/opportunity-action-plan", { cache: "no-store" }),
+      fetch("/api/opportunity-appengine-candidate", { cache: "no-store" }),
+      fetch("/api/opportunity-build-packet-bridge", { cache: "no-store" }),
+      fetch("/api/opportunity-full-loop-trial", { cache: "no-store" }),
+      fetch("/api/real-opportunity-example-runner", { cache: "no-store" })
+    ]);
+
+    const [
+      intakeResult,
+      clarificationResult,
+      solutionPathResult,
+      actionPlanResult,
+      candidateResult,
+      bridgeResult,
+      fullLoopResult,
+      realExampleResult
+    ] = await Promise.all([
+      intakeResponse.json(),
+      clarificationResponse.json(),
+      solutionPathResponse.json(),
+      actionPlanResponse.json(),
+      candidateResponse.json(),
+      bridgeResponse.json(),
+      fullLoopResponse.json(),
+      realExampleResponse.json()
+    ]);
+
+    if (intakeResult.ok) {
+      setRecords(intakeResult.records);
+      if (intakeId) setSelectedId(intakeId);
+    }
+
+    if (clarificationResult.ok) setClarifications(clarificationResult.records);
+    if (solutionPathResult.ok) setSolutionPaths(solutionPathResult.records);
+    if (actionPlanResult.ok) setActionPlans(actionPlanResult.records);
+    if (candidateResult.ok) setAppEngineCandidates(candidateResult.records);
+    if (bridgeResult.ok) setBuildPacketBridges(bridgeResult.records);
+    if (fullLoopResult.ok) setFullLoopTrials(fullLoopResult.records);
+    if (realExampleResult.ok) setRealOpportunityExamples(realExampleResult.records);
+  }
+
+  function updateRealExampleField(field: keyof typeof realExampleForm, value: string) {
+    setRealExampleForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
 
   async function runFullLoopTrial() {
     setIsRunningFullLoopTrial(true);
@@ -182,36 +271,7 @@ export function OwnerOpportunityQueue({
       setFullLoopTrials((current) => [record, ...current.filter((item) => item.id !== record.id)]);
 
       if (record.artifacts.intakeId || record.artifacts.clarificationId || record.artifacts.solutionPathId) {
-        const [intakeResponse, clarificationResponse, solutionPathResponse, actionPlanResponse, candidateResponse, bridgeResponse] =
-          await Promise.all([
-            fetch("/api/opportunity-intake", { cache: "no-store" }),
-            fetch("/api/opportunity-clarification", { cache: "no-store" }),
-            fetch("/api/opportunity-solution-path", { cache: "no-store" }),
-            fetch("/api/opportunity-action-plan", { cache: "no-store" }),
-            fetch("/api/opportunity-appengine-candidate", { cache: "no-store" }),
-            fetch("/api/opportunity-build-packet-bridge", { cache: "no-store" })
-          ]);
-
-        const [intakeResult, clarificationResult, solutionPathResult, actionPlanResult, candidateResult, bridgeResult] =
-          await Promise.all([
-            intakeResponse.json(),
-            clarificationResponse.json(),
-            solutionPathResponse.json(),
-            actionPlanResponse.json(),
-            candidateResponse.json(),
-            bridgeResponse.json()
-          ]);
-
-        if (intakeResult.ok) {
-          setRecords(intakeResult.records);
-          setSelectedId(record.artifacts.intakeId || selectedId);
-        }
-
-        if (clarificationResult.ok) setClarifications(clarificationResult.records);
-        if (solutionPathResult.ok) setSolutionPaths(solutionPathResult.records);
-        if (actionPlanResult.ok) setActionPlans(actionPlanResult.records);
-        if (candidateResult.ok) setAppEngineCandidates(candidateResult.records);
-        if (bridgeResult.ok) setBuildPacketBridges(bridgeResult.records);
+        await refreshOpportunityArtifacts(record.artifacts.intakeId || selectedId);
       }
 
       setFullLoopNotice({
@@ -228,6 +288,48 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsRunningFullLoopTrial(false);
+    }
+  }
+
+  async function runRealOpportunityExample() {
+    setIsRunningRealExample(true);
+    setRealExampleNotice(null);
+
+    try {
+      const response = await fetch("/api/real-opportunity-example-runner", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(realExampleForm)
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The real Opportunity example could not run.");
+      }
+
+      const record = result.record as RealOpportunityExampleRunRecord;
+      setRealOpportunityExamples((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+      setFullLoopTrials((current) => [
+        record.fullLoopTrial,
+        ...current.filter((item) => item.id !== record.fullLoopTrial.id)
+      ]);
+      await refreshOpportunityArtifacts(record.artifacts.intakeId);
+      setRealExampleNotice({
+        type: record.status === "completed" ? "success" : "error",
+        message:
+          record.status === "completed"
+            ? "Real Opportunity example reached packet draft readiness. Codex, issues, labels, deploys, migrations, paid resources, and env changes stayed blocked."
+            : record.nextSafeAction
+      });
+    } catch (caught) {
+      setRealExampleNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The real Opportunity example could not run."
+      });
+    } finally {
+      setIsRunningRealExample(false);
     }
   }
 
@@ -543,6 +645,151 @@ export function OwnerOpportunityQueue({
           <div className="empty-state">
             <strong>No full-loop trial has run yet</strong>
             <p>Run the trial to prove Opportunity can move from submitted problem to packet draft readiness safely.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="real-opportunity-example-panel panel" data-testid="real-opportunity-example-runner">
+        <div className="queue-header">
+          <div>
+            <p className="eyebrow">Real Internal Example</p>
+            <h2>Run one real problem or vision through Opportunity.</h2>
+            <p>
+              Enter one real internal example. AppEngine will create the intake, clarification, solution path, action
+              plan, AppEngine candidate, packet draft bridge, memory update, audit trail, and next safe action.
+            </p>
+          </div>
+          <button className="button accent" disabled={isRunningRealExample} onClick={runRealOpportunityExample} type="button">
+            {isRunningRealExample ? "Running..." : "Run Real Opportunity Example"}
+          </button>
+        </div>
+
+        <div className="real-opportunity-form-grid">
+          <label>
+            <span>Problem or vision</span>
+            <textarea
+              value={realExampleForm.problemOrVision}
+              onChange={(event) => updateRealExampleField("problemOrVision", event.target.value)}
+              placeholder="What problem do you see, or what vision do you want to test?"
+            />
+          </label>
+          <label>
+            <span>Who is affected</span>
+            <textarea
+              value={realExampleForm.affectedPeople}
+              onChange={(event) => updateRealExampleField("affectedPeople", event.target.value)}
+              placeholder="Who feels this problem or would benefit from the better future?"
+            />
+          </label>
+          <label>
+            <span>Desired better future</span>
+            <textarea
+              value={realExampleForm.betterFuture}
+              onChange={(event) => updateRealExampleField("betterFuture", event.target.value)}
+              placeholder="What would be meaningfully better if this worked?"
+            />
+          </label>
+          <label>
+            <span>Current barriers</span>
+            <textarea
+              value={realExampleForm.barriers}
+              onChange={(event) => updateRealExampleField("barriers", event.target.value)}
+              placeholder="What is blocking progress right now?"
+            />
+          </label>
+          <label>
+            <span>Desired impact</span>
+            <textarea
+              value={realExampleForm.desiredImpact}
+              onChange={(event) => updateRealExampleField("desiredImpact", event.target.value)}
+              placeholder="What kind of change should this help create?"
+            />
+          </label>
+          <label>
+            <span>Who is this for?</span>
+            <select
+              value={realExampleForm.exampleContext}
+              onChange={(event) => updateRealExampleField("exampleContext", event.target.value)}
+            >
+              <option value="lincoln_ecosystem">Lincoln&apos;s ecosystem</option>
+              <option value="outside_customer_community_leader">Outside customer/community leader</option>
+            </select>
+          </label>
+        </div>
+
+        {realExampleNotice ? (
+          <div className={`workflow-feedback${realExampleNotice.type === "error" ? " error" : ""}`} role="status">
+            <strong>{realExampleNotice.type === "success" ? "Real example completed" : "Real example needs attention"}</strong>
+            <p>{realExampleNotice.message}</p>
+          </div>
+        ) : null}
+
+        {latestRealExample ? (
+          <div className="real-opportunity-example-output" data-testid="real-opportunity-example-output">
+            <div className="artifact-strip">
+              <span>{latestRealExample.status.replaceAll("_", " ")}</span>
+              <span>{latestRealExample.exampleContext.replaceAll("_", " ")}</span>
+              <span>{latestRealExample.fullLoopTrial.packetDraftReadiness.packetType.replaceAll("_", " ")}</span>
+            </div>
+
+            <section className="next-action-band">
+              <span>Result</span>
+              <strong>{latestRealExample.ownerReadableSummary}</strong>
+            </section>
+
+            <div className="detail-grid">
+              <section>
+                <span>Problem or vision</span>
+                <p>{latestRealExample.sourceInput.problemOrVision}</p>
+              </section>
+              <section>
+                <span>Who is affected</span>
+                <p>{latestRealExample.sourceInput.affectedPeople}</p>
+              </section>
+              <section>
+                <span>Desired better future</span>
+                <p>{latestRealExample.sourceInput.betterFuture}</p>
+              </section>
+              <section>
+                <span>Next safe action</span>
+                <p>{latestRealExample.nextSafeAction}</p>
+              </section>
+            </div>
+
+            <section>
+              <p className="eyebrow">Step results</p>
+              <div className="trial-step-list">
+                {latestRealExample.steps.map((step) => (
+                  <article className={`trial-step ${step.status}`} key={`${latestRealExample.id}-${step.id}`}>
+                    <span>{step.status.replaceAll("_", " ")}</span>
+                    <strong>{step.label}</strong>
+                    <p>{step.blocker || step.summary}</p>
+                    {step.artifactKind ? <small>{step.artifactKind.replaceAll("_", " ")} · {step.artifactId}</small> : null}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <p className="eyebrow">Blockers / missing information</p>
+              <div className="guardrail-list">
+                {latestRealExample.missingInformation.length ? (
+                  latestRealExample.missingInformation.map((item) => <span key={item}>{item}</span>)
+                ) : (
+                  <span>None</span>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <p className="eyebrow">Copyable Next Safe Action</p>
+              <textarea className="copyable-prompt-box" readOnly value={latestRealExample.copyableNextAction} />
+            </section>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <strong>No real example has run yet</strong>
+            <p>Enter one real internal problem or vision to prove the controlled-use flow with actual owner context.</p>
           </div>
         )}
       </section>
