@@ -1,7 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
+import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
 import type { TrialResultReview } from "./real-project-trial";
 
 export type ProjectMemoryFeedbackChoice =
@@ -83,6 +84,7 @@ type StoreShape = {
 const storeDir = join(process.cwd(), ".app-engine");
 const storePath = join(storeDir, "project-memory.json");
 let memoryStore: StoreShape = { memory: createEmptyProjectMemory() };
+const projectMemoryStateStore = createAdapterReadyStore<StoreShape | null>("project_memory");
 
 export async function loadProjectMemory() {
   const store = await readStore();
@@ -800,7 +802,14 @@ function defaultGuardrails(): ProjectMemory["guardrails"] {
 }
 
 async function readStore(): Promise<StoreShape> {
-  if (process.env.VERCEL === "1") return memoryStore;
+  if (process.env.APPENGINE_STATE_ADAPTER === "memory_fallback") return memoryStore;
+
+  const adapterStore = await projectMemoryStateStore.read(null);
+  if (adapterStore?.memory) {
+    return {
+      memory: normalizeProjectMemory(adapterStore.memory)
+    };
+  }
 
   try {
     const raw = await readFile(storePath, "utf8");
@@ -815,13 +824,16 @@ async function readStore(): Promise<StoreShape> {
 }
 
 async function writeStore(store: StoreShape) {
-  if (process.env.VERCEL === "1") {
-    memoryStore = store;
+  const normalizedStore = {
+    memory: normalizeProjectMemory(store.memory)
+  };
+
+  if (process.env.APPENGINE_STATE_ADAPTER === "memory_fallback") {
+    memoryStore = normalizedStore;
     return;
   }
 
-  await mkdir(storeDir, { recursive: true });
-  await writeFile(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  await projectMemoryStateStore.write(normalizedStore);
 }
 
 function firstText(items: ProjectMemoryItem[]) {

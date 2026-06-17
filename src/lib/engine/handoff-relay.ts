@@ -1,7 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { OrchestratorBatchDryRun, OrchestratorRun } from "./orchestrator-run";
-import { updateProjectMemoryFromHandoff, updateProjectMemoryFromHandoffExport, updateProjectMemoryFromPreparedHandoff } from "./project-memory";
+import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
+import { updateProjectMemoryFromHandoff, updateProjectMemoryFromHandoffExport, updateProjectMemoryFromPreparedHandoff } from "./project-memory.ts";
 
 export type HandoffFeedbackChoice =
   | "good_direction"
@@ -111,6 +112,7 @@ type StoreShape = {
 const storeDir = join(process.cwd(), ".app-engine");
 const storePath = join(storeDir, "handoff-relay.json");
 let memoryStore: StoreShape = { handoffs: [] };
+const handoffRelayStateStore = createAdapterReadyStore<StoreShape | null>("handoff_relay");
 
 export function createHandoffRelaySummary(rawText: string, now = new Date()): HandoffRelaySummary {
   const text = rawText.trim();
@@ -852,7 +854,14 @@ function isFeedbackChoice(value: string): value is HandoffFeedbackChoice {
 }
 
 async function readStore(): Promise<StoreShape> {
-  if (process.env.VERCEL === "1") return memoryStore;
+  if (process.env.APPENGINE_STATE_ADAPTER === "memory_fallback") return memoryStore;
+
+  const adapterStore = await handoffRelayStateStore.read(null);
+  if (adapterStore?.handoffs) {
+    return {
+      handoffs: Array.isArray(adapterStore.handoffs) ? adapterStore.handoffs.map(normalizeHandoffRelaySummary) : []
+    };
+  }
 
   try {
     const raw = await readFile(storePath, "utf8");
@@ -867,13 +876,16 @@ async function readStore(): Promise<StoreShape> {
 }
 
 async function writeStore(store: StoreShape) {
-  if (process.env.VERCEL === "1") {
-    memoryStore = store;
+  const normalizedStore = {
+    handoffs: Array.isArray(store.handoffs) ? store.handoffs.map(normalizeHandoffRelaySummary) : []
+  };
+
+  if (process.env.APPENGINE_STATE_ADAPTER === "memory_fallback") {
+    memoryStore = normalizedStore;
     return;
   }
 
-  await mkdir(storeDir, { recursive: true });
-  await writeFile(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  await handoffRelayStateStore.write(normalizedStore);
 }
 
 function createId(now: Date) {

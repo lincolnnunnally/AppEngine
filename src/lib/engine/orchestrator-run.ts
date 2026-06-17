@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { getAppEngineStateAdapter } from "./durable-state-adapter.ts";
 import type { HandoffRelaySummary } from "./handoff-relay";
 import type { PendingCheckResolution } from "./pending-check-resolution";
 import type { ProjectMemory } from "./project-memory";
@@ -165,6 +166,7 @@ type StoreShape = {
 const storeDir = join(process.cwd(), ".app-engine");
 const storePath = join(storeDir, "orchestrator-runs.json");
 let memoryStore: StoreShape = { runs: [], actionQueue: [] };
+const orchestratorStateAdapter = getAppEngineStateAdapter();
 
 export async function listOrchestratorRuns() {
   const store = await readStore();
@@ -827,7 +829,19 @@ function defaultGuardrails(): OrchestratorGuardrails {
 }
 
 async function readStore(): Promise<StoreShape> {
-  if (process.env.VERCEL === "1") return memoryStore;
+  if (process.env.APPENGINE_STATE_ADAPTER === "memory_fallback") return memoryStore;
+
+  const [adapterRuns, adapterActionQueue] = await Promise.all([
+    orchestratorStateAdapter.readJson<unknown[] | null>({ kind: "orchestrator_runs" }, null),
+    orchestratorStateAdapter.readJson<unknown[] | null>({ kind: "orchestrator_action_queue" }, null)
+  ]);
+
+  if (adapterRuns || adapterActionQueue) {
+    return {
+      runs: Array.isArray(adapterRuns) ? adapterRuns.map(normalizeRun).filter(isOrchestratorRun) : [],
+      actionQueue: Array.isArray(adapterActionQueue) ? adapterActionQueue.map(normalizeActionQueueItem) : []
+    };
+  }
 
   try {
     const raw = await readFile(storePath, "utf8");
@@ -843,13 +857,20 @@ async function readStore(): Promise<StoreShape> {
 }
 
 async function writeStore(store: StoreShape) {
-  if (process.env.VERCEL === "1") {
-    memoryStore = store;
+  const normalizedStore = {
+    runs: Array.isArray(store.runs) ? store.runs.map(normalizeRun).filter(isOrchestratorRun) : [],
+    actionQueue: Array.isArray(store.actionQueue) ? store.actionQueue.map(normalizeActionQueueItem) : []
+  };
+
+  if (process.env.APPENGINE_STATE_ADAPTER === "memory_fallback") {
+    memoryStore = normalizedStore;
     return;
   }
 
-  await mkdir(storeDir, { recursive: true });
-  await writeFile(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  await Promise.all([
+    orchestratorStateAdapter.writeJson({ kind: "orchestrator_runs" }, normalizedStore.runs),
+    orchestratorStateAdapter.writeJson({ kind: "orchestrator_action_queue" }, normalizedStore.actionQueue)
+  ]);
 }
 
 function normalizeRun(value: unknown): OrchestratorRun | null {
