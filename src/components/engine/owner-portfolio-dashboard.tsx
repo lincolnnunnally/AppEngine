@@ -25,6 +25,9 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
         <SummaryCard label="Production live" value={registry.summary.productionLiveApps} />
         <SummaryCard label="Blocked/guarded" value={registry.summary.blockedApps} />
         <SummaryCard label="Unknown review URLs" value={registry.summary.unknownReviewUrls} />
+        <SummaryCard label="Live state" value={registry.summary.byStateSource.live_state} />
+        <SummaryCard label="Derived state" value={registry.summary.byStateSource.derived_state} />
+        <SummaryCard label="Seeded fallback" value={registry.summary.byStateSource.seeded_fallback} />
       </div>
 
       <div className="portfolio-card-grid">
@@ -64,7 +67,10 @@ function PortfolioEntryCard({ app }: { app: AppPortfolioEntry }) {
           <h2>{app.name}</h2>
           <p>{app.status}</p>
         </div>
-        <strong className={`portfolio-state ${app.deploymentState}`}>{formatToken(app.deploymentState)}</strong>
+        <div className="portfolio-state-stack">
+          <strong className={`portfolio-state ${app.deploymentState}`}>{formatToken(app.deploymentState)}</strong>
+          <small className={`portfolio-source ${app.stateSource}`}>{formatToken(app.stateSource)}</small>
+        </div>
       </div>
 
       <dl className="portfolio-detail-grid">
@@ -100,6 +106,13 @@ function PortfolioEntryCard({ app }: { app: AppPortfolioEntry }) {
         <div>
           <dt>Next safe action</dt>
           <dd>{formatToken(app.nextSafeAction)}</dd>
+        </div>
+        <div>
+          <dt>Source artifact</dt>
+          <dd>
+            {formatToken(app.sourceArtifact.kind)}
+            <small>{app.sourceArtifact.summary}</small>
+          </dd>
         </div>
       </dl>
 
