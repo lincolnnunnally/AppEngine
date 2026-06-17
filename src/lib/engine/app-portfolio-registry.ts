@@ -283,11 +283,15 @@ function deriveAppEngineCoreEntry(
 
   return {
     ...seed,
-    status: latestBuildExecutionRequest
+    status: latestBuildExecutionRequest?.latestBuilderResult
+      ? `builder result ${latestBuildExecutionRequest.executionStatus.replaceAll("_", " ")}`
+      : latestBuildExecutionRequest
       ? `build execution request ${latestBuildExecutionRequest.reviewStatus.replaceAll("_", " ")}`
       : projectMemory.latestProjectState.currentState || seed.status,
     buildState: queuedActions || preparedActions || latestBuildExecutionRequest ? "owner_approval_required" : seed.buildState,
-    nextSafeAction: latestBuildExecutionRequest?.reviewStatus === "exported_for_builder"
+    nextSafeAction: latestBuildExecutionRequest?.latestBuilderResult
+      ? normalizeNextSafeAction(latestBuildExecutionRequest.latestBuilderResult.nextSafeAction, "await_owner_review")
+      : latestBuildExecutionRequest?.reviewStatus === "exported_for_builder"
       ? "review_exported_builder_handoff"
       : normalizeNextSafeAction(projectMemory.latestProjectState.recommendedNextAction, seed.nextSafeAction),
     blockers: blockers.length ? blockers : seed.blockers,
@@ -302,7 +306,7 @@ function deriveAppEngineCoreEntry(
       ? {
           kind: "build_execution_request",
           id: latestBuildExecutionRequest.id,
-          summary: latestBuildExecutionRequest.ownerReadableSummary
+          summary: latestBuildExecutionRequest.latestBuilderResult?.ownerReadableSummary || latestBuildExecutionRequest.ownerReadableSummary
         }
       : {
           kind: "project_memory",
@@ -433,16 +437,20 @@ function deriveLifeCoreEntry(
   if (latestLifeCoreBuildRequest) {
     return {
       ...seed,
-      status: `build execution request ${latestLifeCoreBuildRequest.reviewStatus.replaceAll("_", " ")}`,
+      status: latestLifeCoreBuildRequest.latestBuilderResult
+        ? `builder result ${latestLifeCoreBuildRequest.executionStatus.replaceAll("_", " ")}`
+        : `build execution request ${latestLifeCoreBuildRequest.reviewStatus.replaceAll("_", " ")}`,
       buildState: "owner_approval_required",
-      nextSafeAction:
-        latestLifeCoreBuildRequest.reviewStatus === "exported_for_builder"
+      nextSafeAction: latestLifeCoreBuildRequest.latestBuilderResult
+        ? normalizeNextSafeAction(latestLifeCoreBuildRequest.latestBuilderResult.nextSafeAction, "await_owner_review")
+        : latestLifeCoreBuildRequest.reviewStatus === "exported_for_builder"
           ? "review_exported_builder_handoff"
           : "await_owner_review",
       blockers: uniqueStrings([
-        latestLifeCoreBuildRequest.reviewStatus === "exported_for_builder"
+        latestLifeCoreBuildRequest.latestBuilderResult?.blockers[0] ||
+        (latestLifeCoreBuildRequest.reviewStatus === "exported_for_builder"
           ? "Builder handoff is exported, but Lincoln must still manually review and send it."
-          : "Owner review is required before builder execution.",
+          : "Owner review is required before builder execution."),
         "Codex auto-execution, GitHub issue creation, labels, deploys, paid resources, migrations, and secrets/env changes remain blocked.",
         ...seed.blockers
       ]),
@@ -451,7 +459,7 @@ function deriveLifeCoreEntry(
       sourceArtifact: {
         kind: "build_execution_request",
         id: latestLifeCoreBuildRequest.id,
-        summary: latestLifeCoreBuildRequest.ownerReadableSummary
+        summary: latestLifeCoreBuildRequest.latestBuilderResult?.ownerReadableSummary || latestLifeCoreBuildRequest.ownerReadableSummary
       },
       lastUpdated: latestLifeCoreBuildRequest.updatedAt
     };

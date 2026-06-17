@@ -7,6 +7,7 @@ export type AppEngineAuditEventType =
   | "build_execution_request_created"
   | "build_execution_request_reviewed"
   | "build_execution_request_exported"
+  | "builder_result_intake_received"
   | "orchestrator_action_queued"
   | "orchestrator_action_exported"
   | "opportunity_packet_draft_prepared"
@@ -73,6 +74,7 @@ export const supportedAuditEventTypes: AppEngineAuditEventType[] = [
   "build_execution_request_created",
   "build_execution_request_reviewed",
   "build_execution_request_exported",
+  "builder_result_intake_received",
   "orchestrator_action_queued",
   "orchestrator_action_exported",
   "opportunity_packet_draft_prepared",
