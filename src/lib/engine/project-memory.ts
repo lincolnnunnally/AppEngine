@@ -6,6 +6,7 @@ import type { OpportunityFullLoopTrialRecord } from "./opportunity-full-loop-tri
 import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
 import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
 import type { RealOpportunityExampleRunRecord } from "./real-opportunity-example-runner";
+import type { RealOpportunityResultReviewRecord } from "./real-opportunity-result-review";
 import type { TrialResultReview } from "./real-project-trial";
 
 export type ProjectMemoryFeedbackChoice =
@@ -649,6 +650,145 @@ export async function updateProjectMemoryFromRealOpportunityExample(example: Rea
       30
     ),
     ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromRealOpportunityResultReview(review: RealOpportunityResultReviewRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = review.createdAt;
+  const tags = ["real-opportunity-result-review", review.reviewStatus, review.exampleId];
+  const ready = review.reviewStatus === "ready_for_next_appengine_action";
+  const ownerNoteItem = review.ownerNotes
+    ? [item("progress", `Owner note on real Opportunity result: ${review.ownerNotes}`, null, createdAt, tags, "owner_feedback")]
+    : [];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: ready
+        ? "Real Opportunity result is ready for the next AppEngine action"
+        : `Real Opportunity result reviewed as ${review.reviewStatus.replace(/_/g, " ")}`,
+      latestProgress: review.ownerReadableSummary,
+      recommendedNextAction: review.nextAppEngineAction.expectedOutcome,
+      lastHandoffId: current.latestProjectState.lastHandoffId
+    },
+    majorDecisions: ready
+      ? mergeItems(current.majorDecisions, [
+          item(
+            "major_decision",
+            "Owner approved a real Opportunity result as ready for the next AppEngine action.",
+            null,
+            createdAt,
+            tags,
+            "owner_feedback"
+          )
+        ])
+      : current.majorDecisions,
+    acceptedApproaches:
+      review.reviewStatus === "useful" || ready
+        ? mergeItems(current.acceptedApproaches, [
+            item(
+              "accepted_approach",
+              "Review real Opportunity examples before preparing the next AppEngine action.",
+              null,
+              createdAt,
+              tags,
+              "owner_feedback"
+            )
+          ])
+        : current.acceptedApproaches,
+    rejectedApproaches:
+      review.reviewStatus === "wrong_direction"
+        ? mergeItems(current.rejectedApproaches, [
+            item(
+              "rejected_approach",
+              `Real Opportunity result direction rejected: ${review.resultSnapshot.originalProblemOrVision}`,
+              null,
+              createdAt,
+              tags,
+              "owner_feedback"
+            )
+          ])
+        : current.rejectedApproaches,
+    completedMilestones: ready
+      ? mergeItems(current.completedMilestones, [
+          item("completed_milestone", review.ownerReadableSummary, null, createdAt, tags, "owner_feedback")
+        ])
+      : current.completedMilestones,
+    currentBlockers: review.portfolioStateUpdate.blocker
+      ? mergeItems(
+          current.currentBlockers,
+          [item("current_blocker", review.portfolioStateUpdate.blocker, null, createdAt, tags, "owner_feedback")],
+          20
+        )
+      : current.currentBlockers,
+    openQuestions:
+      review.reviewStatus === "needs_clarification"
+        ? mergeItems(current.openQuestions, [
+            item(
+              "open_question",
+              `Clarify real Opportunity result: ${review.resultSnapshot.originalProblemOrVision}`,
+              null,
+              createdAt,
+              tags,
+              "owner_feedback"
+            )
+          ])
+        : current.openQuestions,
+    architectureDecisions: current.architectureDecisions,
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        `Real Opportunity result review captured ${review.reviewStatus.replace(/_/g, " ")} with ${review.concerns.length} concern(s).`,
+        null,
+        createdAt,
+        tags,
+        "owner_feedback"
+      )
+    ]),
+    futureImprovements:
+      review.reviewStatus === "missing_requirement"
+        ? mergeItems(current.futureImprovements, [
+            item(
+              "future_improvement",
+              review.ownerNotes || "Add the missing requirement before the real Opportunity result advances.",
+              null,
+              createdAt,
+              tags,
+              "owner_feedback"
+            )
+          ])
+        : current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", review.ownerReadableSummary, null, createdAt, tags, "owner_feedback"),
+        item("progress", `Next AppEngine action: ${review.nextAppEngineAction.expectedOutcome}`, null, createdAt, tags, "owner_feedback"),
+        ...ownerNoteItem
+      ],
+      30
+    ),
+    ownerFeedback: mergeItems(
+      current.ownerFeedback,
+      [
+        item(
+          "progress",
+          `Real Opportunity result review: ${review.reviewStatus.replace(/_/g, " ")}${review.ownerNotes ? ` - ${review.ownerNotes}` : ""}`,
+          null,
+          createdAt,
+          tags,
+          "owner_feedback"
+        )
+      ],
+      30
+    ),
     guardrails: defaultGuardrails()
   };
 

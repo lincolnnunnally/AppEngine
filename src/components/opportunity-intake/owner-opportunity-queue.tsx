@@ -26,6 +26,10 @@ import type {
   RealOpportunityExampleContext,
   RealOpportunityExampleRunRecord
 } from "@/lib/engine/real-opportunity-example-runner";
+import type {
+  RealOpportunityResultReviewRecord,
+  RealOpportunityResultReviewStatus
+} from "@/lib/engine/real-opportunity-result-review";
 
 const statusLabels: Record<OpportunityStatus, string> = {
   submitted: "Submitted",
@@ -96,6 +100,14 @@ const packetDraftLabels: Record<OpportunityBuildPacketBridgeDraftKind, string> =
   community_model_plan_draft: "Community model plan draft"
 };
 
+const realOpportunityResultReviewLabels: Record<RealOpportunityResultReviewStatus, string> = {
+  useful: "Useful",
+  needs_clarification: "Needs clarification",
+  wrong_direction: "Wrong direction",
+  missing_requirement: "Missing requirement",
+  ready_for_next_appengine_action: "Ready for next AppEngine action"
+};
+
 export function OwnerOpportunityQueue({
   initialActionPlans,
   initialAppEngineCandidates,
@@ -103,6 +115,7 @@ export function OwnerOpportunityQueue({
   initialClarifications,
   initialFullLoopTrials,
   initialRealOpportunityExamples,
+  initialRealOpportunityResultReviews,
   initialRecords,
   initialSolutionPaths
 }: {
@@ -112,6 +125,7 @@ export function OwnerOpportunityQueue({
   initialClarifications: OpportunityClarificationRecord[];
   initialFullLoopTrials: OpportunityFullLoopTrialRecord[];
   initialRealOpportunityExamples: RealOpportunityExampleRunRecord[];
+  initialRealOpportunityResultReviews: RealOpportunityResultReviewRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
 }) {
@@ -122,6 +136,9 @@ export function OwnerOpportunityQueue({
   const [clarifications, setClarifications] = useState(initialClarifications);
   const [fullLoopTrials, setFullLoopTrials] = useState(initialFullLoopTrials);
   const [realOpportunityExamples, setRealOpportunityExamples] = useState(initialRealOpportunityExamples);
+  const [realOpportunityResultReviews, setRealOpportunityResultReviews] = useState(
+    initialRealOpportunityResultReviews
+  );
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
   const [isPreparingPacketDraft, setIsPreparingPacketDraft] = useState(false);
@@ -129,6 +146,7 @@ export function OwnerOpportunityQueue({
   const [isDraftingPlan, setIsDraftingPlan] = useState(false);
   const [isRunningFullLoopTrial, setIsRunningFullLoopTrial] = useState(false);
   const [isRunningRealExample, setIsRunningRealExample] = useState(false);
+  const [isSavingRealExampleReview, setIsSavingRealExampleReview] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [isRoutingPath, setIsRoutingPath] = useState(false);
   const [actionPlanNotice, setActionPlanNotice] = useState<{ type: "success" | "error"; message: string } | null>(
@@ -145,6 +163,10 @@ export function OwnerOpportunityQueue({
   const [realExampleNotice, setRealExampleNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+  const [realExampleReviewNotice, setRealExampleReviewNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -171,6 +193,9 @@ export function OwnerOpportunityQueue({
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
   const latestFullLoopTrial = fullLoopTrials[0] || null;
   const latestRealExample = realOpportunityExamples[0] || null;
+  const latestRealExampleReview = latestRealExample
+    ? realOpportunityResultReviews.find((review) => review.exampleId === latestRealExample.id) || null
+    : realOpportunityResultReviews[0] || null;
   const [realExampleForm, setRealExampleForm] = useState<{
     problemOrVision: string;
     affectedPeople: string;
@@ -186,6 +211,13 @@ export function OwnerOpportunityQueue({
     desiredImpact: "",
     exampleContext: "lincoln_ecosystem"
   });
+  const [realExampleReviewForm, setRealExampleReviewForm] = useState<{
+    status: RealOpportunityResultReviewStatus;
+    ownerNotes: string;
+  }>({
+    status: "useful",
+    ownerNotes: ""
+  });
 
   async function refreshOpportunityArtifacts(intakeId?: string | null) {
     const [
@@ -196,7 +228,8 @@ export function OwnerOpportunityQueue({
       candidateResponse,
       bridgeResponse,
       fullLoopResponse,
-      realExampleResponse
+      realExampleResponse,
+      realExampleReviewResponse
     ] = await Promise.all([
       fetch("/api/opportunity-intake", { cache: "no-store" }),
       fetch("/api/opportunity-clarification", { cache: "no-store" }),
@@ -205,7 +238,8 @@ export function OwnerOpportunityQueue({
       fetch("/api/opportunity-appengine-candidate", { cache: "no-store" }),
       fetch("/api/opportunity-build-packet-bridge", { cache: "no-store" }),
       fetch("/api/opportunity-full-loop-trial", { cache: "no-store" }),
-      fetch("/api/real-opportunity-example-runner", { cache: "no-store" })
+      fetch("/api/real-opportunity-example-runner", { cache: "no-store" }),
+      fetch("/api/real-opportunity-result-review", { cache: "no-store" })
     ]);
 
     const [
@@ -216,7 +250,8 @@ export function OwnerOpportunityQueue({
       candidateResult,
       bridgeResult,
       fullLoopResult,
-      realExampleResult
+      realExampleResult,
+      realExampleReviewResult
     ] = await Promise.all([
       intakeResponse.json(),
       clarificationResponse.json(),
@@ -225,7 +260,8 @@ export function OwnerOpportunityQueue({
       candidateResponse.json(),
       bridgeResponse.json(),
       fullLoopResponse.json(),
-      realExampleResponse.json()
+      realExampleResponse.json(),
+      realExampleReviewResponse.json()
     ]);
 
     if (intakeResult.ok) {
@@ -240,6 +276,7 @@ export function OwnerOpportunityQueue({
     if (bridgeResult.ok) setBuildPacketBridges(bridgeResult.records);
     if (fullLoopResult.ok) setFullLoopTrials(fullLoopResult.records);
     if (realExampleResult.ok) setRealOpportunityExamples(realExampleResult.records);
+    if (realExampleReviewResult.ok) setRealOpportunityResultReviews(realExampleReviewResult.records);
   }
 
   function updateRealExampleField(field: keyof typeof realExampleForm, value: string) {
@@ -247,6 +284,19 @@ export function OwnerOpportunityQueue({
       ...current,
       [field]: value
     }));
+  }
+
+  function updateRealExampleReviewStatus(value: string) {
+    if (value in realOpportunityResultReviewLabels) {
+      setRealExampleReviewForm((current) => ({
+        ...current,
+        status: value as RealOpportunityResultReviewStatus
+      }));
+    }
+  }
+
+  function realExampleArtifactSummary(kind: string) {
+    return latestRealExample?.fullLoopTrial.sourceArtifacts.find((artifact) => artifact.kind === kind)?.summary || "Not available yet.";
   }
 
   async function runFullLoopTrial() {
@@ -330,6 +380,50 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsRunningRealExample(false);
+    }
+  }
+
+  async function saveRealOpportunityResultReview() {
+    if (!latestRealExample) return;
+
+    setIsSavingRealExampleReview(true);
+    setRealExampleReviewNotice(null);
+
+    try {
+      const response = await fetch("/api/real-opportunity-result-review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          exampleId: latestRealExample.id,
+          status: realExampleReviewForm.status,
+          ownerNotes: realExampleReviewForm.ownerNotes
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The real Opportunity result review could not be saved.");
+      }
+
+      const record = result.record as RealOpportunityResultReviewRecord;
+      setRealOpportunityResultReviews((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+      await refreshOpportunityArtifacts(latestRealExample.artifacts.intakeId);
+      setRealExampleReviewNotice({
+        type: record.reviewStatus === "ready_for_next_appengine_action" ? "success" : "error",
+        message:
+          record.reviewStatus === "ready_for_next_appengine_action"
+            ? "Result review saved and portfolio state can show readiness for the next AppEngine action. Codex, issues, labels, final packets, deploys, migrations, paid resources, and env changes stayed blocked."
+            : record.portfolioStateUpdate.blocker || record.nextAppEngineAction.expectedOutcome
+      });
+    } catch (caught) {
+      setRealExampleReviewNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The real Opportunity result review could not be saved."
+      });
+    } finally {
+      setIsSavingRealExampleReview(false);
     }
   }
 
@@ -792,6 +886,136 @@ export function OwnerOpportunityQueue({
             <p>Enter one real internal problem or vision to prove the controlled-use flow with actual owner context.</p>
           </div>
         )}
+
+        {latestRealExample ? (
+          <section className="real-opportunity-result-review" data-testid="real-opportunity-result-review">
+            <div className="queue-header compact">
+              <div>
+                <p className="eyebrow">Result Review</p>
+                <h3>Decide whether this result is ready to move forward.</h3>
+                <p>
+                  Review the real example output before AppEngine prepares any next action. This stores your decision,
+                  updates memory, writes audit evidence, and keeps execution blocked.
+                </p>
+              </div>
+              <button
+                className="button"
+                disabled={isSavingRealExampleReview}
+                onClick={saveRealOpportunityResultReview}
+                type="button"
+              >
+                {isSavingRealExampleReview ? "Saving..." : "Save Result Review"}
+              </button>
+            </div>
+
+            <div className="real-opportunity-review-grid">
+              <section>
+                <span>Original problem/vision</span>
+                <p>{latestRealExample.sourceInput.problemOrVision}</p>
+              </section>
+              <section>
+                <span>Clarification</span>
+                <p>{realExampleArtifactSummary("opportunity_clarification")}</p>
+              </section>
+              <section>
+                <span>Solution path</span>
+                <p>{realExampleArtifactSummary("opportunity_solution_path")}</p>
+              </section>
+              <section>
+                <span>Action plan</span>
+                <p>{realExampleArtifactSummary("opportunity_action_plan")}</p>
+              </section>
+              <section>
+                <span>AppEngine candidate</span>
+                <p>{realExampleArtifactSummary("opportunity_appengine_candidate")}</p>
+              </section>
+              <section>
+                <span>Packet draft bridge state</span>
+                <p>
+                  {realExampleArtifactSummary("opportunity_build_packet_bridge")} ·{" "}
+                  {latestRealExample.fullLoopTrial.packetDraftReadiness.status.replaceAll("_", " ")}
+                </p>
+              </section>
+            </div>
+
+            <div className="real-opportunity-review-form">
+              <label>
+                <span>Review status</span>
+                <select
+                  value={realExampleReviewForm.status}
+                  onChange={(event) => updateRealExampleReviewStatus(event.target.value)}
+                >
+                  {Object.entries(realOpportunityResultReviewLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Owner notes</span>
+                <textarea
+                  value={realExampleReviewForm.ownerNotes}
+                  onChange={(event) =>
+                    setRealExampleReviewForm((current) => ({
+                      ...current,
+                      ownerNotes: event.target.value
+                    }))
+                  }
+                  placeholder="What was useful, wrong, incomplete, or ready to move forward?"
+                />
+              </label>
+            </div>
+
+            {realExampleReviewNotice ? (
+              <div className={`workflow-feedback${realExampleReviewNotice.type === "error" ? " error" : ""}`} role="status">
+                <strong>
+                  {realExampleReviewNotice.type === "success"
+                    ? "Result review saved"
+                    : "Result review needs attention"}
+                </strong>
+                <p>{realExampleReviewNotice.message}</p>
+              </div>
+            ) : null}
+
+            {latestRealExampleReview ? (
+              <div className="real-opportunity-review-output" data-testid="real-opportunity-result-review-output">
+                <div className="artifact-strip">
+                  <span>{realOpportunityResultReviewLabels[latestRealExampleReview.reviewStatus]}</span>
+                  <span>
+                    {latestRealExampleReview.portfolioStateUpdate.shouldUpdate
+                      ? "Portfolio ready state"
+                      : "Portfolio held"}
+                  </span>
+                  <span>{latestRealExampleReview.nextAppEngineAction.expectedOutcome}</span>
+                </div>
+                <section className="next-action-band">
+                  <span>Saved review</span>
+                  <strong>{latestRealExampleReview.ownerReadableSummary}</strong>
+                </section>
+                <div className="detail-grid">
+                  <section>
+                    <span>Owner notes</span>
+                    <p>{latestRealExampleReview.ownerNotes || "None"}</p>
+                  </section>
+                  <section>
+                    <span>Next safe action</span>
+                    <p>{latestRealExampleReview.portfolioStateUpdate.status}</p>
+                  </section>
+                </div>
+                <section>
+                  <p className="eyebrow">Copyable Next AppEngine Prompt</p>
+                  <textarea className="copyable-prompt-box" readOnly value={latestRealExampleReview.nextAppEngineAction.prompt} />
+                </section>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <strong>No result review saved yet</strong>
+                <p>Save a review to decide whether this real example is useful, incomplete, wrong, or ready to move forward.</p>
+              </div>
+            )}
+          </section>
+        ) : null}
       </section>
 
       <div className="owner-control-main">

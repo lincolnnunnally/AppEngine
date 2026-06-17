@@ -117,6 +117,7 @@ export async function loadOpportunityControlledUseReadiness(now = new Date()): P
     (event) =>
       event.type === "opportunity_full_loop_trial_ran" ||
       event.type === "real_opportunity_example_ran" ||
+      event.type === "real_opportunity_result_reviewed" ||
       event.type === "opportunity_packet_draft_prepared" ||
       event.type === "intake_submitted"
   );
