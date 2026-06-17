@@ -1931,6 +1931,26 @@ label {
   padding: 12px;
 }
 
+.builder-result-intake,
+.build-execution-result-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.builder-result-intake h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.builder-result-intake p,
+.build-execution-result-card p {
+  margin: 0;
+}
+
 .action-plan-list,
 .compact-list {
   margin: 0;

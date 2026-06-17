@@ -16,7 +16,8 @@ import {
 } from "@/lib/engine/handoff-relay";
 import {
   updateProjectMemoryFromBuildExecutionRequest,
-  updateProjectMemoryFromBuildExecutionRequestExport
+  updateProjectMemoryFromBuildExecutionRequestExport,
+  updateProjectMemoryFromBuilderResultIntake
 } from "@/lib/engine/project-memory";
 
 export type BuildExecutionRequestStatus =
@@ -31,6 +32,7 @@ export type BuildExecutionRequestStatus =
 
 export type BuildExecutionOwnerApprovalStatus = "owner_review_required" | "owner_approved" | "rejected";
 export type BuildExecutionRequestReviewStatus = "needs_review" | "owner_approved" | "blocked" | "exported_for_builder";
+export type BuildExecutionBuilderResultStatus = "passed" | "failed" | "needs_verification";
 
 export type BuildExecutionHandoffSourceKind =
   | "handoff_inbox"
@@ -77,6 +79,35 @@ export type BuildExecutionBuilderHandoffExport = {
   };
 };
 
+export type BuildExecutionBuilderResultIntake = {
+  id: string;
+  kind: "builder_result_intake";
+  schemaVersion: 1;
+  createdAt: string;
+  rawResult: string;
+  prNumber: number | null;
+  branch: string | null;
+  changedFiles: string[];
+  verificationCommandsRun: string[];
+  passFailStatus: BuildExecutionBuilderResultStatus;
+  blockers: string[];
+  reviewUrl: string | null;
+  nextSafeAction: string;
+  followUpPrompt: string | null;
+  ownerReadableSummary: string;
+  guardrails: {
+    noAutoMerge: true;
+    noCodexAutoExecution: true;
+    noGitHubIssueCreation: true;
+    noLabelChanges: true;
+    noProductionDeploy: true;
+    noPaidResources: true;
+    noLiveMigrations: true;
+    noSecretsOrEnvChanges: true;
+    repositoryVisibilityUnchanged: true;
+  };
+};
+
 export type BuildExecutionHandoffSource = {
   id: string;
   sourceHandoffId: string;
@@ -115,6 +146,8 @@ export type BuildExecutionRequestRecord = {
   reviewStatus: BuildExecutionRequestReviewStatus;
   exportedBuilderHandoffId: string | null;
   exportedBuilderHandoff: BuildExecutionBuilderHandoffExport | null;
+  latestBuilderResult: BuildExecutionBuilderResultIntake | null;
+  builderResults: BuildExecutionBuilderResultIntake[];
   statusHistory: {
     status: BuildExecutionRequestStatus;
     at: string;
@@ -132,6 +165,8 @@ export type BuildExecutionRequestRecord = {
     reviewStatus: BuildExecutionRequestReviewStatus;
     builderHandoffExported: boolean;
     builderHandoffId: string | null;
+    latestBuilderResultId: string | null;
+    builderResultReceived: boolean;
     codexTriggered: false;
     githubIssuesCreated: false;
     labelsApplied: false;
@@ -233,6 +268,8 @@ export async function createBuildExecutionRequest(input: { sourceId?: unknown } 
     reviewStatus: "needs_review",
     exportedBuilderHandoffId: null,
     exportedBuilderHandoff: null,
+    latestBuilderResult: null,
+    builderResults: [],
     statusHistory: [
       {
         status: "draft",
@@ -252,6 +289,8 @@ export async function createBuildExecutionRequest(input: { sourceId?: unknown } 
       reviewStatus: "needs_review",
       builderHandoffExported: false,
       builderHandoffId: null,
+      latestBuilderResultId: null,
+      builderResultReceived: false,
       codexTriggered: false,
       githubIssuesCreated: false,
       labelsApplied: false,
@@ -452,6 +491,86 @@ export async function reviewBuildExecutionRequest(
   return { record: exported, handoff, exportOutput: exported.exportedBuilderHandoff };
 }
 
+export async function intakeBuilderResult(
+  input: { requestId?: unknown; resultText?: unknown } = {},
+  now = new Date()
+) {
+  const requestId = typeof input.requestId === "string" ? input.requestId.trim() : "";
+  const resultText = typeof input.resultText === "string" ? input.resultText.trim() : "";
+
+  if (!requestId) {
+    throw new Error("Choose a build execution request before importing a builder result.");
+  }
+
+  if (resultText.length < 20) {
+    throw new Error("Paste a builder result with enough detail to parse.");
+  }
+
+  const store = await readBuildExecutionRequestStore();
+  const index = store.records.findIndex((record) => record.id === requestId);
+
+  if (index === -1) {
+    throw new Error("Build execution request not found.");
+  }
+
+  const existing = store.records[index];
+  const createdAt = now.toISOString();
+  const parsed = parseBuilderResult(resultText, existing, createdAt);
+  const executionStatus = deriveExecutionStatusFromBuilderResult(parsed);
+  const updated = {
+    ...existing,
+    updatedAt: createdAt,
+    executionStatus,
+    latestBuilderResult: parsed,
+    builderResults: [parsed, ...existing.builderResults].slice(0, 12),
+    ownerReadableSummary: `Builder result received for ${existing.targetProjectSlice}: ${parsed.passFailStatus.replaceAll("_", " ")}.`,
+    statusHistory: [
+      {
+        status: executionStatus,
+        at: createdAt,
+        note: parsed.ownerReadableSummary
+      },
+      {
+        status: "result_received" as const,
+        at: createdAt,
+        note: "Builder/Codex result was pasted into AppEngine for owner verification review."
+      },
+      ...existing.statusHistory
+    ],
+    artifact: {
+      ...existing.artifact,
+      executionStatus,
+      latestBuilderResultId: parsed.id,
+      builderResultReceived: true
+    }
+  } satisfies BuildExecutionRequestRecord;
+
+  store.records[index] = updated;
+  await writeBuildExecutionRequestStore(store);
+  await updateProjectMemoryFromBuilderResultIntake(updated, parsed);
+  await getAppEngineAuditTrail().append({
+    type: "builder_result_intake_received",
+    actor: { type: "owner", id: "Lincoln" },
+    summary: parsed.ownerReadableSummary,
+    subjectId: parsed.id,
+    metadata: {
+      requestId: updated.id,
+      prNumber: parsed.prNumber,
+      branch: parsed.branch,
+      passFailStatus: parsed.passFailStatus,
+      executionStatus: updated.executionStatus,
+      reviewUrl: parsed.reviewUrl,
+      autoMerged: false,
+      codexTriggered: false,
+      githubIssuesCreated: false,
+      labelsApplied: false,
+      productionDeployed: false
+    }
+  });
+
+  return { record: updated, builderResult: parsed };
+}
+
 function buildSourceFromHandoff(
   handoff: HandoffRelaySummary,
   firstBuildRequest: FirstRealEcosystemBuildRequestRecord | null,
@@ -537,6 +656,213 @@ function packetDraftSource(draft: FirstEcosystemBuildPacketDraftRecord): BuildEx
     nextSafeAction: draft.nextSafeAction,
     designIntent: draft.designIntent
   };
+}
+
+function parseBuilderResult(
+  rawResult: string,
+  request: BuildExecutionRequestRecord,
+  createdAt: string
+): BuildExecutionBuilderResultIntake {
+  const blockers = extractBlockers(rawResult);
+  const passFailStatus = derivePassFailStatus(rawResult, blockers);
+  const reviewUrl = extractReviewUrl(rawResult);
+  const changedFiles = extractChangedFiles(rawResult);
+  const verificationCommandsRun = extractVerificationCommandsRun(rawResult);
+  const prNumber = extractPrNumber(rawResult);
+  const branch = extractBranch(rawResult);
+  const nextSafeAction = deriveBuilderResultNextSafeAction({ passFailStatus, blockers, reviewUrl });
+  const ownerReadableSummary = buildBuilderResultSummary({
+    targetProjectSlice: request.targetProjectSlice,
+    prNumber,
+    branch,
+    passFailStatus,
+    blockers,
+    reviewUrl
+  });
+  const baseResult = {
+    id: `builder_result_${randomUUID()}`,
+    kind: "builder_result_intake" as const,
+    schemaVersion: 1 as const,
+    createdAt,
+    rawResult: rawResult.slice(0, 12000),
+    prNumber,
+    branch,
+    changedFiles,
+    verificationCommandsRun,
+    passFailStatus,
+    blockers,
+    reviewUrl,
+    nextSafeAction,
+    ownerReadableSummary,
+    guardrails: builderResultGuardrails()
+  };
+
+  return {
+    ...baseResult,
+    followUpPrompt: passFailStatus === "passed" && !blockers.length ? null : buildBuilderResultFollowUpPrompt(request, baseResult)
+  };
+}
+
+function deriveExecutionStatusFromBuilderResult(result: BuildExecutionBuilderResultIntake): BuildExecutionRequestStatus {
+  if (result.passFailStatus === "failed" || result.blockers.length) return "blocked";
+  if (result.passFailStatus === "needs_verification") return "verification_needed";
+  return "completed";
+}
+
+function extractPrNumber(text: string) {
+  const match = text.match(/\bPR\s*#?(\d+)\b/i) || text.match(/\/pull\/(\d+)/i);
+  return match ? Number(match[1]) : null;
+}
+
+function extractBranch(text: string) {
+  const match =
+    text.match(/\bbranch\s*[:=]\s*([A-Za-z0-9._/-]+)/i) ||
+    text.match(/\bhead\s*[:=]\s*([A-Za-z0-9._/-]+)/i) ||
+    text.match(/\b(codex\/[A-Za-z0-9._/-]+)/i);
+  return match ? match[1].replace(/[),.]+$/, "") : null;
+}
+
+function extractReviewUrl(text: string) {
+  const urls = text.match(/https?:\/\/[^\s)]+/gi) || [];
+  return urls.find((url) => /vercel\.app|review\.|\/life-core|\/spark-of-hope|\/opportunity/i.test(url)) || urls[0] || null;
+}
+
+function extractChangedFiles(text: string) {
+  const lines = text.split(/\r?\n/).map(cleanResultLine).filter(Boolean);
+  const fileLike = lines.filter((line) =>
+    /(^|[\s`])(?:src|scripts|source-of-truth|agents|public|app|components|lib|docs|\.github)\/[A-Za-z0-9._/-]+\.[A-Za-z0-9]+/.test(line)
+  );
+  const explicit = lines.filter((line) => /changed file|modified|created|updated|added/i.test(line) && /[A-Za-z0-9._/-]+\.[A-Za-z0-9]+/.test(line));
+  return uniqueStrings([...fileLike, ...explicit].map((line) => line.replace(/^[-*]\s*/, "").slice(0, 180))).slice(0, 20);
+}
+
+function extractVerificationCommandsRun(text: string) {
+  const commandMatches = text.match(/npm run [A-Za-z0-9:_-]+/g) || [];
+  const lines = text
+    .split(/\r?\n/)
+    .map(cleanResultLine)
+    .filter((line) => /(verification|check|typecheck|build|smoke|passed|failed)/i.test(line));
+  return uniqueStrings([...commandMatches, ...lines].map((line) => line.slice(0, 180))).slice(0, 16);
+}
+
+function extractBlockers(text: string) {
+  const lower = text.toLowerCase();
+  const lines = text.split(/\r?\n/).map(cleanResultLine).filter(Boolean);
+  const blockers = lines.filter((line) => /(blocker|blocked|fail|failed|error|conflict|cannot|needs fix|not passing|404|unauthorized)/i.test(line));
+
+  if (!blockers.length && /\bfailed\b|\berror\b|\bblocked\b/.test(lower)) {
+    return ["Builder result indicates a failure or blocker but did not provide a specific blocker line."];
+  }
+
+  return uniqueStrings(blockers.map((line) => line.replace(/^[-*]\s*/, "").slice(0, 220))).slice(0, 10);
+}
+
+function derivePassFailStatus(text: string, blockers: string[]): BuildExecutionBuilderResultStatus {
+  const lower = text.toLowerCase();
+
+  if (blockers.length || /\b(failed|failure|error|blocked|not passing|cannot merge)\b/.test(lower)) {
+    return "failed";
+  }
+
+  if (/\b(passed|passes|success|successful|verification passed|checks green|build passed)\b/.test(lower)) {
+    return "passed";
+  }
+
+  return "needs_verification";
+}
+
+function deriveBuilderResultNextSafeAction({
+  passFailStatus,
+  blockers,
+  reviewUrl
+}: {
+  passFailStatus: BuildExecutionBuilderResultStatus;
+  blockers: string[];
+  reviewUrl: string | null;
+}) {
+  if (passFailStatus === "failed" || blockers.length) return "create focused fix handoff after owner review";
+  if (passFailStatus === "needs_verification") return "run verification review before merge decision";
+  if (reviewUrl) return "owner review of verified result before merge decision";
+  return "owner review of passing result before merge decision";
+}
+
+function buildBuilderResultSummary({
+  targetProjectSlice,
+  prNumber,
+  branch,
+  passFailStatus,
+  blockers,
+  reviewUrl
+}: {
+  targetProjectSlice: string;
+  prNumber: number | null;
+  branch: string | null;
+  passFailStatus: BuildExecutionBuilderResultStatus;
+  blockers: string[];
+  reviewUrl: string | null;
+}) {
+  const source = prNumber ? `PR #${prNumber}` : branch ? `branch ${branch}` : "builder result";
+  const blockerText = blockers.length ? ` Blockers: ${blockers.slice(0, 2).join(" | ")}` : "";
+  const reviewText = reviewUrl ? ` Review URL: ${reviewUrl}` : "";
+  return `${source} received for ${targetProjectSlice}. Status: ${passFailStatus.replaceAll("_", " ")}.${blockerText}${reviewText}`;
+}
+
+function buildBuilderResultFollowUpPrompt(
+  request: BuildExecutionRequestRecord,
+  result: Omit<BuildExecutionBuilderResultIntake, "followUpPrompt">
+) {
+  return [
+    "Review this builder result and create one focused follow-up only if needed.",
+    "",
+    `Source build execution request: ${request.id}`,
+    `Target project/slice: ${request.targetProjectSlice}`,
+    result.prNumber ? `PR: #${result.prNumber}` : "",
+    result.branch ? `Branch: ${result.branch}` : "",
+    result.reviewUrl ? `Review URL: ${result.reviewUrl}` : "",
+    "",
+    "Builder result status:",
+    result.passFailStatus.replaceAll("_", " "),
+    "",
+    "Blockers:",
+    ...(result.blockers.length ? result.blockers.map((blocker) => `- ${blocker}`) : ["- No explicit blocker lines found."]),
+    "",
+    "Verification commands reported:",
+    ...(result.verificationCommandsRun.length ? result.verificationCommandsRun.map((command) => `- ${command}`) : ["- Verification not clearly reported."]),
+    "",
+    "Next safe action:",
+    result.nextSafeAction,
+    "",
+    "Guardrails:",
+    "- Do not auto-merge.",
+    "- Do not trigger Codex automatically.",
+    "- Do not create GitHub issues.",
+    "- Do not apply labels.",
+    "- Do not deploy production.",
+    "- Do not create paid resources.",
+    "- Do not apply live migrations.",
+    "- Do not change secrets/env vars.",
+    "- Do not change repo visibility."
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function builderResultGuardrails() {
+  return {
+    noAutoMerge: true,
+    noCodexAutoExecution: true,
+    noGitHubIssueCreation: true,
+    noLabelChanges: true,
+    noProductionDeploy: true,
+    noPaidResources: true,
+    noLiveMigrations: true,
+    noSecretsOrEnvChanges: true,
+    repositoryVisibilityUnchanged: true
+  } as const;
+}
+
+function cleanResultLine(line: string) {
+  return line.replace(/^>\s*/, "").replace(/^[-*]\s*/, "").trim();
 }
 
 function createBuilderHandoffExport(request: BuildExecutionRequestRecord, now = new Date()): BuildExecutionBuilderHandoffExport {
@@ -693,13 +1019,38 @@ function uniqueSources(sources: BuildExecutionHandoffSource[]) {
   });
 }
 
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
 async function readBuildExecutionRequestStore(): Promise<BuildExecutionRequestStore> {
-  return getAppEngineStateAdapter().readJson<BuildExecutionRequestStore>(
+  const store = await getAppEngineStateAdapter().readJson<BuildExecutionRequestStore>(
     { kind: "build_execution_requests", key: "records" },
     { schemaVersion: 1, records: [] }
   );
+
+  return {
+    schemaVersion: 1,
+    records: store.records.map(normalizeBuildExecutionRequest)
+  };
 }
 
 async function writeBuildExecutionRequestStore(store: BuildExecutionRequestStore) {
-  await getAppEngineStateAdapter().writeJson({ kind: "build_execution_requests", key: "records" }, store);
+  await getAppEngineStateAdapter().writeJson(
+    { kind: "build_execution_requests", key: "records" },
+    { schemaVersion: 1, records: store.records.map(normalizeBuildExecutionRequest) }
+  );
+}
+
+function normalizeBuildExecutionRequest(record: BuildExecutionRequestRecord): BuildExecutionRequestRecord {
+  return {
+    ...record,
+    latestBuilderResult: record.latestBuilderResult || null,
+    builderResults: record.builderResults || [],
+    artifact: {
+      ...record.artifact,
+      latestBuilderResultId: record.artifact.latestBuilderResultId || record.latestBuilderResult?.id || null,
+      builderResultReceived: record.artifact.builderResultReceived || Boolean(record.latestBuilderResult)
+    }
+  };
 }

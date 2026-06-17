@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { BuildExecutionBuilderHandoffExport, BuildExecutionRequestRecord } from "./build-execution-request";
+import type {
+  BuildExecutionBuilderHandoffExport,
+  BuildExecutionBuilderResultIntake,
+  BuildExecutionRequestRecord
+} from "./build-execution-request";
 import type { FirstEcosystemBuildPacketDraftRecord } from "./first-ecosystem-build-packet-draft";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
@@ -558,6 +562,100 @@ export async function updateProjectMemoryFromBuildExecutionRequestExport(
       [
         item("progress", request.ownerReadableSummary, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system"),
         item("progress", `Exported prompt target: ${exportOutput.targetProjectSlice}.`, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromBuilderResultIntake(
+  request: BuildExecutionRequestRecord,
+  result: BuildExecutionBuilderResultIntake
+) {
+  const current = await loadProjectMemory();
+  const createdAt = result.createdAt;
+  const tags = ["builder-result-intake", result.passFailStatus, request.executionStatus];
+  const needsFollowUp = Boolean(result.followUpPrompt);
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: `Builder result ${request.executionStatus.replace(/_/g, " ")}`,
+      latestProgress: result.ownerReadableSummary,
+      recommendedNextAction: result.nextSafeAction,
+      lastHandoffId: request.exportedBuilderHandoffId || request.sourceHandoff.id
+    },
+    majorDecisions: current.majorDecisions,
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Builder results are imported back into AppEngine for verification review before any merge or deployment decision.",
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones:
+      request.executionStatus === "completed"
+        ? mergeItems(current.completedMilestones, [
+            item("completed_milestone", result.ownerReadableSummary, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system")
+          ])
+        : current.completedMilestones,
+    currentBlockers: needsFollowUp
+      ? mergeItems(
+          current.currentBlockers,
+          result.blockers.length
+            ? result.blockers.map((blocker) => item("current_blocker", blocker, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system"))
+            : [
+                item(
+                  "current_blocker",
+                  "Builder result needs verification before owner can decide whether to merge.",
+                  request.exportedBuilderHandoffId || request.sourceHandoff.id,
+                  createdAt,
+                  tags,
+                  "system"
+                )
+              ],
+          20
+        )
+      : current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "Builder result intake stores PR/branch evidence, verification output, blockers, review URL, and next safe action without auto-merging or triggering Codex.",
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "The builder loop is not complete until the result is imported and verified inside AppEngine.",
+        request.exportedBuilderHandoffId || request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", result.ownerReadableSummary, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system"),
+        item("progress", `Next safe action: ${result.nextSafeAction}`, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system")
       ],
       30
     ),

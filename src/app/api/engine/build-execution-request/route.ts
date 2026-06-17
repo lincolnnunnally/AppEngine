@@ -3,6 +3,7 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import {
   buildExecutionRequestGuardrails,
   createBuildExecutionRequest,
+  intakeBuilderResult,
   listBuildExecutionHandoffSources,
   listBuildExecutionRequests,
   reviewBuildExecutionRequest
@@ -43,13 +44,24 @@ export async function POST(request: Request) {
       sourceId?: unknown;
       requestId?: unknown;
       reviewStatus?: unknown;
+      resultText?: unknown;
       note?: unknown;
     };
     const result =
       body.action === "review"
-        ? await reviewBuildExecutionRequest(body)
+        ? {
+            ...(await reviewBuildExecutionRequest(body)),
+            builderResult: null
+          }
+        : body.action === "result"
+          ? {
+              ...(await intakeBuilderResult(body)),
+              handoff: null,
+              exportOutput: null
+            }
         : {
             record: await createBuildExecutionRequest(body),
+            builderResult: null,
             handoff: null,
             exportOutput: null
           };
@@ -58,6 +70,7 @@ export async function POST(request: Request) {
       {
         ok: true,
         record: result.record,
+        builderResult: result.builderResult,
         handoff: result.handoff,
         exportOutput: result.exportOutput,
         records: await listBuildExecutionRequests(),

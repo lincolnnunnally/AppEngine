@@ -17,6 +17,8 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
   const [selectedSourceId, setSelectedSourceId] = useState(initialSources[0]?.id || "");
   const [isCreating, setIsCreating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isImportingResult, setIsImportingResult] = useState(false);
+  const [builderResultText, setBuilderResultText] = useState("");
   const [message, setMessage] = useState("");
   const selectedSource = sources.find((source) => source.id === selectedSourceId) || sources[0] || null;
   const latestRequest = requests[0] || null;
@@ -84,6 +86,41 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
       setMessage(caught instanceof Error ? caught.message : "The build execution request could not be reviewed.");
     } finally {
       setIsReviewing(false);
+    }
+  }
+
+  async function importBuilderResult() {
+    if (!latestRequest) return;
+
+    setIsImportingResult(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/engine/build-execution-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "result",
+          requestId: latestRequest.id,
+          resultText: builderResultText
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The builder result could not be imported.");
+      }
+
+      setRequests(result.records as BuildExecutionRequestRecord[]);
+      setSources(result.sources as BuildExecutionHandoffSource[]);
+      setBuilderResultText("");
+      setMessage("Builder result imported and verification state updated. Nothing was merged or deployed.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "The builder result could not be imported.");
+    } finally {
+      setIsImportingResult(false);
     }
   }
 
@@ -217,6 +254,85 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
                   <textarea className="copyable-prompt-box" readOnly value={latestRequest.exportedBuilderHandoff.exactBuilderPrompt} />
                 </section>
               ) : null}
+
+              <section className="builder-result-intake" data-testid="builder-result-intake-section">
+                <div>
+                  <p className="eyebrow">Builder Result Intake</p>
+                  <h2>Import the builder result</h2>
+                  <p>
+                    Paste the Codex/builder result here after it comes back. AppEngine will parse the branch or PR,
+                    changed files, verification, blockers, review URL, and next safe action.
+                  </p>
+                </div>
+                <textarea
+                  className="copyable-prompt-box"
+                  onChange={(event) => setBuilderResultText(event.target.value)}
+                  placeholder="Paste builder result, PR summary, verification output, blockers, and review URL..."
+                  value={builderResultText}
+                />
+                <button
+                  className="button accent"
+                  disabled={isImportingResult || !builderResultText.trim()}
+                  onClick={importBuilderResult}
+                  type="button"
+                >
+                  {isImportingResult ? "Importing..." : "Import Builder Result"}
+                </button>
+
+                {latestRequest.latestBuilderResult ? (
+                  <article className="build-execution-result-card" data-testid="builder-result-intake-output">
+                    <div className="detail-grid">
+                      <section>
+                        <span>Result status</span>
+                        <p>{latestRequest.latestBuilderResult.passFailStatus.replaceAll("_", " ")}</p>
+                      </section>
+                      <section>
+                        <span>PR / branch</span>
+                        <p>
+                          {latestRequest.latestBuilderResult.prNumber
+                            ? `PR #${latestRequest.latestBuilderResult.prNumber}`
+                            : latestRequest.latestBuilderResult.branch || "Not found"}
+                        </p>
+                      </section>
+                      <section>
+                        <span>Review URL</span>
+                        <p>{latestRequest.latestBuilderResult.reviewUrl || "Not found"}</p>
+                      </section>
+                      <section>
+                        <span>Next safe action</span>
+                        <p>{latestRequest.latestBuilderResult.nextSafeAction}</p>
+                      </section>
+                    </div>
+                    <p>{latestRequest.latestBuilderResult.ownerReadableSummary}</p>
+                    {latestRequest.latestBuilderResult.changedFiles.length ? (
+                      <section>
+                        <p className="eyebrow">Changed files</p>
+                        <div className="guardrail-list">
+                          {latestRequest.latestBuilderResult.changedFiles.map((file) => (
+                            <span key={file}>{file}</span>
+                          ))}
+                        </div>
+                      </section>
+                    ) : null}
+                    {latestRequest.latestBuilderResult.blockers.length ? (
+                      <section>
+                        <p className="eyebrow">Blockers</p>
+                        <div className="guardrail-list">
+                          {latestRequest.latestBuilderResult.blockers.map((blocker) => (
+                            <span key={blocker}>{blocker}</span>
+                          ))}
+                        </div>
+                      </section>
+                    ) : null}
+                    {latestRequest.latestBuilderResult.followUpPrompt ? (
+                      <section>
+                        <p className="eyebrow">Follow-up prompt if needed</p>
+                        <textarea className="copyable-prompt-box" readOnly value={latestRequest.latestBuilderResult.followUpPrompt} />
+                      </section>
+                    ) : null}
+                  </article>
+                ) : null}
+              </section>
 
               <section>
                 <p className="eyebrow">Verification</p>
