@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppEngineUsageGuideEcosystemStartPanel } from "@/components/engine/appengine-usage-guide-ecosystem-start-panel";
 import { BuildLoopCompletionDashboardPanel } from "@/components/engine/build-loop-completion-dashboard-panel";
 import { BuildLoopControlledUseReadinessPanel } from "@/components/engine/build-loop-controlled-use-readiness-panel";
 import { BuildExecutionRequestPanel } from "@/components/engine/build-execution-request-panel";
@@ -14,6 +15,7 @@ import { OwnerOpportunityQueue } from "@/components/opportunity-intake/owner-opp
 import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
+import { listEcosystemBuildStartRecords } from "@/lib/engine/appengine-usage-guide-ecosystem-start";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
 import { loadBuildLoopControlledUseReadiness } from "@/lib/engine/build-loop-controlled-use-readiness";
 import {
@@ -80,6 +82,7 @@ export default async function OwnerControlCenterPage() {
     realOpportunityExamples,
     realOpportunityResultReviews,
     problemIntakeRecords,
+    ecosystemBuildStartRecords,
     portfolioRegistry
   ] = await Promise.all([
     listHandoffRelaySummaries(),
@@ -109,6 +112,7 @@ export default async function OwnerControlCenterPage() {
     listRealOpportunityExamples(),
     listRealOpportunityResultReviews(),
     listProblemIntakeRecords(),
+    listEcosystemBuildStartRecords(),
     loadOwnerPortfolioRegistry()
   ]);
 
@@ -125,6 +129,7 @@ export default async function OwnerControlCenterPage() {
         </div>
       </nav>
       <OwnerPortfolioDashboard registry={portfolioRegistry} />
+      <AppEngineUsageGuideEcosystemStartPanel initialRecords={ecosystemBuildStartRecords} />
       <HandoffRelayControlCenter
         initialHandoffs={handoffs}
         initialProjectMemory={projectMemory}

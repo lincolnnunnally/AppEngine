@@ -15,6 +15,7 @@ export type AppEngineAuditEventType =
   | "opportunity_full_loop_trial_ran"
   | "real_opportunity_example_ran"
   | "real_opportunity_result_reviewed"
+  | "ecosystem_build_start_prepared"
   | "first_real_build_loop_run_prepared"
   | "first_real_build_result_intake_received"
   | "spark_item_reviewed"
@@ -85,6 +86,7 @@ export const supportedAuditEventTypes: AppEngineAuditEventType[] = [
   "opportunity_full_loop_trial_ran",
   "real_opportunity_example_ran",
   "real_opportunity_result_reviewed",
+  "ecosystem_build_start_prepared",
   "first_real_build_loop_run_prepared",
   "first_real_build_result_intake_received",
   "spark_item_reviewed",

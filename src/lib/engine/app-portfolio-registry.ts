@@ -1,4 +1,5 @@
 import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { listEcosystemBuildStartRecords } from "@/lib/engine/appengine-usage-guide-ecosystem-start";
 import { listBuildExecutionRequests } from "@/lib/engine/build-execution-request";
 import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
@@ -153,6 +154,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     projectMemory,
     orchestratorActionQueue,
     buildExecutionRequests,
+    ecosystemBuildStarts,
     opportunityIntakes,
     opportunityClarifications,
     opportunitySolutionPaths,
@@ -169,6 +171,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     loadProjectMemory(),
     listOrchestratorActionQueue(),
     listBuildExecutionRequests(),
+    listEcosystemBuildStartRecords(),
     listOpportunityIntakeRecords(),
     listOpportunityClarifications(),
     listOpportunitySolutionPaths(),
@@ -201,10 +204,11 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
       lifeCoreOverview,
       Boolean(rawLifeCoreStore),
       firstEcosystemBuildPacketDrafts,
-      buildExecutionRequests
+      buildExecutionRequests,
+      ecosystemBuildStarts
     ),
-    deriveSparkEntry(seedEntries[3], sparkCapability),
-    deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates })
+    deriveSparkEntry(seedEntries[3], sparkCapability, ecosystemBuildStarts),
+    deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates, ecosystemBuildStarts })
   ]);
 }
 
@@ -428,9 +432,11 @@ function deriveLifeCoreEntry(
   overview: Awaited<ReturnType<typeof getLifeCoreOverview>>,
   hasStoredOverview: boolean,
   firstEcosystemBuildPacketDrafts: Awaited<ReturnType<typeof listFirstEcosystemBuildPacketDrafts>>,
-  buildExecutionRequests: Awaited<ReturnType<typeof listBuildExecutionRequests>>
+  buildExecutionRequests: Awaited<ReturnType<typeof listBuildExecutionRequests>>,
+  ecosystemBuildStarts: Awaited<ReturnType<typeof listEcosystemBuildStartRecords>>
 ): AppPortfolioEntry {
   const latestDraft = firstEcosystemBuildPacketDrafts[0] || null;
+  const latestStart = ecosystemBuildStarts.find((record) => record.target.slug === "life-core") || null;
   const latestLifeCoreBuildRequest =
     buildExecutionRequests.find((request) => request.targetProjectSlice.toLowerCase().includes("life produces life core")) || null;
 
@@ -487,6 +493,28 @@ function deriveLifeCoreEntry(
     };
   }
 
+  if (latestStart) {
+    return {
+      ...seed,
+      status: "ecosystem build start prepared",
+      buildState: "owner_approval_required",
+      nextSafeAction: "review_exported_builder_handoff",
+      blockers: uniqueStrings([
+        "Builder handoff is exported, but Lincoln must manually review and send it.",
+        "Codex auto-execution, GitHub issue creation, labels, deploys, paid resources, migrations, and secrets/env changes remain blocked.",
+        ...seed.blockers
+      ]),
+      evidenceLinks: [...seed.evidenceLinks, { label: "Start Ecosystem Build", url: "/owner-control-center" }],
+      stateSource: "live_state",
+      sourceArtifact: {
+        kind: latestStart.kind,
+        id: latestStart.id,
+        summary: latestStart.ownerReadableSummary
+      },
+      lastUpdated: latestStart.updatedAt
+    };
+  }
+
   return {
     ...seed,
     status: `${overview.experiences.length} experiences · ${overview.opportunities.length} opportunities · ${overview.feed.length} feed items`,
@@ -501,7 +529,12 @@ function deriveLifeCoreEntry(
   };
 }
 
-function deriveSparkEntry(seed: AppPortfolioEntry, capability: ReturnType<typeof getStoryIntakeCapability>): AppPortfolioEntry {
+function deriveSparkEntry(
+  seed: AppPortfolioEntry,
+  capability: ReturnType<typeof getStoryIntakeCapability>,
+  ecosystemBuildStarts: Awaited<ReturnType<typeof listEcosystemBuildStartRecords>>
+): AppPortfolioEntry {
+  const latestStart = ecosystemBuildStarts.find((record) => record.target.slug === "spark-of-hope") || null;
   const storageBlocked = capability.storage === "preview_controlled_persistence_blocked";
   const blockers = [
     ...seed.blockers,
@@ -511,16 +544,27 @@ function deriveSparkEntry(seed: AppPortfolioEntry, capability: ReturnType<typeof
 
   return {
     ...seed,
-    status: `${capability.mode.replaceAll("_", " ")} · ${capability.storage.replaceAll("_", " ")}`,
-    buildState: capability.storage === "disabled" ? "ready_for_vnext" : storageBlocked ? "review_blocked" : "preview_verified",
-    nextSafeAction: storageBlocked ? "create_fix_issue" : seed.nextSafeAction,
-    blockers: uniqueStrings(blockers),
-    stateSource: "derived_state",
-    sourceArtifact: {
-      kind: "spark_story_intake_capability",
-      summary: `Spark API reports ${capability.mode} with ${capability.storage}.`
-    },
-    lastUpdated: generatedAt
+    status: latestStart
+      ? "ecosystem build start prepared"
+      : `${capability.mode.replaceAll("_", " ")} · ${capability.storage.replaceAll("_", " ")}`,
+    buildState: latestStart ? "owner_approval_required" : capability.storage === "disabled" ? "ready_for_vnext" : storageBlocked ? "review_blocked" : "preview_verified",
+    nextSafeAction: latestStart ? "review_exported_builder_handoff" : storageBlocked ? "create_fix_issue" : seed.nextSafeAction,
+    blockers: uniqueStrings([
+      ...(latestStart ? ["Builder handoff is exported, but Lincoln must manually review and send it."] : []),
+      ...blockers
+    ]),
+    stateSource: latestStart ? "live_state" : "derived_state",
+    sourceArtifact: latestStart
+      ? {
+          kind: latestStart.kind,
+          id: latestStart.id,
+          summary: latestStart.ownerReadableSummary
+        }
+      : {
+          kind: "spark_story_intake_capability",
+          summary: `Spark API reports ${capability.mode} with ${capability.storage}.`
+        },
+    lastUpdated: latestStart?.updatedAt || generatedAt
   };
 }
 
@@ -529,9 +573,14 @@ function deriveFutureEcosystemEntry(
   state: {
     problemIntakes: Awaited<ReturnType<typeof listProblemIntakeRecords>>;
     opportunityCandidates: Awaited<ReturnType<typeof listOpportunityAppEngineCandidates>>;
+    ecosystemBuildStarts: Awaited<ReturnType<typeof listEcosystemBuildStartRecords>>;
   }
 ): AppPortfolioEntry {
-  const liveCount = state.problemIntakes.length + state.opportunityCandidates.length;
+  const futureStarts = state.ecosystemBuildStarts.filter(
+    (record) => !["life-core", "spark-of-hope"].includes(record.target.slug)
+  );
+  const latestStart = futureStarts[0] || null;
+  const liveCount = state.problemIntakes.length + state.opportunityCandidates.length + futureStarts.length;
 
   if (!liveCount) return seed;
 
@@ -540,18 +589,23 @@ function deriveFutureEcosystemEntry(
 
   return {
     ...seed,
-    status: `${state.problemIntakes.length} problem intake${state.problemIntakes.length === 1 ? "" : "s"} · ${state.opportunityCandidates.length} opportunity candidate${state.opportunityCandidates.length === 1 ? "" : "s"}`,
-    buildState: "planned",
-    nextSafeAction: "await_owner_review",
+    status: latestStart
+      ? `${latestStart.target.name} build start prepared`
+      : `${state.problemIntakes.length} problem intake${state.problemIntakes.length === 1 ? "" : "s"} · ${state.opportunityCandidates.length} opportunity candidate${state.opportunityCandidates.length === 1 ? "" : "s"}`,
+    buildState: latestStart ? "owner_approval_required" : "planned",
+    nextSafeAction: latestStart ? "review_exported_builder_handoff" : "await_owner_review",
     blockers: uniqueStrings([
+      ...(latestStart ? ["Builder handoff is exported, but Lincoln must manually review and send it."] : []),
       "Owner review is required before any candidate becomes a packet, issue, PR, or build.",
       ...seed.blockers
     ]),
     stateSource: "live_state",
-    sourceArtifact: latestCandidate
+    sourceArtifact: latestStart
+      ? { kind: latestStart.kind, id: latestStart.id, summary: latestStart.ownerReadableSummary }
+      : latestCandidate
       ? { kind: "opportunity_appengine_candidate", id: latestCandidate.id, summary: latestCandidate.title }
       : { kind: "problem_intake", id: latestProblem?.id, summary: latestProblem?.title || "Problem intake state" },
-    lastUpdated: latestCandidate?.updatedAt || latestProblem?.updatedAt || generatedAt
+    lastUpdated: latestStart?.updatedAt || latestCandidate?.updatedAt || latestProblem?.updatedAt || generatedAt
   };
 }
 

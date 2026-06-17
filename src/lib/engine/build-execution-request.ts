@@ -1365,6 +1365,18 @@ function deriveTargetProjectSlice(handoff: HandoffRelaySummary) {
     return "Spark of Hope / app slice";
   }
 
+  if (text.includes("live on mission")) {
+    return "Live On Mission / ecosystem slice";
+  }
+
+  if (text.includes("best life")) {
+    return "Best Life / ecosystem slice";
+  }
+
+  if (text.includes("churchconnect") || text.includes("church connect")) {
+    return "ChurchConnect / ecosystem slice";
+  }
+
   if (handoff.source === "opportunity_prepared_handoff") {
     return "Opportunity / next AppEngine action";
   }

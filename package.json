@@ -88,6 +88,7 @@
     "smoke:builder-result-intake-verification": "node scripts/smoke-builder-result-intake-verification.js",
     "smoke:build-loop-completion-dashboard": "node scripts/smoke-build-loop-completion-dashboard.js",
     "smoke:build-loop-controlled-use-readiness": "node scripts/smoke-build-loop-controlled-use-readiness.js",
+    "smoke:appengine-usage-guide-ecosystem-start": "node scripts/smoke-appengine-usage-guide-ecosystem-start.js",
     "smoke:candidate-to-packet-draft-action": "node scripts/smoke-candidate-to-packet-draft-action.js",
     "smoke:life-core": "node scripts/smoke-life-core.js",
     "smoke:portfolio-build-packet-bridge-visibility": "node scripts/smoke-portfolio-build-packet-bridge-visibility.js",

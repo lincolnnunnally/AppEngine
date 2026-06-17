@@ -1776,6 +1776,52 @@ label {
   border-color: #d7e3dc;
 }
 
+.appengine-usage-guide {
+  background:
+    linear-gradient(135deg, rgba(244, 251, 247, 0.96), rgba(239, 248, 255, 0.94)),
+    #fbfcff;
+  display: grid;
+  gap: 18px;
+}
+
+.usage-guide-grid,
+.ecosystem-build-start-layout {
+  display: grid;
+  gap: 12px;
+}
+
+.usage-guide-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ecosystem-build-start-layout {
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.usage-guide-grid article,
+.ecosystem-build-start-layout > section,
+.ecosystem-build-start-output {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 14px;
+}
+
+.usage-guide-grid span,
+.ecosystem-build-start-output span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.custom-ecosystem-fields,
+.ecosystem-build-start-output {
+  display: grid;
+  gap: 12px;
+}
+
 .first-real-ecosystem-build-request {
   background:
     linear-gradient(135deg, rgba(244, 251, 247, 0.96), rgba(255, 250, 240, 0.94)),
@@ -3359,6 +3405,8 @@ label {
     .portfolio-bridge-grid,
     .opportunity-readiness-status-grid,
     .opportunity-readiness-check-grid,
+    .usage-guide-grid,
+    .ecosystem-build-start-layout,
     .first-real-build-seed-grid,
     .first-real-build-loop-step-grid,
     .first-packet-hero,
