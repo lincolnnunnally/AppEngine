@@ -6,6 +6,7 @@ import type {
   BuildLoopCompletionDashboard,
   BuildExecutionRequestRecord
 } from "./build-execution-request";
+import type { FirstRealBuildLoopRunRecord } from "./first-real-build-loop-run";
 import type { FirstEcosystemBuildPacketDraftRecord } from "./first-ecosystem-build-packet-draft";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
@@ -1237,6 +1238,85 @@ export async function updateProjectMemoryFromFirstEcosystemBuildPacketDraft(draf
       [
         item("progress", draft.ownerReadableSummary, draft.sourcePreparedHandoffId, createdAt, tags, "system"),
         item("progress", `Next safe action: ${draft.nextSafeAction.replace(/_/g, " ")}.`, draft.sourcePreparedHandoffId, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromFirstRealBuildLoopRun(run: FirstRealBuildLoopRunRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = run.createdAt;
+  const tags = ["first-real-build-loop-run", "life-core", "build-loop", run.exportedBuilderHandoff.id];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "First real Life Produces Life build loop run prepared",
+      latestProgress: run.ownerReadableSummary,
+      recommendedNextAction: "Copy the exported builder prompt, run the builder manually, then paste the result into Builder Result Intake.",
+      lastHandoffId: run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item(
+        "major_decision",
+        "Use the completed AppEngine build loop for the first real Life Produces Life Core build request under internal controlled use.",
+        run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "First real build loop runs may prepare source request, packet draft, build execution request, and copy-only builder handoff, then stop before Codex execution.",
+        run.exportedBuilderHandoff.handoffInboxId || run.exportedBuilderHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones: mergeItems(current.completedMilestones, [
+      item("completed_milestone", "First real build-loop handoff exported for Life Produces Life Core.", run.exportedBuilderHandoff.id, createdAt, tags, "system")
+    ]),
+    currentBlockers: mergeItems(current.currentBlockers, [
+      item(
+        "current_blocker",
+        "First real build loop is waiting on builder output before result intake and verification review can complete.",
+        run.exportedBuilderHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    openQuestions: current.openQuestions,
+    architectureDecisions: current.architectureDecisions,
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "The AppEngine build loop is usable internally when it can prepare the exact builder prompt and stop for owner-controlled result intake.",
+        run.exportedBuilderHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", run.ownerReadableSummary, run.exportedBuilderHandoff.id, createdAt, tags, "system"),
+        item("progress", `Next safe action: ${run.nextSafeAction.replace(/_/g, " ")}`, run.exportedBuilderHandoff.id, createdAt, tags, "system")
       ],
       30
     ),
