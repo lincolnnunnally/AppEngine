@@ -42,6 +42,9 @@ export default function HomePage() {
           <Link className="button primary" href="/builder">
             Open Builder
           </Link>
+          <Link className="button" href="/life-core">
+            Life Core Preview
+          </Link>
           <Link className="button" href="/spark-of-hope-intake-lite">
             Preview Spark Intake
           </Link>

@@ -62,6 +62,39 @@ Current working flow:
 
 Production completion still requires OAuth sign-in credentials, deployment verification, and a full real-project autopilot pass from idea to generated app preview.
 
+## Life Produces Life Core
+
+The first Life Produces Life Core foundation slice is available at:
+
+```text
+/life-core
+```
+
+It exposes shared preview contracts for profiles, organizations, communities, journey stages, testimonies, opportunities, ecosystem experiences, and a unified activity feed. The journey stage order is:
+
+```text
+survival -> hope -> action -> discovery -> becoming -> thriving -> multiplication
+```
+
+The foundation uses local/mock or existing AppEngine storage patterns only. It does not require paid services, deployments, migrations, or secrets. Preview APIs are read-only:
+
+```text
+/api/life-core/overview
+/api/life-core/profiles
+/api/life-core/communities
+/api/life-core/testimonies
+/api/life-core/opportunities
+/api/life-core/feed
+```
+
+United Under God and ChurchConnect are intentionally separate in this foundation. United Under God is the mission, unity, encouragement, collaboration, shared-burden, and problem-discovery layer. ChurchConnect is the church operations layer for communications, events, directories, volunteer coordination, and church office/admin workflows.
+
+Verify the foundation slice with:
+
+```bash
+npm run smoke:life-core
+```
+
 ## Local Mode
 
 `APP_ENGINE_LOCAL_MODE=true` lets the builder save generated projects to:

@@ -2252,6 +2252,189 @@ label {
   text-align: center;
 }
 
+.life-core-page {
+  display: grid;
+  gap: 18px;
+  padding-bottom: 48px;
+}
+
+.life-core-hero,
+.life-core-section,
+.life-core-distinction article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.life-core-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: clamp(22px, 4vw, 36px);
+  background: #fffdf8;
+}
+
+.life-core-hero h1 {
+  max-width: 820px;
+  margin-bottom: 12px;
+}
+
+.life-core-hero p {
+  max-width: 780px;
+  font-size: 1.02rem;
+}
+
+.life-core-status {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid #b9d8d2;
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--green-soft);
+}
+
+.life-core-status span,
+.life-core-stage span,
+.life-core-experience-card span,
+.life-core-list-item span,
+.life-core-list-item small,
+.life-core-feed-item span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.life-core-status strong {
+  color: var(--teal);
+  font-size: 1.25rem;
+}
+
+.life-core-status p {
+  margin: 0;
+}
+
+.life-core-section {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+}
+
+.life-core-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.life-core-stage {
+  display: grid;
+  gap: 8px;
+  min-height: 108px;
+  align-content: center;
+  border: 1px solid #b9d8d2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f7fbfa;
+}
+
+.life-core-stage strong {
+  font-size: 0.98rem;
+}
+
+.life-core-experience-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.life-core-experience-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #f9fbfb;
+  overflow-wrap: anywhere;
+}
+
+.life-core-experience-card h3,
+.life-core-list-item strong,
+.life-core-feed-item strong {
+  margin: 0;
+}
+
+.life-core-experience-card p,
+.life-core-list-item p,
+.life-core-feed-item p {
+  margin: 0;
+}
+
+.life-core-distinction {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.life-core-distinction article {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+}
+
+.life-core-distinction article:first-child {
+  background: #f7fbfa;
+}
+
+.life-core-distinction article:last-child {
+  background: #edf3fb;
+}
+
+.life-core-distinction ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.life-core-module-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.life-core-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.life-core-list,
+.life-core-feed {
+  display: grid;
+  gap: 10px;
+}
+
+.life-core-list-item,
+.life-core-feed-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.life-core-list-item small {
+  color: var(--teal);
+  line-height: 1.4;
+  text-transform: none;
+}
+
 @media (max-width: 760px) {
   .topnav,
   .navlinks,
@@ -2314,6 +2497,12 @@ label {
     .trial-manual-grid,
     .trial-review-options,
     .handoff-feedback-options,
+    .life-core-hero,
+    .life-core-stage-grid,
+    .life-core-experience-grid,
+    .life-core-distinction,
+    .life-core-module-grid,
+    .life-core-columns,
     .form-grid label:first-child {
     grid-template-columns: 1fr;
     grid-column: auto;
