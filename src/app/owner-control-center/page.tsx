@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { BuildLoopCompletionDashboardPanel } from "@/components/engine/build-loop-completion-dashboard-panel";
 import { BuildLoopControlledUseReadinessPanel } from "@/components/engine/build-loop-controlled-use-readiness-panel";
 import { BuildExecutionRequestPanel } from "@/components/engine/build-execution-request-panel";
+import { FirstRealBuildLoopRunPanel } from "@/components/engine/first-real-build-loop-run-panel";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
 import { FirstEcosystemBuildPacketDraftPanel } from "@/components/opportunity-intake/first-ecosystem-build-packet-draft-panel";
@@ -25,6 +26,7 @@ import {
   firstRealEcosystemBuildRequestSeed,
   listFirstRealEcosystemBuildRequests
 } from "@/lib/engine/first-real-ecosystem-build-request";
+import { listFirstRealBuildLoopRuns } from "@/lib/engine/first-real-build-loop-run";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadInternalControlledUseRunbook } from "@/lib/engine/internal-controlled-use-runbook";
 import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
@@ -74,6 +76,7 @@ export default async function OwnerControlCenterPage() {
     opportunityInternalUseCompletionCheck,
     firstRealEcosystemBuildRequests,
     firstEcosystemBuildPacketDrafts,
+    firstRealBuildLoopRuns,
     realOpportunityExamples,
     realOpportunityResultReviews,
     problemIntakeRecords,
@@ -102,6 +105,7 @@ export default async function OwnerControlCenterPage() {
     loadOpportunityInternalUseCompletionCheck(),
     listFirstRealEcosystemBuildRequests(),
     listFirstEcosystemBuildPacketDrafts(),
+    listFirstRealBuildLoopRuns(),
     listRealOpportunityExamples(),
     listRealOpportunityResultReviews(),
     listProblemIntakeRecords(),
@@ -146,6 +150,7 @@ export default async function OwnerControlCenterPage() {
         initialBuildRequests={firstRealEcosystemBuildRequests}
         initialDrafts={firstEcosystemBuildPacketDrafts}
       />
+      <FirstRealBuildLoopRunPanel initialRecords={firstRealBuildLoopRuns} />
       <OwnerOpportunityQueue
         initialClarifications={opportunityClarifications}
         initialRecords={opportunityIntakeRecords}

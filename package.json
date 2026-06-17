@@ -81,6 +81,7 @@
     "smoke:opportunity-internal-use-completion-check": "node scripts/smoke-opportunity-internal-use-completion-check.js",
     "smoke:first-real-ecosystem-build-request": "node scripts/smoke-first-real-ecosystem-build-request.js",
     "smoke:first-ecosystem-build-packet-draft": "node scripts/smoke-first-ecosystem-build-packet-draft.js",
+    "smoke:first-real-build-loop-run": "node scripts/smoke-first-real-build-loop-run.js",
     "smoke:build-execution-request": "node scripts/smoke-build-execution-request.js",
     "smoke:build-execution-request-export": "node scripts/smoke-build-execution-request-export.js",
     "smoke:builder-result-intake-verification": "node scripts/smoke-builder-result-intake-verification.js",

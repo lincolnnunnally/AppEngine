@@ -1784,8 +1784,17 @@ label {
   gap: 18px;
 }
 
+.first-real-build-loop-run {
+  background:
+    linear-gradient(135deg, rgba(255, 248, 236, 0.96), rgba(244, 251, 247, 0.94)),
+    #fffdfa;
+  display: grid;
+  gap: 18px;
+}
+
 .first-real-build-seed-grid,
-.first-real-build-output {
+.first-real-build-output,
+.first-real-build-loop-output {
   display: grid;
   gap: 12px;
 }
@@ -1795,21 +1804,51 @@ label {
 }
 
 .first-real-build-seed-grid section,
-.first-real-build-output {
+.first-real-build-output,
+.first-real-build-loop-output,
+.first-real-build-loop-step {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
   padding: 14px;
 }
 
-.first-real-build-seed-grid span {
+.first-real-build-loop-step-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.first-real-build-loop-step {
+  display: grid;
+  gap: 8px;
+}
+
+.first-real-build-loop-step.completed {
+  border-color: #b8dbc5;
+  background: #f4fbf7;
+}
+
+.first-real-build-loop-step.waiting_on_builder_output {
+  border-color: rgba(185, 134, 42, 0.32);
+  background: rgba(255, 249, 232, 0.92);
+}
+
+.first-real-build-loop-step.blocked {
+  border-color: #f0b4a6;
+  background: #fff6f3;
+}
+
+.first-real-build-seed-grid span,
+.first-real-build-loop-step span {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.first-real-build-seed-grid p {
+.first-real-build-seed-grid p,
+.first-real-build-loop-step p {
   margin: 6px 0 0;
 }
 
@@ -3287,6 +3326,7 @@ label {
     .opportunity-readiness-status-grid,
     .opportunity-readiness-check-grid,
     .first-real-build-seed-grid,
+    .first-real-build-loop-step-grid,
     .first-packet-hero,
     .first-packet-section-grid,
     .first-packet-section-grid.three,
