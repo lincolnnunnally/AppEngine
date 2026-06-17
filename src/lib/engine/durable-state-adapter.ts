@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 export type AppEngineStateKind =
@@ -100,7 +101,7 @@ export const disabledDatabaseStateAdapterConfig: DatabaseStateAdapterConfig = {
   enabled: false
 };
 
-export function createLocalMockStateAdapter(root = join(process.cwd(), ".app-engine", "state")): AppEngineStateAdapter {
+export function createLocalMockStateAdapter(root = defaultLocalStateRoot()): AppEngineStateAdapter {
   return {
     describe() {
       return {
@@ -138,6 +139,12 @@ export function createLocalMockStateAdapter(root = join(process.cwd(), ".app-eng
       return next;
     }
   };
+}
+
+function defaultLocalStateRoot() {
+  if (process.env.APPENGINE_STATE_ROOT) return process.env.APPENGINE_STATE_ROOT;
+  if (process.env.VERCEL === "1") return join(tmpdir(), "app-engine", "state");
+  return join(process.cwd(), ".app-engine", "state");
 }
 
 export function createDisabledDatabaseStateAdapter(config = disabledDatabaseStateAdapterConfig): AppEngineStateAdapter {

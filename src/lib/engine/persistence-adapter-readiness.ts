@@ -1,5 +1,5 @@
-import type { AppEngineStateAdapter, AppEngineStateKind } from "./durable-state-adapter";
-import { getAppEngineStateAdapter } from "./durable-state-adapter";
+import type { AppEngineStateAdapter, AppEngineStateKind } from "./durable-state-adapter.ts";
+import { getAppEngineStateAdapter } from "./durable-state-adapter.ts";
 
 export type AdapterReadyStoreKind = "project_memory" | "handoff_relay" | "orchestrator_action_queue";
 
