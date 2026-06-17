@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BuildExecutionRequestPanel } from "@/components/engine/build-execution-request-panel";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
 import { FirstEcosystemBuildPacketDraftPanel } from "@/components/opportunity-intake/first-ecosystem-build-packet-draft-panel";
@@ -11,6 +12,7 @@ import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/compone
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
+import { listBuildExecutionHandoffSources, listBuildExecutionRequests } from "@/lib/engine/build-execution-request";
 import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
 import {
   firstRealEcosystemBuildRequestSeed,
@@ -48,6 +50,8 @@ export default async function OwnerControlCenterPage() {
     trialReviews,
     orchestratorRuns,
     orchestratorActionQueue,
+    buildExecutionSources,
+    buildExecutionRequests,
     auditTrailReport,
     internalControlledUse,
     opportunityIntakeRecords,
@@ -72,6 +76,8 @@ export default async function OwnerControlCenterPage() {
     listTrialResultReviews(),
     listOrchestratorRuns(),
     listOrchestratorActionQueue(),
+    listBuildExecutionHandoffSources(),
+    listBuildExecutionRequests(),
     loadAuditTrailOwnerVisibilityReport(),
     loadInternalControlledUseRunbook(),
     listOpportunityIntakeRecords(),
@@ -116,6 +122,7 @@ export default async function OwnerControlCenterPage() {
         initialInternalControlledUse={internalControlledUse}
         initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
       />
+      <BuildExecutionRequestPanel initialSources={buildExecutionSources} initialRequests={buildExecutionRequests} />
       <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
       <OpportunityInternalUseCompletionCheckPanel report={opportunityInternalUseCompletionCheck} />
       <FirstRealEcosystemBuildRequestPanel

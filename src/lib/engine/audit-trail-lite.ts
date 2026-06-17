@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 export type AppEngineAuditEventType =
   | "intake_submitted"
   | "handoff_prepared"
+  | "build_execution_request_created"
   | "orchestrator_action_queued"
   | "orchestrator_action_exported"
   | "opportunity_packet_draft_prepared"
@@ -67,6 +68,7 @@ export type AppEngineAuditTrail = {
 export const supportedAuditEventTypes: AppEngineAuditEventType[] = [
   "intake_submitted",
   "handoff_prepared",
+  "build_execution_request_created",
   "orchestrator_action_queued",
   "orchestrator_action_exported",
   "opportunity_packet_draft_prepared",

@@ -1819,6 +1819,14 @@ label {
   gap: 18px;
 }
 
+.build-execution-request-panel {
+  background:
+    linear-gradient(135deg, rgba(239, 248, 255, 0.96), rgba(255, 250, 240, 0.94)),
+    #fbfcff;
+  display: grid;
+  gap: 18px;
+}
+
 .first-packet-draft-output {
   display: grid;
   gap: 16px;
@@ -1859,10 +1867,59 @@ label {
   text-transform: uppercase;
 }
 
+.build-execution-layout {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+  align-items: start;
+}
+
+.build-execution-layout label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.build-execution-layout select {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.build-execution-source-card,
+.build-execution-request-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.build-execution-source-card span,
+.build-execution-request-card span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .first-packet-hero h2,
 .first-packet-section-grid p,
 .first-packet-route-grid p {
   margin: 6px 0 0;
+}
+
+.build-execution-source-card p,
+.build-execution-request-card p {
+  margin: 0;
 }
 
 .action-plan-list,
@@ -3100,6 +3157,7 @@ label {
     .first-packet-section-grid,
     .first-packet-section-grid.three,
     .first-packet-route-grid,
+    .build-execution-layout,
     .real-opportunity-form-grid,
     .real-opportunity-review-grid,
     .real-opportunity-review-form,

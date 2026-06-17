@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { BuildExecutionRequestRecord } from "./build-execution-request";
 import type { FirstEcosystemBuildPacketDraftRecord } from "./first-ecosystem-build-packet-draft";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
@@ -372,6 +373,97 @@ export async function updateProjectMemoryFromHandoffExport(handoff: HandoffRelay
       [
         item("progress", exportOutput.ownerReadableSummary, handoff.id, createdAt, tags),
         item("progress", `Expected result: ${exportOutput.expectedResult}`, handoff.id, createdAt, tags)
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromBuildExecutionRequest(request: BuildExecutionRequestRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = request.createdAt;
+  const tags = ["build-execution-request", request.executionStatus, request.sourceHandoff.sourceKind];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "Build execution request drafted",
+      latestProgress: request.ownerReadableSummary,
+      recommendedNextAction: "Review the build execution request before any builder execution, GitHub issue, label, or deploy happens.",
+      lastHandoffId: request.sourceHandoff.id
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item(
+        "major_decision",
+        `Prepared handoff ${request.sourceHandoff.id} was converted into a build execution request draft.`,
+        request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Treat builder execution as an owner-visible AppEngine workflow state before automating Codex, GitHub issues, labels, or deploys.",
+        request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    completedMilestones: mergeItems(current.completedMilestones, [
+      item("completed_milestone", request.ownerReadableSummary, request.sourceHandoff.id, createdAt, tags, "system")
+    ]),
+    currentBlockers: mergeItems(
+      current.currentBlockers,
+      [
+        item(
+          "current_blocker",
+          "Build execution request remains draft until owner approves the next builder step.",
+          request.sourceHandoff.id,
+          createdAt,
+          tags,
+          "system"
+        )
+      ],
+      20
+    ),
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "Build execution requests connect Handoff Inbox output to future builder execution while keeping Codex execution, GitHub issues, labels, deploys, paid resources, migrations, and secrets blocked.",
+        request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "The manual Codex side channel can be made visible first, then automated later only after owner-approved workflow states exist.",
+        request.sourceHandoff.id,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", request.ownerReadableSummary, request.sourceHandoff.id, createdAt, tags, "system"),
+        item("progress", `Target project/slice: ${request.targetProjectSlice}.`, request.sourceHandoff.id, createdAt, tags, "system")
       ],
       30
     ),
