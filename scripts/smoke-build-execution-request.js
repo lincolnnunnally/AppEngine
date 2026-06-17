@@ -55,7 +55,7 @@ runStep("connector updates memory, audit trail, and portfolio", () => {
   ]);
   assertFileIncludes("src/lib/engine/app-portfolio-registry.ts", [
     "listBuildExecutionRequests",
-    "build execution request drafted",
+    "build execution request",
     "build_execution_request"
   ]);
 });

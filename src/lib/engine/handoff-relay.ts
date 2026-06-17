@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { getAppEngineAuditTrail } from "./audit-trail-lite";
+import type { BuildExecutionBuilderHandoffExport } from "./build-execution-request";
 import type { OrchestratorBatchDryRun, OrchestratorRun } from "./orchestrator-run";
 import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
 import { updateProjectMemoryFromHandoff, updateProjectMemoryFromHandoffExport, updateProjectMemoryFromPreparedHandoff } from "./project-memory.ts";
@@ -31,7 +32,11 @@ export type HandoffRelaySummary = {
   schemaVersion: 1;
   id: string;
   receivedAt: string;
-  source: "codex_handoff_paste" | "orchestrator_prepared_handoff" | "opportunity_prepared_handoff";
+  source:
+    | "codex_handoff_paste"
+    | "orchestrator_prepared_handoff"
+    | "opportunity_prepared_handoff"
+    | "build_execution_builder_handoff";
   rawText: string;
   extracted: {
     prNumber: number | null;
@@ -457,6 +462,72 @@ export async function savePreparedHandoffFromReadyOpportunityResultReview(review
       finalPacketCreated: false
     }
   });
+
+  return summary;
+}
+
+export function createPreparedHandoffFromBuildExecutionExport(
+  exportOutput: BuildExecutionBuilderHandoffExport,
+  now = new Date()
+): HandoffRelaySummary {
+  const rawText = buildBuildExecutionExportHandoffText(exportOutput);
+  const summary = createHandoffRelaySummary(rawText, now);
+
+  return {
+    ...summary,
+    id: `handoff_from_${exportOutput.requestId}`,
+    source: "build_execution_builder_handoff",
+    extracted: {
+      ...summary.extracted,
+      prNumber: null,
+      prTitle: `Prepared builder handoff: ${exportOutput.targetProjectSlice}`,
+      branch: "not applicable",
+      mergeStatus: "prepared",
+      verificationResults: limit(exportOutput.verificationCommands, 10),
+      completedWork: limit(
+        [
+          `Build execution request ${exportOutput.requestId} was owner-approved for manual builder handoff export.`,
+          `Source handoff: ${exportOutput.sourceHandoffId}.`,
+          `Source packet draft: ${exportOutput.sourcePacketDraft?.id || "not attached"}.`
+        ],
+        8
+      ),
+      guardrailsPreserved: limit(exportOutput.guardrails, 10),
+      dependencies: limit(["Owner reviews and manually copies the builder prompt.", ...summary.extracted.dependencies], 8)
+    },
+    projectState: {
+      currentStatus: "Builder handoff exported for owner review",
+      latestCompletedMilestone: `Build execution request ${exportOutput.requestId} is exported as a copyable builder handoff.`,
+      openPrs: [],
+      recommendedNextAction: "Open the Handoff Inbox, review the builder prompt, and copy it manually if it is right.",
+      remainingMajorMilestones: [
+        "Owner reviews exported builder handoff",
+        "Owner manually sends the prompt when ready",
+        "Codex receives the prompt only when Lincoln sends it",
+        "Verification evidence is recorded after the builder result"
+      ]
+    },
+    nextPrompt: {
+      prompt: exportOutput.exactBuilderPrompt,
+      reason:
+        "The build execution request was owner-approved and exported into the Handoff Inbox without triggering Codex automatically.",
+      dependencies: ["Owner manually copies this prompt from the Handoff Inbox."],
+      expectedOutcome: exportOutput.expectedResult
+    },
+    ownerReadableSummary: `Build execution request ${exportOutput.requestId} is exported as a builder handoff for ${exportOutput.targetProjectSlice}. It is waiting in the Handoff Inbox for owner review and manual copy.`,
+    guardrails: defaultGuardrails()
+  };
+}
+
+export async function savePreparedHandoffFromBuildExecutionExport(
+  exportOutput: BuildExecutionBuilderHandoffExport,
+  now = new Date()
+) {
+  const store = await readStore();
+  const summary = createPreparedHandoffFromBuildExecutionExport(exportOutput, now);
+  store.handoffs = [summary, ...store.handoffs.filter((handoff) => handoff.id !== summary.id)].slice(0, 50);
+  await writeStore(store);
+  await updateProjectMemoryFromHandoff(summary);
 
   return summary;
 }
@@ -931,6 +1002,58 @@ function buildReadyOpportunityPreparedHandoffText(review: RealOpportunityResultR
     "",
     "Owner action:",
     "Review this prepared AppEngine handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
+  ].join("\n");
+}
+
+function buildBuildExecutionExportHandoffText(exportOutput: BuildExecutionBuilderHandoffExport) {
+  return [
+    "# Prepared builder handoff from Build Execution Request",
+    "",
+    "Source:",
+    `- build_execution_request: ${exportOutput.requestId}`,
+    `- source_handoff: ${exportOutput.sourceHandoffId}`,
+    `- source_packet_draft: ${exportOutput.sourcePacketDraft?.id || "not attached"}`,
+    `- source_request: ${exportOutput.sourceOpportunityOrEcosystemRequest}`,
+    "",
+    "Current project state:",
+    "- Lincoln approved this build execution request for manual builder handoff export.",
+    "- It is stored in the Handoff Inbox for owner review and copy.",
+    "- Codex has not been triggered automatically.",
+    "",
+    "Target project/slice:",
+    exportOutput.targetProjectSlice,
+    "",
+    "Requested build work:",
+    exportOutput.requestedBuildWork,
+    "",
+    "Design intent:",
+    `- Profile: ${exportOutput.designIntent.profile}`,
+    `- Emotional experience: ${exportOutput.designIntent.emotionalExperience.join(", ")}`,
+    `- Style notes: ${exportOutput.designIntent.styleNotes.join(" | ")}`,
+    `- Avoid: ${exportOutput.designIntent.avoid.join(" | ")}`,
+    "",
+    "Exact suggested Codex prompt:",
+    exportOutput.exactBuilderPrompt,
+    "",
+    "Required verification:",
+    ...exportOutput.verificationCommands.map((command) => `- ${command}`),
+    "",
+    "Expected result:",
+    exportOutput.expectedResult,
+    "",
+    "Guardrails preserved:",
+    ...exportOutput.guardrails.map((guardrail) => `- ${guardrail}`),
+    "- No automatic Codex execution.",
+    "- No GitHub issue creation.",
+    "- No label changes.",
+    "- No production deploy.",
+    "- No paid resources.",
+    "- No live migrations.",
+    "- No secrets/env changes.",
+    "- No repository visibility changes.",
+    "",
+    "Owner action:",
+    "Review this prepared builder handoff in the Handoff Inbox. Copy and send the prompt only if it is right."
   ].join("\n");
 }
 

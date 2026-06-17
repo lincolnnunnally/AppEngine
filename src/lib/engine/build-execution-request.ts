@@ -9,8 +9,15 @@ import {
   listFirstRealEcosystemBuildRequests,
   type FirstRealEcosystemBuildRequestRecord
 } from "@/lib/engine/first-real-ecosystem-build-request";
-import { listHandoffRelaySummaries, type HandoffRelaySummary } from "@/lib/engine/handoff-relay";
-import { updateProjectMemoryFromBuildExecutionRequest } from "@/lib/engine/project-memory";
+import {
+  listHandoffRelaySummaries,
+  savePreparedHandoffFromBuildExecutionExport,
+  type HandoffRelaySummary
+} from "@/lib/engine/handoff-relay";
+import {
+  updateProjectMemoryFromBuildExecutionRequest,
+  updateProjectMemoryFromBuildExecutionRequestExport
+} from "@/lib/engine/project-memory";
 
 export type BuildExecutionRequestStatus =
   | "draft"
@@ -23,6 +30,7 @@ export type BuildExecutionRequestStatus =
   | "blocked";
 
 export type BuildExecutionOwnerApprovalStatus = "owner_review_required" | "owner_approved" | "rejected";
+export type BuildExecutionRequestReviewStatus = "needs_review" | "owner_approved" | "blocked" | "exported_for_builder";
 
 export type BuildExecutionHandoffSourceKind =
   | "handoff_inbox"
@@ -37,6 +45,36 @@ export type BuildExecutionPacketDraftSource = {
   status: FirstEcosystemBuildPacketDraftRecord["status"];
   ownerReadableSummary: string;
   nextSafeAction: FirstEcosystemBuildPacketDraftRecord["nextSafeAction"];
+  designIntent: FirstEcosystemBuildPacketDraftRecord["designIntent"] | null;
+};
+
+export type BuildExecutionBuilderHandoffExport = {
+  kind: "build_execution_builder_handoff_export";
+  schemaVersion: 1;
+  id: string;
+  createdAt: string;
+  requestId: string;
+  sourceHandoffId: string;
+  sourceOpportunityOrEcosystemRequest: string;
+  sourcePacketDraft: BuildExecutionPacketDraftSource | null;
+  targetProjectSlice: string;
+  requestedBuildWork: string;
+  designIntent: FirstEcosystemBuildPacketDraftRecord["designIntent"] | ReturnType<typeof defaultDesignIntent>;
+  guardrails: string[];
+  verificationCommands: string[];
+  expectedResult: string;
+  exactBuilderPrompt: string;
+  handoffInboxId: string | null;
+  execution: {
+    codexTriggered: false;
+    githubIssuesCreated: false;
+    labelsApplied: false;
+    productionDeployed: false;
+    paidResourcesCreated: false;
+    migrationsApplied: false;
+    secretsOrEnvChanged: false;
+    repositoryVisibilityChanged: false;
+  };
 };
 
 export type BuildExecutionHandoffSource = {
@@ -74,6 +112,9 @@ export type BuildExecutionRequestRecord = {
   expectedResult: string;
   ownerApprovalStatus: BuildExecutionOwnerApprovalStatus;
   executionStatus: BuildExecutionRequestStatus;
+  reviewStatus: BuildExecutionRequestReviewStatus;
+  exportedBuilderHandoffId: string | null;
+  exportedBuilderHandoff: BuildExecutionBuilderHandoffExport | null;
   statusHistory: {
     status: BuildExecutionRequestStatus;
     at: string;
@@ -88,6 +129,9 @@ export type BuildExecutionRequestRecord = {
     sourcePacketDraftId: string | null;
     executionStatus: BuildExecutionRequestStatus;
     ownerApprovalStatus: BuildExecutionOwnerApprovalStatus;
+    reviewStatus: BuildExecutionRequestReviewStatus;
+    builderHandoffExported: boolean;
+    builderHandoffId: string | null;
     codexTriggered: false;
     githubIssuesCreated: false;
     labelsApplied: false;
@@ -106,6 +150,7 @@ export function buildExecutionRequestGuardrails() {
     ...durableStateGuardrails(),
     draftConnectorOnly: true,
     ownerApprovalRequired: true,
+    reviewAndExportOwnerControlled: true,
     noCodexAutoExecution: true,
     noGitHubIssueCreation: true,
     noLabelChanges: true,
@@ -185,6 +230,9 @@ export async function createBuildExecutionRequest(input: { sourceId?: unknown } 
     expectedResult: source.expectedResult,
     ownerApprovalStatus: "owner_review_required",
     executionStatus: "draft",
+    reviewStatus: "needs_review",
+    exportedBuilderHandoffId: null,
+    exportedBuilderHandoff: null,
     statusHistory: [
       {
         status: "draft",
@@ -201,6 +249,9 @@ export async function createBuildExecutionRequest(input: { sourceId?: unknown } 
       sourcePacketDraftId: source.sourcePacketDraft?.id || null,
       executionStatus: "draft",
       ownerApprovalStatus: "owner_review_required",
+      reviewStatus: "needs_review",
+      builderHandoffExported: false,
+      builderHandoffId: null,
       codexTriggered: false,
       githubIssuesCreated: false,
       labelsApplied: false,
@@ -234,6 +285,171 @@ export async function createBuildExecutionRequest(input: { sourceId?: unknown } 
   });
 
   return record;
+}
+
+export async function reviewBuildExecutionRequest(
+  input: { requestId?: unknown; reviewStatus?: unknown; note?: unknown } = {},
+  now = new Date()
+) {
+  const requestId = typeof input.requestId === "string" ? input.requestId.trim() : "";
+  const reviewStatus = parseReviewStatus(input.reviewStatus);
+  const note = typeof input.note === "string" ? input.note.trim().slice(0, 600) : "";
+
+  if (!requestId) {
+    throw new Error("Choose a build execution request to review.");
+  }
+
+  if (!reviewStatus) {
+    throw new Error("Choose a valid build execution review status.");
+  }
+
+  const store = await readBuildExecutionRequestStore();
+  const index = store.records.findIndex((record) => record.id === requestId);
+
+  if (index === -1) {
+    throw new Error("Build execution request not found.");
+  }
+
+  const existing = store.records[index];
+
+  if (reviewStatus === "blocked") {
+    const reviewedAt = now.toISOString();
+    const blocked = {
+      ...existing,
+      updatedAt: reviewedAt,
+      ownerApprovalStatus: "rejected" as const,
+      executionStatus: "blocked" as const,
+      reviewStatus: "blocked" as const,
+      ownerReadableSummary: `Build execution request for ${existing.targetProjectSlice} is blocked pending owner review.`,
+      statusHistory: [
+        {
+          status: "blocked" as const,
+          at: reviewedAt,
+          note: note || "Owner marked this build execution request blocked. No builder handoff was exported."
+        },
+        ...existing.statusHistory
+      ],
+      artifact: {
+        ...existing.artifact,
+        executionStatus: "blocked" as const,
+        ownerApprovalStatus: "rejected" as const,
+        reviewStatus: "blocked" as const
+      }
+    } satisfies BuildExecutionRequestRecord;
+
+    store.records[index] = blocked;
+    await writeBuildExecutionRequestStore(store);
+    await updateProjectMemoryFromBuildExecutionRequest(blocked);
+    await getAppEngineAuditTrail().append({
+      type: "build_execution_request_reviewed",
+      actor: { type: "owner", id: "Lincoln" },
+      summary: blocked.ownerReadableSummary,
+      subjectId: blocked.id,
+      metadata: {
+        reviewStatus: blocked.reviewStatus,
+        executionStatus: blocked.executionStatus,
+        codexTriggered: false,
+        githubIssuesCreated: false,
+        labelsApplied: false,
+        productionDeployed: false
+      }
+    });
+
+    return { record: blocked, handoff: null, exportOutput: null };
+  }
+
+  if (reviewStatus === "needs_review") {
+    const reviewedAt = now.toISOString();
+    const reviewed = {
+      ...existing,
+      updatedAt: reviewedAt,
+      reviewStatus: "needs_review" as const,
+      ownerReadableSummary: `Build execution request for ${existing.targetProjectSlice} still needs owner review.`,
+      statusHistory: [
+        {
+          status: existing.executionStatus,
+          at: reviewedAt,
+          note: note || "Owner kept this build execution request in review."
+        },
+        ...existing.statusHistory
+      ],
+      artifact: {
+        ...existing.artifact,
+        reviewStatus: "needs_review" as const
+      }
+    } satisfies BuildExecutionRequestRecord;
+
+    store.records[index] = reviewed;
+    await writeBuildExecutionRequestStore(store);
+    return { record: reviewed, handoff: null, exportOutput: null };
+  }
+
+  const exportOutput = createBuilderHandoffExport(existing, now);
+  const handoff = await savePreparedHandoffFromBuildExecutionExport(exportOutput, now);
+  const exportedAt = now.toISOString();
+  const exported = {
+    ...existing,
+    updatedAt: exportedAt,
+    ownerApprovalStatus: "owner_approved" as const,
+    executionStatus: "ready_for_builder" as const,
+    reviewStatus: "exported_for_builder" as const,
+    exportedBuilderHandoffId: handoff.id,
+    exportedBuilderHandoff: {
+      ...exportOutput,
+      handoffInboxId: handoff.id
+    },
+    statusHistory: [
+      {
+        status: "ready_for_builder" as const,
+        at: exportedAt,
+        note:
+          note ||
+          `Owner approved this request and exported builder handoff ${handoff.id}. Codex was not triggered automatically.`
+      },
+      {
+        status: "owner_approved" as const,
+        at: exportedAt,
+        note: "Owner approved this build execution request for manual builder handoff export."
+      },
+      ...existing.statusHistory
+    ],
+    ownerReadableSummary: `Build execution request for ${existing.targetProjectSlice} is owner-approved and exported to the Handoff Inbox as ${handoff.id}.`,
+    artifact: {
+      ...existing.artifact,
+      executionStatus: "ready_for_builder" as const,
+      ownerApprovalStatus: "owner_approved" as const,
+      reviewStatus: "exported_for_builder" as const,
+      builderHandoffExported: true,
+      builderHandoffId: handoff.id
+    }
+  } satisfies BuildExecutionRequestRecord;
+
+  store.records[index] = exported;
+  await writeBuildExecutionRequestStore(store);
+  await updateProjectMemoryFromBuildExecutionRequestExport(exported, exported.exportedBuilderHandoff);
+  await getAppEngineAuditTrail().append({
+    type: "build_execution_request_exported",
+    actor: { type: "owner", id: "Lincoln" },
+    summary: exported.ownerReadableSummary,
+    subjectId: exported.id,
+    metadata: {
+      sourceHandoffId: exported.sourceHandoff.id,
+      sourcePacketDraftId: exported.sourcePacketDraft?.id || null,
+      exportedHandoffId: handoff.id,
+      reviewStatus: exported.reviewStatus,
+      executionStatus: exported.executionStatus,
+      codexTriggered: false,
+      githubIssuesCreated: false,
+      labelsApplied: false,
+      productionDeployed: false,
+      paidResourcesCreated: false,
+      migrationsApplied: false,
+      secretsOrEnvChanged: false,
+      repositoryVisibilityChanged: false
+    }
+  });
+
+  return { record: exported, handoff, exportOutput: exported.exportedBuilderHandoff };
 }
 
 function buildSourceFromHandoff(
@@ -318,7 +534,99 @@ function packetDraftSource(draft: FirstEcosystemBuildPacketDraftRecord): BuildEx
     title: draft.title,
     status: draft.status,
     ownerReadableSummary: draft.ownerReadableSummary,
-    nextSafeAction: draft.nextSafeAction
+    nextSafeAction: draft.nextSafeAction,
+    designIntent: draft.designIntent
+  };
+}
+
+function createBuilderHandoffExport(request: BuildExecutionRequestRecord, now = new Date()): BuildExecutionBuilderHandoffExport {
+  const designIntent = request.sourcePacketDraft?.designIntent || defaultDesignIntent();
+  const createdAt = now.toISOString();
+  const exportOutput: Omit<BuildExecutionBuilderHandoffExport, "exactBuilderPrompt"> = {
+    kind: "build_execution_builder_handoff_export",
+    schemaVersion: 1,
+    id: `build_execution_export_${randomUUID()}`,
+    createdAt,
+    requestId: request.id,
+    sourceHandoffId: request.sourceHandoff.id,
+    sourceOpportunityOrEcosystemRequest: `${request.sourceHandoff.title} (${request.sourceHandoff.sourceKind.replaceAll("_", " ")})`,
+    sourcePacketDraft: request.sourcePacketDraft,
+    targetProjectSlice: request.targetProjectSlice,
+    requestedBuildWork: request.requestedWork,
+    designIntent,
+    guardrails: request.guardrails,
+    verificationCommands: request.verificationCommands,
+    expectedResult: request.expectedResult,
+    handoffInboxId: null,
+    execution: {
+      codexTriggered: false,
+      githubIssuesCreated: false,
+      labelsApplied: false,
+      productionDeployed: false,
+      paidResourcesCreated: false,
+      migrationsApplied: false,
+      secretsOrEnvChanged: false,
+      repositoryVisibilityChanged: false
+    }
+  };
+
+  return {
+    ...exportOutput,
+    exactBuilderPrompt: buildExactBuilderPrompt(exportOutput)
+  };
+}
+
+function buildExactBuilderPrompt(exportOutput: Omit<BuildExecutionBuilderHandoffExport, "exactBuilderPrompt">) {
+  return [
+    "# AppEngine Builder Handoff",
+    "",
+    "Use this owner-approved build execution request as the source of truth.",
+    "",
+    `Target project/slice: ${exportOutput.targetProjectSlice}`,
+    `Source Opportunity / ecosystem request: ${exportOutput.sourceOpportunityOrEcosystemRequest}`,
+    `Source packet draft: ${exportOutput.sourcePacketDraft?.title || "No packet draft attached"}`,
+    "",
+    "## Requested Build Work",
+    exportOutput.requestedBuildWork,
+    "",
+    "## Design Intent",
+    `Profile: ${exportOutput.designIntent.profile}`,
+    `Emotional experience: ${exportOutput.designIntent.emotionalExperience.join(", ")}`,
+    `Style notes: ${exportOutput.designIntent.styleNotes.join(" | ")}`,
+    `Avoid: ${exportOutput.designIntent.avoid.join(" | ")}`,
+    "",
+    "## Guardrails",
+    ...exportOutput.guardrails.map((guardrail) => `- ${guardrail}`),
+    "",
+    "## Verification",
+    ...exportOutput.verificationCommands.map((command) => `- ${command}`),
+    "",
+    "## Expected Result",
+    exportOutput.expectedResult,
+    "",
+    "Do not trigger Codex automatically from AppEngine, create GitHub issues, apply labels, deploy production, create paid resources, apply live migrations, change secrets/env vars, change repository visibility, or auto-merge generated app code."
+  ].join("\n");
+}
+
+function parseReviewStatus(value: unknown): BuildExecutionRequestReviewStatus | null {
+  if (
+    value === "needs_review" ||
+    value === "owner_approved" ||
+    value === "blocked" ||
+    value === "exported_for_builder"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function defaultDesignIntent() {
+  return {
+    profile: "ministry_community" as const,
+    emotionalExperience: ["warm", "hopeful", "clear", "trustworthy"],
+    styleNotes: ["Use plain language.", "Make the next step obvious.", "Keep phone review comfortable."],
+    avoid: ["cold technical tone", "generic dashboard feel", "claims that unfinished ecosystem services are live"]
   };
 }
 

@@ -5,6 +5,8 @@ export type AppEngineAuditEventType =
   | "intake_submitted"
   | "handoff_prepared"
   | "build_execution_request_created"
+  | "build_execution_request_reviewed"
+  | "build_execution_request_exported"
   | "orchestrator_action_queued"
   | "orchestrator_action_exported"
   | "opportunity_packet_draft_prepared"
@@ -69,6 +71,8 @@ export const supportedAuditEventTypes: AppEngineAuditEventType[] = [
   "intake_submitted",
   "handoff_prepared",
   "build_execution_request_created",
+  "build_execution_request_reviewed",
+  "build_execution_request_exported",
   "orchestrator_action_queued",
   "orchestrator_action_exported",
   "opportunity_packet_draft_prepared",

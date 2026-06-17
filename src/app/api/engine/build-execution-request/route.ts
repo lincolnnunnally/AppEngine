@@ -4,7 +4,8 @@ import {
   buildExecutionRequestGuardrails,
   createBuildExecutionRequest,
   listBuildExecutionHandoffSources,
-  listBuildExecutionRequests
+  listBuildExecutionRequests,
+  reviewBuildExecutionRequest
 } from "@/lib/engine/build-execution-request";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import { loadProjectMemory } from "@/lib/engine/project-memory";
@@ -37,13 +38,28 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json().catch(() => ({}))) as { sourceId?: unknown };
-    const record = await createBuildExecutionRequest(body);
+    const body = (await request.json().catch(() => ({}))) as {
+      action?: unknown;
+      sourceId?: unknown;
+      requestId?: unknown;
+      reviewStatus?: unknown;
+      note?: unknown;
+    };
+    const result =
+      body.action === "review"
+        ? await reviewBuildExecutionRequest(body)
+        : {
+            record: await createBuildExecutionRequest(body),
+            handoff: null,
+            exportOutput: null
+          };
 
     return NextResponse.json(
       {
         ok: true,
-        record,
+        record: result.record,
+        handoff: result.handoff,
+        exportOutput: result.exportOutput,
         records: await listBuildExecutionRequests(),
         sources: await listBuildExecutionHandoffSources(),
         projectMemory: await loadProjectMemory(),

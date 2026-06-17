@@ -16,6 +16,7 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
   const [requests, setRequests] = useState(initialRequests);
   const [selectedSourceId, setSelectedSourceId] = useState(initialSources[0]?.id || "");
   const [isCreating, setIsCreating] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
   const [message, setMessage] = useState("");
   const selectedSource = sources.find((source) => source.id === selectedSourceId) || sources[0] || null;
   const latestRequest = requests[0] || null;
@@ -45,6 +46,44 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
       setMessage(caught instanceof Error ? caught.message : "The build execution request could not be created.");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function reviewRequest(reviewStatus: "owner_approved" | "blocked" | "needs_review") {
+    if (!latestRequest) return;
+
+    setIsReviewing(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/engine/build-execution-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "review",
+          requestId: latestRequest.id,
+          reviewStatus
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The build execution request could not be reviewed.");
+      }
+
+      setRequests(result.records as BuildExecutionRequestRecord[]);
+      setSources(result.sources as BuildExecutionHandoffSource[]);
+      setMessage(
+        reviewStatus === "owner_approved"
+          ? "Builder handoff exported to the Handoff Inbox. Codex was not triggered."
+          : "Build execution request review updated. Codex was not triggered."
+      );
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "The build execution request could not be reviewed.");
+    } finally {
+      setIsReviewing(false);
     }
   }
 
@@ -122,8 +161,16 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
                   <p>{latestRequest.ownerApprovalStatus.replaceAll("_", " ")}</p>
                 </section>
                 <section>
+                  <span>Review status</span>
+                  <p>{latestRequest.reviewStatus.replaceAll("_", " ")}</p>
+                </section>
+                <section>
                   <span>Source packet draft</span>
                   <p>{latestRequest.sourcePacketDraft?.title || "Not attached yet"}</p>
+                </section>
+                <section>
+                  <span>Exported handoff</span>
+                  <p>{latestRequest.exportedBuilderHandoffId || "Not exported yet"}</p>
                 </section>
                 <section>
                   <span>Next safe action</span>
@@ -133,10 +180,43 @@ export function BuildExecutionRequestPanel({ initialSources, initialRequests }: 
 
               <p>{latestRequest.ownerReadableSummary}</p>
 
+              <section className="build-execution-review-actions" data-testid="build-execution-review-section">
+                <p className="eyebrow">Owner review</p>
+                <div className="button-row">
+                  <button
+                    className="button accent"
+                    disabled={isReviewing || latestRequest.reviewStatus === "exported_for_builder"}
+                    onClick={() => reviewRequest("owner_approved")}
+                    type="button"
+                  >
+                    {isReviewing ? "Exporting..." : "Approve + Export Builder Handoff"}
+                  </button>
+                  <button
+                    className="button secondary"
+                    disabled={isReviewing || latestRequest.reviewStatus === "blocked"}
+                    onClick={() => reviewRequest("blocked")}
+                    type="button"
+                  >
+                    Mark Blocked
+                  </button>
+                </div>
+                <p className="form-note">
+                  Approval exports a copyable builder prompt to the Handoff Inbox. It does not trigger Codex, create
+                  issues, apply labels, or deploy.
+                </p>
+              </section>
+
               <section>
                 <p className="eyebrow">Requested work</p>
                 <textarea className="copyable-prompt-box" readOnly value={latestRequest.requestedWork} />
               </section>
+
+              {latestRequest.exportedBuilderHandoff ? (
+                <section>
+                  <p className="eyebrow">Exported builder prompt</p>
+                  <textarea className="copyable-prompt-box" readOnly value={latestRequest.exportedBuilderHandoff.exactBuilderPrompt} />
+                </section>
+              ) : null}
 
               <section>
                 <p className="eyebrow">Verification</p>

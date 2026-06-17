@@ -61,6 +61,7 @@ export type AppPortfolioNextSafeAction =
   | "prepare_release_gate"
   | "create_vnext_packet"
   | "continue_internal_trial"
+  | "review_exported_builder_handoff"
   | "unknown";
 
 export type AppPortfolioLink = {
@@ -282,9 +283,13 @@ function deriveAppEngineCoreEntry(
 
   return {
     ...seed,
-    status: latestBuildExecutionRequest ? "build execution request drafted" : projectMemory.latestProjectState.currentState || seed.status,
+    status: latestBuildExecutionRequest
+      ? `build execution request ${latestBuildExecutionRequest.reviewStatus.replaceAll("_", " ")}`
+      : projectMemory.latestProjectState.currentState || seed.status,
     buildState: queuedActions || preparedActions || latestBuildExecutionRequest ? "owner_approval_required" : seed.buildState,
-    nextSafeAction: normalizeNextSafeAction(projectMemory.latestProjectState.recommendedNextAction, seed.nextSafeAction),
+    nextSafeAction: latestBuildExecutionRequest?.reviewStatus === "exported_for_builder"
+      ? "review_exported_builder_handoff"
+      : normalizeNextSafeAction(projectMemory.latestProjectState.recommendedNextAction, seed.nextSafeAction),
     blockers: blockers.length ? blockers : seed.blockers,
     evidenceLinks: [
       ...seed.evidenceLinks,
@@ -428,11 +433,16 @@ function deriveLifeCoreEntry(
   if (latestLifeCoreBuildRequest) {
     return {
       ...seed,
-      status: `build execution request ${latestLifeCoreBuildRequest.executionStatus.replaceAll("_", " ")}`,
+      status: `build execution request ${latestLifeCoreBuildRequest.reviewStatus.replaceAll("_", " ")}`,
       buildState: "owner_approval_required",
-      nextSafeAction: "await_owner_review",
+      nextSafeAction:
+        latestLifeCoreBuildRequest.reviewStatus === "exported_for_builder"
+          ? "review_exported_builder_handoff"
+          : "await_owner_review",
       blockers: uniqueStrings([
-        "Owner review is required before builder execution.",
+        latestLifeCoreBuildRequest.reviewStatus === "exported_for_builder"
+          ? "Builder handoff is exported, but Lincoln must still manually review and send it."
+          : "Owner review is required before builder execution.",
         "Codex auto-execution, GitHub issue creation, labels, deploys, paid resources, migrations, and secrets/env changes remain blocked.",
         ...seed.blockers
       ]),
@@ -854,6 +864,7 @@ function normalizeNextSafeAction(value: string, fallback: AppPortfolioNextSafeAc
     "prepare_release_gate",
     "create_vnext_packet",
     "continue_internal_trial",
+    "review_exported_builder_handoff",
     "unknown"
   ];
 
