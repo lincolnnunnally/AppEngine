@@ -1698,7 +1698,8 @@ label {
   opacity: 0.74;
 }
 
-.opportunity-controlled-use-readiness {
+.opportunity-controlled-use-readiness,
+.build-loop-controlled-use-readiness {
   background:
     linear-gradient(135deg, rgba(255, 248, 239, 0.95), rgba(239, 248, 255, 0.95)),
     #fbfcff;
@@ -1753,6 +1754,7 @@ label {
 }
 
 .readiness-status-card.ready_for_internal_controlled_use,
+.readiness-status-card.ready_for_internal_controlled_build_use,
 .readiness-status-card.usable_for_internal_controlled_use,
 .readiness-check-card.confirmed {
   border-color: #b8dbc5;
