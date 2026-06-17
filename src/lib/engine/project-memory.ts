@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type {
   BuildExecutionBuilderHandoffExport,
   BuildExecutionBuilderResultIntake,
+  BuildLoopCompletionDashboard,
   BuildExecutionRequestRecord
 } from "./build-execution-request";
 import type { FirstEcosystemBuildPacketDraftRecord } from "./first-ecosystem-build-packet-draft";
@@ -656,6 +657,84 @@ export async function updateProjectMemoryFromBuilderResultIntake(
       [
         item("progress", result.ownerReadableSummary, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system"),
         item("progress", `Next safe action: ${result.nextSafeAction}`, request.exportedBuilderHandoffId || request.sourceHandoff.id, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromBuildLoopCompletion(
+  request: BuildExecutionRequestRecord,
+  dashboard: BuildLoopCompletionDashboard
+) {
+  const current = await loadProjectMemory();
+  const createdAt = dashboard.generatedAt;
+  const sourceId = request.exportedBuilderHandoffId || request.sourceHandoff.id;
+  const tags = ["build-loop-completion", request.executionStatus, dashboard.verificationStatus];
+  const terminalSummary =
+    request.executionStatus === "completed"
+      ? `Build loop completed for ${request.targetProjectSlice}. ${dashboard.nextSafeAction}`
+      : `Build loop blocked for ${request.targetProjectSlice}. ${dashboard.nextSafeAction}`;
+  const blockerItems = dashboard.blockers.length
+    ? dashboard.blockers.map((blocker) => item("current_blocker", blocker, sourceId, createdAt, tags, "system"))
+    : request.executionStatus === "blocked"
+      ? [item("current_blocker", "Build loop is blocked and needs owner review.", sourceId, createdAt, tags, "system")]
+      : [];
+
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: `Build loop ${request.executionStatus.replace(/_/g, " ")}`,
+      latestProgress: dashboard.ownerReadableSummary,
+      recommendedNextAction: dashboard.nextSafeAction,
+      lastHandoffId: sourceId
+    },
+    majorDecisions: current.majorDecisions,
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Build loop completion is now judged from source request, packet draft, execution request, exported handoff, imported builder result, verification evidence, portfolio state, and next safe action together.",
+        sourceId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones:
+      request.executionStatus === "completed"
+        ? mergeItems(current.completedMilestones, [
+            item("completed_milestone", terminalSummary, sourceId, createdAt, tags, "system")
+          ])
+        : current.completedMilestones,
+    currentBlockers: blockerItems.length ? mergeItems(current.currentBlockers, blockerItems, 20) : current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: current.architectureDecisions,
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "A build request is not complete until the builder result is imported, verification state is visible, and the next safe action is clear in Owner Control Center.",
+        sourceId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", terminalSummary, sourceId, createdAt, tags, "system"),
+        item("progress", `Build loop dashboard request: ${dashboard.requestId || "none"}.`, sourceId, createdAt, tags, "system")
       ],
       30
     ),
