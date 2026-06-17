@@ -7,6 +7,11 @@ import type {
   OpportunityClarificationStatus
 } from "@/lib/engine/opportunity-clarification";
 import type { OpportunityIntakeRecord, OpportunityRoute, OpportunityStatus } from "@/lib/engine/opportunity-intake";
+import type {
+  OpportunitySolutionPathConfidence,
+  OpportunitySolutionPathRecord,
+  OpportunitySolutionPathRoute
+} from "@/lib/engine/opportunity-solution-path";
 
 const statusLabels: Record<OpportunityStatus, string> = {
   submitted: "Submitted",
@@ -37,23 +42,49 @@ const clarificationRouteLabels: Record<OpportunityClarificationRoute, string> = 
   appengine_build_candidate: "AppEngine build candidate"
 };
 
+const solutionPathLabels: Record<OpportunitySolutionPathRoute, string> = {
+  appengine_build_candidate: "AppEngine build candidate",
+  app_tool_workflow: "App/tool/workflow",
+  content_resource: "Content/resource",
+  community_ministry_model: "Community/ministry model",
+  existing_ecosystem_service_later: "Existing ecosystem service later",
+  needs_more_info: "Needs more info",
+  not_safe_or_not_ready: "Not safe or not ready"
+};
+
+const confidenceLabels: Record<OpportunitySolutionPathConfidence, string> = {
+  low: "Low confidence",
+  medium: "Medium confidence",
+  high: "High confidence"
+};
+
 export function OwnerOpportunityQueue({
   initialClarifications,
-  initialRecords
+  initialRecords,
+  initialSolutionPaths
 }: {
   initialClarifications: OpportunityClarificationRecord[];
   initialRecords: OpportunityIntakeRecord[];
+  initialSolutionPaths: OpportunitySolutionPathRecord[];
 }) {
   const [records] = useState(initialRecords);
   const [clarifications, setClarifications] = useState(initialClarifications);
+  const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
   const [isClarifying, setIsClarifying] = useState(false);
+  const [isRoutingPath, setIsRoutingPath] = useState(false);
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
+  const [solutionPathNotice, setSolutionPathNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
   const selectedRecord = records.find((record) => record.id === selectedId) || records[0];
   const selectedClarification = selectedRecord
     ? clarifications.find((clarification) => clarification.intakeId === selectedRecord.id)
+    : null;
+  const selectedSolutionPath = selectedClarification
+    ? solutionPaths.find((path) => path.clarificationId === selectedClarification.id)
     : null;
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
@@ -92,6 +123,46 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsClarifying(false);
+    }
+  }
+
+  async function routeSelectedOpportunityPath() {
+    if (!selectedClarification) return;
+
+    setIsRoutingPath(true);
+    setSolutionPathNotice(null);
+
+    try {
+      const response = await fetch("/api/opportunity-solution-path", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          clarificationId: selectedClarification.id
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The solution path could not be created.");
+      }
+
+      setSolutionPaths((current) => [
+        result.record,
+        ...current.filter((item) => item.clarificationId !== selectedClarification.id)
+      ]);
+      setSolutionPathNotice({
+        type: "success",
+        message: "Solution path saved. No packet, Codex run, issue, label, deploy, migration, paid resource, or env change was triggered."
+      });
+    } catch (caught) {
+      setSolutionPathNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The solution path could not be created."
+      });
+    } finally {
+      setIsRoutingPath(false);
     }
   }
 
@@ -272,6 +343,84 @@ export function OwnerOpportunityQueue({
                     <section>
                       <p className="eyebrow">Copyable Clarification Review Prompt</p>
                       <textarea className="copyable-prompt-box" readOnly value={selectedClarification.copyableNextPrompt} />
+                    </section>
+
+                    <section className="opportunity-solution-path-panel">
+                      <div className="queue-header">
+                        <div>
+                          <p className="eyebrow">Solution Path</p>
+                          <h3>Route decision</h3>
+                        </div>
+                        <button
+                          className="button accent"
+                          disabled={isRoutingPath}
+                          onClick={routeSelectedOpportunityPath}
+                          type="button"
+                        >
+                          {isRoutingPath
+                            ? "Routing..."
+                            : selectedSolutionPath
+                              ? "Refresh solution path"
+                              : "Route solution path"}
+                        </button>
+                      </div>
+
+                      {solutionPathNotice ? (
+                        <div className={`workflow-feedback${solutionPathNotice.type === "error" ? " error" : ""}`} role="status">
+                          <strong>{solutionPathNotice.type === "success" ? "Solution path saved" : "Needs attention"}</strong>
+                          <p>{solutionPathNotice.message}</p>
+                        </div>
+                      ) : null}
+
+                      {selectedSolutionPath ? (
+                        <div className="opportunity-solution-path-output" data-testid="opportunity-solution-path-output">
+                          <div className="artifact-strip">
+                            <span>{solutionPathLabels[selectedSolutionPath.recommendedPath]}</span>
+                            <span>{confidenceLabels[selectedSolutionPath.confidenceLevel]}</span>
+                          </div>
+
+                          <div className="detail-grid">
+                            <section>
+                              <span>Reason</span>
+                              <p>{selectedSolutionPath.reasonForRouting}</p>
+                            </section>
+                            <section>
+                              <span>First practical step</span>
+                              <p>{selectedSolutionPath.firstPracticalStep}</p>
+                            </section>
+                          </div>
+
+                          <section>
+                            <p className="eyebrow">Needed resources</p>
+                            <div className="guardrail-list">
+                              {selectedSolutionPath.neededResources.map((resource) => (
+                                <span key={resource}>{resource}</span>
+                              ))}
+                            </div>
+                          </section>
+
+                          <section>
+                            <p className="eyebrow">Blockers</p>
+                            <div className="guardrail-list">
+                              {selectedSolutionPath.blockers.length ? (
+                                selectedSolutionPath.blockers.map((blocker) => <span key={blocker}>{blocker}</span>)
+                              ) : (
+                                <span>None</span>
+                              )}
+                            </div>
+                          </section>
+
+                          <section>
+                            <p className="eyebrow">Next AppEngine Action Prompt</p>
+                            <textarea className="copyable-prompt-box" readOnly value={selectedSolutionPath.nextAppEngineActionPrompt} />
+                          </section>
+                        </div>
+                      ) : (
+                        <div className="empty-state">
+                          <strong>No solution path yet</strong>
+                          <p>Route the clarified opportunity before creating packets or handoffs.</p>
+                        </div>
+                      )}
                     </section>
                   </div>
                 ) : (
