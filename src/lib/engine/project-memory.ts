@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
+import type { OpportunityFullLoopTrialRecord } from "./opportunity-full-loop-trial";
 import type { OrchestratorActionQueueItem, OrchestratorRun } from "./orchestrator-run";
 import { createAdapterReadyStore } from "./persistence-adapter-readiness.ts";
 import type { TrialResultReview } from "./real-project-trial";
@@ -451,6 +452,113 @@ export async function updateProjectMemoryFromOpportunityBuildPacketBridge(bridge
       [
         item("progress", bridge.ownerReadableSummary, null, createdAt, tags, "system"),
         item("progress", `Next safe action: ${bridge.nextSafeAction.replace(/_/g, " ")}.`, null, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromOpportunityFullLoopTrial(trial: OpportunityFullLoopTrialRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = trial.createdAt;
+  const tags = ["opportunity-full-loop-trial", trial.status, trial.artifacts.packetBridgeId || "no-packet-bridge"];
+  const completedSteps = trial.steps.filter((step) => step.status === "completed").length;
+  const blockedSteps = trial.steps.filter((step) => step.status === "blocked");
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState:
+        trial.status === "completed"
+          ? "Opportunity full loop reached packet draft readiness"
+          : "Opportunity full loop trial is blocked",
+      latestProgress: trial.ownerReadableSummary,
+      recommendedNextAction: trial.nextSafeAction,
+      lastHandoffId: current.latestProjectState.lastHandoffId
+    },
+    majorDecisions: mergeItems(
+      current.majorDecisions,
+      trial.status === "completed"
+        ? [
+            item(
+              "major_decision",
+              "Opportunity can now be rehearsed from public intake through owner-approved packet draft readiness without automatic execution.",
+              null,
+              createdAt,
+              tags,
+              "system"
+            )
+          ]
+        : []
+    ),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Use existing Opportunity artifacts and packet bridge state for full-loop trials instead of creating a parallel planning system.",
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones:
+      trial.status === "completed"
+        ? mergeItems(current.completedMilestones, [
+            item("completed_milestone", trial.ownerReadableSummary, null, createdAt, tags, "system")
+          ])
+        : current.completedMilestones,
+    currentBlockers: blockedSteps.length
+      ? mergeItems(
+          current.currentBlockers,
+          blockedSteps.map((step) =>
+            item(
+              "current_blocker",
+              `${step.label}: ${step.blocker || "blocked"}`,
+              null,
+              createdAt,
+              tags,
+              "system"
+            )
+          ),
+          20
+        )
+      : current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "Opportunity Full Loop Trial writes one adapter-backed trial record plus existing opportunity_intake, clarification, solution path, action plan, candidate, packet bridge, memory, and audit artifacts.",
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    designPreferences: current.designPreferences,
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        `Opportunity full-loop trial completed ${completedSteps} of ${trial.steps.length} steps and reports missing information honestly.`,
+        null,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", trial.ownerReadableSummary, null, createdAt, tags, "system"),
+        item("progress", `Next safe action: ${trial.nextSafeAction}`, null, createdAt, tags, "system")
       ],
       30
     ),

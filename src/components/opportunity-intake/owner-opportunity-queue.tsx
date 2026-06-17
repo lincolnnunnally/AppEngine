@@ -15,6 +15,7 @@ import type {
   OpportunityClarificationRoute,
   OpportunityClarificationStatus
 } from "@/lib/engine/opportunity-clarification";
+import type { OpportunityFullLoopTrialRecord } from "@/lib/engine/opportunity-full-loop-trial";
 import type { OpportunityIntakeRecord, OpportunityRoute, OpportunityStatus } from "@/lib/engine/opportunity-intake";
 import type {
   OpportunitySolutionPathConfidence,
@@ -96,6 +97,7 @@ export function OwnerOpportunityQueue({
   initialAppEngineCandidates,
   initialBuildPacketBridges,
   initialClarifications,
+  initialFullLoopTrials,
   initialRecords,
   initialSolutionPaths
 }: {
@@ -103,19 +105,22 @@ export function OwnerOpportunityQueue({
   initialAppEngineCandidates: OpportunityAppEngineCandidateRecord[];
   initialBuildPacketBridges: OpportunityBuildPacketBridgeRecord[];
   initialClarifications: OpportunityClarificationRecord[];
+  initialFullLoopTrials: OpportunityFullLoopTrialRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
 }) {
-  const [records] = useState(initialRecords);
+  const [records, setRecords] = useState(initialRecords);
   const [actionPlans, setActionPlans] = useState(initialActionPlans);
   const [appEngineCandidates, setAppEngineCandidates] = useState(initialAppEngineCandidates);
   const [buildPacketBridges, setBuildPacketBridges] = useState(initialBuildPacketBridges);
   const [clarifications, setClarifications] = useState(initialClarifications);
+  const [fullLoopTrials, setFullLoopTrials] = useState(initialFullLoopTrials);
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
   const [isPreparingPacketDraft, setIsPreparingPacketDraft] = useState(false);
   const [isCreatingCandidate, setIsCreatingCandidate] = useState(false);
   const [isDraftingPlan, setIsDraftingPlan] = useState(false);
+  const [isRunningFullLoopTrial, setIsRunningFullLoopTrial] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
   const [isRoutingPath, setIsRoutingPath] = useState(false);
   const [actionPlanNotice, setActionPlanNotice] = useState<{ type: "success" | "error"; message: string } | null>(
@@ -128,6 +133,7 @@ export function OwnerOpportunityQueue({
   const [packetDraftNotice, setPacketDraftNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+  const [fullLoopNotice, setFullLoopNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [clarificationNotice, setClarificationNotice] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
@@ -152,6 +158,78 @@ export function OwnerOpportunityQueue({
     : null;
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
+  const latestFullLoopTrial = fullLoopTrials[0] || null;
+
+  async function runFullLoopTrial() {
+    setIsRunningFullLoopTrial(true);
+    setFullLoopNotice(null);
+
+    try {
+      const response = await fetch("/api/opportunity-full-loop-trial", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The Opportunity full-loop trial could not run.");
+      }
+
+      const record = result.record as OpportunityFullLoopTrialRecord;
+
+      setFullLoopTrials((current) => [record, ...current.filter((item) => item.id !== record.id)]);
+
+      if (record.artifacts.intakeId || record.artifacts.clarificationId || record.artifacts.solutionPathId) {
+        const [intakeResponse, clarificationResponse, solutionPathResponse, actionPlanResponse, candidateResponse, bridgeResponse] =
+          await Promise.all([
+            fetch("/api/opportunity-intake", { cache: "no-store" }),
+            fetch("/api/opportunity-clarification", { cache: "no-store" }),
+            fetch("/api/opportunity-solution-path", { cache: "no-store" }),
+            fetch("/api/opportunity-action-plan", { cache: "no-store" }),
+            fetch("/api/opportunity-appengine-candidate", { cache: "no-store" }),
+            fetch("/api/opportunity-build-packet-bridge", { cache: "no-store" })
+          ]);
+
+        const [intakeResult, clarificationResult, solutionPathResult, actionPlanResult, candidateResult, bridgeResult] =
+          await Promise.all([
+            intakeResponse.json(),
+            clarificationResponse.json(),
+            solutionPathResponse.json(),
+            actionPlanResponse.json(),
+            candidateResponse.json(),
+            bridgeResponse.json()
+          ]);
+
+        if (intakeResult.ok) {
+          setRecords(intakeResult.records);
+          setSelectedId(record.artifacts.intakeId || selectedId);
+        }
+
+        if (clarificationResult.ok) setClarifications(clarificationResult.records);
+        if (solutionPathResult.ok) setSolutionPaths(solutionPathResult.records);
+        if (actionPlanResult.ok) setActionPlans(actionPlanResult.records);
+        if (candidateResult.ok) setAppEngineCandidates(candidateResult.records);
+        if (bridgeResult.ok) setBuildPacketBridges(bridgeResult.records);
+      }
+
+      setFullLoopNotice({
+        type: record.status === "completed" ? "success" : "error",
+        message:
+          record.status === "completed"
+            ? "Opportunity full loop reached packet draft readiness without Codex, issues, labels, deploys, migrations, paid resources, or env changes."
+            : record.nextSafeAction
+      });
+    } catch (caught) {
+      setFullLoopNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The Opportunity full-loop trial could not run."
+      });
+    } finally {
+      setIsRunningFullLoopTrial(false);
+    }
+  }
 
   async function clarifySelectedOpportunity() {
     if (!selectedRecord) return;
@@ -378,6 +456,96 @@ export function OwnerOpportunityQueue({
           </div>
         </div>
       </div>
+
+      <section className="opportunity-full-loop-panel panel" data-testid="opportunity-full-loop-trial">
+        <div className="queue-header">
+          <div>
+            <p className="eyebrow">Full Loop Trial</p>
+            <h2>Run Opportunity from intake to packet draft readiness.</h2>
+            <p>
+              This rehearses the complete safe path using existing artifacts: intake, clarification, route, action plan,
+              candidate, owner approval, packet draft, memory, audit trail, and next action.
+            </p>
+          </div>
+          <button className="button accent" disabled={isRunningFullLoopTrial} onClick={runFullLoopTrial} type="button">
+            {isRunningFullLoopTrial ? "Running..." : "Run Opportunity Full Loop Trial"}
+          </button>
+        </div>
+
+        {fullLoopNotice ? (
+          <div className={`workflow-feedback${fullLoopNotice.type === "error" ? " error" : ""}`} role="status">
+            <strong>{fullLoopNotice.type === "success" ? "Full loop completed" : "Trial needs attention"}</strong>
+            <p>{fullLoopNotice.message}</p>
+          </div>
+        ) : null}
+
+        {latestFullLoopTrial ? (
+          <div className="opportunity-full-loop-output" data-testid="opportunity-full-loop-output">
+            <div className="artifact-strip">
+              <span>{latestFullLoopTrial.status.replaceAll("_", " ")}</span>
+              <span>
+                {latestFullLoopTrial.packetDraftReadiness.ready ? "Packet draft ready" : "Packet draft not ready"}
+              </span>
+              <span>{latestFullLoopTrial.packetDraftReadiness.packetType.replaceAll("_", " ")}</span>
+            </div>
+
+            <section className="next-action-band">
+              <span>Owner-readable result</span>
+              <strong>{latestFullLoopTrial.ownerReadableSummary}</strong>
+            </section>
+
+            <div className="detail-grid">
+              <section>
+                <span>Portfolio Dashboard visibility</span>
+                <p>
+                  {latestFullLoopTrial.packetDraftReadiness.portfolioEntryVisible
+                    ? `Visible through ${latestFullLoopTrial.packetDraftReadiness.portfolioSourceState.replaceAll("_", " ")} state.`
+                    : "Not visible yet."}
+                </p>
+              </section>
+              <section>
+                <span>Next safe action</span>
+                <p>{latestFullLoopTrial.nextSafeAction}</p>
+              </section>
+            </div>
+
+            <section>
+              <p className="eyebrow">Completed / blocked steps</p>
+              <div className="trial-step-list">
+                {latestFullLoopTrial.steps.map((step) => (
+                  <article className={`trial-step ${step.status}`} key={step.id}>
+                    <span>{step.status.replaceAll("_", " ")}</span>
+                    <strong>{step.label}</strong>
+                    <p>{step.blocker || step.summary}</p>
+                    {step.artifactKind ? <small>{step.artifactKind.replaceAll("_", " ")} · {step.artifactId}</small> : null}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <p className="eyebrow">Missing information</p>
+              <div className="guardrail-list">
+                {latestFullLoopTrial.missingInformation.length ? (
+                  latestFullLoopTrial.missingInformation.map((item) => <span key={item}>{item}</span>)
+                ) : (
+                  <span>None</span>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <p className="eyebrow">Copyable Next Action</p>
+              <textarea className="copyable-prompt-box" readOnly value={latestFullLoopTrial.copyableNextAction} />
+            </section>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <strong>No full-loop trial has run yet</strong>
+            <p>Run the trial to prove Opportunity can move from submitted problem to packet draft readiness safely.</p>
+          </div>
+        )}
+      </section>
 
       <div className="owner-control-main">
         <aside className="problem-queue panel" aria-label="Submitted opportunities">

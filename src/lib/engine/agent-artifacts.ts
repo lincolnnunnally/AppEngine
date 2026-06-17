@@ -19,6 +19,7 @@ export type AgentArtifactKind =
   | "opportunity_action_plan"
   | "opportunity_appengine_candidate"
   | "opportunity_build_packet_bridge"
+  | "opportunity_full_loop_trial"
   | "problem_solution_intake"
   | "problem_portfolio_routing"
   | "solution_candidate_review"
