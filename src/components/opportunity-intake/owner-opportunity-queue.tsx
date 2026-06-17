@@ -7,6 +7,10 @@ import type {
   OpportunityAppEngineCandidateType
 } from "@/lib/engine/opportunity-appengine-candidate";
 import type {
+  OpportunityBuildPacketBridgeRecord,
+  OpportunityBuildPacketDraftKind
+} from "@/lib/engine/opportunity-build-packet-bridge";
+import type {
   OpportunityClarificationRecord,
   OpportunityClarificationRoute,
   OpportunityClarificationStatus
@@ -80,15 +84,24 @@ const appEngineCandidateLabels: Record<OpportunityAppEngineCandidateType, string
   needs_more_info: "Needs more info"
 };
 
+const buildPacketDraftLabels: Record<OpportunityBuildPacketDraftKind, string> = {
+  app_build_packet_draft: "App Build Packet draft",
+  workflow_solution_plan_draft: "Workflow solution plan draft",
+  content_resource_plan_draft: "Content/resource plan draft",
+  community_model_plan_draft: "Community model plan draft"
+};
+
 export function OwnerOpportunityQueue({
   initialActionPlans,
   initialAppEngineCandidates,
+  initialBuildPacketBridges,
   initialClarifications,
   initialRecords,
   initialSolutionPaths
 }: {
   initialActionPlans: OpportunityActionPlanRecord[];
   initialAppEngineCandidates: OpportunityAppEngineCandidateRecord[];
+  initialBuildPacketBridges: OpportunityBuildPacketBridgeRecord[];
   initialClarifications: OpportunityClarificationRecord[];
   initialRecords: OpportunityIntakeRecord[];
   initialSolutionPaths: OpportunitySolutionPathRecord[];
@@ -96,9 +109,11 @@ export function OwnerOpportunityQueue({
   const [records] = useState(initialRecords);
   const [actionPlans, setActionPlans] = useState(initialActionPlans);
   const [appEngineCandidates, setAppEngineCandidates] = useState(initialAppEngineCandidates);
+  const [buildPacketBridges, setBuildPacketBridges] = useState(initialBuildPacketBridges);
   const [clarifications, setClarifications] = useState(initialClarifications);
   const [solutionPaths, setSolutionPaths] = useState(initialSolutionPaths);
   const [selectedId, setSelectedId] = useState(initialRecords[0]?.id || "");
+  const [isCreatingBuildPacketBridge, setIsCreatingBuildPacketBridge] = useState(false);
   const [isCreatingCandidate, setIsCreatingCandidate] = useState(false);
   const [isDraftingPlan, setIsDraftingPlan] = useState(false);
   const [isClarifying, setIsClarifying] = useState(false);
@@ -107,6 +122,10 @@ export function OwnerOpportunityQueue({
     null
   );
   const [appEngineCandidateNotice, setAppEngineCandidateNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [buildPacketBridgeNotice, setBuildPacketBridgeNotice] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
@@ -128,6 +147,9 @@ export function OwnerOpportunityQueue({
     : null;
   const selectedAppEngineCandidate = selectedActionPlan
     ? appEngineCandidates.find((candidate) => candidate.actionPlanId === selectedActionPlan.id)
+    : null;
+  const selectedBuildPacketBridge = selectedAppEngineCandidate
+    ? buildPacketBridges.find((bridge) => bridge.candidateId === selectedAppEngineCandidate.id)
     : null;
   const needsClarificationCount = records.filter((record) => record.status === "needs_clarification").length;
   const readyCount = records.filter((record) => record.status === "ready_for_appengine_review").length;
@@ -286,6 +308,46 @@ export function OwnerOpportunityQueue({
       });
     } finally {
       setIsCreatingCandidate(false);
+    }
+  }
+
+  async function createSelectedBuildPacketBridge() {
+    if (!selectedAppEngineCandidate) return;
+
+    setIsCreatingBuildPacketBridge(true);
+    setBuildPacketBridgeNotice(null);
+
+    try {
+      const response = await fetch("/api/opportunity-build-packet-bridge", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          candidateId: selectedAppEngineCandidate.id
+        })
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The build packet bridge could not be created.");
+      }
+
+      setBuildPacketBridges((current) => [
+        result.record,
+        ...current.filter((item) => item.candidateId !== selectedAppEngineCandidate.id)
+      ]);
+      setBuildPacketBridgeNotice({
+        type: "success",
+        message: "Packet bridge saved. No final packet, Codex run, issue, label, deploy, migration, paid resource, or env change was triggered."
+      });
+    } catch (caught) {
+      setBuildPacketBridgeNotice({
+        type: "error",
+        message: caught instanceof Error ? caught.message : "The build packet bridge could not be created."
+      });
+    } finally {
+      setIsCreatingBuildPacketBridge(false);
     }
   }
 
@@ -729,6 +791,108 @@ export function OwnerOpportunityQueue({
                                           readOnly
                                           value={selectedAppEngineCandidate.copyableNextAppEnginePrompt}
                                         />
+                                      </section>
+
+                                      <section className="opportunity-build-packet-bridge-panel">
+                                        <div className="queue-header">
+                                          <div>
+                                            <p className="eyebrow">Build Packet Bridge</p>
+                                            <h3>Draft-only factory connection</h3>
+                                          </div>
+                                          <button
+                                            className="button accent"
+                                            disabled={isCreatingBuildPacketBridge}
+                                            onClick={createSelectedBuildPacketBridge}
+                                            type="button"
+                                          >
+                                            {isCreatingBuildPacketBridge
+                                              ? "Creating..."
+                                              : selectedBuildPacketBridge
+                                                ? "Refresh packet bridge"
+                                                : "Create packet bridge"}
+                                          </button>
+                                        </div>
+
+                                        {buildPacketBridgeNotice ? (
+                                          <div
+                                            className={`workflow-feedback${buildPacketBridgeNotice.type === "error" ? " error" : ""}`}
+                                            role="status"
+                                          >
+                                            <strong>
+                                              {buildPacketBridgeNotice.type === "success" ? "Bridge saved" : "Needs attention"}
+                                            </strong>
+                                            <p>{buildPacketBridgeNotice.message}</p>
+                                          </div>
+                                        ) : null}
+
+                                        {selectedBuildPacketBridge ? (
+                                          <div
+                                            className="opportunity-build-packet-bridge-output"
+                                            data-testid="opportunity-build-packet-bridge-output"
+                                          >
+                                            <div className="artifact-strip">
+                                              <span>{buildPacketDraftLabels[selectedBuildPacketBridge.recommendedPacket]}</span>
+                                              <span>{selectedBuildPacketBridge.ownerApprovalStatus.replaceAll("_", " ")}</span>
+                                            </div>
+
+                                            <div className="detail-grid">
+                                              <section>
+                                                <span>Candidate summary</span>
+                                                <p>{selectedBuildPacketBridge.candidateSummary}</p>
+                                              </section>
+                                              <section>
+                                                <span>Selected solution type</span>
+                                                <p>{appEngineCandidateLabels[selectedBuildPacketBridge.selectedSolutionType]}</p>
+                                              </section>
+                                              <section>
+                                                <span>Recommended packet</span>
+                                                <p>{buildPacketDraftLabels[selectedBuildPacketBridge.recommendedPacket]}</p>
+                                              </section>
+                                              <section>
+                                                <span>Next AppEngine step</span>
+                                                <p>{selectedBuildPacketBridge.nextAppEngineStep}</p>
+                                              </section>
+                                            </div>
+
+                                            <section>
+                                              <p className="eyebrow">Missing information</p>
+                                              <div className="guardrail-list">
+                                                {selectedBuildPacketBridge.missingInformation.length ? (
+                                                  selectedBuildPacketBridge.missingInformation.map((item) => (
+                                                    <span key={item}>{item}</span>
+                                                  ))
+                                                ) : (
+                                                  <span>None</span>
+                                                )}
+                                              </div>
+                                            </section>
+
+                                            <section className="next-action-band">
+                                              <span>Packet draft status</span>
+                                              <strong>
+                                                {selectedBuildPacketBridge.packetDraft.status}; final packet created: no; phase
+                                                issues created: no.
+                                              </strong>
+                                            </section>
+
+                                            <section>
+                                              <p className="eyebrow">Copyable Next AppEngine Prompt</p>
+                                              <textarea
+                                                className="copyable-prompt-box"
+                                                readOnly
+                                                value={selectedBuildPacketBridge.copyableNextAppEnginePrompt}
+                                              />
+                                            </section>
+                                          </div>
+                                        ) : (
+                                          <div className="empty-state">
+                                            <strong>No packet bridge yet</strong>
+                                            <p>
+                                              Create a draft-only bridge to the existing packet approval path before any final
+                                              packet, issue, label, or Codex handoff exists.
+                                            </p>
+                                          </div>
+                                        )}
                                       </section>
                                     </div>
                                   ) : (

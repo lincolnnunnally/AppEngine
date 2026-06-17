@@ -14,6 +14,7 @@ export type AppEngineStateKind =
   | "opportunity_solution_path"
   | "opportunity_action_plan"
   | "opportunity_appengine_candidate"
+  | "opportunity_build_packet_bridge"
   | "problem_intake"
   | "problem_intake_feedback"
   | "spark_story_submissions"
@@ -94,6 +95,7 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("opportunity_solution_path", "Opportunity Solution Path", "local_json", "sensitive", true, true, "Owner-reviewable route decisions generated from clarified opportunities."),
   store("opportunity_action_plan", "Opportunity Action Plan", "local_json", "sensitive", true, true, "Owner-reviewable first action plans generated from Opportunity Solution Path records."),
   store("opportunity_appengine_candidate", "Opportunity AppEngine Candidate", "local_json", "sensitive", true, true, "Owner-reviewable AppEngine solution candidates generated from Opportunity Action Plan records."),
+  store("opportunity_build_packet_bridge", "Opportunity Build Packet Bridge", "local_json", "sensitive", true, true, "Owner-reviewable packet draft bridge records generated from Opportunity AppEngine candidates."),
   store("problem_intake", "Problem Intake Lite", "local_json", "sensitive", true, true, "Submitted problems and visions can contain personal stories or private operations context."),
   store("problem_intake_feedback", "Problem Intake Lite", "local_json", "private", true, false, "Owner feedback about intake quality and missing context."),
   store("spark_story_submissions", "Spark of Hope Intake Lite", "local_json", "sensitive", true, true, "Hope stories and intake details require privacy boundaries."),

@@ -9,6 +9,7 @@ import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { loadInternalControlledUseRunbook } from "@/lib/engine/internal-controlled-use-runbook";
 import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
 import { listOpportunityAppEngineCandidates } from "@/lib/engine/opportunity-appengine-candidate";
+import { listOpportunityBuildPacketBridges } from "@/lib/engine/opportunity-build-packet-bridge";
 import { listOpportunityClarifications } from "@/lib/engine/opportunity-clarification";
 import { listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 import { listOpportunitySolutionPaths } from "@/lib/engine/opportunity-solution-path";
@@ -38,6 +39,7 @@ export default async function OwnerControlCenterPage() {
     opportunitySolutionPaths,
     opportunityActionPlans,
     opportunityAppEngineCandidates,
+    opportunityBuildPacketBridges,
     problemIntakeRecords
   ] = await Promise.all([
     listHandoffRelaySummaries(),
@@ -53,6 +55,7 @@ export default async function OwnerControlCenterPage() {
     listOpportunitySolutionPaths(),
     listOpportunityActionPlans(),
     listOpportunityAppEngineCandidates(),
+    listOpportunityBuildPacketBridges(),
     listProblemIntakeRecords()
   ]);
 
@@ -85,6 +88,7 @@ export default async function OwnerControlCenterPage() {
         initialRecords={opportunityIntakeRecords}
         initialActionPlans={opportunityActionPlans}
         initialAppEngineCandidates={opportunityAppEngineCandidates}
+        initialBuildPacketBridges={opportunityBuildPacketBridges}
         initialSolutionPaths={opportunitySolutionPaths}
       />
       <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />

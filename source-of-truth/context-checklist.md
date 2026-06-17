@@ -23,6 +23,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Opportunity Solution Path Router when an `opportunity_clarification` needs a recommended path before packets, issues, handoffs, or implementation
 - Opportunity Action Plan Draft when an `opportunity_solution_path` needs a practical first action plan before packets, issues, handoffs, or implementation
 - Opportunity to AppEngine Candidate Bridge when an `opportunity_action_plan` may become a solution candidate before packet creation
+- Opportunity Candidate to Build Packet Bridge when an `opportunity_appengine_candidate` should enter the existing packet draft approval path
 - Problem-To-Solution Intake Standard for problem-first, vision-first, and hybrid starts
 - Problem Intake To Portfolio Routing Standard for accepted problem/vision candidates before packets or implementation
 - Solution Candidate Review Gate before candidate packet or plan requests
@@ -93,6 +94,8 @@ All agent workflows must load and answer this checklist before taking action.
 - Does Opportunity Action Plan Draft preserve owner review before packet creation, GitHub issue creation, Codex handoff, implementation, or assumptions that ecosystem services are built?
 - If an `opportunity_action_plan` is being converted into an AppEngine candidate, does an `opportunity_appengine_candidate` artifact include source intake, clarified problem, solution path, action plan summary, proposed work type, recommended next artifact, missing owner decisions, risks/blockers, confidence, copyable prompt, and no-build/no-Codex guardrails?
 - Does Opportunity to AppEngine Candidate Bridge stop before packet creation, GitHub issue creation, labels, Codex handoff, implementation, or assumptions that ecosystem services are built?
+- If an `opportunity_appengine_candidate` is being connected to the factory pipeline, does an `opportunity_build_packet_bridge` artifact include source opportunity references, candidate summary, selected solution type, recommended packet draft, missing information, owner approval status, next AppEngine step, copyable prompt, and reuse of the existing packet draft approval path?
+- Does Opportunity Candidate to Build Packet Bridge stop before final packet creation, GitHub issue creation, labels, Codex handoff, deployment, phase issues, or any parallel packet standard?
 14. If this starts from a problem, vision, or hybrid of both, does a `problem_solution_intake` artifact classify the mode, questions, solution shape, missing context, routing, and next safe action before build work?
 15. If the problem/vision is accepted as a candidate, does `problem_portfolio_routing` map it into `app_portfolio_registry` before any App Build Packet or vNext Packet is created?
 16. Does the selected candidate type avoid forcing every problem into an app when a website, workflow/process, automation, content/resource, community/ministry model, or multi-part ecosystem solution is more fitting?
