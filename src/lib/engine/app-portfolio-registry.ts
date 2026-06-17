@@ -1,4 +1,5 @@
 import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
 import { getLifeCoreOverview } from "@/lib/engine/life-core";
 import { listOpportunityActionPlans } from "@/lib/engine/opportunity-action-plan";
@@ -157,6 +158,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     opportunityBuildPacketBridges,
     realOpportunityResultReviews,
     handoffs,
+    firstEcosystemBuildPacketDrafts,
     problemIntakes,
     lifeCoreOverview,
     rawLifeCoreStore
@@ -171,6 +173,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     listOpportunityBuildPacketBridges(),
     listRealOpportunityResultReviews(),
     listHandoffRelaySummaries(),
+    listFirstEcosystemBuildPacketDrafts(),
     listProblemIntakeRecords(),
     getLifeCoreOverview(),
     readRawLifeCoreStore()
@@ -189,7 +192,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
       realOpportunityResultReviews,
       handoffs
     }),
-    deriveLifeCoreEntry(seedEntries[2], lifeCoreOverview, Boolean(rawLifeCoreStore)),
+    deriveLifeCoreEntry(seedEntries[2], lifeCoreOverview, Boolean(rawLifeCoreStore), firstEcosystemBuildPacketDrafts),
     deriveSparkEntry(seedEntries[3], sparkCapability),
     deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates })
   ]);
@@ -395,8 +398,36 @@ function deriveOpportunityEntry(
 function deriveLifeCoreEntry(
   seed: AppPortfolioEntry,
   overview: Awaited<ReturnType<typeof getLifeCoreOverview>>,
-  hasStoredOverview: boolean
+  hasStoredOverview: boolean,
+  firstEcosystemBuildPacketDrafts: Awaited<ReturnType<typeof listFirstEcosystemBuildPacketDrafts>>
 ): AppPortfolioEntry {
+  const latestDraft = firstEcosystemBuildPacketDrafts[0] || null;
+
+  if (latestDraft) {
+    return {
+      ...seed,
+      status: "first ecosystem build packet draft ready for owner review",
+      buildState: "owner_approval_required",
+      nextSafeAction: "await_owner_review",
+      blockers: uniqueStrings([
+        "Owner review is required before this draft becomes a final packet.",
+        "Codex execution, GitHub issues, labels, deploys, paid resources, migrations, and secrets/env changes remain blocked.",
+        ...seed.blockers
+      ]),
+      evidenceLinks: [
+        ...seed.evidenceLinks,
+        { label: "First Ecosystem Build Packet Draft", url: "/owner-control-center" }
+      ],
+      stateSource: "live_state",
+      sourceArtifact: {
+        kind: "first_ecosystem_build_packet_draft",
+        id: latestDraft.id,
+        summary: latestDraft.ownerReadableSummary
+      },
+      lastUpdated: latestDraft.updatedAt
+    };
+  }
+
   return {
     ...seed,
     status: `${overview.experiences.length} experiences · ${overview.opportunities.length} opportunities · ${overview.feed.length} feed items`,
