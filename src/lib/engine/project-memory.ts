@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { FirstEcosystemBuildPacketDraftRecord } from "./first-ecosystem-build-packet-draft";
 import type { HandoffRelaySummary, OrchestratorApprovedHandoffExport } from "./handoff-relay";
 import type { OpportunityBuildPacketBridgeRecord } from "./opportunity-build-packet-bridge";
 import type { OpportunityFullLoopTrialRecord } from "./opportunity-full-loop-trial";
@@ -789,6 +790,94 @@ export async function updateProjectMemoryFromRealOpportunityResultReview(review:
       ],
       30
     ),
+    guardrails: defaultGuardrails()
+  };
+
+  const summarized = withSummaries(next);
+  await writeStore({ memory: summarized });
+
+  return summarized;
+}
+
+export async function updateProjectMemoryFromFirstEcosystemBuildPacketDraft(draft: FirstEcosystemBuildPacketDraftRecord) {
+  const current = await loadProjectMemory();
+  const createdAt = draft.createdAt;
+  const tags = ["first-ecosystem-build-packet-draft", "life-core", draft.sourcePreparedHandoffId];
+  const next: ProjectMemory = {
+    ...current,
+    updatedAt: createdAt,
+    latestProjectState: {
+      currentState: "First ecosystem build packet draft ready for owner review",
+      latestProgress: draft.ownerReadableSummary,
+      recommendedNextAction: "Review the Life Produces Life Core packet draft before any final packet or implementation begins.",
+      lastHandoffId: draft.sourcePreparedHandoffId
+    },
+    majorDecisions: mergeItems(current.majorDecisions, [
+      item(
+        "major_decision",
+        "Convert the prepared Life Produces Life Core handoff into the first ecosystem build packet draft before implementation.",
+        draft.sourcePreparedHandoffId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    acceptedApproaches: mergeItems(current.acceptedApproaches, [
+      item(
+        "accepted_approach",
+        "Keep Life Produces Life Core as the shared ecosystem foundation where transformation is the product and apps are tools.",
+        draft.sourcePreparedHandoffId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    rejectedApproaches: current.rejectedApproaches,
+    completedMilestones: mergeItems(current.completedMilestones, [
+      item("completed_milestone", draft.ownerReadableSummary, draft.sourcePreparedHandoffId, createdAt, tags, "system")
+    ]),
+    currentBlockers: current.currentBlockers,
+    openQuestions: current.openQuestions,
+    architectureDecisions: mergeItems(current.architectureDecisions, [
+      item(
+        "architecture_decision",
+        "The first ecosystem build packet draft must remain owner-reviewable and cannot create final packets, phase issues, Codex runs, labels, or deploys automatically.",
+        draft.sourcePreparedHandoffId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    designPreferences: mergeItems(current.designPreferences, [
+      item(
+        "design_preference",
+        `Life Core design intent: ${draft.designIntent.emotionalExperience.join(", ")}.`,
+        draft.sourcePreparedHandoffId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    lessonsLearned: mergeItems(current.lessonsLearned, [
+      item(
+        "lesson_learned",
+        "The completed Opportunity flow can now produce a concrete packet draft from a real ecosystem handoff without triggering implementation.",
+        draft.sourcePreparedHandoffId,
+        createdAt,
+        tags,
+        "system"
+      )
+    ]),
+    futureImprovements: current.futureImprovements,
+    progressHistory: mergeItems(
+      current.progressHistory,
+      [
+        item("progress", draft.ownerReadableSummary, draft.sourcePreparedHandoffId, createdAt, tags, "system"),
+        item("progress", `Next safe action: ${draft.nextSafeAction.replace(/_/g, " ")}.`, draft.sourcePreparedHandoffId, createdAt, tags, "system")
+      ],
+      30
+    ),
+    ownerFeedback: current.ownerFeedback,
     guardrails: defaultGuardrails()
   };
 

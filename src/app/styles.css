@@ -1811,6 +1811,60 @@ label {
   margin: 6px 0 0;
 }
 
+.first-ecosystem-build-packet-draft {
+  background:
+    linear-gradient(135deg, rgba(239, 248, 255, 0.96), rgba(244, 251, 247, 0.94)),
+    #fbfcff;
+  display: grid;
+  gap: 18px;
+}
+
+.first-packet-draft-output {
+  display: grid;
+  gap: 16px;
+}
+
+.first-packet-hero,
+.first-packet-section-grid,
+.first-packet-route-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.first-packet-section-grid.three,
+.first-packet-route-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.first-packet-hero,
+.first-packet-section-grid section,
+.first-packet-route-grid article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 14px;
+}
+
+.first-packet-hero {
+  align-items: start;
+}
+
+.first-packet-hero span,
+.first-packet-section-grid span,
+.first-packet-route-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.first-packet-hero h2,
+.first-packet-section-grid p,
+.first-packet-route-grid p {
+  margin: 6px 0 0;
+}
+
 .action-plan-list,
 .compact-list {
   margin: 0;
@@ -3042,6 +3096,10 @@ label {
     .opportunity-readiness-status-grid,
     .opportunity-readiness-check-grid,
     .first-real-build-seed-grid,
+    .first-packet-hero,
+    .first-packet-section-grid,
+    .first-packet-section-grid.three,
+    .first-packet-route-grid,
     .real-opportunity-form-grid,
     .real-opportunity-review-grid,
     .real-opportunity-review-form,
