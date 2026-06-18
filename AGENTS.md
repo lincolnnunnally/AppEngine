@@ -1,5 +1,16 @@
 # App Engine Agent Guide
 
+> **Read first — canonical source of truth (separate `life-produces-life` repo).** App Engine is
+> the **factory** in Lincoln's ecosystem (United Under God / Life Produces Life); it builds the
+> other tools and is **not** the product, mission, or hub. It consumes the philosophy and never
+> invents it. Before changing direction, read
+> `life-produces-life/_SOURCE_OF_TRUTH/00_LIFE_PRODUCES_LIFE__MASTER.md` (mission),
+> `03_APP_ENGINE__SOURCE_OF_TRUTH.md` (scope, agents, boundaries),
+> `01_ECOSYSTEM_MAP.md` (how everything connects), and `04_ORCHESTRATION.md` (checkout rules:
+> work the board, one branch + one PR, don't edit outside your item). **Lincoln approves merges to
+> `main`, deploys, database changes, and paid/external resources.** Don't invent philosophy — ask
+> Lincoln. See `CLAUDE.md` for the short pointer; the rest of this file is the technical build guide.
+
 ## Project
 
 This repository contains a Next.js app-building engine. It plans app ideas, runs automated agent workflows, generates app bundles, applies generated Neon schemas, runs QA, and prepares Vercel deployments.
