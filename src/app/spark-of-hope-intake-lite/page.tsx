@@ -15,6 +15,7 @@ type Encouragement = {
   testimony_id: string;
   person_id: string;
   note: string | null;
+  is_approved: boolean;
   created_at: string;
   person?: PersonNameRelation;
 };
@@ -25,6 +26,8 @@ type Testimony = {
   content: string;
   kind: string;
   visibility: string;
+  is_approved: boolean;
+  is_anonymous: boolean;
   created_at: string;
   person?: PersonNameRelation;
   testimony_encouragement?: Encouragement[];
@@ -52,6 +55,8 @@ const testimonySelect = `
   content,
   kind,
   visibility,
+  is_approved,
+  is_anonymous,
   created_at,
   person:person_id(display_name),
   testimony_encouragement(
@@ -59,6 +64,7 @@ const testimonySelect = `
     testimony_id,
     person_id,
     note,
+    is_approved,
     created_at,
     person:person_id(display_name)
   )
@@ -77,6 +83,7 @@ export default function SparkOfHopeMvpPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [encouragingId, setEncouragingId] = useState<string | null>(null);
   const [storyText, setStoryText] = useState("");
+  const [storyConsent, setStoryConsent] = useState(false);
   const [encouragementNotes, setEncouragementNotes] = useState<Record<string, string>>({});
   const [reportedItems, setReportedItems] = useState<Record<string, boolean>>({});
 
@@ -194,7 +201,9 @@ export default function SparkOfHopeMvpPage() {
     const { data, error } = await client
       .from("testimony")
       .select(testimonySelect)
+      .eq("kind", "spark_of_hope_story")
       .eq("visibility", "public")
+      .eq("is_approved", true)
       .order("created_at", { ascending: false })
       .limit(24)
       .returns<Testimony[]>();
@@ -225,7 +234,7 @@ export default function SparkOfHopeMvpPage() {
         ? await supabase.auth.signUp({
             email,
             password,
-            options: { data: { display_name: displayName || email.split("@")[0] } }
+            options: { data: { display_name: displayName || "A hopeful friend" } }
           })
         : await supabase.auth.signInWithPassword({ email, password });
 
@@ -254,14 +263,36 @@ export default function SparkOfHopeMvpPage() {
       return;
     }
 
+    if (!storyConsent) {
+      setNotice({ tone: "care", message: "Please confirm the care note before sharing your spark." });
+      return;
+    }
+
     setShareBusy(true);
     setNotice(null);
+
+    const consent = await supabase.from("person_consent").upsert(
+      {
+        person_id: person.id,
+        scope: "spark_story_share_v0_1",
+        granted: true
+      },
+      { onConflict: "person_id,scope" }
+    );
+
+    if (consent.error) {
+      setShareBusy(false);
+      setNotice({ tone: "error", message: "Your sharing consent could not be saved yet. Please try again." });
+      return;
+    }
 
     const { error } = await supabase.from("testimony").insert({
       person_id: person.id,
       content,
       kind: "spark_of_hope_story",
-      visibility: "public"
+      visibility: "private",
+      is_approved: false,
+      is_anonymous: true
     });
 
     setShareBusy(false);
@@ -272,27 +303,32 @@ export default function SparkOfHopeMvpPage() {
     }
 
     setStoryText("");
-    setNotice({ tone: "good", message: "Thank you for sharing that spark of hope." });
+    setStoryConsent(false);
+    setNotice({ tone: "good", message: "Thank you. Your spark was saved for review before it appears publicly." });
     await loadTestimonies();
   }
 
   async function encourageTestimony(testimonyId: string) {
     if (!supabase || !person) return;
 
+    const existingEncouragement = testimonies
+      .find((testimony) => testimony.id === testimonyId)
+      ?.testimony_encouragement?.find((encouragement) => encouragement.person_id === person.id);
+
+    if (existingEncouragement) {
+      setNotice({ tone: "care", message: "You have already encouraged this story." });
+      return;
+    }
+
     const note = (encouragementNotes[testimonyId] || "").trim();
     setEncouragingId(testimonyId);
     setNotice(null);
 
-    const { error } = await supabase
-      .from("testimony_encouragement")
-      .upsert(
-        {
-          testimony_id: testimonyId,
-          person_id: person.id,
-          note: note || null
-        },
-        { onConflict: "testimony_id,person_id" }
-      );
+    const { error } = await supabase.from("testimony_encouragement").insert({
+      testimony_id: testimonyId,
+      person_id: person.id,
+      note: note || null
+    });
 
     setEncouragingId(null);
 
@@ -302,7 +338,10 @@ export default function SparkOfHopeMvpPage() {
     }
 
     setEncouragementNotes((current) => ({ ...current, [testimonyId]: "" }));
-    setNotice({ tone: "good", message: "Your encouragement was shared." });
+    setNotice({
+      tone: "good",
+      message: note ? "Your encouragement was saved. Notes are reviewed before they appear to others." : "Your encouragement was shared."
+    });
     await loadTestimonies();
   }
 
@@ -357,6 +396,9 @@ export default function SparkOfHopeMvpPage() {
           Read a short story, share one of your own, or encourage someone with a few kind words.
         </p>
         <p className="spark-care-note">This is peer encouragement, not crisis or professional care.</p>
+        <p className="spark-emergency-note">
+          If you might hurt yourself or someone else, call or text 988 now. This space is not monitored for urgent help.
+        </p>
       </section>
 
       {notice ? (
@@ -389,9 +431,22 @@ export default function SparkOfHopeMvpPage() {
               placeholder="What small sign of hope helped you keep going?"
               required
             />
+            <label className="spark-consent-check" htmlFor="spark-story-consent">
+              <input
+                id="spark-story-consent"
+                type="checkbox"
+                checked={storyConsent}
+                onChange={(event) => setStoryConsent(event.target.checked)}
+                required
+              />
+              <span>
+                I understand this is peer encouragement, not crisis or professional care, and my story will be reviewed
+                before it appears publicly.
+              </span>
+            </label>
             <div className="spark-share-actions">
               <span>{storyText.length}/1200</span>
-              <button className="spark-primary-button" type="submit" disabled={shareBusy}>
+              <button className="spark-primary-button" type="submit" disabled={shareBusy || !storyConsent}>
                 {shareBusy ? "Sharing..." : "Share your spark"}
               </button>
             </div>
@@ -410,11 +465,12 @@ export default function SparkOfHopeMvpPage() {
                 const encouragements = testimony.testimony_encouragement || [];
                 const alreadyEncouraged = encouragements.some((encouragement) => encouragement.person_id === activePerson.id);
                 const storyReportKey = `story:${testimony.id}`;
+                const authorName = personName(testimony.person, testimony.is_anonymous);
 
                 return (
                   <article className="spark-testimony-card" key={testimony.id}>
                     <div className="spark-card-meta">
-                      <span>{personName(testimony.person)}</span>
+                      <span>{authorName}</span>
                       <time dateTime={testimony.created_at}>{formatDate(testimony.created_at)}</time>
                     </div>
                     <p className="spark-story-text">{testimony.content}</p>
@@ -427,7 +483,7 @@ export default function SparkOfHopeMvpPage() {
                         className="spark-report-button"
                         type="button"
                         onClick={() => reportItem({ type: "story", testimonyId: testimony.id, label: "This story" })}
-                        aria-label={`Report story from ${personName(testimony.person)}`}
+                        aria-label={`Report story from ${authorName}`}
                       >
                         <FlagIcon aria-hidden="true" />
                         {reportedItems[storyReportKey] ? "Flagged" : "Report story"}
@@ -444,7 +500,7 @@ export default function SparkOfHopeMvpPage() {
                             return (
                               <li key={item.id}>
                                 <div className="spark-note-heading">
-                                  <span>{personName(item.person)}</span>
+                                  <span>{personName(item.person, true)}</span>
                                   <button
                                     className="spark-report-button"
                                     type="button"
@@ -456,7 +512,7 @@ export default function SparkOfHopeMvpPage() {
                                         label: "This encouragement"
                                       })
                                     }
-                                    aria-label={`Report encouragement from ${personName(item.person)}`}
+                                    aria-label={`Report encouragement from ${personName(item.person, true)}`}
                                   >
                                     <FlagIcon aria-hidden="true" />
                                     {reportedItems[encouragementReportKey] ? "Flagged" : "Report"}
@@ -483,8 +539,8 @@ export default function SparkOfHopeMvpPage() {
                         className="spark-secondary-button"
                         type="button"
                         onClick={() => encourageTestimony(testimony.id)}
-                        disabled={encouragingId === testimony.id}
-                        aria-label={`Encourage testimony from ${personName(testimony.person)}`}
+                        disabled={encouragingId === testimony.id || alreadyEncouraged}
+                        aria-label={`Encourage testimony from ${authorName}`}
                       >
                         <HeartIcon aria-hidden="true" />
                         {encouragingId === testimony.id ? "Encouraging..." : alreadyEncouraged ? "Encouraged" : "Encourage"}
@@ -671,10 +727,11 @@ function FlagIcon(props: SVGProps<SVGSVGElement>) {
 function getDisplayName(user: User) {
   const metadataName = typeof user.user_metadata?.display_name === "string" ? user.user_metadata.display_name.trim() : "";
   if (metadataName) return metadataName;
-  return user.email?.split("@")[0] || "A hopeful friend";
+  return "A hopeful friend";
 }
 
-function personName(relation: PersonNameRelation | undefined) {
+function personName(relation: PersonNameRelation | undefined, anonymous = false) {
+  if (anonymous) return "Someone";
   const value = Array.isArray(relation) ? relation[0]?.display_name : relation?.display_name;
   return value || "Someone";
 }

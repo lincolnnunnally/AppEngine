@@ -156,6 +156,13 @@
   font-weight: 750;
 }
 
+.spark-emergency-note {
+  margin-top: 10px;
+  color: #6e3b2d !important;
+  font-size: 0.98rem !important;
+  font-weight: 800;
+}
+
 .spark-mvp-notice,
 .spark-state-card,
 .spark-auth-panel,
@@ -256,6 +263,28 @@
   font-weight: 900;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.spark-share-box .spark-consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 0.5px solid #ead9c5;
+  border-radius: 14px;
+  padding: 13px 14px;
+  background: #fffaf3;
+  color: #604b3d;
+  font-size: 0.96rem;
+  font-weight: 760;
+  line-height: 1.55;
+}
+
+.spark-share-box .spark-consent-check input {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: #b94f38;
 }
 
 .spark-auth-panel input,

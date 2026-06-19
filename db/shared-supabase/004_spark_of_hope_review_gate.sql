@@ -1,40 +1,38 @@
--- Spark of Hope MVP v0.1 shared Supabase extension.
--- Apply to the shared Life Produces Life Supabase DEV project first.
+-- Spark of Hope MVP v0.1 review-gate hardening.
+-- Apply to the shared Life Produces Life Supabase DEV project after 001-003.
 -- This file is intentionally not wired into npm run db:setup, which targets the App Engine database.
 
 do $$
 begin
   if to_regclass('public.person') is null then
-    raise exception 'Spark of Hope MVP requires public.person from TASK-003 shared identity schema.';
+    raise exception 'Spark of Hope review gate requires public.person from TASK-003 shared identity schema.';
   end if;
 
   if to_regclass('public.testimony') is null then
-    raise exception 'Spark of Hope MVP requires public.testimony from TASK-003 shared identity schema.';
+    raise exception 'Spark of Hope review gate requires public.testimony from TASK-003 shared identity schema.';
+  end if;
+
+  if to_regclass('public.testimony_encouragement') is null then
+    raise exception 'Spark of Hope review gate requires public.testimony_encouragement from 001_spark_of_hope_mvp.sql.';
   end if;
 
   if to_regprocedure('private.current_person_id()') is null then
-    raise exception 'Spark of Hope MVP requires private.current_person_id() from TASK-003 shared identity schema.';
+    raise exception 'Spark of Hope review gate requires private.current_person_id() from TASK-003 shared identity schema.';
   end if;
 end $$;
 
-create table if not exists public.testimony_encouragement (
-  id uuid primary key default gen_random_uuid(),
-  testimony_id uuid not null references public.testimony(id) on delete cascade,
-  person_id uuid not null references public.person(id) on delete cascade,
-  note text,
-  is_approved boolean not null default false,
-  created_at timestamptz not null default now(),
-  constraint testimony_encouragement_note_length check (note is null or char_length(note) <= 220),
-  constraint testimony_encouragement_unique_person unique (testimony_id, person_id)
-);
+alter table public.testimony
+  add column if not exists is_approved boolean not null default false,
+  add column if not exists is_anonymous boolean not null default true;
 
-create index if not exists testimony_encouragement_testimony_created_idx
-  on public.testimony_encouragement (testimony_id, created_at desc);
+create index if not exists testimony_spark_approved_created_idx
+  on public.testimony (created_at desc)
+  where kind = 'spark_of_hope_story'
+    and visibility = 'public'
+    and is_approved = true;
 
-create index if not exists testimony_encouragement_person_idx
-  on public.testimony_encouragement (person_id);
-
-alter table public.testimony_encouragement enable row level security;
+alter table public.testimony_encouragement
+  add column if not exists is_approved boolean not null default false;
 
 revoke all on public.testimony_encouragement from anon;
 revoke all on public.testimony_encouragement from authenticated;
@@ -141,9 +139,16 @@ create policy testimony_encouragement_delete_own
   to authenticated
   using (person_id = (select private.current_person_id()));
 
-comment on table public.testimony_encouragement is
-  'Spark of Hope MVP v0.1 encouragements on shared testimonies; one encouragement per person per testimony.';
+comment on column public.testimony.is_approved is
+  'Spark of Hope safety gate: stories stay private until explicitly approved for public feed use.';
+
+comment on column public.testimony.is_anonymous is
+  'Spark of Hope dignity gate: public story cards default to an anonymous author label.';
+
+comment on column public.testimony_encouragement.is_approved is
+  'Spark of Hope note safety gate: encouragement notes are private to the writer until approved.';
 
 -- Verification:
--- select relname, relrowsecurity from pg_class where relname = 'testimony_encouragement';
+-- select column_name from information_schema.columns where table_schema = 'public' and table_name = 'testimony' and column_name in ('is_approved', 'is_anonymous');
+-- select column_name from information_schema.columns where table_schema = 'public' and table_name = 'testimony_encouragement' and column_name = 'is_approved';
 -- select policyname, cmd, roles from pg_policies where schemaname = 'public' and tablename = 'testimony_encouragement';
