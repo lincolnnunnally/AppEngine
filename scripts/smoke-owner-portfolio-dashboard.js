@@ -25,7 +25,7 @@ runStep("portfolio entries include required managed app and ecosystem slices", (
     "\"/owner-control-center\"",
     "\"/opportunity-intake\"",
     "\"/life-core\"",
-    "\"/spark-of-hope-intake-lite\"",
+    "\"/spark-of-hope\"",
     "Life Produces Life Core MVP Foundation Slice",
     "production blocked until owner-approved release gate"
   ]);

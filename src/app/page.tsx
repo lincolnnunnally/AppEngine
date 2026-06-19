@@ -16,7 +16,7 @@ export default function HomePage() {
         <strong>App Engine</strong>
         <div className="navlinks">
           <Link href="/problem-intake-lite">Problem Intake</Link>
-          <Link href="/spark-of-hope-intake-lite">Spark Intake</Link>
+          <Link href="/spark-of-hope">Spark of Hope</Link>
           <Link href="/owner-control-center">Owner Control</Link>
           <Link href="/builder">Builder</Link>
           <Link href="/account">Customer Account</Link>
@@ -45,8 +45,8 @@ export default function HomePage() {
           <Link className="button" href="/life-core">
             Life Core Preview
           </Link>
-          <Link className="button" href="/spark-of-hope-intake-lite">
-            Preview Spark Intake
+          <Link className="button" href="/spark-of-hope">
+            Preview Spark of Hope
           </Link>
         </div>
       </section>

@@ -116,8 +116,8 @@ try {
   await runStep("preview verification fails when owner review URL is missing", async () => {
     await runNode("scripts/verify-preview.js", {
       PREVIEW_URL: server.url,
-      EXPECTED_ROUTE: "/spark-of-hope-intake-lite",
-      EXPECTED_MARKER: "data-app-marker=\"spark-of-hope-intake-lite\"",
+      EXPECTED_ROUTE: "/spark-of-hope",
+      EXPECTED_MARKER: "data-app-marker=\"spark-of-hope-mvp-v0-1\"",
       COMMIT_SHA: "abc1234",
       VERCEL_DEPLOYMENT_STATE: "READY",
       PREVIEW_VERIFICATION_OUTPUT: previewMissingReviewOutput,
@@ -159,8 +159,8 @@ try {
     await runNode("scripts/verify-preview.js", {
       PREVIEW_URL: server.url,
       REVIEW_URL: server.url,
-      EXPECTED_ROUTE: "/spark-of-hope-intake-lite",
-      EXPECTED_MARKER: "data-app-marker=\"spark-of-hope-intake-lite\"",
+      EXPECTED_ROUTE: "/spark-of-hope",
+      EXPECTED_MARKER: "data-app-marker=\"spark-of-hope-mvp-v0-1\"",
       EXPECTED_API_URL: `${server.url}/api/spark-of-hope-intake-lite/stories`,
       EXPECTED_API_JSON: JSON.stringify({ ok: true, mode: "preview_mock", stored: false }),
       APP_PRODUCTION_URL: "https://spark-of-hope.example.test",
@@ -208,7 +208,7 @@ try {
       BUILD_COMPLETION_OUTPUT: reviewReadyCombinedOutput,
       BUILD_COMPLETION_PLAN_OUTPUT: reviewReadyPlanOutput,
       BUILD_CURRENT_STATE: "preview_verified",
-      BUILD_PASSED_GATES: "design_quality,designer_review,customer_perspective_review,ux_state_review,compatibility,safari_mobile,common_browsers,touch_forms_auth_admin,code_review",
+      BUILD_PASSED_GATES: "design_intent,design_quality,designer_review,customer_perspective_review,compatibility",
       APP_REVIEW_URL: server.url,
       APP_PRODUCTION_URL: "https://spark-of-hope.example.test"
     });
@@ -218,14 +218,14 @@ try {
 
     assertEqual(plan.currentState, "review_ready", "verified preview advances to review-ready state");
     assertEqual(plan.nextSafeAction, "await_owner_review", "review-ready state awaits owner review");
-    assertEqual(plan.reviewUrl, `${server.url}/spark-of-hope-intake-lite`, "review-ready plan records exact review URL");
+    assertEqual(plan.reviewUrl, `${server.url}/spark-of-hope`, "review-ready plan records exact review URL");
     assertEqual(plan.productionUrl, "https://spark-of-hope.example.test", "review-ready plan records production URL");
     assertEqual(plan.deploymentState, "review_ready", "review-ready plan records lifecycle state");
     assertEqual(plan.currentVersion, "v1", "review-ready plan records current version");
     assertEqual(plan.guardrails.productionDeployBlocked, true, "production remains blocked");
-    assertIncludes(combined.summary, `Review here: ${server.url}/spark-of-hope-intake-lite`, "owner-facing summary names review URL");
+    assertIncludes(combined.summary, `Review here: ${server.url}/spark-of-hope`, "owner-facing summary names review URL");
     assertIncludes(combined.summary, "Production: blocked/not live yet", "owner-facing summary says production is blocked");
-    assertIncludes(plan.followUpTasks[0].body, `Review here: ${server.url}/spark-of-hope-intake-lite`, "owner-facing follow-up names review URL");
+    assertIncludes(plan.followUpTasks[0].body, `Review here: ${server.url}/spark-of-hope`, "owner-facing follow-up names review URL");
     assertIncludes(plan.followUpTasks[0].body, "Production: blocked/not live yet", "owner-facing follow-up says production is blocked");
   });
 
@@ -307,11 +307,11 @@ async function startPreviewServer() {
       return;
     }
 
-    if (url.pathname === "/spark-of-hope-intake-lite") {
+    if (url.pathname === "/spark-of-hope") {
       sendHtml(
         response,
         200,
-        '<main data-app-marker="spark-of-hope-intake-lite"><h1>Spark of Hope Intake Lite</h1><p>Private preview</p></main>'
+        '<main data-app-marker="spark-of-hope-mvp-v0-1"><h1>Spark of Hope</h1><p>Private preview</p></main>'
       );
       return;
     }

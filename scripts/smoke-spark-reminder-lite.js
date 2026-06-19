@@ -51,7 +51,7 @@ const guardrails = sparkReminderQueueGuardrails.join("\n");
 assertIncludes(guardrails, "No emails, texts, push notifications", "guardrail notifications");
 assertIncludes(guardrails, "No private story body", "guardrail privacy");
 
-const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope-intake-lite/page.tsx"), "utf8");
+const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope/page.tsx"), "utf8");
 if (page.includes('data-app-marker="spark-of-hope-mvp-v0-1"')) {
   assertIncludes(page, 'data-testid="spark-reminder-lite"', "Spark MVP page should preserve reminder marker");
   console.log("spark-reminder-lite smoke ok (legacy surface superseded by Spark MVP)");

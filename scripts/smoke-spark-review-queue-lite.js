@@ -63,7 +63,7 @@ assert(
 );
 assert(sparkReviewQueueStorageKey.includes("review-queue"), "local storage key should be scoped to the review queue");
 
-const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope-intake-lite/page.tsx"), "utf8");
+const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope/page.tsx"), "utf8");
 if (page.includes('data-app-marker="spark-of-hope-mvp-v0-1"')) {
   assert(page.includes('data-testid="spark-review-queue-lite"'), "Spark MVP page should preserve review queue marker");
   console.log("spark-review-queue-lite smoke ok (legacy surface superseded by Spark MVP)");

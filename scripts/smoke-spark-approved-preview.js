@@ -42,7 +42,7 @@ const serializedApproved = JSON.stringify(approvedItems).toLowerCase();
 assert(!serializedApproved.includes("email"), "approved preview must not expose email fields");
 assert(!serializedApproved.includes("storybody"), "approved preview must not expose story body fields");
 
-const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope-intake-lite/page.tsx"), "utf8");
+const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope/page.tsx"), "utf8");
 if (page.includes('data-app-marker="spark-of-hope-mvp-v0-1"')) {
   assert(page.includes('data-testid="spark-approved-preview"'), "Spark MVP page should preserve approved preview marker");
   console.log("spark-approved-preview smoke ok (legacy surface superseded by Spark MVP)");

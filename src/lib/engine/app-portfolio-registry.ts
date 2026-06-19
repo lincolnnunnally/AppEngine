@@ -683,7 +683,7 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
       slug: "spark-of-hope-intake-lite",
       type: "app_slice",
       status: "safe preview slices available",
-      reviewUrl: "/spark-of-hope-intake-lite",
+      reviewUrl: "/spark-of-hope",
       productionUrl: "production blocked until owner-approved release gate",
       currentVersion: "vNext preview slices",
       deploymentState: "review_ready",
@@ -710,7 +710,7 @@ function getSeedPortfolioEntries(): AppPortfolioEntry[] {
         }
       ],
       blockers: ["Real persistence, public trial approval, and production launch remain blocked by review gates."],
-      evidenceLinks: [{ label: "Spark Intake Lite", url: "/spark-of-hope-intake-lite" }],
+      evidenceLinks: [{ label: "Spark of Hope", url: "/spark-of-hope" }],
       stateSource: "seeded_fallback",
       sourceArtifact: {
         kind: "app_portfolio_registry_seed",

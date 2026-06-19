@@ -9,7 +9,7 @@ memory.
 
 - App: Spark of Hope MVP v0.1
 - Repo: `lincolnnunnally/AppEngine`
-- Folder/route: `src/app/spark-of-hope-intake-lite`
+- Folder/route: `src/app/spark-of-hope`
 - Branch: `codex/task-54-spark-of-hope-mvp`
 - PR: `#174`
 - Database lane: shared Life Produces Life Supabase
@@ -76,7 +76,7 @@ Run these checks before asking for review:
 
 For this run, the verified preview route was:
 
-`https://app-engine-q8bxz7b42-lincolnnunnallys-projects.vercel.app/spark-of-hope-intake-lite`
+`https://app-engine-q8bxz7b42-lincolnnunnallys-projects.vercel.app/spark-of-hope`
 
 ## Production Promotion Gate
 

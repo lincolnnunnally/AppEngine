@@ -19,7 +19,7 @@ runStep("portfolio registry creation", () => {
       {
         name: "Spark of Hope Intake Lite",
         slug: "spark-of-hope-intake-lite",
-        reviewUrl: "https://review.spark-of-hope.example.test/spark-of-hope-intake-lite",
+        reviewUrl: "https://review.spark-of-hope.example.test/spark-of-hope",
         productionUrl: "approval-gated",
         currentVersion: "v1.1",
         deploymentState: "review_ready",

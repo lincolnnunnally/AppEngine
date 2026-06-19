@@ -74,7 +74,7 @@ assert(
   "next prompt should preserve approved-only public preview guardrail"
 );
 
-const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope-intake-lite/page.tsx"), "utf8");
+const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope/page.tsx"), "utf8");
 assert(page.includes("Follow-up notes"), "Spark page should render follow-up notes");
 assert(page.includes("Recommended next step"), "Spark page should render recommended next step");
 assert(page.includes("updateSparkReviewQueueFollowUp"), "Spark page should update follow-up metadata locally");

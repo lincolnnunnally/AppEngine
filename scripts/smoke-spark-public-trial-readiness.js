@@ -42,7 +42,7 @@ assert(readyGate.checklist.every((item) => item.status === "pass"), "ready check
 assertIncludes(readyGate.guardrails.join("\n"), "No public launch", "launch guardrail");
 assertIncludes(readyGate.guardrails.join("\n"), "No crisis hotline numbers", "crisis guardrail");
 
-const page = read("src/app/spark-of-hope-intake-lite/page.tsx");
+const page = read("src/app/spark-of-hope/page.tsx");
 if (page.includes('data-app-marker="spark-of-hope-mvp-v0-1"')) {
   assertIncludes(page, 'data-testid="spark-public-trial-readiness"', "Spark MVP page should preserve trial readiness marker");
   console.log("spark-public-trial-readiness smoke ok (legacy surface superseded by Spark MVP)");

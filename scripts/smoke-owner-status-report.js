@@ -49,12 +49,12 @@ writeJson(previewPath, {
   kind: "preview_verification",
   schemaVersion: 1,
   status: "passed",
-  summary: "Preview route /spark-of-hope-intake-lite passed route-specific verification.",
+  summary: "Preview route /spark-of-hope passed route-specific verification.",
   previewRootUrl: "https://spark-build-preview.example.test",
   reviewUrl: "https://review.spark-of-hope.example.test",
   productionUrl: "approval-gated",
-  expectedRoute: "/spark-of-hope-intake-lite",
-  checkedUrl: "https://review.spark-of-hope.example.test/spark-of-hope-intake-lite",
+  expectedRoute: "/spark-of-hope",
+  checkedUrl: "https://review.spark-of-hope.example.test/spark-of-hope",
   commitSha: "abc1234",
   deploymentState: "READY",
   checkedAt: "2026-06-15T00:00:00.000Z",
@@ -104,7 +104,7 @@ writeJson(buildCompletionPath, {
   ownerApprovalRequired: true,
   relatedPr: "https://github.com/lincolnnunnally/AppEngine/pull/55",
   relatedPreviewUrl: "https://spark-build-preview.example.test",
-  reviewUrl: "https://review.spark-of-hope.example.test/spark-of-hope-intake-lite",
+  reviewUrl: "https://review.spark-of-hope.example.test/spark-of-hope",
   productionUrl: "approval-gated",
   deploymentState: "review_ready",
   currentVersion: "v1",
@@ -146,7 +146,7 @@ runStep("owner status report summarizes build state", () => {
 
   assertEqual(report.kind, "owner_status_report", "report kind");
   assertEqual(report.app.slug, "spark-of-hope-intake-lite", "report app slug");
-  assertEqual(report.reviewUrl, "https://review.spark-of-hope.example.test/spark-of-hope-intake-lite", "report review URL");
+  assertEqual(report.reviewUrl, "https://review.spark-of-hope.example.test/spark-of-hope", "report review URL");
   assertEqual(report.productionUrl, "approval-gated", "report production URL");
   assertEqual(report.currentState, "review_ready", "report current state");
   assertEqual(report.deploymentState, "review_ready", "report deployment state");

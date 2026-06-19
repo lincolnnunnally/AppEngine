@@ -19,7 +19,7 @@ function assertNotIncludes(contents, unexpected, label) {
   }
 }
 
-const page = read("src/app/spark-of-hope-intake-lite/page.tsx");
+const page = read("src/app/spark-of-hope/page.tsx");
 assertIncludes(page, 'data-app-marker="spark-of-hope-mvp-v0-1"', "Spark MVP page marker");
 assertIncludes(page, "createSparkSupabaseClient", "Supabase client");
 assertIncludes(page, '.from("person")', "shared person identity");
