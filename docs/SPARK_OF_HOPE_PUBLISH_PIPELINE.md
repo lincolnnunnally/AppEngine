@@ -14,14 +14,19 @@ memory.
 - Branch: `codex/task-54-spark-of-hope-mvp`
 - PR: `#174`
 - Database lane: shared Life Produces Life Supabase
-- DEV Supabase ref: `uqhqulrqcygsmmzdzemx`
-- Production: dedicated Vercel project created; deployment blocked pending
-  confirmation of the production Life Produces Life Supabase project
+- Supabase ref: `uqhqulrqcygsmmzdzemx`
+- Supabase org: `Realize Org`
+- Production: promoted on Vercel; custom domain attached in Vercel and awaiting
+  DreamHost DNS cutover
 - Vercel project: `spark-of-hope`
 - Vercel project id: `prj_wlWPHmI2hhKb13VE4fQIBM8KeRTA`
+- Production deployment: `https://spark-of-hope.vercel.app`
+- Deployment id: `dpl_AuauaYL2UJuJCeyAQUmbgzjxqaKe`
+- Custom domain: `spark-of-hope.com`
 
-Production promotion is blocked until Lincoln approves Phase A, explicitly
-approves go-live, and confirms the exact production Supabase project URL/key.
+Production promotion is complete for the public Vercel URL. The custom domain
+is assigned to the Spark project in Vercel, but `spark-of-hope.com` still
+resolves to DreamHost/WordPress until DNS is updated.
 
 ## Phase A Gate
 
@@ -146,6 +151,64 @@ Produces Life DEV project, while the go-live instruction says production should
 use the Life Produces Life Pro spine. Do not set production env vars, deploy,
 attach `spark-of-hope.com`, or mark `generated_app.status = live` until the
 production project URL and public key are confirmed.
+
+## 2026-06-19 Phase B Go-Live
+
+Completed:
+
+1. Verified `uqhqulrqcygsmmzdzemx` is the `Life Produces Life` Supabase project,
+   active/healthy, and now under `Realize Org` by CLI. The CLI confirmed the org
+   move; plan details were not exposed through this session's CLI output.
+2. Set Vercel production env vars on `spark-of-hope`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   No service-role key was added to Vercel because the Spark app does not need a
+   server-side route for v0.1.
+3. Fixed the Vercel project framework preset from `Other` to `Next.js` after the
+   first production build completed but failed on the generic `public` output
+   directory setting.
+4. Deployed production:
+   - deployment id: `dpl_AuauaYL2UJuJCeyAQUmbgzjxqaKe`
+   - Vercel URL: `https://spark-of-hope-nie2sj2tx-lincolnnunnallys-projects.vercel.app`
+   - public alias: `https://spark-of-hope.vercel.app`
+5. Disabled SSO deployment protection on the Spark Vercel project so the public
+   product URL is reachable without Vercel authentication.
+6. Removed stale `spark-of-hope.com` and `www.spark-of-hope.com` project-domain
+   assignments from the `app-engine` Vercel project, then added both domains to
+   the `spark-of-hope` project.
+7. Verified browser-visible production behavior at `https://spark-of-hope.vercel.app`:
+   - landing/header loads as Spark of hope, not App Engine
+   - setup-needed state is gone
+   - feeling doorway renders
+   - choosing `Lonely` shows the matched reflection and filtered testimony state
+   - free-text acute crisis input shows the gentle 988 support branch and hides stories
+   - safety support line is visible
+8. Verified server-side data paths with temporary rows, then cleaned them up:
+   - private in-review testimony submission shape
+   - encouragement insert shape
+   - report insert shape
+9. Removed the three `[DEV sample]` public testimonies from the production/shared
+   project. The public feed now shows the warm empty state until real approved
+   stories are added.
+10. Upserted `generated_app` record:
+   - `provisioning_slug = spark-of-hope`
+   - `deployment_url = https://spark-of-hope.vercel.app`
+   - `status = live`
+   - launch details and DNS caveat recorded in `problem_summary`
+
+Remaining DNS action:
+
+`spark-of-hope.com` and `www.spark-of-hope.com` are attached to the Spark Vercel
+project, but public DNS still resolves to DreamHost/WordPress. Update DreamHost
+DNS to point to Vercel:
+
+- Apex: `A spark-of-hope.com 76.76.21.21`
+- `www`: use Vercel's recommended record in the domain dashboard, or switch the
+  domain nameservers to `ns1.vercel-dns.com` and `ns2.vercel-dns.com`.
+
+Until that DNS change propagates, the live public Spark URL is:
+
+`https://spark-of-hope.vercel.app`
 
 ## Non-Negotiables
 
