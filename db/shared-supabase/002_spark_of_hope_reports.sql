@@ -41,6 +41,9 @@ create index if not exists testimony_report_encouragement_idx
   on public.testimony_report (encouragement_id)
   where encouragement_id is not null;
 
+create index if not exists testimony_report_reporter_created_idx
+  on public.testimony_report (reporter_person_id, created_at desc);
+
 create index if not exists testimony_report_status_created_idx
   on public.testimony_report (status, created_at desc);
 
