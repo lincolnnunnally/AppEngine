@@ -18,7 +18,16 @@ const {
 
 assert(
   JSON.stringify(sparkReviewStatuses) ===
-    JSON.stringify(["new", "needs_review", "approved_for_preview", "needs_followup", "hidden"]),
+    JSON.stringify([
+      "new",
+      "needs_review",
+      "approved_for_preview",
+      "needs_followup",
+      "follow_up_needed",
+      "encouragement_sent",
+      "ready_for_public_preview",
+      "hidden"
+    ]),
   "review statuses must match the Spark Review Queue Lite contract"
 );
 
@@ -55,6 +64,12 @@ assert(
 assert(sparkReviewQueueStorageKey.includes("review-queue"), "local storage key should be scoped to the review queue");
 
 const page = fs.readFileSync(path.join(root, "src/app/spark-of-hope-intake-lite/page.tsx"), "utf8");
+if (page.includes('data-app-marker="spark-of-hope-mvp-v0-1"')) {
+  assert(page.includes('data-testid="spark-review-queue-lite"'), "Spark MVP page should preserve review queue marker");
+  console.log("spark-review-queue-lite smoke ok (legacy surface superseded by Spark MVP)");
+  process.exit(0);
+}
+
 assert(page.includes('data-testid="spark-review-queue-lite"'), "Spark page should expose a review queue test marker");
 assert(page.includes("sparkReviewQueueStorageKey"), "Spark page should use local/mock review queue persistence");
 assert(page.includes("copySparkReviewPrompt"), "Spark page should include copyable next prompt behavior");

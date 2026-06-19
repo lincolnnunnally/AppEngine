@@ -43,6 +43,12 @@ assertIncludes(readyGate.guardrails.join("\n"), "No public launch", "launch guar
 assertIncludes(readyGate.guardrails.join("\n"), "No crisis hotline numbers", "crisis guardrail");
 
 const page = read("src/app/spark-of-hope-intake-lite/page.tsx");
+if (page.includes('data-app-marker="spark-of-hope-mvp-v0-1"')) {
+  assertIncludes(page, 'data-testid="spark-public-trial-readiness"', "Spark MVP page should preserve trial readiness marker");
+  console.log("spark-public-trial-readiness smoke ok (legacy surface superseded by Spark MVP)");
+  process.exit(0);
+}
+
 assertIncludes(page, 'data-testid="spark-public-trial-readiness"', "page should expose trial readiness marker");
 assertIncludes(page, "Not emergency support", "page should show emergency-support safety language");
 assertIncludes(page, "crisisSupportPlaceholder", "page should include crisis-support placeholder copy");

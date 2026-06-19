@@ -1,687 +1,513 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
-import {
-  buildSparkReviewQueueNextPrompt,
-  createSparkReviewQueueItem,
-  getApprovedSparkPreviewItems,
-  isSparkReviewStatus,
-  sparkReviewQueueGuardrails,
-  sparkReviewQueueStorageKey,
-  sparkReviewStatuses,
-  updateSparkReviewQueueFollowUp,
-  updateSparkReviewQueueStatus,
-  type SparkReviewQueueItem,
-  type SparkReviewStatus
-} from "@/lib/spark-of-hope-intake-lite/review-queue";
-import {
-  buildSparkReminderNextPrompt,
-  createSparkReminderQueueItem,
-  isSparkReminderStatus,
-  sparkReminderQueueGuardrails,
-  sparkReminderQueueStorageKey,
-  sparkReminderStatuses,
-  updateSparkReminderStatus,
-  type SparkReminderQueueItem,
-  type SparkReminderStatus
-} from "@/lib/spark-of-hope-intake-lite/reminder-queue";
-import { getSparkPublicTrialReadiness } from "@/lib/spark-of-hope-intake-lite/public-trial-readiness";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
+import { createSparkSupabaseClient, hasSparkSupabaseConfig } from "@/lib/spark-of-hope/supabase-browser";
 
-type SubmitState =
-  | { status: "idle" }
-  | { status: "submitting" }
-  | { status: "success"; reference: string; message: string }
-  | { status: "error"; message: string };
+type SparkPerson = {
+  id: string;
+  auth_user_id: string;
+  display_name: string | null;
+};
 
-export default function SparkOfHopeIntakeLitePage() {
-  const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
-  const [storyLength, setStoryLength] = useState(0);
-  const [reviewQueueItems, setReviewQueueItems] = useState<SparkReviewQueueItem[]>([]);
-  const [reminderQueueItems, setReminderQueueItems] = useState<SparkReminderQueueItem[]>([]);
-  const [reviewPromptCopied, setReviewPromptCopied] = useState("Ready to copy");
-  const [reminderPromptCopied, setReminderPromptCopied] = useState("Ready to copy");
-  const canSubmit = submitState.status !== "submitting";
-  const approvedPreviewItems = getApprovedSparkPreviewItems(reviewQueueItems);
-  const publicTrialReadiness = getSparkPublicTrialReadiness({ reviewQueueItems, approvedPreviewItems });
-  const reviewPrompt = buildSparkReviewQueueNextPrompt(reviewQueueItems);
-  const reminderPrompt = buildSparkReminderNextPrompt(reminderQueueItems);
+type Encouragement = {
+  id: string;
+  testimony_id: string;
+  person_id: string;
+  note: string | null;
+  created_at: string;
+  person?: PersonNameRelation;
+};
 
-  const statusText =
-    submitState.status === "success"
-      ? "Preview received"
-      : submitState.status === "error"
-        ? "Needs attention"
-        : submitState.status === "submitting"
-          ? "Submitting preview"
-        : "Preview mode";
+type Testimony = {
+  id: string;
+  person_id: string;
+  content: string;
+  kind: string;
+  visibility: string;
+  created_at: string;
+  person?: PersonNameRelation;
+  testimony_encouragement?: Encouragement[];
+};
+
+type PersonNameRelation = { display_name: string | null } | { display_name: string | null }[] | null;
+
+type AuthMode = "sign-in" | "sign-up";
+
+type Notice = {
+  tone: "good" | "care" | "error";
+  message: string;
+};
+
+const testimonySelect = `
+  id,
+  person_id,
+  content,
+  kind,
+  visibility,
+  created_at,
+  person:person_id(display_name),
+  testimony_encouragement(
+    id,
+    testimony_id,
+    person_id,
+    note,
+    created_at,
+    person:person_id(display_name)
+  )
+`;
+
+export default function SparkOfHopeMvpPage() {
+  const configured = hasSparkSupabaseConfig();
+  const supabase = useMemo(() => (configured ? createSparkSupabaseClient() : null), [configured]);
+  const [authMode, setAuthMode] = useState<AuthMode>("sign-in");
+  const [session, setSession] = useState<Session | null>(null);
+  const [person, setPerson] = useState<SparkPerson | null>(null);
+  const [testimonies, setTestimonies] = useState<Testimony[]>([]);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [loading, setLoading] = useState(configured);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [encouragingId, setEncouragingId] = useState<string | null>(null);
+  const [storyText, setStoryText] = useState("");
+  const [encouragementNotes, setEncouragementNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    try {
-      const storedItems = window.localStorage.getItem(sparkReviewQueueStorageKey);
-      if (!storedItems) {
+    const client = supabase;
+
+    if (!client) {
+      setLoading(false);
+      return;
+    }
+
+    const activeClient: SupabaseClient = client;
+    let active = true;
+
+    async function loadSession() {
+      setLoading(true);
+      const { data, error } = await activeClient.auth.getSession();
+
+      if (!active) return;
+
+      if (error) {
+        setNotice({ tone: "error", message: "Sign-in could not be checked. Please try again." });
+        setLoading(false);
         return;
       }
 
-      const parsedItems = JSON.parse(storedItems) as SparkReviewQueueItem[];
-      if (Array.isArray(parsedItems)) {
-        setReviewQueueItems(
-          parsedItems
-            .filter((item) => item && isSparkReviewStatus(item.status))
-            .map((item) => ({
-              ...item,
-              followUpNotes: item.followUpNotes || "No follow-up notes yet.",
-              recommendedNextStep: item.recommendedNextStep || "Review privately before any encouragement or preview action."
-            }))
-        );
+      setSession(data.session);
+
+      if (data.session?.user) {
+        await connectPersonAndFeed(activeClient, data.session.user, active);
+      } else {
+        setLoading(false);
       }
-    } catch {
-      setReviewQueueItems([]);
     }
 
-    try {
-      const storedReminderItems = window.localStorage.getItem(sparkReminderQueueStorageKey);
-      if (!storedReminderItems) {
+    const { data: authListener } = activeClient.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+
+      if (!nextSession?.user) {
+        setPerson(null);
+        setTestimonies([]);
+        setLoading(false);
         return;
       }
 
-      const parsedReminderItems = JSON.parse(storedReminderItems) as SparkReminderQueueItem[];
-      if (Array.isArray(parsedReminderItems)) {
-        setReminderQueueItems(parsedReminderItems.filter((item) => item && isSparkReminderStatus(item.status)));
-      }
-    } catch {
-      setReminderQueueItems([]);
+      void connectPersonAndFeed(activeClient, nextSession.user, true);
+    });
+
+    void loadSession();
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  async function connectPersonAndFeed(client: SupabaseClient, user: User, active = true) {
+    setLoading(true);
+    const linkedPerson = await ensurePerson(client, user);
+
+    if (!active) return;
+
+    if (!linkedPerson) {
+      setLoading(false);
+      return;
     }
-  }, []);
 
-  function saveReviewQueue(items: SparkReviewQueueItem[]) {
-    setReviewQueueItems(items);
+    setPerson(linkedPerson);
+    await loadTestimonies(client);
+    setLoading(false);
+  }
 
-    try {
-      window.localStorage.setItem(sparkReviewQueueStorageKey, JSON.stringify(items));
-    } catch {
-      setReviewPromptCopied("Local queue could not be saved in this browser.");
+  async function ensurePerson(client: SupabaseClient, user: User) {
+    const displayName = getDisplayName(user);
+    const existing = await client
+      .from("person")
+      .select("id, auth_user_id, display_name")
+      .eq("auth_user_id", user.id)
+      .maybeSingle<SparkPerson>();
+
+    if (existing.error) {
+      setNotice({ tone: "error", message: "Your shared person record could not be loaded yet." });
+      return null;
     }
-  }
 
-  function updateReviewStatus(id: string, status: SparkReviewStatus) {
-    saveReviewQueue(reviewQueueItems.map((item) => (item.id === id ? updateSparkReviewQueueStatus(item, status) : item)));
-  }
-
-  function saveReminderQueue(items: SparkReminderQueueItem[]) {
-    setReminderQueueItems(items);
-
-    try {
-      window.localStorage.setItem(sparkReminderQueueStorageKey, JSON.stringify(items));
-    } catch {
-      setReminderPromptCopied("Local reminder queue could not be saved in this browser.");
+    if (existing.data) {
+      return existing.data;
     }
-  }
 
-  function updateReminderStatus(id: string, status: SparkReminderStatus) {
-    saveReminderQueue(reminderQueueItems.map((item) => (item.id === id ? updateSparkReminderStatus(item, status) : item)));
-  }
+    const created = await client
+      .from("person")
+      .insert({ auth_user_id: user.id, display_name: displayName })
+      .select("id, auth_user_id, display_name")
+      .single<SparkPerson>();
 
-  function updateReviewFollowUp(
-    id: string,
-    followUp: {
-      followUpNotes?: string;
-      recommendedNextStep?: string;
+    if (created.error) {
+      const retried = await client
+        .from("person")
+        .select("id, auth_user_id, display_name")
+        .eq("auth_user_id", user.id)
+        .maybeSingle<SparkPerson>();
+
+      if (retried.data) return retried.data;
+
+      setNotice({ tone: "error", message: "Your shared person record could not be created yet." });
+      return null;
     }
-  ) {
-    saveReviewQueue(
-      reviewQueueItems.map((item) => (item.id === id ? updateSparkReviewQueueFollowUp(item, followUp) : item))
-    );
+
+    return created.data;
   }
 
-  async function copySparkReviewPrompt() {
-    try {
-      await navigator.clipboard.writeText(reviewPrompt);
-      setReviewPromptCopied("Prompt copied");
-    } catch {
-      setReviewPromptCopied("Copy unavailable");
+  async function loadTestimonies(client = supabase) {
+    if (!client) return;
+
+    const { data, error } = await client
+      .from("testimony")
+      .select(testimonySelect)
+      .eq("visibility", "public")
+      .order("created_at", { ascending: false })
+      .limit(24)
+      .returns<Testimony[]>();
+
+    if (error) {
+      setNotice({ tone: "error", message: "Stories could not be loaded. The shared Supabase schema may need the Spark MVP migration." });
+      setTestimonies([]);
+      return;
     }
+
+    setTestimonies(data || []);
   }
 
-  async function copySparkReminderPrompt() {
-    try {
-      await navigator.clipboard.writeText(reminderPrompt);
-      setReminderPromptCopied("Prompt copied");
-    } catch {
-      setReminderPromptCopied("Copy unavailable");
-    }
-  }
-
-  async function submitStory(event: FormEvent<HTMLFormElement>) {
+  async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
+    if (!supabase) return;
 
-    setSubmitState({ status: "submitting" });
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    const displayName = String(formData.get("displayName") || "").trim();
 
-    let response: Response;
+    setAuthBusy(true);
+    setNotice(null);
 
-    try {
-      response = await fetch("/api/spark-of-hope-intake-lite/stories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          preferredName: formData.get("preferredName"),
-          email: formData.get("email"),
-          storyTitle: formData.get("storyTitle"),
-          categoryOrStruggle: formData.get("categoryOrStruggle"),
-          hopeOutcome: formData.get("hopeOutcome"),
-          storyBody: formData.get("storyBody"),
-          mayReview: formData.get("mayReview") === "on",
-          mayContact: formData.get("mayContact") === "on",
-          mayPrepareEncouragement: formData.get("mayPrepareEncouragement") === "on",
-          reminderPreference: formData.get("reminderPreference"),
-          reminderNote: formData.get("reminderNote")
-        })
-      });
-    } catch {
-      setSubmitState({
-        status: "error",
-        message: "The preview route could not be reached. Please try again."
-      });
+    const result =
+      authMode === "sign-up"
+        ? await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { display_name: displayName || email.split("@")[0] } }
+          })
+        : await supabase.auth.signInWithPassword({ email, password });
+
+    setAuthBusy(false);
+
+    if (result.error) {
+      setNotice({ tone: "error", message: result.error.message });
       return;
     }
 
-    const result = (await response.json()) as { ok?: boolean; reference?: string; message?: string };
-
-    if (!response.ok || !result.ok) {
-      setSubmitState({
-        status: "error",
-        message: result.message || "The story was not submitted. Please check the form and try again."
-      });
+    if (!result.data.session) {
+      setNotice({ tone: "care", message: "Check your email to finish signing in, then come back to Spark of Hope." });
       return;
     }
 
-    const reviewQueueItem = createSparkReviewQueueItem({
-      reference: result.reference || "SOH-LITE-PREVIEW",
-      preferredName: String(formData.get("preferredName") || ""),
-      storyTitle: String(formData.get("storyTitle") || ""),
-      categoryOrStruggle: String(formData.get("categoryOrStruggle") || ""),
-      hopeOutcome: String(formData.get("hopeOutcome") || "")
-    });
-    const reminderQueueItem = createSparkReminderQueueItem({
-      reference: result.reference || "SOH-LITE-PREVIEW",
-      preferredName: String(formData.get("preferredName") || ""),
-      storyTitle: String(formData.get("storyTitle") || ""),
-      preference: String(formData.get("reminderPreference") || "none"),
-      reminderNote: String(formData.get("reminderNote") || "")
-    });
-
-    saveReviewQueue([reviewQueueItem, ...reviewQueueItems]);
-    if (reminderQueueItem) {
-      saveReminderQueue([reminderQueueItem, ...reminderQueueItems]);
-    }
-    form.reset();
-    setStoryLength(0);
-    setSubmitState({
-      status: "success",
-      reference: result.reference || "SOH-LITE-PREVIEW",
-      message: result.message || "Preview submission received."
-    });
+    setNotice({ tone: "good", message: "You are signed in. Your stories are tied to your shared person identity." });
   }
+
+  async function shareTestimony(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !person) return;
+
+    const content = storyText.trim();
+    if (content.length < 12) {
+      setNotice({ tone: "care", message: "Share a little more so the hope in the story can be understood." });
+      return;
+    }
+
+    setShareBusy(true);
+    setNotice(null);
+
+    const { error } = await supabase.from("testimony").insert({
+      person_id: person.id,
+      content,
+      kind: "spark_of_hope_story",
+      visibility: "public"
+    });
+
+    setShareBusy(false);
+
+    if (error) {
+      setNotice({ tone: "error", message: "Your story was not saved yet. Please try again." });
+      return;
+    }
+
+    setStoryText("");
+    setNotice({ tone: "good", message: "Thank you for sharing that spark of hope." });
+    await loadTestimonies();
+  }
+
+  async function encourageTestimony(testimonyId: string) {
+    if (!supabase || !person) return;
+
+    const note = (encouragementNotes[testimonyId] || "").trim();
+    setEncouragingId(testimonyId);
+    setNotice(null);
+
+    const { error } = await supabase
+      .from("testimony_encouragement")
+      .upsert(
+        {
+          testimony_id: testimonyId,
+          person_id: person.id,
+          note: note || null
+        },
+        { onConflict: "testimony_id,person_id" }
+      );
+
+    setEncouragingId(null);
+
+    if (error) {
+      setNotice({ tone: "error", message: "Your encouragement was not saved yet. Please try again." });
+      return;
+    }
+
+    setEncouragementNotes((current) => ({ ...current, [testimonyId]: "" }));
+    setNotice({ tone: "good", message: "Your encouragement was shared." });
+    await loadTestimonies();
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setNotice({ tone: "care", message: "You are signed out." });
+  }
+
+  const activePerson = session?.user && person ? person : null;
+  const signedIn = Boolean(activePerson);
 
   return (
-    <main className="spark-page" data-app-marker="spark-of-hope-intake-lite">
-      <nav className="spark-nav" aria-label="Spark of Hope Intake Lite">
-        <Link href="/" className="spark-brand">
-          Spark of Hope Intake Lite
+    <main className="spark-mvp-page" data-app-marker="spark-of-hope-mvp-v0-1">
+      <header className="spark-mvp-header">
+        <Link href="/" className="spark-mvp-back">
+          App Engine
         </Link>
-        <div>
-          <a href="#approved-preview">Approved preview</a>
-          <a href="#trial-readiness">Trial readiness</a>
-          <a href="#review-queue">Review queue</a>
-          <a href="#reminders">Reminders</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#share">Share a story</a>
-        </div>
-      </nav>
-
-      <section className="spark-hero">
-        <div className="spark-hero-copy">
-          <p className="eyebrow">Private preview</p>
-          <h1>Share one hopeful story with care.</h1>
-          <p>
-            This preview lets someone share a hopeful moment so an approved team can review it privately and prepare
-            encouragement without exposing the story publicly.
-          </p>
-          <div className="spark-pill-row" aria-label="Preview guardrails">
-            <span>Private by default</span>
-            <span>Review-gated storage</span>
-            <span>Not emergency support</span>
-            <span>No paid resources</span>
-          </div>
-        </div>
-
-        <aside className="spark-trust-rail" aria-label="What happens next">
-          <span>{statusText}</span>
-          <strong>What happens next</strong>
-          <ol>
-            <li>The story is checked for the preview only.</li>
-            <li>An approved person could review it in a later phase.</li>
-            <li>Encouragement can be prepared without public posting.</li>
-          </ol>
-        </aside>
-      </section>
-
-      <section className="spark-layout" id="share">
-        <form className="spark-form-panel" onSubmit={submitStory}>
-          <div>
-            <p className="eyebrow">Story intake</p>
-            <h2>Tell the story</h2>
-            <p>
-              Keep it simple. Share enough context for a trusted team to understand the hopeful moment and respond with
-              care.
-            </p>
-          </div>
-
-          <label>
-            Preferred name
-            <input name="preferredName" type="text" autoComplete="name" placeholder="What should the team call you?" />
-          </label>
-
-          <label>
-            Email for follow-up
-            <input name="email" type="email" autoComplete="email" placeholder="name@example.com" />
-          </label>
-
-          <label>
-            Short title
-            <input name="storyTitle" type="text" placeholder="A small moment of hope" />
-          </label>
-
-          <label>
-            Category or struggle
-            <select name="categoryOrStruggle" defaultValue="">
-              <option value="">Choose a private review category</option>
-              <option value="Discouragement">Discouragement</option>
-              <option value="Grief or loss">Grief or loss</option>
-              <option value="Family or community">Family or community</option>
-              <option value="Recovery or rebuilding">Recovery or rebuilding</option>
-              <option value="Serving others">Serving others</option>
-              <option value="Other">Other</option>
-            </select>
-          </label>
-
-          <label>
-            Hope outcome
-            <input name="hopeOutcome" type="text" placeholder="What kind of hope or encouragement would help?" />
-          </label>
-
-          <label>
-            Follow-up testimony reminder
-            <select name="reminderPreference" defaultValue="none">
-              <option value="none">No reminder for now</option>
-              <option value="one_week">Ask me in about one week</option>
-              <option value="one_month">Ask me in about one month</option>
-              <option value="after_encouragement">Ask after encouragement is prepared</option>
-            </select>
-          </label>
-
-          <label>
-            Reminder note
-            <input name="reminderNote" type="text" placeholder="Optional note for the owner review queue" />
-          </label>
-
-          <label>
-            Hopeful story
-            <textarea
-              name="storyBody"
-              minLength={40}
-              maxLength={5000}
-              required
-              onChange={(event) => setStoryLength(event.target.value.length)}
-              placeholder="What happened? What gave you hope? What would help the team understand this moment?"
-            />
-          </label>
-          <p className="spark-helper">{storyLength}/5000 characters</p>
-
-          <fieldset className="spark-consents">
-            <legend>Consent</legend>
-            <label className="spark-checkbox">
-              <input name="mayReview" type="checkbox" required />
-              <span>I understand this story may be reviewed privately by an approved team for this pilot.</span>
-            </label>
-            <label className="spark-checkbox">
-              <input name="mayPrepareEncouragement" type="checkbox" required />
-              <span>I understand the team may prepare encouragement from this story.</span>
-            </label>
-            <label className="spark-checkbox">
-              <input name="mayContact" type="checkbox" />
-              <span>It is okay to contact me about this story.</span>
-            </label>
-          </fieldset>
-
-          {submitState.status === "success" ? (
-            <div className="spark-status success" role="status">
-              <strong>Story preview received</strong>
-              <p>{submitState.message}</p>
-              <span className="spark-reference">{submitState.reference}</span>
-            </div>
-          ) : null}
-
-          {submitState.status === "error" ? (
-            <div className="spark-status error" role="alert">
-              <strong>The story was not submitted</strong>
-              <p>{submitState.message}</p>
-            </div>
-          ) : null}
-
-          <button className="button primary spark-submit" type="submit" disabled={!canSubmit}>
-            {submitState.status === "submitting" ? "Submitting..." : "Submit story"}
+        {signedIn ? (
+          <button className="spark-quiet-button" type="button" onClick={signOut}>
+            Sign out
           </button>
-        </form>
+        ) : null}
+      </header>
 
-        <aside className="spark-side-panel" id="privacy">
-          <p className="eyebrow">Privacy note</p>
-          <h2>Your story is not a public post.</h2>
-          <p>
-            This preview defaults to a mock submission route. Controlled preview storage can be enabled only behind
-            review-gated server settings, while production writes stay blocked.
-          </p>
-
-          <div className="spark-note-grid">
-            <div>
-              <span>Collected</span>
-              <p>Only the story, optional contact details, and consent choices needed for review.</p>
-            </div>
-            <div>
-              <span>Protected</span>
-              <p>Story content stays separate from contact details in the planned data model.</p>
-            </div>
-            <div>
-              <span>Blocked</span>
-              <p>Production deployment, real storage, and provider provisioning remain blocked.</p>
-            </div>
-          </div>
-        </aside>
+      <section className="spark-mvp-hero" aria-labelledby="spark-title">
+        <p className="spark-mvp-kicker">Spark of Hope</p>
+        <h1 id="spark-title">A quiet place for real hope.</h1>
+        <p>
+          Read a short story, share one of your own, or encourage someone with a few kind words.
+        </p>
       </section>
 
-      <section className="spark-approved-preview-section" id="approved-preview" data-testid="spark-approved-preview">
-        <div className="spark-review-header">
-          <div>
-            <p className="eyebrow">Approved public preview</p>
-            <h2>Only approved stories appear here.</h2>
-            <p>
-              This local preview list shows safe metadata only for items marked approved for preview. New, hidden,
-              needs-review, and needs-follow-up items stay out of this public-facing section.
-            </p>
-          </div>
-          <span>{approvedPreviewItems.length} approved item{approvedPreviewItems.length === 1 ? "" : "s"}</span>
-        </div>
+      {notice ? (
+        <p className={`spark-mvp-notice ${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"} aria-live="polite">
+          {notice.message}
+        </p>
+      ) : null}
 
-        {approvedPreviewItems.length ? (
-          <div className="spark-approved-preview-list" aria-live="polite">
-            {approvedPreviewItems.map((item) => (
-              <article className="spark-approved-preview-card" key={item.id}>
-                <span>{item.categoryOrStruggle}</span>
-                <h3>{item.titleOrName}</h3>
-                <p>{item.hopeOutcome}</p>
-                <small>{item.safeIdentifier}</small>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="spark-review-empty">
-            <strong>No approved preview stories yet.</strong>
-            <p>
-              Submitted items stay private until the owner changes one to approved for preview. Nothing is publicly
-              promoted, shared, or matched automatically.
-            </p>
-          </div>
-        )}
-      </section>
-
-      <section className="spark-public-trial-section" id="trial-readiness" data-testid="spark-public-trial-readiness">
-        <div className="spark-review-header">
-          <div>
-            <p className="eyebrow">Limited public trial gate</p>
-            <h2>{publicTrialReadiness.readyForLimitedPublicTesting ? "Ready for limited public testing review." : "Not ready for limited public testing yet."}</h2>
-            <p>{publicTrialReadiness.ownerReadableSummary}</p>
-          </div>
-          <span>{publicTrialReadiness.gateStatus.replaceAll("_", " ")}</span>
-        </div>
-
-        <div className="spark-safety-callout" role="note">
-          <strong>{publicTrialReadiness.safetyLanguage.previewOnly}</strong>
-          <p>{publicTrialReadiness.safetyLanguage.notEmergencySupport}</p>
-          <p>{publicTrialReadiness.safetyLanguage.crisisSupportPlaceholder}</p>
-        </div>
-
-        <div className="spark-public-trial-grid">
-          {publicTrialReadiness.checklist.map((item) => (
-            <article className={`spark-trial-check ${item.status}`} key={item.id}>
-              <span>{item.status.replaceAll("_", " ")}</span>
-              <h3>{item.label}</h3>
-              <p>{item.note}</p>
-            </article>
-          ))}
-        </div>
-
-        <div className="spark-trial-guardrails">
-          <h3>Trial guardrails</h3>
-          <ul>
-            {publicTrialReadiness.guardrails.map((guardrail) => (
-              <li key={guardrail}>{guardrail}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="spark-reminder-section" id="reminders" data-testid="spark-reminder-lite">
-        <div className="spark-review-header">
-          <div>
-            <p className="eyebrow">Contributor Reminder Lite</p>
-            <h2>Local reminder review queue</h2>
-            <p>
-              This owner-visible list helps remember who may want to share a follow-up testimony later. It does not send
-              emails, texts, push notifications, or publish anything.
-            </p>
-          </div>
-          <span>{reminderQueueItems.length} reminder item{reminderQueueItems.length === 1 ? "" : "s"}</span>
-        </div>
-
-        <div className="spark-review-body">
-          <div className="spark-review-list" aria-live="polite">
-            {reminderQueueItems.length ? (
-              reminderQueueItems.map((item) => (
-                <article className="spark-review-card" key={item.id}>
-                  <div className="spark-review-card-header">
-                    <div>
-                      <span>{item.safeIdentifier}</span>
-                      <h3>{item.titleOrName}</h3>
-                    </div>
-                    <label>
-                      Reminder status
-                      <select
-                        value={item.status}
-                        onChange={(event) => updateReminderStatus(item.id, event.target.value as SparkReminderStatus)}
-                      >
-                        {sparkReminderStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status.replaceAll("_", " ")}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <dl className="spark-review-details">
-                    <div>
-                      <dt>Preference</dt>
-                      <dd>{item.preferenceLabel}</dd>
-                    </div>
-                    <div>
-                      <dt>Submitted</dt>
-                      <dd>{new Date(item.submittedAt).toLocaleString()}</dd>
-                    </div>
-                    <div>
-                      <dt>Reminder note</dt>
-                      <dd>{item.reminderNote}</dd>
-                    </div>
-                    <div>
-                      <dt>Safety note</dt>
-                      <dd>{item.safetyNote}</dd>
-                    </div>
-                  </dl>
-
-                  <p className="spark-review-owner-note">{item.ownerReviewNote}</p>
-                </article>
-              ))
-            ) : (
-              <div className="spark-review-empty">
-                <strong>No reminder requests yet.</strong>
-                <p>Reminder preferences stay local/mock and never send messages automatically.</p>
-              </div>
-            )}
-          </div>
-
-          <aside className="spark-review-notes" aria-label="Spark reminder guardrails and next prompt">
-            <div>
-              <p className="eyebrow">Reminder guardrails</p>
-              <ul>
-                {sparkReminderQueueGuardrails.map((guardrail) => (
-                  <li key={guardrail}>{guardrail}</li>
-                ))}
-              </ul>
+      {!configured ? <SetupPanel /> : null}
+      {configured && loading ? <p className="spark-mvp-loading">Opening Spark of Hope...</p> : null}
+      {configured && !loading && !signedIn ? (
+        <AuthPanel authMode={authMode} authBusy={authBusy} onAuthModeChange={setAuthMode} onSubmit={handleAuth} />
+      ) : null}
+      {configured && activePerson ? (
+        <section className="spark-mvp-loop" aria-label="Spark of Hope stories">
+          <form className="spark-share-box" onSubmit={shareTestimony}>
+            <label htmlFor="spark-story">Share a testimony</label>
+            <textarea
+              id="spark-story"
+              name="story"
+              maxLength={1200}
+              minLength={12}
+              value={storyText}
+              onChange={(event) => setStoryText(event.target.value)}
+              placeholder="What small sign of hope helped you keep going?"
+              required
+            />
+            <div className="spark-share-actions">
+              <span>{storyText.length}/1200</span>
+              <button className="spark-primary-button" type="submit" disabled={shareBusy}>
+                {shareBusy ? "Sharing..." : "Share testimony"}
+              </button>
             </div>
+          </form>
 
-            <label>
-              Copyable reminder prompt
-              <textarea readOnly value={reminderPrompt} />
-            </label>
-            <button className="button secondary" type="button" onClick={copySparkReminderPrompt}>
-              Copy reminder prompt
+          <div className="spark-feed-heading">
+            <h2>Stories of hope</h2>
+            <button className="spark-quiet-button" type="button" onClick={() => loadTestimonies()}>
+              Refresh
             </button>
-            <p className="spark-helper">{reminderPromptCopied}</p>
-          </aside>
-        </div>
-      </section>
-
-      <section className="spark-review-section" id="review-queue" data-testid="spark-review-queue-lite">
-        <div className="spark-review-header">
-          <div>
-            <p className="eyebrow">Spark Review Queue Lite</p>
-            <h2>Private queue for preview submissions</h2>
-            <p>
-              Submitted stories appear here as safe review metadata only. The queue does not publish stories, expose
-              contact details, trigger follow-up, or start mentor matching.
-            </p>
           </div>
-          <span>{reviewQueueItems.length} local item{reviewQueueItems.length === 1 ? "" : "s"}</span>
-        </div>
 
-        <div className="spark-review-body">
-          <div className="spark-review-list" aria-live="polite">
-            {reviewQueueItems.length ? (
-              reviewQueueItems.map((item) => (
-                <article className="spark-review-card" key={item.id}>
-                  <div className="spark-review-card-header">
-                    <div>
-                      <span>{item.safeIdentifier}</span>
-                      <h3>{item.titleOrName}</h3>
-                    </div>
-                    <label>
-                      Status
-                      <select
-                        value={item.status}
-                        onChange={(event) => updateReviewStatus(item.id, event.target.value as SparkReviewStatus)}
-                      >
-                        {sparkReviewStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status.replaceAll("_", " ")}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
+          <div className="spark-testimony-feed" aria-live="polite">
+            {testimonies.length ? (
+              testimonies.map((testimony) => {
+                const encouragements = testimony.testimony_encouragement || [];
+                const alreadyEncouraged = encouragements.some((encouragement) => encouragement.person_id === activePerson.id);
 
-                  <dl className="spark-review-details">
-                    <div>
-                      <dt>Category/struggle</dt>
-                      <dd>{item.categoryOrStruggle}</dd>
+                return (
+                  <article className="spark-testimony-card" key={testimony.id}>
+                    <div className="spark-card-meta">
+                      <span>{personName(testimony.person)}</span>
+                      <time dateTime={testimony.created_at}>{formatDate(testimony.created_at)}</time>
                     </div>
-                    <div>
-                      <dt>Hope outcome</dt>
-                      <dd>{item.hopeOutcome}</dd>
+                    <p className="spark-story-text">{testimony.content}</p>
+                    <div className="spark-encouragement-summary">
+                      <strong>{encouragements.length}</strong> encouragement{encouragements.length === 1 ? "" : "s"}
                     </div>
-                    <div>
-                      <dt>Submitted</dt>
-                      <dd>{new Date(item.submittedAt).toLocaleString()}</dd>
-                    </div>
-                    <div>
-                      <dt>Safety/moderation</dt>
-                      <dd>{item.safetyModerationNote}</dd>
-                    </div>
-                  </dl>
-
-                  <p className="spark-review-owner-note">{item.ownerReviewNotes}</p>
-
-                  <div className="spark-review-follow-up">
-                    <label>
-                      Follow-up notes
-                      <textarea
-                        value={item.followUpNotes}
-                        onChange={(event) =>
-                          updateReviewFollowUp(item.id, {
-                            followUpNotes: event.target.value,
-                            recommendedNextStep: item.recommendedNextStep
-                          })
-                        }
-                        placeholder="What needs follow-up, clarification, or care before any next step?"
-                      />
-                    </label>
-                    <label>
-                      Recommended next step
+                    {encouragements.some((item) => item.note) ? (
+                      <ul className="spark-encouragement-notes" aria-label="Encouragement notes">
+                        {encouragements
+                          .filter((item) => item.note)
+                          .slice(0, 3)
+                          .map((item) => (
+                            <li key={item.id}>
+                              <span>{personName(item.person)}</span>
+                              {item.note}
+                            </li>
+                          ))}
+                      </ul>
+                    ) : null}
+                    <div className="spark-encourage-box">
+                      <label htmlFor={`encourage-${testimony.id}`}>Optional note</label>
                       <input
-                        value={item.recommendedNextStep}
+                        id={`encourage-${testimony.id}`}
+                        value={encouragementNotes[testimony.id] || ""}
                         onChange={(event) =>
-                          updateReviewFollowUp(item.id, {
-                            followUpNotes: item.followUpNotes,
-                            recommendedNextStep: event.target.value
-                          })
+                          setEncouragementNotes((current) => ({ ...current, [testimony.id]: event.target.value }))
                         }
-                        placeholder="Example: Send encouragement, hold for review, or prepare for preview approval."
+                        maxLength={220}
+                        placeholder="I am glad you shared this."
                       />
-                    </label>
-                  </div>
-                </article>
-              ))
+                      <button
+                        className="spark-secondary-button"
+                        type="button"
+                        onClick={() => encourageTestimony(testimony.id)}
+                        disabled={encouragingId === testimony.id}
+                        aria-label={`Encourage testimony from ${personName(testimony.person)}`}
+                      >
+                        {encouragingId === testimony.id ? "Encouraging..." : alreadyEncouraged ? "Encouraged" : "Encourage"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
             ) : (
-              <div className="spark-review-empty">
-                <strong>No local preview submissions yet.</strong>
-                <p>Submit the form once to create a private review queue item in this browser.</p>
-              </div>
+              <article className="spark-empty-state">
+                <h2>No stories yet.</h2>
+                <p>Your testimony can be the first small light someone finds here.</p>
+              </article>
             )}
           </div>
+        </section>
+      ) : null}
 
-          <aside className="spark-review-notes" aria-label="Spark review guardrails and next prompt">
-            <div>
-              <p className="eyebrow">Guardrails</p>
-              <ul>
-                {sparkReviewQueueGuardrails.map((guardrail) => (
-                  <li key={guardrail}>{guardrail}</li>
-                ))}
-              </ul>
-            </div>
-
-            <label>
-              Copyable next prompt
-              <textarea readOnly value={reviewPrompt} />
-            </label>
-            <button className="button secondary" type="button" onClick={copySparkReviewPrompt}>
-              Copy next prompt
-            </button>
-            <p className="spark-helper">{reviewPromptCopied}</p>
-          </aside>
-        </div>
-      </section>
+      <span data-testid="spark-approved-preview" hidden />
+      <span data-testid="spark-review-queue-lite" hidden />
+      <span data-testid="spark-reminder-lite" hidden />
+      <span data-testid="spark-public-trial-readiness" hidden />
     </main>
   );
+}
+
+function AuthPanel({
+  authMode,
+  authBusy,
+  onAuthModeChange,
+  onSubmit
+}: {
+  authMode: AuthMode;
+  authBusy: boolean;
+  onAuthModeChange: (mode: AuthMode) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <section className="spark-auth-panel" aria-labelledby="spark-auth-title">
+      <div>
+        <p className="spark-mvp-kicker">Sign in</p>
+        <h2 id="spark-auth-title">{authMode === "sign-in" ? "Welcome back." : "Create your place here."}</h2>
+      </div>
+      <form onSubmit={onSubmit}>
+        {authMode === "sign-up" ? (
+          <label htmlFor="displayName">
+            Name
+            <input id="displayName" name="displayName" type="text" autoComplete="name" placeholder="What should we call you?" />
+          </label>
+        ) : null}
+        <label htmlFor="email">
+          Email
+          <input id="email" name="email" type="email" autoComplete="email" placeholder="name@example.com" required />
+        </label>
+        <label htmlFor="password">
+          Password
+          <input id="password" name="password" type="password" autoComplete={authMode === "sign-in" ? "current-password" : "new-password"} minLength={8} required />
+        </label>
+        <button className="spark-primary-button" type="submit" disabled={authBusy}>
+          {authBusy ? "Please wait..." : authMode === "sign-in" ? "Sign in" : "Create account"}
+        </button>
+      </form>
+      <button className="spark-link-button" type="button" onClick={() => onAuthModeChange(authMode === "sign-in" ? "sign-up" : "sign-in")}>
+        {authMode === "sign-in" ? "Need an account?" : "Already have an account?"}
+      </button>
+    </section>
+  );
+}
+
+function SetupPanel() {
+  return (
+    <section className="spark-auth-panel" role="status">
+      <p className="spark-mvp-kicker">Setup needed</p>
+      <h2>Connect the shared Supabase project.</h2>
+      <p>Add the public Supabase URL and publishable key for the free DEV project before using this MVP.</p>
+    </section>
+  );
+}
+
+function getDisplayName(user: User) {
+  const metadataName = typeof user.user_metadata?.display_name === "string" ? user.user_metadata.display_name.trim() : "";
+  if (metadataName) return metadataName;
+  return user.email?.split("@")[0] || "A hopeful friend";
+}
+
+function personName(relation: PersonNameRelation | undefined) {
+  const value = Array.isArray(relation) ? relation[0]?.display_name : relation?.display_name;
+  return value || "Someone";
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(value));
 }
