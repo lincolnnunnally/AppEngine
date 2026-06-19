@@ -13,7 +13,7 @@ type SparkPerson = {
 type Encouragement = {
   id: string;
   testimony_id: string;
-  person_id: string;
+  person_id?: string;
   note: string | null;
   is_approved: boolean;
   created_at: string;
@@ -22,10 +22,11 @@ type Encouragement = {
 
 type Testimony = {
   id: string;
-  person_id: string;
+  person_id?: string;
   content: string;
   kind: string;
   visibility: string;
+  needs_categories: string[] | null;
   is_approved: boolean;
   is_anonymous: boolean;
   created_at: string;
@@ -36,6 +37,7 @@ type Testimony = {
 type PersonNameRelation = { display_name: string | null } | { display_name: string | null }[] | null;
 
 type AuthMode = "sign-in" | "sign-up";
+type FeelingId = "lonely" | "grieving" | "anxious" | "overwhelmed" | "weary" | "hope";
 
 type Notice = {
   tone: "good" | "care" | "error";
@@ -51,24 +53,51 @@ type ReportTarget = {
 
 const testimonySelect = `
   id,
-  person_id,
   content,
   kind,
   visibility,
+  needs_categories,
   is_approved,
   is_anonymous,
   created_at,
-  person:person_id(display_name),
+  testimony_encouragement(
+    id,
+    testimony_id,
+    note,
+    is_approved,
+    created_at
+  )
+`;
+
+const signedInTestimonySelect = `
+  id,
+  content,
+  kind,
+  visibility,
+  needs_categories,
+  is_approved,
+  is_anonymous,
+  created_at,
   testimony_encouragement(
     id,
     testimony_id,
     person_id,
     note,
     is_approved,
-    created_at,
-    person:person_id(display_name)
+    created_at
   )
 `;
+
+const feelingOptions: Array<{ id: FeelingId; label: string; helper: string }> = [
+  { id: "lonely", label: "Lonely", helper: "When it feels like no one sees you." },
+  { id: "grieving", label: "Grieving", helper: "When loss is heavy." },
+  { id: "anxious", label: "Anxious", helper: "When your mind will not quiet down." },
+  { id: "overwhelmed", label: "Overwhelmed", helper: "When it is all too much." },
+  { id: "weary", label: "Weary", helper: "When you are tired from carrying it." },
+  { id: "hope", label: "Just looking for hope", helper: "When you just need one small light." }
+];
+
+const feelingLabels = new Map(feelingOptions.map((option) => [option.id, option.label]));
 
 export default function SparkOfHopeMvpPage() {
   const configured = hasSparkSupabaseConfig();
@@ -84,6 +113,7 @@ export default function SparkOfHopeMvpPage() {
   const [encouragingId, setEncouragingId] = useState<string | null>(null);
   const [storyText, setStoryText] = useState("");
   const [storyConsent, setStoryConsent] = useState(false);
+  const [selectedFeeling, setSelectedFeeling] = useState<FeelingId | null>(null);
   const [encouragementNotes, setEncouragementNotes] = useState<Record<string, string>>({});
   const [reportedItems, setReportedItems] = useState<Record<string, boolean>>({});
 
@@ -124,7 +154,7 @@ export default function SparkOfHopeMvpPage() {
 
       if (!nextSession?.user) {
         setPerson(null);
-        setTestimonies([]);
+        void loadTestimonies(activeClient, selectedFeeling, false);
         setLoading(false);
         return;
       }
@@ -140,6 +170,11 @@ export default function SparkOfHopeMvpPage() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (!supabase || loading) return;
+    void loadTestimonies(supabase, selectedFeeling, Boolean(session?.user));
+  }, [loading, selectedFeeling, session?.user, supabase]);
+
   async function connectPersonAndFeed(client: SupabaseClient, user: User, active = true) {
     setLoading(true);
     const linkedPerson = await ensurePerson(client, user);
@@ -147,12 +182,13 @@ export default function SparkOfHopeMvpPage() {
     if (!active) return;
 
     if (!linkedPerson) {
+      await loadTestimonies(client, selectedFeeling, false);
       setLoading(false);
       return;
     }
 
     setPerson(linkedPerson);
-    await loadTestimonies(client);
+    await loadTestimonies(client, selectedFeeling, true);
     setLoading(false);
   }
 
@@ -195,17 +231,23 @@ export default function SparkOfHopeMvpPage() {
     return created.data;
   }
 
-  async function loadTestimonies(client = supabase) {
+  async function loadTestimonies(client = supabase, feeling = selectedFeeling, includeViewerFields = Boolean(session?.user)) {
     if (!client) return;
 
-    const { data, error } = await client
+    let query = client
       .from("testimony")
-      .select(testimonySelect)
+      .select(includeViewerFields ? signedInTestimonySelect : testimonySelect)
       .eq("kind", "spark_of_hope_story")
       .eq("visibility", "public")
       .eq("is_approved", true)
       .order("created_at", { ascending: false })
-      .limit(24)
+      .limit(24);
+
+    if (feeling) {
+      query = query.contains("needs_categories", [feeling]);
+    }
+
+    const { data, error } = await query
       .returns<Testimony[]>();
 
     if (error) {
@@ -291,6 +333,7 @@ export default function SparkOfHopeMvpPage() {
       content,
       kind: "spark_of_hope_story",
       visibility: "private",
+      needs_categories: selectedFeeling ? [selectedFeeling] : ["hope"],
       is_approved: false,
       is_anonymous: true
     });
@@ -305,7 +348,7 @@ export default function SparkOfHopeMvpPage() {
     setStoryText("");
     setStoryConsent(false);
     setNotice({ tone: "good", message: "Thank you. Your spark was saved for review before it appears publicly." });
-    await loadTestimonies();
+    await loadTestimonies(undefined, selectedFeeling, true);
   }
 
   async function encourageTestimony(testimonyId: string) {
@@ -342,7 +385,7 @@ export default function SparkOfHopeMvpPage() {
       tone: "good",
       message: note ? "Your encouragement was saved. Notes are reviewed before they appear to others." : "Your encouragement was shared."
     });
-    await loadTestimonies();
+    await loadTestimonies(undefined, selectedFeeling, true);
   }
 
   async function reportItem(target: ReportTarget) {
@@ -387,18 +430,11 @@ export default function SparkOfHopeMvpPage() {
   return (
     <main className="spark-mvp-page" data-app-marker="spark-of-hope-mvp-v0-1">
       <BrandHeader signedIn={signedIn} onSignOut={signOut} />
-      <CrisisSupportLink />
 
       <section className="spark-mvp-hero" id="hope" aria-labelledby="spark-title">
         <p className="spark-mvp-kicker">Stories of hope</p>
-        <h1 id="spark-title">A quiet place for real hope.</h1>
-        <p>
-          Read a short story, share one of your own, or encourage someone with a few kind words.
-        </p>
-        <p className="spark-care-note">This is peer encouragement, not crisis or professional care.</p>
-        <p className="spark-emergency-note">
-          If you might hurt yourself or someone else, call or text 988 now. This space is not monitored for urgent help.
-        </p>
+        <h1 id="spark-title">There is still light here.</h1>
+        <p>Start with one honest story from someone who found a spark in the dark.</p>
       </section>
 
       {notice ? (
@@ -409,166 +445,209 @@ export default function SparkOfHopeMvpPage() {
 
       {!configured ? <SetupPanel /> : null}
       {configured && loading ? <LoadingPanel /> : null}
-      {configured && !loading && !signedIn ? (
-        <AuthPanel authMode={authMode} authBusy={authBusy} onAuthModeChange={setAuthMode} onSubmit={handleAuth} />
-      ) : null}
-      {configured && activePerson ? (
-        <section className="spark-mvp-loop" aria-label="Spark of hope stories">
-          <form className="spark-share-box" id="share" onSubmit={shareTestimony}>
-            <div className="spark-section-heading">
-              <p className="spark-mvp-kicker">Share</p>
-              <h2>Share your spark</h2>
-              <p>Small hope counts here. A few honest sentences are enough.</p>
-            </div>
-            <label htmlFor="spark-story">Your story</label>
-            <textarea
-              id="spark-story"
-              name="story"
-              maxLength={1200}
-              minLength={12}
-              value={storyText}
-              onChange={(event) => setStoryText(event.target.value)}
-              placeholder="What small sign of hope helped you keep going?"
-              required
-            />
-            <label className="spark-consent-check" htmlFor="spark-story-consent">
-              <input
-                id="spark-story-consent"
-                type="checkbox"
-                checked={storyConsent}
-                onChange={(event) => setStoryConsent(event.target.checked)}
-                required
-              />
-              <span>
-                I understand this is peer encouragement, not crisis or professional care, and my story will be reviewed
-                before it appears publicly.
-              </span>
-            </label>
-            <div className="spark-share-actions">
-              <span>{storyText.length}/1200</span>
-              <button className="spark-primary-button" type="submit" disabled={shareBusy || !storyConsent}>
-                {shareBusy ? "Sharing..." : "Share your spark"}
+      {configured && !loading ? (
+        <>
+          <FeelingEntry selectedFeeling={selectedFeeling} onSelect={setSelectedFeeling} />
+          <section className="spark-story-stage" aria-label="Spark of hope stories">
+            <div className="spark-feed-heading">
+              <div>
+                <p className="spark-mvp-kicker">Testimonies</p>
+                <h2 id="spark-feed-title">
+                  {selectedFeeling ? "Stories from people who have felt this too" : "A gentle mix of hope"}
+                </h2>
+                <p>
+                  {selectedFeeling
+                    ? `${feelingLabels.get(selectedFeeling)} stories, matched by what people carried and where hope met them.`
+                    : "A few real sparks for whatever you brought with you today."}
+                </p>
+              </div>
+              <button className="spark-quiet-button" type="button" onClick={() => loadTestimonies(undefined, selectedFeeling, signedIn)}>
+                Refresh
               </button>
             </div>
-          </form>
 
-          <div className="spark-feed-heading">
-            <h2>Stories of hope</h2>
-            <button className="spark-quiet-button" type="button" onClick={() => loadTestimonies()}>
-              Refresh
-            </button>
-          </div>
+            <div className="spark-testimony-feed" aria-live="polite">
+              {testimonies.length ? (
+                testimonies.map((testimony) => {
+                  const encouragements = testimony.testimony_encouragement || [];
+                  const alreadyEncouraged = activePerson
+                    ? encouragements.some((encouragement) => encouragement.person_id === activePerson.id)
+                    : false;
+                  const storyReportKey = `story:${testimony.id}`;
+                  const authorName = personName(testimony.person, testimony.is_anonymous);
+                  const themeLabels = storyThemeLabels(testimony.needs_categories);
 
-          <div className="spark-testimony-feed" aria-live="polite">
-            {testimonies.length ? (
-              testimonies.map((testimony) => {
-                const encouragements = testimony.testimony_encouragement || [];
-                const alreadyEncouraged = encouragements.some((encouragement) => encouragement.person_id === activePerson.id);
-                const storyReportKey = `story:${testimony.id}`;
-                const authorName = personName(testimony.person, testimony.is_anonymous);
-
-                return (
-                  <article className="spark-testimony-card" key={testimony.id}>
-                    <div className="spark-card-meta">
-                      <span>{authorName}</span>
-                      <time dateTime={testimony.created_at}>{formatDate(testimony.created_at)}</time>
-                    </div>
-                    <p className="spark-story-text">{testimony.content}</p>
-                    <div className="spark-story-footer">
-                      <div className="spark-encouragement-summary" aria-label={`${encouragements.length} encouragements`}>
-                        <HeartIcon aria-hidden="true" />
-                        <strong>{encouragements.length}</strong> encouragement{encouragements.length === 1 ? "" : "s"}
+                  return (
+                    <article className="spark-testimony-card" key={testimony.id}>
+                      <div className="spark-card-meta">
+                        <span>{authorName}</span>
+                        <time dateTime={testimony.created_at}>{formatDate(testimony.created_at)}</time>
                       </div>
-                      <button
-                        className="spark-report-button"
-                        type="button"
-                        onClick={() => reportItem({ type: "story", testimonyId: testimony.id, label: "This story" })}
-                        aria-label={`Report story from ${authorName}`}
-                      >
-                        <FlagIcon aria-hidden="true" />
-                        {reportedItems[storyReportKey] ? "Flagged" : "Report story"}
-                      </button>
-                    </div>
-                    {encouragements.some((item) => item.note) ? (
-                      <ul className="spark-encouragement-notes" aria-label="Encouragement notes">
-                        {encouragements
-                          .filter((item) => item.note)
-                          .slice(0, 3)
-                          .map((item) => {
-                            const encouragementReportKey = `encouragement:${item.id}`;
+                      {themeLabels.length ? (
+                        <ul className="spark-story-tags" aria-label="Story themes">
+                          {themeLabels.map((label) => (
+                            <li key={label}>{label}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      <p className="spark-story-text">{testimony.content}</p>
+                      <div className="spark-story-footer">
+                        <div className="spark-encouragement-summary" aria-label={`${encouragements.length} found hope here`}>
+                          <HeartIcon aria-hidden="true" />
+                          <strong>{encouragements.length}</strong> found hope here
+                        </div>
+                        <button
+                          className="spark-report-button"
+                          type="button"
+                          onClick={() => reportItem({ type: "story", testimonyId: testimony.id, label: "This story" })}
+                          aria-label={`Report story from ${authorName}`}
+                        >
+                          <FlagIcon aria-hidden="true" />
+                          {reportedItems[storyReportKey] ? "Flagged" : "Report story"}
+                        </button>
+                      </div>
+                      {encouragements.some((item) => item.note) ? (
+                        <ul className="spark-encouragement-notes" aria-label="Encouragement notes">
+                          {encouragements
+                            .filter((item) => item.note)
+                            .slice(0, 3)
+                            .map((item) => {
+                              const encouragementReportKey = `encouragement:${item.id}`;
 
-                            return (
-                              <li key={item.id}>
-                                <div className="spark-note-heading">
-                                  <span>{personName(item.person, true)}</span>
-                                  <button
-                                    className="spark-report-button"
-                                    type="button"
-                                    onClick={() =>
-                                      reportItem({
-                                        type: "encouragement",
-                                        testimonyId: testimony.id,
-                                        encouragementId: item.id,
-                                        label: "This encouragement"
-                                      })
-                                    }
-                                    aria-label={`Report encouragement from ${personName(item.person, true)}`}
-                                  >
-                                    <FlagIcon aria-hidden="true" />
-                                    {reportedItems[encouragementReportKey] ? "Flagged" : "Report"}
-                                  </button>
-                                </div>
-                                {item.note}
-                              </li>
-                            );
-                          })}
-                      </ul>
-                    ) : null}
-                    <div className="spark-encourage-box">
-                      <label htmlFor={`encourage-${testimony.id}`}>Optional note</label>
-                      <input
-                        id={`encourage-${testimony.id}`}
-                        value={encouragementNotes[testimony.id] || ""}
-                        onChange={(event) =>
-                          setEncouragementNotes((current) => ({ ...current, [testimony.id]: event.target.value }))
-                        }
-                        maxLength={220}
-                        placeholder="I am glad you shared this."
-                      />
-                      <button
-                        className="spark-secondary-button"
-                        type="button"
-                        onClick={() => encourageTestimony(testimony.id)}
-                        disabled={encouragingId === testimony.id || alreadyEncouraged}
-                        aria-label={`Encourage testimony from ${authorName}`}
-                      >
-                        <HeartIcon aria-hidden="true" />
-                        {encouragingId === testimony.id ? "Encouraging..." : alreadyEncouraged ? "Encouraged" : "Encourage"}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <article className="spark-empty-state">
-                <h2>Be the first to share a spark</h2>
-                <p>Your story can be the first small light someone finds here.</p>
-              </article>
-            )}
-          </div>
-          <section className="spark-you-panel" id="you" aria-labelledby="spark-you-title">
-            <div>
-              <p className="spark-mvp-kicker">You</p>
-              <h2 id="spark-you-title">You have a place here.</h2>
-              <p>Signed in as {activePerson.display_name || "a hopeful friend"}.</p>
+                              return (
+                                <li key={item.id}>
+                                  <div className="spark-note-heading">
+                                    <span>{personName(item.person, true)}</span>
+                                    <button
+                                      className="spark-report-button"
+                                      type="button"
+                                      onClick={() =>
+                                        reportItem({
+                                          type: "encouragement",
+                                          testimonyId: testimony.id,
+                                          encouragementId: item.id,
+                                          label: "This encouragement"
+                                        })
+                                      }
+                                      aria-label={`Report encouragement from ${personName(item.person, true)}`}
+                                    >
+                                      <FlagIcon aria-hidden="true" />
+                                      {reportedItems[encouragementReportKey] ? "Flagged" : "Report"}
+                                    </button>
+                                  </div>
+                                  {item.note}
+                                </li>
+                              );
+                            })}
+                        </ul>
+                      ) : null}
+                      {activePerson ? (
+                        <div className="spark-encourage-box">
+                          <label htmlFor={`encourage-${testimony.id}`}>Optional note</label>
+                          <input
+                            id={`encourage-${testimony.id}`}
+                            value={encouragementNotes[testimony.id] || ""}
+                            onChange={(event) =>
+                              setEncouragementNotes((current) => ({ ...current, [testimony.id]: event.target.value }))
+                            }
+                            maxLength={220}
+                            placeholder="I am glad you shared this."
+                          />
+                          <button
+                            className="spark-secondary-button"
+                            type="button"
+                            onClick={() => encourageTestimony(testimony.id)}
+                            disabled={encouragingId === testimony.id || alreadyEncouraged}
+                            aria-label={`Encourage testimony from ${authorName}`}
+                          >
+                            <HeartIcon aria-hidden="true" />
+                            {encouragingId === testimony.id ? "Encouraging..." : alreadyEncouraged ? "Encouraged" : "Encourage"}
+                          </button>
+                        </div>
+                      ) : (
+                        <a className="spark-story-login-link" href="#you">
+                          Sign in quietly to encourage or share your spark
+                        </a>
+                      )}
+                    </article>
+                  );
+                })
+              ) : (
+                <article className="spark-empty-state">
+                  <h2>{selectedFeeling ? "No story is tagged here yet" : "Be the first to share a spark"}</h2>
+                  <p>
+                    {selectedFeeling
+                      ? "Try browsing all stories, or come back soon as more hope is gathered."
+                      : "Your story can be the first small light someone finds here."}
+                  </p>
+                  {selectedFeeling ? (
+                    <button className="spark-link-button" type="button" onClick={() => setSelectedFeeling(null)}>
+                      Browse all stories
+                    </button>
+                  ) : null}
+                </article>
+              )}
             </div>
-            <button className="spark-quiet-button" type="button" onClick={signOut}>
-              Sign out
-            </button>
           </section>
-        </section>
+
+          {activePerson ? (
+            <section className="spark-mvp-loop" aria-label="Share and account">
+              <form className="spark-share-box" id="share" onSubmit={shareTestimony}>
+                <div className="spark-section-heading">
+                  <p className="spark-mvp-kicker">Share</p>
+                  <h2>Share your spark</h2>
+                  <p>Small hope counts here. A few honest sentences are enough.</p>
+                </div>
+                <label htmlFor="spark-story">Your story</label>
+                <textarea
+                  id="spark-story"
+                  name="story"
+                  maxLength={1200}
+                  minLength={12}
+                  value={storyText}
+                  onChange={(event) => setStoryText(event.target.value)}
+                  placeholder="What small sign of hope helped you keep going?"
+                  required
+                />
+                <label className="spark-consent-check" htmlFor="spark-story-consent">
+                  <input
+                    id="spark-story-consent"
+                    type="checkbox"
+                    checked={storyConsent}
+                    onChange={(event) => setStoryConsent(event.target.checked)}
+                    required
+                  />
+                  <span>
+                    I understand this is peer encouragement, not crisis or professional care, and my story will be reviewed
+                    before it appears publicly.
+                  </span>
+                </label>
+                <div className="spark-share-actions">
+                  <span>{storyText.length}/1200</span>
+                  <button className="spark-primary-button" type="submit" disabled={shareBusy || !storyConsent}>
+                    {shareBusy ? "Sharing..." : "Share your spark"}
+                  </button>
+                </div>
+              </form>
+
+              <section className="spark-you-panel" id="you" aria-labelledby="spark-you-title">
+                <div>
+                  <p className="spark-mvp-kicker">You</p>
+                  <h2 id="spark-you-title">You have a place here.</h2>
+                  <p>Signed in as {activePerson.display_name || "a hopeful friend"}.</p>
+                </div>
+                <button className="spark-quiet-button" type="button" onClick={signOut}>
+                  Sign out
+                </button>
+              </section>
+            </section>
+          ) : (
+            <AuthPanel authMode={authMode} authBusy={authBusy} onAuthModeChange={setAuthMode} onSubmit={handleAuth} />
+          )}
+        </>
       ) : null}
 
+      <SupportFooter />
       <BottomNav />
       <span data-testid="spark-approved-preview" hidden />
       <span data-testid="spark-review-queue-lite" hidden />
@@ -599,17 +678,50 @@ function BrandHeader({ signedIn, onSignOut }: { signedIn: boolean; onSignOut: ()
   );
 }
 
-function CrisisSupportLink() {
+function FeelingEntry({
+  selectedFeeling,
+  onSelect
+}: {
+  selectedFeeling: FeelingId | null;
+  onSelect: (feeling: FeelingId | null) => void;
+}) {
   return (
-    <a
-      className="spark-crisis-link"
-      href="https://988lifeline.org/"
-      target="_blank"
-      rel="noreferrer"
-      aria-label="Get crisis support from the 988 Suicide and Crisis Lifeline"
-    >
-      Need urgent support? Call or text 988
-    </a>
+    <section className="spark-feeling-entry" aria-labelledby="spark-feeling-title">
+      <div>
+        <p className="spark-mvp-kicker">Start where you are</p>
+        <h2 id="spark-feeling-title">What are you carrying right now?</h2>
+        <p>You can answer, or you can skip this and browse every story.</p>
+      </div>
+      <div className="spark-feeling-chips" role="list" aria-label="Choose a feeling to find matching stories">
+        {feelingOptions.map((option) => (
+          <button
+            className={`spark-feeling-chip${selectedFeeling === option.id ? " selected" : ""}`}
+            type="button"
+            key={option.id}
+            onClick={() => onSelect(option.id)}
+            aria-pressed={selectedFeeling === option.id}
+            title={option.helper}
+          >
+            {option.label}
+          </button>
+        ))}
+        <button className="spark-feeling-chip browse" type="button" onClick={() => onSelect(null)} aria-pressed={!selectedFeeling}>
+          Browse all stories
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SupportFooter() {
+  return (
+    <p className="spark-support-line">
+      This is peer encouragement, not crisis or professional care. Need urgent support?{" "}
+      <a href="https://988lifeline.org/" target="_blank" rel="noreferrer">
+        Call or text 988
+      </a>
+      . This space is not monitored for urgent help.
+    </p>
   );
 }
 
@@ -640,9 +752,9 @@ function AuthPanel({
     <section className="spark-auth-panel" id="share" aria-labelledby="spark-auth-title">
       <span id="you" aria-hidden="true" />
       <div>
-        <p className="spark-mvp-kicker">Welcome</p>
-        <h2 id="spark-auth-title">{authMode === "sign-in" ? "Welcome. We are glad you are here." : "Create your place here."}</h2>
-        <p>Sign in to share a spark, encourage a story, or keep your place connected across the shared Life Produces Life identity.</p>
+        <p className="spark-mvp-kicker">When you are ready</p>
+        <h2 id="spark-auth-title">{authMode === "sign-in" ? "Sign in quietly" : "Create your place here"}</h2>
+        <p>Sign in only if you want to share a spark, encourage a story, or keep your place connected.</p>
       </div>
       <form onSubmit={onSubmit}>
         {authMode === "sign-up" ? (
@@ -734,6 +846,13 @@ function personName(relation: PersonNameRelation | undefined, anonymous = false)
   if (anonymous) return "Someone";
   const value = Array.isArray(relation) ? relation[0]?.display_name : relation?.display_name;
   return value || "Someone";
+}
+
+function storyThemeLabels(categories: string[] | null | undefined) {
+  return (categories || [])
+    .map((category) => feelingLabels.get(category as FeelingId))
+    .filter((label): label is string => Boolean(label))
+    .slice(0, 3);
 }
 
 function formatDate(value: string) {

@@ -32,8 +32,12 @@ assertIncludes(page, 'visibility: "private"', "private story submissions");
 assertIncludes(page, 'is_anonymous: true', "anonymous story submissions");
 assertIncludes(page, '.from("person_consent")', "story consent persistence");
 assertIncludes(page, "Encourage", "encourage language");
+assertIncludes(page, "found hope here", "hope count language");
+assertIncludes(page, "What are you carrying right now?", "feeling entry");
+assertIncludes(page, ".contains(\"needs_categories\"", "theme-matched feed");
 assertIncludes(page, "Spark of hope", "Spark brand language");
-assertIncludes(page, "Need urgent support? Call or text 988", "988 crisis link");
+assertIncludes(page, "Need urgent support?", "988 support prompt");
+assertIncludes(page, "Call or text 988", "988 support link");
 assertIncludes(page, "This is peer encouragement, not crisis or professional care.", "care boundary");
 assertIncludes(page, "This space is not monitored for urgent help.", "urgent-care boundary");
 assertIncludes(page, "Share your spark", "share CTA");
@@ -59,5 +63,10 @@ assertIncludes(reviewGateMigration, "is_approved", "testimony approval gate");
 assertIncludes(reviewGateMigration, "is_anonymous", "testimony anonymity gate");
 assertIncludes(reviewGateMigration, "grant update (note)", "encouragement note-only updates");
 assertIncludes(reviewGateMigration, "note is null or is_approved", "public encouragement note gate");
+
+const themeFeedMigration = read("db/shared-supabase/005_spark_of_hope_public_theme_feed.sql");
+assertIncludes(themeFeedMigration, "needs_categories", "testimony theme tags");
+assertIncludes(themeFeedMigration, "testimony_read_public_approved_spark", "public approved story policy");
+assertIncludes(themeFeedMigration, "testimony_encouragement_read_public_approved_spark", "public approved encouragement policy");
 
 console.log("spark-of-hope-mvp smoke ok");

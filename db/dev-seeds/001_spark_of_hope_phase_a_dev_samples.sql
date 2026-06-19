@@ -23,6 +23,7 @@ insert into public.testimony (
   content,
   kind,
   visibility,
+  needs_categories,
   is_approved,
   is_anonymous,
   created_at
@@ -34,6 +35,7 @@ values
     '[DEV sample] I felt less alone today. Someone from my group noticed I had gone quiet and checked on me. It was a simple message, but God used it to remind me I am not carrying this by myself.',
     'spark_of_hope_story',
     'public',
+    array['lonely', 'anxious', 'overwhelmed'],
     true,
     false,
     now() - interval '3 minutes'
@@ -44,6 +46,7 @@ values
     '[DEV sample] A stranger covered my groceries when my card would not go through. It was a small, quiet kindness, but it reminded me people are good and that God can meet me through unexpected care.',
     'spark_of_hope_story',
     'public',
+    array['weary', 'hope'],
     true,
     false,
     now() - interval '6 minutes'
@@ -54,6 +57,7 @@ values
     '[DEV sample] Prayer got me through a hard week. I did not get every answer at once, but God gave me enough peace for the next step and sent encouragement right when I needed it.',
     'spark_of_hope_story',
     'public',
+    array['grieving', 'anxious', 'overwhelmed', 'weary', 'hope'],
     true,
     false,
     now() - interval '9 minutes'
@@ -64,6 +68,7 @@ set
   content = excluded.content,
   kind = excluded.kind,
   visibility = excluded.visibility,
+  needs_categories = excluded.needs_categories,
   is_approved = excluded.is_approved,
   is_anonymous = excluded.is_anonymous,
   created_at = excluded.created_at;

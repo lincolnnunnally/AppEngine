@@ -587,6 +587,356 @@
   }
 }
 
+.spark-mvp-page {
+  background:
+    radial-gradient(circle at 50% 6%, rgba(255, 178, 91, 0.32), transparent 18rem),
+    radial-gradient(circle at 18% 24%, rgba(181, 79, 48, 0.2), transparent 20rem),
+    linear-gradient(180deg, #120f12 0%, #1a1110 44%, #0f0d10 100%);
+  color: #fff4dc;
+}
+
+.spark-mvp-header,
+.spark-mvp-hero,
+.spark-feeling-entry,
+.spark-story-stage,
+.spark-mvp-notice,
+.spark-state-card,
+.spark-auth-panel,
+.spark-mvp-loop,
+.spark-you-panel,
+.spark-support-line {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.spark-mvp-header {
+  padding-top: 8px;
+}
+
+.spark-brand-lockup {
+  color: #fff3d6;
+}
+
+.spark-brand-lockup span {
+  color: #d8bc8e;
+  font-weight: 720;
+}
+
+.spark-brand-icon,
+.spark-soft-icon {
+  color: #ffd08a;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 216, 151, 0.96), rgba(246, 133, 59, 0.42) 54%, rgba(66, 30, 16, 0.52) 100%);
+  border-color: rgba(255, 209, 138, 0.46);
+  box-shadow:
+    0 0 24px rgba(255, 163, 79, 0.42),
+    0 0 58px rgba(255, 105, 46, 0.24);
+}
+
+.spark-mvp-hero {
+  margin-top: 38px;
+  margin-bottom: 18px;
+}
+
+.spark-mvp-kicker {
+  color: #ffbd78;
+}
+
+.spark-mvp-hero h1 {
+  color: #fff2d2;
+  text-shadow: 0 0 32px rgba(255, 178, 91, 0.18);
+}
+
+.spark-mvp-hero p {
+  color: #ead6b7;
+  max-width: 560px;
+}
+
+.spark-feeling-entry,
+.spark-story-stage,
+.spark-auth-panel,
+.spark-share-box,
+.spark-testimony-card,
+.spark-empty-state,
+.spark-state-card,
+.spark-you-panel {
+  border: 0.5px solid rgba(255, 205, 137, 0.28);
+  background:
+    linear-gradient(180deg, rgba(43, 26, 19, 0.86), rgba(27, 18, 17, 0.91));
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 232, 189, 0.06);
+}
+
+.spark-feeling-entry {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.spark-feeling-entry h2,
+.spark-feed-heading h2,
+.spark-auth-panel h2,
+.spark-empty-state h2,
+.spark-section-heading h2,
+.spark-state-card h2,
+.spark-you-panel h2 {
+  color: #fff1d2;
+}
+
+.spark-feeling-entry p,
+.spark-feed-heading p,
+.spark-auth-panel p,
+.spark-section-heading p,
+.spark-state-card p,
+.spark-empty-state p,
+.spark-you-panel p {
+  color: #ddc4a2;
+}
+
+.spark-feeling-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.spark-feeling-chip {
+  min-height: 46px;
+  border: 0.5px solid rgba(255, 196, 114, 0.34);
+  border-radius: 999px;
+  padding: 0 15px;
+  background: rgba(255, 244, 219, 0.07);
+  color: #ffe6b8;
+  font: inherit;
+  font-size: 0.96rem;
+  font-weight: 840;
+}
+
+.spark-feeling-chip.selected,
+.spark-feeling-chip:hover {
+  background: rgba(255, 176, 82, 0.18);
+  border-color: rgba(255, 205, 137, 0.72);
+  color: #fff6df;
+  box-shadow: 0 0 24px rgba(255, 158, 73, 0.18);
+}
+
+.spark-feeling-chip.browse {
+  color: #f7cf96;
+}
+
+.spark-story-stage {
+  display: grid;
+  gap: 16px;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.spark-feed-heading {
+  align-items: end;
+}
+
+.spark-feed-heading h2 {
+  margin-bottom: 6px;
+}
+
+.spark-testimony-card,
+.spark-empty-state {
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.spark-card-meta,
+.spark-share-actions span,
+.spark-encouragement-summary,
+.spark-encouragement-notes span {
+  color: #cfb28d;
+}
+
+.spark-story-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spark-story-tags li {
+  border: 0.5px solid rgba(255, 190, 110, 0.3);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(255, 196, 114, 0.08);
+  color: #f4cf9a;
+  font-size: 0.84rem;
+  font-weight: 820;
+}
+
+.spark-story-text {
+  color: #fff2d6;
+  font-size: 1.34rem;
+  line-height: 1.78;
+}
+
+.spark-encouragement-summary {
+  color: #ffd08a;
+}
+
+.spark-encouragement-summary strong {
+  color: #ffe0a3;
+}
+
+.spark-encouragement-notes li {
+  border-color: rgba(255, 196, 114, 0.24);
+  background: rgba(255, 244, 219, 0.07);
+  color: #f3dfbf;
+}
+
+.spark-auth-panel {
+  margin-top: 18px;
+  opacity: 0.92;
+}
+
+.spark-share-box .spark-consent-check,
+.spark-auth-panel input,
+.spark-share-box textarea,
+.spark-encourage-box input {
+  border-color: rgba(255, 205, 137, 0.34);
+  background: rgba(255, 246, 226, 0.09);
+  color: #fff4dc;
+}
+
+.spark-auth-panel input::placeholder,
+.spark-share-box textarea::placeholder,
+.spark-encourage-box input::placeholder {
+  color: #bda481;
+}
+
+.spark-auth-panel label,
+.spark-share-box label,
+.spark-encourage-box label {
+  color: #f7d8a8;
+}
+
+.spark-primary-button {
+  border-color: rgba(255, 199, 116, 0.78);
+  background: linear-gradient(180deg, #ffc46f, #e8843f);
+  color: #24120b;
+  box-shadow: 0 0 28px rgba(255, 151, 63, 0.28);
+}
+
+.spark-secondary-button,
+.spark-quiet-button {
+  border-color: rgba(255, 196, 114, 0.36);
+  background: rgba(255, 244, 219, 0.08);
+  color: #ffe0a3;
+}
+
+.spark-report-button,
+.spark-link-button,
+.spark-story-login-link {
+  color: #f3c889;
+}
+
+.spark-story-login-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid rgba(255, 196, 114, 0.28);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: rgba(255, 244, 219, 0.06);
+  font-weight: 830;
+  text-decoration: none;
+}
+
+.spark-report-button:hover,
+.spark-bottom-nav a:hover {
+  background: rgba(255, 176, 82, 0.16);
+  color: #fff0cd;
+}
+
+.spark-mvp-notice {
+  border-color: rgba(255, 196, 114, 0.34);
+  background: rgba(43, 26, 19, 0.88);
+  color: #ffe8bf;
+}
+
+.spark-mvp-notice.good,
+.spark-mvp-notice.care,
+.spark-mvp-notice.error {
+  border-color: rgba(255, 196, 114, 0.42);
+  background: rgba(53, 31, 20, 0.92);
+  color: #ffdfab;
+}
+
+.spark-support-line {
+  margin-top: 22px;
+  margin-bottom: 88px;
+  color: #d4bd9a;
+  font-size: 0.96rem;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.spark-support-line a {
+  color: #ffd08a;
+  font-weight: 850;
+}
+
+.spark-bottom-nav {
+  border-color: rgba(255, 196, 114, 0.3);
+  background: rgba(20, 14, 14, 0.9);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+}
+
+.spark-bottom-nav a {
+  color: #f8d6a1;
+}
+
+.spark-auth-panel input:focus,
+.spark-share-box textarea:focus,
+.spark-encourage-box input:focus,
+.spark-primary-button:focus,
+.spark-secondary-button:focus,
+.spark-quiet-button:focus,
+.spark-link-button:focus,
+.spark-report-button:focus,
+.spark-story-login-link:focus,
+.spark-feeling-chip:focus,
+.spark-bottom-nav a:focus {
+  outline: 3px solid #ffd08a;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .spark-mvp-hero h1 {
+    font-size: 2.24rem;
+  }
+
+  .spark-story-stage,
+  .spark-feeling-entry,
+  .spark-testimony-card,
+  .spark-empty-state,
+  .spark-auth-panel,
+  .spark-share-box,
+  .spark-you-panel {
+    padding: 18px;
+  }
+
+  .spark-story-text {
+    font-size: 1.18rem;
+  }
+
+  .spark-feed-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

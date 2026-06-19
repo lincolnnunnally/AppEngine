@@ -43,20 +43,21 @@ Before code changes:
 5. Match the approved warm/calm visual direction:
    - Spark of hope header only, with flame icon and tagline.
    - Phone-first layout.
-   - Warm off-white page background.
-   - White story cards with soft borders and rounded corners.
+   - Warm light-in-darkness / campfire visual tone.
+   - Deep warm-dark page background with glowing amber spark accents.
+   - Testimonies carry the visual hierarchy; login stays secondary.
    - Serif story text and clean sans UI text.
    - "Encourage" language, not "like".
    - Bottom nav: Hope, Share, You.
 6. Add the required safety affordance:
-   - Always-visible 988 crisis-support link.
-   - Clear peer-care boundary line.
+   - One gentle bottom support line with 988 and "not monitored" language.
    - Simple report/flag affordances for stories and encouragements.
 7. Enforce the review gate in DEV:
    - New testimonies default to private, unapproved, and anonymous.
    - Public feed reads only approved public Spark stories.
    - Encouragement notes are private until approved.
    - Public author labels do not derive from email.
+   - Theme matching reads `needs_categories` so feeling filters are real, not random.
 
 ## Phase A Verification
 
@@ -70,7 +71,7 @@ Run these checks before asking for review:
 6. `npm run smoke:spark-public-trial-readiness`
 7. `npm run smoke:spark-review-queue-lite`
 8. `npm run build`
-9. Verify DEV Supabase has the Spark review-gate migration applied.
+9. Verify DEV Supabase has Spark migrations `001` through `005` applied.
 10. Verify the Vercel preview route loads the Spark UI, not an App Engine shell
     or setup-needed screen.
 
