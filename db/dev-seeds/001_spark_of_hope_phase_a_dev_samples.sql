@@ -31,7 +31,7 @@ values
   (
     '10000000-0000-4000-8000-000000000501',
     '10000000-0000-4000-8000-000000000500',
-    'I felt less alone today. Someone from my group noticed I had gone quiet and checked on me. It was a simple message, but God used it to remind me I am not carrying this by myself.',
+    '[DEV sample] I felt less alone today. Someone from my group noticed I had gone quiet and checked on me. It was a simple message, but God used it to remind me I am not carrying this by myself.',
     'spark_of_hope_story',
     'public',
     true,
@@ -41,7 +41,7 @@ values
   (
     '10000000-0000-4000-8000-000000000502',
     '10000000-0000-4000-8000-000000000500',
-    'A stranger covered my groceries when my card would not go through. It was a small, quiet kindness, but it reminded me people are good and that God can meet me through unexpected care.',
+    '[DEV sample] A stranger covered my groceries when my card would not go through. It was a small, quiet kindness, but it reminded me people are good and that God can meet me through unexpected care.',
     'spark_of_hope_story',
     'public',
     true,
@@ -51,7 +51,7 @@ values
   (
     '10000000-0000-4000-8000-000000000503',
     '10000000-0000-4000-8000-000000000500',
-    'Prayer got me through a hard week. I did not get every answer at once, but God gave me enough peace for the next step and sent encouragement right when I needed it.',
+    '[DEV sample] Prayer got me through a hard week. I did not get every answer at once, but God gave me enough peace for the next step and sent encouragement right when I needed it.',
     'spark_of_hope_story',
     'public',
     true,

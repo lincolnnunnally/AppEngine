@@ -16,6 +16,10 @@ begin
     raise exception 'Spark of Hope review gate requires public.testimony_encouragement from 001_spark_of_hope_mvp.sql.';
   end if;
 
+  if to_regclass('public.person_consent') is null then
+    raise exception 'Spark of Hope review gate requires public.person_consent from TASK-003 shared identity schema.';
+  end if;
+
   if to_regprocedure('private.current_person_id()') is null then
     raise exception 'Spark of Hope review gate requires private.current_person_id() from TASK-003 shared identity schema.';
   end if;
@@ -33,6 +37,23 @@ create index if not exists testimony_spark_approved_created_idx
 
 alter table public.testimony_encouragement
   add column if not exists is_approved boolean not null default false;
+
+alter table public.person_consent
+  drop constraint if exists person_consent_scope_check;
+
+alter table public.person_consent
+  add constraint person_consent_scope_check
+  check (
+    scope = any (
+      array[
+        'ai_matching'::text,
+        'care_team'::text,
+        'aggregate_reporting'::text,
+        'testimony_sharing'::text,
+        'spark_story_share_v0_1'::text
+      ]
+    )
+  );
 
 revoke all on public.testimony_encouragement from anon;
 revoke all on public.testimony_encouragement from authenticated;
@@ -148,7 +169,11 @@ comment on column public.testimony.is_anonymous is
 comment on column public.testimony_encouragement.is_approved is
   'Spark of Hope note safety gate: encouragement notes are private to the writer until approved.';
 
+comment on constraint person_consent_scope_check on public.person_consent is
+  'Allowed shared consent scopes, including Spark of Hope v0.1 story sharing consent.';
+
 -- Verification:
 -- select column_name from information_schema.columns where table_schema = 'public' and table_name = 'testimony' and column_name in ('is_approved', 'is_anonymous');
 -- select column_name from information_schema.columns where table_schema = 'public' and table_name = 'testimony_encouragement' and column_name = 'is_approved';
 -- select policyname, cmd, roles from pg_policies where schemaname = 'public' and tablename = 'testimony_encouragement';
+-- select pg_get_constraintdef(oid) from pg_constraint where conname = 'person_consent_scope_check';
