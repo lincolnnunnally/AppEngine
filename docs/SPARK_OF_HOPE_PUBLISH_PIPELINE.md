@@ -9,15 +9,19 @@ memory.
 
 - App: Spark of Hope MVP v0.1
 - Repo: `lincolnnunnally/AppEngine`
-- Folder/route: `src/app/spark-of-hope`
+- App Engine route: `src/app/spark-of-hope`
+- Dedicated Vercel root: `apps/spark-of-hope`
 - Branch: `codex/task-54-spark-of-hope-mvp`
 - PR: `#174`
 - Database lane: shared Life Produces Life Supabase
 - DEV Supabase ref: `uqhqulrqcygsmmzdzemx`
-- Production: not promoted
+- Production: dedicated Vercel project created; deployment blocked pending
+  confirmation of the production Life Produces Life Supabase project
+- Vercel project: `spark-of-hope`
+- Vercel project id: `prj_wlWPHmI2hhKb13VE4fQIBM8KeRTA`
 
-Production promotion is blocked until Lincoln approves Phase A and explicitly
-approves go-live.
+Production promotion is blocked until Lincoln approves Phase A, explicitly
+approves go-live, and confirms the exact production Supabase project URL/key.
 
 ## Phase A Gate
 
@@ -118,6 +122,30 @@ When go-live is approved:
    - database = shared
    - deployment URL
    - status = live
+
+## 2026-06-19 Promotion Attempt
+
+Completed:
+
+1. Created `apps/spark-of-hope` as the dedicated deployable Spark root.
+2. Created the Vercel project `spark-of-hope`
+   (`prj_wlWPHmI2hhKb13VE4fQIBM8KeRTA`).
+3. Confirmed the free-text doorway includes acute-crisis triage before stories.
+4. Confirmed local standalone checks pass:
+   - `npm run typecheck`
+   - `npm run build`
+5. Confirmed repo checks pass:
+   - `npm run source:check`
+   - `npm run typecheck`
+   - `npm run build`
+   - Spark smoke checks
+
+Stopped before production env/deploy because the production Supabase target
+needs final confirmation. Earlier work used `uqhqulrqcygsmmzdzemx` as the Life
+Produces Life DEV project, while the go-live instruction says production should
+use the Life Produces Life Pro spine. Do not set production env vars, deploy,
+attach `spark-of-hope.com`, or mark `generated_app.status = live` until the
+production project URL and public key are confirmed.
 
 ## Non-Negotiables
 

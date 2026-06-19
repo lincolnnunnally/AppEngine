@@ -8,7 +8,7 @@
           "value": "spark-of-hope.com"
         }
       ],
-      "destination": "/spark-of-hope-intake-lite"
+      "destination": "/spark-of-hope"
     },
     {
       "source": "/",
@@ -18,7 +18,7 @@
           "value": "www.spark-of-hope.com"
         }
       ],
-      "destination": "/spark-of-hope-intake-lite"
+      "destination": "/spark-of-hope"
     }
   ]
 }
