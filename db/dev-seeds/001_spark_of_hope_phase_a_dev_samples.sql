@@ -46,7 +46,7 @@ values
     '[DEV sample] A stranger covered my groceries when my card would not go through. It was a small, quiet kindness, but it reminded me people are good and that God can meet me through unexpected care.',
     'spark_of_hope_story',
     'public',
-    array['weary', 'hope'],
+    array['weary', 'money_stress', 'hope'],
     true,
     false,
     now() - interval '6 minutes'
@@ -57,7 +57,7 @@ values
     '[DEV sample] Prayer got me through a hard week. I did not get every answer at once, but God gave me enough peace for the next step and sent encouragement right when I needed it.',
     'spark_of_hope_story',
     'public',
-    array['grieving', 'anxious', 'overwhelmed', 'weary', 'hope'],
+    array['grieving', 'anxious', 'overwhelmed', 'weary', 'needing_purpose', 'something_else', 'hope'],
     true,
     false,
     now() - interval '9 minutes'

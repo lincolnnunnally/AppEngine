@@ -597,8 +597,11 @@
 
 .spark-mvp-header,
 .spark-mvp-hero,
+.spark-doorway-card,
 .spark-feeling-entry,
+.spark-reflection-card,
 .spark-story-stage,
+.spark-crisis-panel,
 .spark-mvp-notice,
 .spark-state-card,
 .spark-auth-panel,
@@ -653,8 +656,11 @@
   max-width: 560px;
 }
 
+.spark-doorway-card,
 .spark-feeling-entry,
+.spark-reflection-card,
 .spark-story-stage,
+.spark-crisis-panel,
 .spark-auth-panel,
 .spark-share-box,
 .spark-testimony-card,
@@ -669,7 +675,10 @@
     inset 0 1px 0 rgba(255, 232, 189, 0.06);
 }
 
-.spark-feeling-entry {
+.spark-doorway-card,
+.spark-feeling-entry,
+.spark-reflection-card,
+.spark-crisis-panel {
   display: grid;
   gap: 16px;
   margin-bottom: 18px;
@@ -677,8 +686,11 @@
   padding: 22px;
 }
 
+.spark-doorway-card h2,
 .spark-feeling-entry h2,
+.spark-reflection-card h2,
 .spark-feed-heading h2,
+.spark-crisis-panel h2,
 .spark-auth-panel h2,
 .spark-empty-state h2,
 .spark-section-heading h2,
@@ -687,14 +699,54 @@
   color: #fff1d2;
 }
 
+.spark-doorway-card p,
 .spark-feeling-entry p,
+.spark-reflection-card p,
 .spark-feed-heading p,
+.spark-crisis-panel p,
 .spark-auth-panel p,
 .spark-section-heading p,
 .spark-state-card p,
 .spark-empty-state p,
 .spark-you-panel p {
   color: #ddc4a2;
+}
+
+.spark-doorway-form {
+  display: grid;
+  gap: 10px;
+}
+
+.spark-doorway-form label,
+.spark-chip-legend {
+  margin: 0;
+  color: #f7d8a8;
+  font-size: 0.94rem;
+  font-weight: 850;
+}
+
+.spark-doorway-form textarea {
+  min-height: 118px;
+  width: 100%;
+  resize: vertical;
+}
+
+.spark-doorway-actions {
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 0.7fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.spark-doorway-actions span {
+  color: #cfb28d;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.spark-chip-fieldset {
+  display: grid;
+  gap: 10px;
 }
 
 .spark-feeling-chips {
@@ -725,6 +777,56 @@
 
 .spark-feeling-chip.browse {
   color: #f7cf96;
+}
+
+.spark-reflection-body {
+  font-size: 1.06rem;
+}
+
+.spark-hope-step {
+  display: grid;
+  gap: 14px;
+  border: 0.5px solid rgba(255, 196, 114, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 192, 110, 0.16), transparent 16rem),
+    rgba(255, 244, 219, 0.07);
+}
+
+.spark-hope-step span {
+  display: block;
+  color: #ffbd78;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.spark-hope-step strong {
+  display: block;
+  margin-top: 4px;
+  color: #fff1d2;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.18rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.spark-next-action {
+  width: fit-content;
+  min-width: min(100%, 220px);
+  text-decoration: none;
+}
+
+.spark-crisis-panel {
+  border-color: rgba(255, 205, 137, 0.44);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 191, 116, 0.2), transparent 18rem),
+    linear-gradient(180deg, rgba(46, 25, 19, 0.94), rgba(25, 16, 16, 0.96));
+}
+
+.spark-crisis-actions {
+  display: grid;
+  gap: 12px;
 }
 
 .spark-story-stage {
@@ -800,6 +902,7 @@
 }
 
 .spark-share-box .spark-consent-check,
+.spark-doorway-form textarea,
 .spark-auth-panel input,
 .spark-share-box textarea,
 .spark-encourage-box input {
@@ -809,18 +912,23 @@
 }
 
 .spark-auth-panel input::placeholder,
+.spark-doorway-form textarea::placeholder,
 .spark-share-box textarea::placeholder,
 .spark-encourage-box input::placeholder {
   color: #bda481;
 }
 
 .spark-auth-panel label,
+.spark-doorway-form label,
 .spark-share-box label,
 .spark-encourage-box label {
   color: #f7d8a8;
 }
 
 .spark-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-color: rgba(255, 199, 116, 0.78);
   background: linear-gradient(180deg, #ffc46f, #e8843f);
   color: #24120b;
@@ -901,6 +1009,7 @@
 }
 
 .spark-auth-panel input:focus,
+.spark-doorway-form textarea:focus,
 .spark-share-box textarea:focus,
 .spark-encourage-box input:focus,
 .spark-primary-button:focus,
@@ -921,7 +1030,10 @@
   }
 
   .spark-story-stage,
+  .spark-doorway-card,
   .spark-feeling-entry,
+  .spark-reflection-card,
+  .spark-crisis-panel,
   .spark-testimony-card,
   .spark-empty-state,
   .spark-auth-panel,
@@ -937,6 +1049,14 @@
   .spark-feed-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .spark-doorway-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .spark-next-action {
+    width: 100%;
   }
 }
 

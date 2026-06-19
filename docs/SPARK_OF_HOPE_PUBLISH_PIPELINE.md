@@ -45,6 +45,10 @@ Before code changes:
    - Phone-first layout.
    - Warm light-in-darkness / campfire visual tone.
    - Deep warm-dark page background with glowing amber spark accents.
+   - Welcome/intake doorway before the feed: free text plus feeling chips.
+   - Curated compassion reflection per feeling; no live AI response generation.
+   - Theme-matched testimonies use `needs_categories`, not random story choice.
+   - Acute-crisis wording routes to a gentle 988 support panel instead of stories.
    - Testimonies carry the visual hierarchy; login stays secondary.
    - Serif story text and clean sans UI text.
    - "Encourage" language, not "like".

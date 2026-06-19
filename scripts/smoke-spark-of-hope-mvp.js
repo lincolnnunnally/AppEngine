@@ -20,6 +20,7 @@ function assertNotIncludes(contents, unexpected, label) {
 }
 
 const page = read("src/app/spark-of-hope/page.tsx");
+const supabaseBrowser = read("src/lib/spark-of-hope/supabase-browser.ts");
 assertIncludes(page, 'data-app-marker="spark-of-hope-mvp-v0-1"', "Spark MVP page marker");
 assertIncludes(page, "createSparkSupabaseClient", "Supabase client");
 assertIncludes(page, '.from("person")', "shared person identity");
@@ -33,20 +34,35 @@ assertIncludes(page, 'is_anonymous: true', "anonymous story submissions");
 assertIncludes(page, '.from("person_consent")', "story consent persistence");
 assertIncludes(page, "Encourage", "encourage language");
 assertIncludes(page, "found hope here", "hope count language");
-assertIncludes(page, "What are you carrying right now?", "feeling entry");
+assertIncludes(page, "We are here for you. What is going on today?", "welcome doorway");
+assertIncludes(page, "What are you carrying right now?", "intake prompt");
+assertIncludes(page, "Find stories that understand", "intake submit action");
+assertIncludes(page, "Stories from people who have walked this", "matched testimony heading");
+assertIncludes(page, "compassionReflections", "curated compassion reflections");
+assertIncludes(page, "hasAcuteCrisisSignal", "local safety triage");
+assertIncludes(page, "SafetyTriagePanel", "safety triage panel");
 assertIncludes(page, ".contains(\"needs_categories\"", "theme-matched feed");
+assertIncludes(page, "money_stress", "money stress theme");
+assertIncludes(page, "family_conflict", "family conflict theme");
+assertIncludes(page, "church_hurt", "church hurt theme");
+assertIncludes(page, "needing_purpose", "needing purpose theme");
 assertIncludes(page, "Spark of hope", "Spark brand language");
 assertIncludes(page, "Need urgent support?", "988 support prompt");
 assertIncludes(page, "Call or text 988", "988 support link");
 assertIncludes(page, "This is peer encouragement, not crisis or professional care.", "care boundary");
 assertIncludes(page, "This space is not monitored for urgent help.", "urgent-care boundary");
 assertIncludes(page, "Share your spark", "share CTA");
+assertNotIncludes(page, "live AI", "Spark doorway");
 assertNotIncludes(page, ">App Engine<", "Spark user-facing page");
 
 const styles = read("src/app/styles.css");
 assertIncludes(styles, ".spark-mvp-page", "Spark MVP styles");
+assertIncludes(styles, ".spark-doorway-card", "doorway styles");
+assertIncludes(styles, ".spark-reflection-card", "reflection styles");
+assertIncludes(styles, ".spark-crisis-panel", "safety triage styles");
 assertIncludes(styles, ".spark-story-text", "story serif styles");
 assertIncludes(styles, ".spark-bottom-nav", "bottom navigation styles");
+assertIncludes(supabaseBrowser, "sparkSupabaseClient", "Supabase browser singleton");
 
 const migration = read("db/shared-supabase/001_spark_of_hope_mvp.sql");
 assertIncludes(migration, "public.testimony_encouragement", "encouragement migration");
