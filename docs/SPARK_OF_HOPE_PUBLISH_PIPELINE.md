@@ -167,34 +167,56 @@ Completed:
 3. Fixed the Vercel project framework preset from `Other` to `Next.js` after the
    first production build completed but failed on the generic `public` output
    directory setting.
-4. Deployed production:
+4. Set the Spark Vercel project root directory to `apps/spark-of-hope` so future
+   Git-connected deployments build Spark from its own app folder, not from the
+   App Engine root.
+5. Deployed production:
    - deployment id: `dpl_AuauaYL2UJuJCeyAQUmbgzjxqaKe`
    - Vercel URL: `https://spark-of-hope-nie2sj2tx-lincolnnunnallys-projects.vercel.app`
    - public alias: `https://spark-of-hope.vercel.app`
-5. Disabled SSO deployment protection on the Spark Vercel project so the public
+6. Disabled SSO deployment protection on the Spark Vercel project so the public
    product URL is reachable without Vercel authentication.
-6. Removed stale `spark-of-hope.com` and `www.spark-of-hope.com` project-domain
+7. Removed stale `spark-of-hope.com` and `www.spark-of-hope.com` project-domain
    assignments from the `app-engine` Vercel project, then added both domains to
    the `spark-of-hope` project.
-7. Verified browser-visible production behavior at `https://spark-of-hope.vercel.app`:
+8. Removed the App Engine root `vercel.json` host rewrites for
+   `spark-of-hope.com`; App Engine must not claim generated-app domains.
+9. Verified browser-visible production behavior at `https://spark-of-hope.vercel.app`:
    - landing/header loads as Spark of hope, not App Engine
    - setup-needed state is gone
    - feeling doorway renders
    - choosing `Lonely` shows the matched reflection and filtered testimony state
    - free-text acute crisis input shows the gentle 988 support branch and hides stories
    - safety support line is visible
-8. Verified server-side data paths with temporary rows, then cleaned them up:
+10. Verified server-side data paths with temporary rows, then cleaned them up:
    - private in-review testimony submission shape
    - encouragement insert shape
    - report insert shape
-9. Removed the three `[DEV sample]` public testimonies from the production/shared
+11. Removed the three `[DEV sample]` public testimonies from the production/shared
    project. The public feed now shows the warm empty state until real approved
    stories are added.
-10. Upserted `generated_app` record:
+12. Upserted `generated_app` record:
    - `provisioning_slug = spark-of-hope`
    - `deployment_url = https://spark-of-hope.vercel.app`
    - `status = live`
    - launch details and DNS caveat recorded in `problem_summary`
+
+Boundary rule:
+
+Spark of Hope is a generated/public app produced by App Engine. It must remain
+separate from the App Engine control plane:
+
+- App Engine Vercel project: `app-engine`
+- Spark Vercel project: `spark-of-hope`
+- Spark Vercel root: `apps/spark-of-hope`
+- Spark domains: `spark-of-hope.com`, `www.spark-of-hope.com`,
+  `spark-of-hope.vercel.app`
+
+Future generated apps should follow the same pattern: each app gets its own
+folder, Vercel project, environment variables, domain or subdomain, launch
+record, and health checks. App Engine may host preview/review routes while an app
+is being built, but production generated-app domains must not be routed through
+the App Engine Vercel project.
 
 Remaining DNS action:
 
