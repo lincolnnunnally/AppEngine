@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, SVGProps, useEffect, useMemo, useState } from "react";
 import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import { createSparkSupabaseClient, hasSparkSupabaseConfig } from "@/lib/spark-of-hope/supabase-browser";
 
@@ -40,6 +39,13 @@ type Notice = {
   message: string;
 };
 
+type ReportTarget = {
+  type: "story" | "encouragement";
+  testimonyId: string;
+  encouragementId?: string;
+  label: string;
+};
+
 const testimonySelect = `
   id,
   person_id,
@@ -72,6 +78,7 @@ export default function SparkOfHopeMvpPage() {
   const [encouragingId, setEncouragingId] = useState<string | null>(null);
   const [storyText, setStoryText] = useState("");
   const [encouragementNotes, setEncouragementNotes] = useState<Record<string, string>>({});
+  const [reportedItems, setReportedItems] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const client = supabase;
@@ -193,7 +200,7 @@ export default function SparkOfHopeMvpPage() {
       .returns<Testimony[]>();
 
     if (error) {
-      setNotice({ tone: "error", message: "Stories could not be loaded. The shared Supabase schema may need the Spark MVP migration." });
+      setNotice({ tone: "error", message: "Stories could not be opened yet. Please pause and try again in a moment." });
       setTestimonies([]);
       return;
     }
@@ -230,11 +237,11 @@ export default function SparkOfHopeMvpPage() {
     }
 
     if (!result.data.session) {
-      setNotice({ tone: "care", message: "Check your email to finish signing in, then come back to Spark of Hope." });
+      setNotice({ tone: "care", message: "Check your email to finish signing in, then come back to Spark of hope." });
       return;
     }
 
-    setNotice({ tone: "good", message: "You are signed in. Your stories are tied to your shared person identity." });
+    setNotice({ tone: "good", message: "You are signed in. Your story space is ready." });
   }
 
   async function shareTestimony(event: FormEvent<HTMLFormElement>) {
@@ -299,6 +306,36 @@ export default function SparkOfHopeMvpPage() {
     await loadTestimonies();
   }
 
+  async function reportItem(target: ReportTarget) {
+    if (!supabase || !person) {
+      setNotice({ tone: "care", message: "Sign in to flag something for review." });
+      return;
+    }
+
+    const reportKey = target.encouragementId ? `encouragement:${target.encouragementId}` : `story:${target.testimonyId}`;
+    setReportedItems((current) => ({ ...current, [reportKey]: true }));
+    setNotice(null);
+
+    const { error } = await supabase.from("testimony_report").insert({
+      testimony_id: target.testimonyId,
+      encouragement_id: target.encouragementId || null,
+      reporter_person_id: person.id,
+      reason: target.type === "story" ? "story_reported_by_reader" : "encouragement_reported_by_reader"
+    });
+
+    if (error) {
+      setReportedItems((current) => {
+        const next = { ...current };
+        delete next[reportKey];
+        return next;
+      });
+      setNotice({ tone: "care", message: "We could not send that report yet. If there is urgent risk, use the 988 support link." });
+      return;
+    }
+
+    setNotice({ tone: "care", message: `${target.label} was flagged for review. Thank you for helping keep this gentle.` });
+  }
+
   async function signOut() {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -310,23 +347,16 @@ export default function SparkOfHopeMvpPage() {
 
   return (
     <main className="spark-mvp-page" data-app-marker="spark-of-hope-mvp-v0-1">
-      <header className="spark-mvp-header">
-        <Link href="/" className="spark-mvp-back">
-          App Engine
-        </Link>
-        {signedIn ? (
-          <button className="spark-quiet-button" type="button" onClick={signOut}>
-            Sign out
-          </button>
-        ) : null}
-      </header>
+      <BrandHeader signedIn={signedIn} onSignOut={signOut} />
+      <CrisisSupportLink />
 
-      <section className="spark-mvp-hero" aria-labelledby="spark-title">
-        <p className="spark-mvp-kicker">Spark of Hope</p>
+      <section className="spark-mvp-hero" id="hope" aria-labelledby="spark-title">
+        <p className="spark-mvp-kicker">Stories of hope</p>
         <h1 id="spark-title">A quiet place for real hope.</h1>
         <p>
           Read a short story, share one of your own, or encourage someone with a few kind words.
         </p>
+        <p className="spark-care-note">This is peer encouragement, not crisis or professional care.</p>
       </section>
 
       {notice ? (
@@ -336,14 +366,19 @@ export default function SparkOfHopeMvpPage() {
       ) : null}
 
       {!configured ? <SetupPanel /> : null}
-      {configured && loading ? <p className="spark-mvp-loading">Opening Spark of Hope...</p> : null}
+      {configured && loading ? <LoadingPanel /> : null}
       {configured && !loading && !signedIn ? (
         <AuthPanel authMode={authMode} authBusy={authBusy} onAuthModeChange={setAuthMode} onSubmit={handleAuth} />
       ) : null}
       {configured && activePerson ? (
-        <section className="spark-mvp-loop" aria-label="Spark of Hope stories">
-          <form className="spark-share-box" onSubmit={shareTestimony}>
-            <label htmlFor="spark-story">Share a testimony</label>
+        <section className="spark-mvp-loop" aria-label="Spark of hope stories">
+          <form className="spark-share-box" id="share" onSubmit={shareTestimony}>
+            <div className="spark-section-heading">
+              <p className="spark-mvp-kicker">Share</p>
+              <h2>Share your spark</h2>
+              <p>Small hope counts here. A few honest sentences are enough.</p>
+            </div>
+            <label htmlFor="spark-story">Your story</label>
             <textarea
               id="spark-story"
               name="story"
@@ -357,7 +392,7 @@ export default function SparkOfHopeMvpPage() {
             <div className="spark-share-actions">
               <span>{storyText.length}/1200</span>
               <button className="spark-primary-button" type="submit" disabled={shareBusy}>
-                {shareBusy ? "Sharing..." : "Share testimony"}
+                {shareBusy ? "Sharing..." : "Share your spark"}
               </button>
             </div>
           </form>
@@ -374,6 +409,7 @@ export default function SparkOfHopeMvpPage() {
               testimonies.map((testimony) => {
                 const encouragements = testimony.testimony_encouragement || [];
                 const alreadyEncouraged = encouragements.some((encouragement) => encouragement.person_id === activePerson.id);
+                const storyReportKey = `story:${testimony.id}`;
 
                 return (
                   <article className="spark-testimony-card" key={testimony.id}>
@@ -382,20 +418,54 @@ export default function SparkOfHopeMvpPage() {
                       <time dateTime={testimony.created_at}>{formatDate(testimony.created_at)}</time>
                     </div>
                     <p className="spark-story-text">{testimony.content}</p>
-                    <div className="spark-encouragement-summary">
-                      <strong>{encouragements.length}</strong> encouragement{encouragements.length === 1 ? "" : "s"}
+                    <div className="spark-story-footer">
+                      <div className="spark-encouragement-summary" aria-label={`${encouragements.length} encouragements`}>
+                        <HeartIcon aria-hidden="true" />
+                        <strong>{encouragements.length}</strong> encouragement{encouragements.length === 1 ? "" : "s"}
+                      </div>
+                      <button
+                        className="spark-report-button"
+                        type="button"
+                        onClick={() => reportItem({ type: "story", testimonyId: testimony.id, label: "This story" })}
+                        aria-label={`Report story from ${personName(testimony.person)}`}
+                      >
+                        <FlagIcon aria-hidden="true" />
+                        {reportedItems[storyReportKey] ? "Flagged" : "Report story"}
+                      </button>
                     </div>
                     {encouragements.some((item) => item.note) ? (
                       <ul className="spark-encouragement-notes" aria-label="Encouragement notes">
                         {encouragements
                           .filter((item) => item.note)
                           .slice(0, 3)
-                          .map((item) => (
-                            <li key={item.id}>
-                              <span>{personName(item.person)}</span>
-                              {item.note}
-                            </li>
-                          ))}
+                          .map((item) => {
+                            const encouragementReportKey = `encouragement:${item.id}`;
+
+                            return (
+                              <li key={item.id}>
+                                <div className="spark-note-heading">
+                                  <span>{personName(item.person)}</span>
+                                  <button
+                                    className="spark-report-button"
+                                    type="button"
+                                    onClick={() =>
+                                      reportItem({
+                                        type: "encouragement",
+                                        testimonyId: testimony.id,
+                                        encouragementId: item.id,
+                                        label: "This encouragement"
+                                      })
+                                    }
+                                    aria-label={`Report encouragement from ${personName(item.person)}`}
+                                  >
+                                    <FlagIcon aria-hidden="true" />
+                                    {reportedItems[encouragementReportKey] ? "Flagged" : "Report"}
+                                  </button>
+                                </div>
+                                {item.note}
+                              </li>
+                            );
+                          })}
                       </ul>
                     ) : null}
                     <div className="spark-encourage-box">
@@ -416,6 +486,7 @@ export default function SparkOfHopeMvpPage() {
                         disabled={encouragingId === testimony.id}
                         aria-label={`Encourage testimony from ${personName(testimony.person)}`}
                       >
+                        <HeartIcon aria-hidden="true" />
                         {encouragingId === testimony.id ? "Encouraging..." : alreadyEncouraged ? "Encouraged" : "Encourage"}
                       </button>
                     </div>
@@ -424,19 +495,77 @@ export default function SparkOfHopeMvpPage() {
               })
             ) : (
               <article className="spark-empty-state">
-                <h2>No stories yet.</h2>
-                <p>Your testimony can be the first small light someone finds here.</p>
+                <h2>Be the first to share a spark</h2>
+                <p>Your story can be the first small light someone finds here.</p>
               </article>
             )}
           </div>
+          <section className="spark-you-panel" id="you" aria-labelledby="spark-you-title">
+            <div>
+              <p className="spark-mvp-kicker">You</p>
+              <h2 id="spark-you-title">You have a place here.</h2>
+              <p>Signed in as {activePerson.display_name || "a hopeful friend"}.</p>
+            </div>
+            <button className="spark-quiet-button" type="button" onClick={signOut}>
+              Sign out
+            </button>
+          </section>
         </section>
       ) : null}
 
+      <BottomNav />
       <span data-testid="spark-approved-preview" hidden />
       <span data-testid="spark-review-queue-lite" hidden />
       <span data-testid="spark-reminder-lite" hidden />
       <span data-testid="spark-public-trial-readiness" hidden />
     </main>
+  );
+}
+
+function BrandHeader({ signedIn, onSignOut }: { signedIn: boolean; onSignOut: () => void }) {
+  return (
+    <header className="spark-mvp-header">
+      <div className="spark-brand-lockup" aria-label="Spark of hope">
+        <span className="spark-brand-icon" aria-hidden="true">
+          <FlameIcon />
+        </span>
+        <div>
+          <strong>Spark of hope</strong>
+          <span>One spark is enough to begin.</span>
+        </div>
+      </div>
+      {signedIn ? (
+        <button className="spark-quiet-button spark-header-action" type="button" onClick={onSignOut}>
+          Sign out
+        </button>
+      ) : null}
+    </header>
+  );
+}
+
+function CrisisSupportLink() {
+  return (
+    <a
+      className="spark-crisis-link"
+      href="https://988lifeline.org/"
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Get crisis support from the 988 Suicide and Crisis Lifeline"
+    >
+      Need urgent support? Call or text 988
+    </a>
+  );
+}
+
+function LoadingPanel() {
+  return (
+    <section className="spark-state-card" role="status" aria-live="polite">
+      <span className="spark-soft-icon" aria-hidden="true">
+        <FlameIcon />
+      </span>
+      <h2>Opening Spark of hope</h2>
+      <p>Give us a quiet moment while your stories come into view.</p>
+    </section>
   );
 }
 
@@ -452,10 +581,12 @@ function AuthPanel({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <section className="spark-auth-panel" aria-labelledby="spark-auth-title">
+    <section className="spark-auth-panel" id="share" aria-labelledby="spark-auth-title">
+      <span id="you" aria-hidden="true" />
       <div>
-        <p className="spark-mvp-kicker">Sign in</p>
-        <h2 id="spark-auth-title">{authMode === "sign-in" ? "Welcome back." : "Create your place here."}</h2>
+        <p className="spark-mvp-kicker">Welcome</p>
+        <h2 id="spark-auth-title">{authMode === "sign-in" ? "Welcome. We are glad you are here." : "Create your place here."}</h2>
+        <p>Sign in to share a spark, encourage a story, or keep your place connected across the shared Life Produces Life identity.</p>
       </div>
       <form onSubmit={onSubmit}>
         {authMode === "sign-up" ? (
@@ -485,11 +616,55 @@ function AuthPanel({
 
 function SetupPanel() {
   return (
-    <section className="spark-auth-panel" role="status">
+    <section className="spark-auth-panel spark-setup-panel" id="share" role="status">
+      <span id="you" aria-hidden="true" />
       <p className="spark-mvp-kicker">Setup needed</p>
-      <h2>Connect the shared Supabase project.</h2>
-      <p>Add the public Supabase URL and publishable key for the free DEV project before using this MVP.</p>
+      <h2>Spark is not connected yet.</h2>
+      <p>This space needs one more connection before stories can open. Please come back in a little while.</p>
     </section>
+  );
+}
+
+function BottomNav() {
+  return (
+    <nav className="spark-bottom-nav" aria-label="Spark sections">
+      <a href="#hope">Hope</a>
+      <a href="#share">Share</a>
+      <a href="#you">You</a>
+    </nav>
+  );
+}
+
+function FlameIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" {...props}>
+      <path
+        d="M12.3 22c-4.1 0-7.1-2.9-7.1-6.9 0-2.6 1.4-4.9 3.5-6.8.9-.9 1.7-2.1 1.8-3.6 0-.6.7-.9 1.2-.5 2.4 1.8 3.9 4 4.2 6.6.6-.6 1-1.4 1.2-2.2.1-.6.9-.7 1.2-.2 1.1 1.5 1.7 3.2 1.7 5 0 5-3.5 8.6-7.7 8.6Zm.1-3.1c1.9 0 3.4-1.4 3.4-3.4 0-1.2-.5-2.2-1.3-3-.3 1-.9 1.9-1.8 2.5-.4.3-1 .1-1.1-.4-.3-1.3-.9-2.3-1.8-3.2-.4.8-.9 1.5-1.5 2.1-.8.8-1.2 1.7-1.2 2.8 0 1.6 1.2 2.6 2.7 2.6Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function HeartIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" {...props}>
+      <path
+        d="M12 20.2 10.7 19C6.1 14.8 3 12 3 8.6 3 5.8 5.2 3.7 7.9 3.7c1.6 0 3.1.7 4.1 1.9 1-1.2 2.5-1.9 4.1-1.9 2.7 0 4.9 2.1 4.9 4.9 0 3.4-3.1 6.2-7.7 10.4L12 20.2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function FlagIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" focusable="false" {...props}>
+      <path
+        d="M6 21a1 1 0 0 1-1-1V5.5c0-.5.4-1 1-1h6.2c.5 0 .9.2 1.3.5l.7.6c.2.2.5.3.8.3H19c.6 0 1 .4 1 1v8.1c0 .6-.4 1-1 1h-4.8c-.5 0-.9-.2-1.3-.5l-.7-.6c-.2-.2-.5-.3-.8-.3H7V20c0 .6-.4 1-1 1Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
