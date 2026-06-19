@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "spark-of-hope.com"
+        }
+      ],
+      "destination": "/spark-of-hope-intake-lite"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.spark-of-hope.com"
+        }
+      ],
+      "destination": "/spark-of-hope-intake-lite"
+    }
+  ]
+}
