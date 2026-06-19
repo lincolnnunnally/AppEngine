@@ -883,6 +883,9 @@
 }
 
 .spark-support-line a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   color: #ffd08a;
   font-weight: 850;
 }
