@@ -200,6 +200,14 @@ Completed:
    - `deployment_url = https://spark-of-hope.vercel.app`
    - `status = live`
    - launch details and DNS caveat recorded in `problem_summary`
+13. Refreshed `generated_app` with the generated-app boundary fields:
+   - `app_type = generated_app`
+   - `built_by = AppEngine`
+   - `factory_vercel_project_id = prj_exEf0usb6mtXlPrRnwHYUHaSA7L6`
+   - `spark_vercel_project_id = prj_wlWPHmI2hhKb13VE4fQIBM8KeRTA`
+   - `spark_root = apps/spark-of-hope`
+   - `domain_owner_project = spark-of-hope`
+   - `do_not_attach_spark_domain_to_app_engine = true`
 
 Boundary rule:
 
