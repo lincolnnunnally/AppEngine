@@ -150,6 +150,11 @@ export async function listProblemIntakeGateRecords() {
   return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function getProblemIntakeGateRecord(gatePacketId: string) {
+  const store = await readStore();
+  return store.records.find((record) => record.id === gatePacketId) || null;
+}
+
 export function buildProblemIntakeGateRecord(input: CreateProblemIntakeInput, now = new Date()): ProblemIntakeGateRecord {
   const createdAt = now.toISOString();
   const rawRequest = cleanText(input.rawRequest);

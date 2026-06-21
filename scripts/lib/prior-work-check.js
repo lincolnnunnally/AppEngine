@@ -510,6 +510,9 @@ function normalizeRequest(input) {
       title: str(source.title) || "Untitled run",
       goal: str(source.goal) || ""
     },
+    // The current request's own gate packet, so its in-flight registry
+    // placeholder is never counted as prior work (no self-match).
+    selfGatePacketId: str(raw.selfGatePacketId) || str(source.gatePacketId),
     targetRepo: {
       name: str(targetRepo.name) || "unknown-repo",
       candidatePaths: arr(targetRepo.candidatePaths),
@@ -690,9 +693,13 @@ function registryQuery(request) {
   const capabilityTerms = request.capabilities.map((cap) => cap.id);
   return {
     slug: slugify(request.targetRepo.name || ""),
+    selfGatePacketId: request.selfGatePacketId || "",
     terms: unique([...titleTerms, repoTerm, ...capabilityTerms]).filter((term) => term.length >= 4)
   };
 }
+
+// In-flight intake placeholders are not completed prior work.
+const PLACEHOLDER_STATUSES = new Set(["gated_intake", "candidate", "planned", "registered", ""]);
 
 function searchPortfolioRegistry(cwd, query) {
   const root = stateRoot(cwd);
@@ -710,14 +717,26 @@ function searchPortfolioRegistry(cwd, query) {
   const loopRecords = Array.isArray(loops.data?.records) ? loops.data.records : [];
   const terms = (query.terms || []).map((term) => term.toLowerCase()).filter(Boolean);
   const slug = query.slug ? String(query.slug).toLowerCase() : "";
+  const selfGatePacketId = query.selfGatePacketId || "";
 
   const registeredMatches = [];
   const completedLoopMatches = [];
   for (const entry of entries) {
-    const loopGoals = Array.isArray(entry.completedLoops) ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
-    const score = scoreMatch(slug, entry.slug, `${entry.slug} ${entry.name} ${loopGoals}`, terms);
+    // Never self-match the current request's own gate placeholder.
+    if (selfGatePacketId && entry.gatePacketId === selfGatePacketId) continue;
+
+    const completedCount = Array.isArray(entry.completedLoops) ? entry.completedLoops.length : 0;
+    const loopGoals = completedCount ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
+    let score = scoreMatch(slug, entry.slug, `${entry.slug} ${entry.name} ${loopGoals}`, terms);
     if (score === "none") continue;
-    registeredMatches.push({ slug: entry.slug, name: entry.name, type: entry.type, completedLoops: (entry.completedLoops || []).length, score });
+
+    // Exact prior work requires completed work or a built/reusable status. A bare
+    // gated_intake placeholder (completedLoops: 0) is at most a partial signal
+    // (-> human review), never an exact build-blocker.
+    const hasPriorEvidence = completedCount > 0 || !PLACEHOLDER_STATUSES.has(String(entry.status || ""));
+    if (score === "exact" && !hasPriorEvidence) score = "partial";
+
+    registeredMatches.push({ slug: entry.slug, name: entry.name, type: entry.type, status: entry.status, completedLoops: completedCount, score });
     for (const loop of entry.completedLoops || []) {
       completedLoopMatches.push({ appSlug: entry.slug, runId: loop.runId, goal: loop.goal, status: loop.status, score });
     }

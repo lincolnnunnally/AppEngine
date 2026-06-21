@@ -11,9 +11,24 @@ const registryPath = path.join(stateRoot, "app_portfolio_registry", "registered-
 runStep("approved packet -> exactly one canonical loop record (idempotent per packet)", () => {
   assertFileIncludes("src/lib/engine/loop-run-records.ts", [
     "export async function createLoopRunFromPacket",
-    "requires an approved packet's gatePacketId",
+    "gatePacketId is required (problem_intake_gate first)",
     "record.gatePacketId === gatePacketId", // idempotency guard -> one record per packet
     'key: "execution-loops"' // canonical execution collection lives in loop_run_records
+  ]);
+});
+
+runStep("loop record creation fails closed without every approval", () => {
+  assertFileIncludes("src/lib/engine/loop-run-records.ts", [
+    "a passed prior_work_check verdict",
+    "an approved candidate packet (candidatePacketId) is required",
+    "at least one acceptance criterion is required"
+  ]);
+  // The single canonical entrypoint is the owner-gated route.
+  assertFileIncludes("src/app/api/engine/loop-execution/route.ts", [
+    "createLoopRunFromPacket",
+    "create_from_packet",
+    "requireLoopRunForExecution",
+    "completeLoopRun"
   ]);
 });
 

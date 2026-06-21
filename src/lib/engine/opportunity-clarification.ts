@@ -6,6 +6,7 @@ import {
   type OpportunityIntakeRecord,
   type OpportunityRoute
 } from "@/lib/engine/opportunity-intake";
+import { getProblemIntakeGateRecord, type ProblemIntakeGateRecord } from "@/lib/engine/problem-intake-gate";
 
 export type OpportunityClarificationStatus = "clarified" | "needs_more_info" | "not_actionable_yet" | "safety_sensitive";
 
@@ -23,6 +24,7 @@ export type OpportunityClarificationRecord = {
   updatedAt: string;
   status: OpportunityClarificationStatus;
   route: OpportunityClarificationRoute;
+  gatePacketId?: string;
   title: string;
   coreProblem: string;
   affectedPeople: string;
@@ -41,8 +43,9 @@ export type OpportunityClarificationArtifact = {
   kind: "opportunity_clarification";
   schemaVersion: 1;
   sourceArtifact: {
-    kind: "opportunity_intake";
+    kind: "opportunity_intake" | "problem_intake_gate";
     intakeId: string;
+    gatePacketId?: string;
     route: OpportunityRoute;
   };
   status: OpportunityClarificationStatus;
@@ -108,17 +111,38 @@ export async function getOpportunityClarification(clarificationId: string) {
   return store.records.find((record) => record.id === clarificationId) || null;
 }
 
-export async function createOpportunityClarification(input: { intakeId?: unknown }) {
+export async function createOpportunityClarification(input: { intakeId?: unknown; gatePacketId?: unknown }) {
+  const gatePacketId = typeof input.gatePacketId === "string" ? input.gatePacketId.trim() : "";
   const intakeId = typeof input.intakeId === "string" ? input.intakeId.trim() : "";
 
-  if (!intakeId) {
-    throw new Error("Choose an Opportunity intake before creating a clarification.");
-  }
+  let intake: OpportunityIntakeRecord;
+  let sourceArtifact: OpportunityClarificationArtifact["sourceArtifact"];
+  let recordGatePacketId: string | undefined;
+  let dedupeKey: string;
 
-  const intake = await getOpportunityIntakeRecord(intakeId);
-
-  if (!intake) {
-    throw new Error("That Opportunity intake could not be found.");
+  if (gatePacketId) {
+    // Clarify an existing canonical gate packet directly. Does not require an
+    // opportunity_intake and does not create a second gate packet.
+    const gate = await getProblemIntakeGateRecord(gatePacketId);
+    if (!gate) {
+      throw new Error("That gate packet could not be found.");
+    }
+    intake = gateRecordToIntakeLike(gate);
+    sourceArtifact = { kind: "problem_intake_gate", intakeId: gate.id, gatePacketId: gate.id, route: intake.route };
+    recordGatePacketId = gate.id;
+    dedupeKey = gate.id;
+  } else {
+    if (!intakeId) {
+      throw new Error("Provide a gatePacketId or an Opportunity intake before creating a clarification.");
+    }
+    const found = await getOpportunityIntakeRecord(intakeId);
+    if (!found) {
+      throw new Error("That Opportunity intake could not be found.");
+    }
+    intake = found;
+    sourceArtifact = { kind: "opportunity_intake", intakeId: found.id, route: found.route };
+    recordGatePacketId = found.gatePacketId;
+    dedupeKey = found.id;
   }
 
   const now = new Date().toISOString();
@@ -134,6 +158,7 @@ export async function createOpportunityClarification(input: { intakeId?: unknown
   const base = {
     id: randomUUID(),
     intakeId: intake.id,
+    gatePacketId: recordGatePacketId,
     createdAt: now,
     updatedAt: now,
     status,
@@ -154,14 +179,19 @@ export async function createOpportunityClarification(input: { intakeId?: unknown
     ]
   };
   const copyableNextPrompt = buildClarificationPrompt(base, intake);
-  const artifact = buildOpportunityClarificationArtifact({ ...base, copyableNextPrompt }, intake);
+  const artifact = buildOpportunityClarificationArtifact({ ...base, copyableNextPrompt }, intake, sourceArtifact);
   const record: OpportunityClarificationRecord = {
     ...base,
     copyableNextPrompt,
     artifact
   };
   const store = await readOpportunityClarificationStore();
-  const records = [record, ...store.records.filter((candidate) => candidate.intakeId !== intake.id)];
+  const records = [
+    record,
+    ...store.records.filter(
+      (candidate) => candidate.intakeId !== dedupeKey && (!recordGatePacketId || candidate.gatePacketId !== recordGatePacketId)
+    )
+  ];
 
   await writeOpportunityClarificationStore({
     schemaVersion: 1,
@@ -171,18 +201,44 @@ export async function createOpportunityClarification(input: { intakeId?: unknown
   return record;
 }
 
+function gateRecordToIntakeLike(gate: ProblemIntakeGateRecord): OpportunityIntakeRecord {
+  const route: OpportunityRoute = gate.likelyApp.status === "unknown" ? "needs_clarification" : "app_tool_workflow_need";
+  const problem = gate.problemBeingSolved && gate.problemBeingSolved !== "not_provided_yet" ? gate.problemBeingSolved : gate.rawRequest;
+  const person = gate.intendedPerson && gate.intendedPerson !== "not_provided_yet" ? gate.intendedPerson : "Not captured yet";
+  const title = gate.likelyApp.name && gate.likelyApp.name !== "unknown" ? gate.likelyApp.name : gate.rawRequest.slice(0, 60);
+
+  return {
+    id: gate.id,
+    createdAt: gate.createdAt,
+    updatedAt: gate.updatedAt,
+    mode: "problem",
+    status: "ready_for_appengine_review",
+    title,
+    problemPain: problem,
+    affectedPeople: person,
+    betterOutcome: gate.rawRequest,
+    currentBarriers: "",
+    existingIdeaVision: gate.rawRequest,
+    desiredImpact: gate.rawRequest,
+    possibleSolutionType: "app_tool_workflow",
+    route,
+    routingReason: "Derived from problem_intake_gate.",
+    nextRecommendedAction: "",
+    copyableNextPrompt: "",
+    safetyNotes: [],
+    gatePacketId: gate.id
+  } as unknown as OpportunityIntakeRecord;
+}
+
 function buildOpportunityClarificationArtifact(
   record: Omit<OpportunityClarificationRecord, "artifact">,
-  intake: OpportunityIntakeRecord
+  intake: OpportunityIntakeRecord,
+  sourceArtifact: OpportunityClarificationArtifact["sourceArtifact"]
 ): OpportunityClarificationArtifact {
   return {
     kind: "opportunity_clarification",
     schemaVersion: 1,
-    sourceArtifact: {
-      kind: "opportunity_intake",
-      intakeId: intake.id,
-      route: intake.route
-    },
+    sourceArtifact,
     status: record.status,
     route: record.route,
     clarification: {

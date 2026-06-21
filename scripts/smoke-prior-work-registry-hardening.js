@@ -57,6 +57,28 @@ runStep("unclear/partial prior work -> needs_human_review", () => {
   assertEqual(artifact.decision.authorizesPacket, "none", "no packet authorized without a human decision");
 });
 
+runStep("brand-new gated intake does not self-block (build_new)", () => {
+  // The gate registers the in-flight request as a gated_intake placeholder BEFORE
+  // prior_work_check runs. The current request's own placeholder must not count.
+  seedRegistry([entry("toner-management", "Toner Management", [], "gated_intake", "gate-self-123")]);
+  const artifact = check({ title: "Toner Management", repo: "Toner Management", selfGatePacketId: "gate-self-123" });
+  assertEqual(artifact.verdict, "build_new", "verdict");
+  assertEqual(artifact.passed, true, "passed");
+  assertEqual(artifact.registrySearch.registeredMatches.length, 0, "own placeholder excluded");
+});
+
+runStep("another request's gated_intake placeholder is not exact prior work", () => {
+  // A gated_intake placeholder (completedLoops: 0) from a different request is at
+  // most a partial signal -> human review, never an exact auto-extend.
+  seedRegistry([entry("toner-management", "Toner Management", [], "gated_intake", "gate-other-999")]);
+  const artifact = check({ title: "Toner Management", repo: "Toner Management", selfGatePacketId: "gate-self-123" });
+  assertEqual(artifact.verdict, "needs_human_review", "verdict");
+  assertTrue(
+    artifact.registrySearch.registeredMatches.every((match) => match.score !== "exact"),
+    "no exact match from a bare placeholder"
+  );
+});
+
 runStep("acceptance: a build_new verdict that recorded registry prior work is refused", () => {
   // Defense in depth at the packet layer: even a hand-supplied build_new verdict
   // cannot create an app_build_packet for something already in the registry.
@@ -87,21 +109,26 @@ runStep("acceptance: a build_new verdict that recorded registry prior work is re
 
 console.log(`prior-work-registry-hardening smoke ok (${stateRoot})`);
 
-function check({ title, repo }) {
+function check({ title, repo, selfGatePacketId }) {
   return runPriorWorkCheck({
-    request: { runId: "run", title, goal: "x" },
+    request: { runId: "run", title, goal: "x", gatePacketId: selfGatePacketId },
+    selfGatePacketId,
     targetRepo: { name: repo, candidatePaths: ["loop-runs"], backupSchemaPaths: [] },
     capabilities: [{ id: "cap", description: "x", componentHints: ["ZzzNoSuchComponent"] }]
   });
 }
 
-function entry(slug, name, completedLoops) {
+// Default to a built/reusable status: an entry is genuine prior work when it has
+// completed loops OR a non-placeholder status. gated_intake placeholders are
+// in-flight and must be passed explicitly.
+function entry(slug, name, completedLoops, status = "deployed", gatePacketId = "") {
   const at = "2026-06-21T00:00:00.000Z";
   return {
     slug,
     name,
     type: "existing_app",
-    status: "gated_intake",
+    status,
+    gatePacketId,
     sourceOfTruthFiles: [],
     completedLoops: completedLoops.map((loop) => ({ ...loop, completedAt: at, evidence: [] })),
     createdAt: at,

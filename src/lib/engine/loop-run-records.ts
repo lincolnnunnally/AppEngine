@@ -67,6 +67,8 @@ export type AppEngineLoopExecutionRecord = {
   runId: string;
   appSlug: string;
   gatePacketId: string;
+  candidatePacketId: string;
+  priorWorkVerdict: string;
   packetKind: string;
   goal: string;
   acceptanceCriteria: string[];
@@ -93,6 +95,8 @@ type CreateLoopFromPacketInput = {
   packetKind?: unknown;
   goal?: unknown;
   acceptanceCriteria?: unknown;
+  priorWork?: { verdict?: unknown; passed?: unknown };
+  candidatePacketId?: unknown;
 };
 
 type CompleteLoopOutcome = {
@@ -172,18 +176,36 @@ export async function getLoopExecutionRecord(runId: string) {
 // Canonical execution path: an approved packet creates exactly one loop execution
 // record (idempotent per gatePacketId). No execution may happen without one.
 export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, now = new Date()) {
+  // Fail closed: a canonical execution record requires every approval —
+  // gatePacketId, a passed prior_work_check, an approved candidate packet, and
+  // acceptance criteria. Any missing approval blocks creation.
   const gatePacketId = cleanText(input.gatePacketId);
   if (!gatePacketId) {
+    throw new Error("createLoopRunFromPacket blocked: gatePacketId is required (problem_intake_gate first).");
+  }
+
+  const priorWorkVerdict = cleanText(input.priorWork?.verdict);
+  const priorWorkPassed = input.priorWork?.passed === true;
+  if (!priorWorkPassed || (priorWorkVerdict !== "build_new" && priorWorkVerdict !== "extend_existing")) {
     throw new Error(
-      "createLoopRunFromPacket requires an approved packet's gatePacketId (prior_work_check -> candidate_packet_bridge first)."
+      "createLoopRunFromPacket blocked: a passed prior_work_check verdict (build_new or extend_existing) is required."
     );
+  }
+
+  const candidatePacketId = cleanText(input.candidatePacketId);
+  if (!candidatePacketId) {
+    throw new Error("createLoopRunFromPacket blocked: an approved candidate packet (candidatePacketId) is required.");
+  }
+
+  const acceptanceCriteria = splitCriteria(input.acceptanceCriteria);
+  if (!acceptanceCriteria.length) {
+    throw new Error("createLoopRunFromPacket blocked: at least one acceptance criterion is required.");
   }
 
   const at = now.toISOString();
   const appSlug = slugify(cleanText(input.appSlug) || cleanText(input.appName) || gatePacketId);
   const packetKind = cleanText(input.packetKind) || "app_build_packet";
   const goal = cleanText(input.goal) || `Execute ${packetKind} for ${appSlug}`;
-  const acceptanceCriteria = splitCriteria(input.acceptanceCriteria);
 
   const store = await readExecutionStore();
   const existing = store.records.find((record) => record.gatePacketId === gatePacketId);
@@ -199,6 +221,8 @@ export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, 
     runId,
     appSlug,
     gatePacketId,
+    candidatePacketId,
+    priorWorkVerdict,
     packetKind,
     goal,
     acceptanceCriteria,
@@ -382,10 +406,13 @@ function loopRunStoreScope() {
 }
 
 function splitCriteria(value: unknown) {
-  if (typeof value !== "string") return [];
+  const lines = Array.isArray(value)
+    ? value.map((item) => (typeof item === "string" ? item : ""))
+    : typeof value === "string"
+      ? value.split(/\r?\n/)
+      : [];
 
-  return value
-    .split(/\r?\n/)
+  return lines
     .map((item) => cleanText(item.replace(/^[-*]\s*/, "")))
     .filter((item) => item.length >= 4);
 }
