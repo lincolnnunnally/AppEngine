@@ -103,6 +103,7 @@ const genericStateKinds: AppEngineStateKind[] = [
   "orchestrator_action_queue",
   "real_project_trials",
   "trial_result_reviews",
+  "app_portfolio_registry",
   "problem_intake_gate",
   "problem_intake",
   "problem_intake_feedback",

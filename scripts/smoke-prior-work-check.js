@@ -1,9 +1,16 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   runPriorWorkCheck,
   run001ExampleRequest,
   unreachableRepoExampleRequest,
   buildNewExampleRequest
 } from "./lib/prior-work-check.js";
+
+// Isolate the canonical registry/loop store search to an empty temp state root so
+// the verdict cases stay deterministic regardless of local .app-engine state.
+process.env.APPENGINE_STATE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-pwc-state-"));
 
 runStep("can't-see-the-repo blocks instead of allowing a build", () => {
   const artifact = runPriorWorkCheck(unreachableRepoExampleRequest());

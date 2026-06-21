@@ -17,6 +17,12 @@ import type { RealOpportunityExampleRunRecord } from "./real-opportunity-example
 import type { RealOpportunityResultReviewRecord } from "./real-opportunity-result-review";
 import type { TrialResultReview } from "./real-project-trial";
 
+// LEGACY: project_memory is a read-only derivation input for the canonical
+// app_portfolio_registry, not a competing source of truth. Apps, projects, and
+// completed loops resolve against app_portfolio_registry.
+export const CANONICAL_SOURCE_NOTE =
+  "app_portfolio_registry is canonical; project_memory is a legacy/read-only derivation input.";
+
 export type ProjectMemoryFeedbackChoice =
   | "important_decision"
   | "lesson_learned"

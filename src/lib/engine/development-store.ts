@@ -5,6 +5,13 @@ import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
 import type { CreateProjectInput } from "./persistence";
 
+// LEGACY: development_projects / dev-projects.json is a legacy local project
+// store and a read-only derivation input only. app_portfolio_registry is the
+// canonical source of truth for apps, projects, and completed loops. This store
+// must not become a competing source of truth.
+export const CANONICAL_SOURCE_NOTE =
+  "app_portfolio_registry is canonical; development_projects is a legacy/read-only derivation input.";
+
 type StoredProject = {
   id: string;
   name: string;

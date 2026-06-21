@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { registerAppProject } from "@/lib/engine/app-portfolio-registry-store";
 import { durableStateGuardrails, getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
 
 // Problem Intake Gate.
@@ -199,6 +200,21 @@ export async function createProblemIntakeGateRecord(input: CreateProblemIntakeIn
   const store = await readStore();
   store.records.unshift(record);
   await writeStore(store);
+
+  // Resolve the gated request against the canonical app_portfolio_registry: a
+  // known/likely app/project registers (upserts) so prior_work_check and the
+  // owner registry can find it. "unknown" apps are left to clarification first.
+  if (record.likelyApp.status !== "unknown") {
+    await registerAppProject({
+      slug: record.likelyApp.slug,
+      name: record.likelyApp.name,
+      type: record.likelyApp.status === "existing" ? "existing_app" : "new_app_candidate",
+      status: "gated_intake",
+      gatePacketId: record.id,
+      sourceOfTruthFiles: record.requiredSourceOfTruthFiles
+    });
+  }
+
   return record;
 }
 

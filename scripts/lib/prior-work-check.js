@@ -51,11 +51,16 @@ export function runPriorWorkCheck(input, options = {}) {
   }
 
   const capabilities = request.capabilities.map((cap) => evaluateCapability(cap, repo));
-  const anyPriorWork = capabilities.some((cap) => cap.priorWorkFound);
+  // Resolve against the canonical app_portfolio_registry (registered apps +
+  // completed loop evidence) before recommending new build work.
+  const registrySearch = searchPortfolioRegistry(cwd, registryQuery(request));
+  const fsPriorWork = capabilities.some((cap) => cap.priorWorkFound);
+  const registryPriorWork = registrySearch.registeredMatches.length > 0 || registrySearch.completedLoopMatches.length > 0;
+  const anyPriorWork = fsPriorWork || registryPriorWork;
   const verdict = anyPriorWork ? "extend_existing" : "build_new";
 
-  const extensionTargets = anyPriorWork ? buildExtensionTargets(capabilities, repo) : [];
-  const sideDoorViolations = anyPriorWork ? buildSideDoorViolations(capabilities, request, extensionTargets) : [];
+  const extensionTargets = fsPriorWork ? buildExtensionTargets(capabilities, repo) : [];
+  const sideDoorViolations = fsPriorWork ? buildSideDoorViolations(capabilities, request, extensionTargets) : [];
   const findings = capabilities
     .filter((cap) => cap.tableSplit)
     .map((cap) => ({ kind: "table_split", capabilityId: cap.id, ...cap.tableSplit }));
@@ -78,6 +83,7 @@ export function runPriorWorkCheck(input, options = {}) {
     extensionTargets,
     sideDoorViolations,
     findings,
+    registrySearch,
     forbiddenSideDoors: request.forbiddenSideDoors,
     decision: {
       verdict,
@@ -90,8 +96,10 @@ export function runPriorWorkCheck(input, options = {}) {
       ownerApprovalRequired: true,
       reason:
         verdict === "extend_existing"
-          ? "Prior work exists in the target repo; extend the existing surfaces with a vNext/repair packet instead of building parallel ones."
-          : "Target repo was readable and no prior work was found; a new App Build Packet is authorized."
+          ? fsPriorWork
+            ? "Prior work exists in the target repo; extend the existing surfaces with a vNext/repair packet instead of building parallel ones."
+            : "Prior work exists in app_portfolio_registry (a registered app or completed loop); extend the existing app/project instead of building new."
+          : "Target repo and app_portfolio_registry were searched and no prior work was found; a new App Build Packet is authorized."
     },
     ownerReadableReport: "",
     followUpTasks: [],
@@ -599,6 +607,69 @@ function arr(value) {
 
 function unique(values) {
   return Array.from(new Set(values.filter((value) => value !== undefined && value !== null && String(value).trim() !== "")));
+}
+
+// ---------------------------------------------------------------------------
+// Canonical registry + completed-loop search (app_portfolio_registry)
+// ---------------------------------------------------------------------------
+
+function registryQuery(request) {
+  const titleTerms = String(request.source.title || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length >= 4);
+  const repoTerm = String(request.targetRepo.name || "").toLowerCase();
+  const capabilityTerms = request.capabilities.map((cap) => cap.id);
+  return { terms: unique([...titleTerms, repoTerm, ...capabilityTerms]).filter((term) => term.length >= 4) };
+}
+
+function searchPortfolioRegistry(cwd, query) {
+  const root = stateRoot(cwd);
+  const registry = readJsonSafe(path.join(root, "app_portfolio_registry", "registered-apps.json"));
+  const loops = readJsonSafe(path.join(root, "loop_run_records", "manual-loop-runs.json"));
+  const entries = Array.isArray(registry?.entries) ? registry.entries : [];
+  const loopRecords = Array.isArray(loops?.records) ? loops.records : [];
+  const terms = (query.terms || []).map((term) => term.toLowerCase()).filter(Boolean);
+  const slug = query.slug ? String(query.slug).toLowerCase() : "";
+
+  const registeredMatches = [];
+  const completedLoopMatches = [];
+  for (const entry of entries) {
+    const loopGoals = Array.isArray(entry.completedLoops) ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
+    const entryMatch = (slug && entry.slug === slug) || matchTerms(`${entry.slug} ${entry.name} ${loopGoals}`, terms);
+    if (entryMatch) {
+      registeredMatches.push({ slug: entry.slug, name: entry.name, type: entry.type, completedLoops: (entry.completedLoops || []).length });
+    }
+    for (const loop of entry.completedLoops || []) {
+      if (entryMatch || matchTerms(`${loop.goal} ${loop.runId}`, terms)) {
+        completedLoopMatches.push({ appSlug: entry.slug, runId: loop.runId, goal: loop.goal, status: loop.status });
+      }
+    }
+  }
+
+  const loopRecordMatches = loopRecords
+    .filter((record) => matchTerms(`${record.appIdea} ${record.goal}`, terms))
+    .map((record) => ({ runId: record.runId, goal: record.goal, appIdea: record.appIdea }));
+
+  return { stateRoot: relativeFromCwd(root), registeredMatches, completedLoopMatches, loopRecordMatches };
+}
+
+function stateRoot(cwd) {
+  if (process.env.APPENGINE_STATE_ROOT) return process.env.APPENGINE_STATE_ROOT;
+  return path.join(cwd, ".app-engine", "state");
+}
+
+function matchTerms(haystack, terms) {
+  const value = String(haystack || "").toLowerCase();
+  return terms.some((term) => term.length >= 4 && value.includes(term));
+}
+
+function readJsonSafe(absPath) {
+  try {
+    return JSON.parse(fs.readFileSync(absPath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
