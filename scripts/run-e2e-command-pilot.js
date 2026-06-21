@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const agentRunDir = path.resolve(process.env.AGENT_RUN_DIR || path.join(repoRoot, "agent-run"));
@@ -37,6 +38,10 @@ const paths = {
 };
 
 fs.mkdirSync(outputRoot, { recursive: true });
+
+// The pilot creates a new App Build Packet, so it must first pass the Prior-Work
+// Check with a build_new verdict (dry-run, in-repo evidence only).
+const priorWorkVerdict = writeTestVerdict("build_new", outputRoot);
 
 writeJson(paths.handoffInput, {
   requestType: "new_app",
@@ -75,6 +80,7 @@ if (intakePacket.selectedWorkflow.packetKind !== "app_build_packet") {
 }
 
 runNode("scripts/create-app-build-packet.js", {
+  APP_BUILD_PACKET_PRIOR_WORK: priorWorkVerdict,
   APP_BUILD_PACKET_OUTPUT: paths.buildPacket,
   APP_BUILD_PACKET_FOLLOWUPS_OUTPUT: paths.buildFollowUps,
   APP_NAME: pilotName,

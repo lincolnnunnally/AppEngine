@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-build-packet-"));
+const priorWorkVerdict = writeTestVerdict("build_new", smokeRoot);
 const packetOutput = path.join(smokeRoot, "app-build-packet.json");
 const followUpsOutput = path.join(smokeRoot, "packet-follow-ups.json");
 const codexOutput = path.join(smokeRoot, "codex-output.md");
@@ -34,6 +36,7 @@ const requiredPhaseIds = [
 
 runStep("packet creation", () => {
   runNode("scripts/create-app-build-packet.js", {
+    APP_BUILD_PACKET_PRIOR_WORK: priorWorkVerdict,
     APP_BUILD_PACKET_OUTPUT: packetOutput,
     APP_BUILD_PACKET_FOLLOWUPS_OUTPUT: followUpsOutput,
     APP_NAME: "Kind Help Desk",
@@ -55,6 +58,7 @@ runStep("packet creation", () => {
 
   assertEqual(packet.kind, "app_build_packet", "packet kind");
   assertEqual(packet.schemaVersion, 1, "packet schema version");
+  assertEqual(packet.priorWork.verdict, "build_new", "packet records passing prior-work verdict");
   assertEqual(packet.app.slug, "kind-help-desk", "packet slug");
   assertEqual(packet.app.barrierRemoved, "Remove scattered request intake and unclear follow-up ownership.", "packet barrier removed");
   assertEqual(packet.app.needAddressed, "Small service teams need a simple way to receive, triage, assign, and resolve help requests.", "packet need addressed");
@@ -87,11 +91,17 @@ runStep("packet creation", () => {
   assertEqual(packet.app.providerCostReview.costPosture.production, "approval_required", "packet production cost posture");
   assertArrayIncludes(packet.app.providerCostReview.providers.map((item) => item.area), "frontend", "packet provider frontend");
   assertArrayIncludes(packet.app.providerCostReview.providers.map((item) => item.area), "database", "packet provider database");
+  assertArrayIncludes(packet.app.providerCostReview.checks.map((item) => item.id), "database_placement_by_identity", "packet database placement check");
   assertEqual(packet.app.providerCostReview.guardrails.noPaidResourcesWithoutApproval, true, "packet paid provider guardrail");
+  assertEqual(packet.app.providerCostReview.guardrails.databasePlacementRequired, true, "packet database placement guardrail");
+  assertEqual(packet.app.providerCostReview.databasePlacementPolicy.canonicalSharedIdentity.table, "person", "packet canonical shared identity");
+  assertEqual(packet.app.providerCostReview.databasePlacementPolicy.sharedIdentityEcosystem.provider, "Supabase", "packet shared identity provider");
   assertEqual(packet.app.deploymentEnvironment.kind, "deployment_environment_plan", "packet embeds deployment environment artifact");
   assertEqual(packet.app.deploymentEnvironment.frontend.provider, "Vercel", "packet frontend provider");
   assertEqual(packet.app.deploymentEnvironment.frontend.reviewUrl, "planned", "packet owner review URL is planned");
   assertEqual(packet.app.deploymentEnvironment.frontend.productionUrl, "approval-gated", "packet production URL is gated");
+  assertEqual(packet.app.deploymentEnvironment.database.placementRule.standaloneCustomerGenerated.provider, "Neon", "packet standalone database provider");
+  assertIncludes(packet.app.deploymentEnvironment.database.strategy, "identity-sharing", "packet database strategy explains placement");
   assertArrayIncludes(packet.app.deploymentEnvironment.environmentVariables.map((item) => item.name), "DATABASE_URL", "packet database env var");
   assertEqual(packet.app.deploymentEnvironment.guardrails.productionRequiresReleaseGate, true, "packet production requires release gate");
   assertEqual(packet.app.designIntent.kind, "design_intent_profile", "packet embeds design intent artifact");

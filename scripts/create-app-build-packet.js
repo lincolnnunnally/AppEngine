@@ -1,11 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
+import { requirePriorWorkVerdict } from "./lib/require-prior-work.js";
 
 const packetOutput = process.env.APP_BUILD_PACKET_OUTPUT || "";
 const followUpsOutput = process.env.APP_BUILD_PACKET_FOLLOWUPS_OUTPUT || "";
 const inputPath = process.env.APP_BUILD_PACKET_INPUT || "";
 
 const input = readInput(inputPath);
+
+// Blocking gate: no app_build_packet may be created without a passing
+// Prior-Work Check verdict of build_new. extend_existing routes to vnext:packet.
+const priorWork = requirePriorWorkVerdict({
+  inline: input.priorWorkCheck,
+  envVar: "APP_BUILD_PACKET_PRIOR_WORK",
+  packetKind: "app_build_packet",
+  label: "App Build Packet"
+});
+const databasePlacementPolicy = readDatabasePlacementPolicy();
 const coreSourceOfTruthFiles = [
   "source-of-truth/00-why-we-build.md",
   "source-of-truth/01-ecosystem-philosophy.md",
@@ -110,7 +121,7 @@ const deploymentEnvironment =
     frontendProvider: process.env.APP_FRONTEND_PROVIDER || "Vercel",
     backendRequired: process.env.APP_BACKEND_REQUIRED === "true",
     backendProvider: process.env.APP_BACKEND_PROVIDER || (process.env.APP_BACKEND_REQUIRED === "true" ? "Render" : "Vercel Functions"),
-    databaseProvider: process.env.APP_DATABASE_PROVIDER || "Neon",
+    databaseProvider: process.env.APP_DATABASE_PROVIDER || databasePlacementPolicy.standaloneCustomerGenerated.provider,
     previewUrl: process.env.APP_PREVIEW_URL || "planned",
     reviewUrl: process.env.APP_REVIEW_URL || process.env.OWNER_REVIEW_URL || "planned",
     productionUrl: process.env.APP_PRODUCTION_URL || "approval-gated",
@@ -167,6 +178,12 @@ const releaseGate =
 const packet = {
   kind: "app_build_packet",
   schemaVersion: 1,
+  priorWork: {
+    verdict: priorWork.verdict,
+    runId: priorWork.runId,
+    targetRepo: priorWork.targetRepo,
+    source: priorWork.origin
+  },
   app: {
     name: appName,
     slug,
@@ -821,7 +838,7 @@ function buildProviderCostReview({ appName, slug, monthlyCeiling, backendRequire
     providers: [
       provider("frontend", "Vercel", "Reuse existing Vercel account/project where practical; preview first.", false),
       provider("api_backend", backendRequired ? "Render or Vercel Functions" : "not_required_initially", backendRequired ? "Prefer serverless or free/low-cost preview before always-on services." : "Do not create backend service until required.", backendRequired),
-      provider("database", "Neon", "Use branch or app-scoped database before creating separate paid projects.", false),
+      provider("database", databaseProviderLabel(), databasePlacementStrategy(), false),
       provider("storage", fileUploadsUsed ? "Vercel Blob or approved storage" : "not_required_initially", fileUploadsUsed ? "Add storage only after upload scope is approved." : "Do not create storage provider until uploads are used.", fileUploadsUsed),
       provider("payments", paymentsUsed ? "Stripe" : "not_required_initially", paymentsUsed ? "Create payment resources only after billing scope and test mode are approved." : "Do not create payment provider until billing is used.", paymentsUsed),
       provider("ai_models", aiUsed ? "OpenAI or approved model provider" : "not_required_initially", aiUsed ? "Use existing approved project/key routing and cap usage during preview." : "Do not add model costs until model calls are required.", aiUsed),
@@ -830,7 +847,7 @@ function buildProviderCostReview({ appName, slug, monthlyCeiling, backendRequire
     checks: [
       costCheck("reuse_before_create", "Can this app reuse an existing approved provider resource?"),
       costCheck("preview_before_paid", "Can preview run free or low-cost before production resources are approved?"),
-      costCheck("database_branch_before_project", "Can the app use a branch or app-scoped database instead of a new paid project?"),
+      costCheck("database_placement_by_identity", "Does the app use the shared person identity? If yes, use the shared Supabase ecosystem DB; if no, use an isolated Neon target."),
       costCheck("backend_only_if_required", "Is an always-on backend truly required for this version?"),
       costCheck("storage_email_payments_ai_only_if_used", "Are paid add-ons only included when the app uses them?"),
       costCheck("owner_approval_before_paid", "Is owner approval required before paid production resources are created?")
@@ -840,8 +857,10 @@ function buildProviderCostReview({ appName, slug, monthlyCeiling, backendRequire
       blocksReleaseGateApproval: true,
       noPaidResourcesWithoutApproval: true,
       reuseBeforeCreate: true,
+      databasePlacementRequired: true,
       noSecretsInOutput: true
-    }
+    },
+    databasePlacementPolicy
   };
 }
 
@@ -904,7 +923,8 @@ function buildDeploymentEnvironment({
     },
     database: {
       provider: databaseProvider,
-      strategy: "generated-app branch or app-scoped database",
+      strategy: databasePlacementStrategy(),
+      placementRule: databasePlacementPolicy,
       migrationPath: "planned",
       seedPath: "planned",
       rollbackNotes: "Record migration rollback or restore point before production."
@@ -1234,6 +1254,22 @@ function writeJson(filePath, value) {
   const resolved = path.resolve(filePath);
   fs.mkdirSync(path.dirname(resolved), { recursive: true });
   fs.writeFileSync(resolved, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function readDatabasePlacementPolicy() {
+  return JSON.parse(fs.readFileSync(path.resolve("config/database-placement.json"), "utf8"));
+}
+
+function databaseProviderLabel() {
+  return `${databasePlacementPolicy.sharedIdentityEcosystem.provider} or ${databasePlacementPolicy.standaloneCustomerGenerated.provider} by placement`;
+}
+
+function databasePlacementStrategy() {
+  return [
+    `Shared-identity ecosystem apps use ${databasePlacementPolicy.sharedIdentityEcosystem.target}.`,
+    `Standalone/customer-generated apps use ${databasePlacementPolicy.standaloneCustomerGenerated.target}.`,
+    `Placement is decided by ${databasePlacementPolicy.decisionAxis}, not ${databasePlacementPolicy.notDecisionAxis}.`
+  ].join(" ");
 }
 
 function slugify(value) {

@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-design-quality-"));
+const priorWorkVerdict = writeTestVerdict("build_new", smokeRoot);
 const packetOutput = path.join(smokeRoot, "app-build-packet.json");
 const packetFollowUpsOutput = path.join(smokeRoot, "packet-follow-ups.json");
 const designOutput = path.join(smokeRoot, "design-review-output.json");
@@ -15,6 +17,7 @@ const issuesOutput = path.join(smokeRoot, "dry-run-issues.json");
 
 runStep("packet produces design quality phases", () => {
   runNode("scripts/create-app-build-packet.js", {
+    APP_BUILD_PACKET_PRIOR_WORK: priorWorkVerdict,
     APP_BUILD_PACKET_OUTPUT: packetOutput,
     APP_BUILD_PACKET_FOLLOWUPS_OUTPUT: packetFollowUpsOutput,
     APP_NAME: "Kind Help Desk",

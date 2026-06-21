@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { requirePriorWorkVerdict } from "./lib/require-prior-work.js";
 
 const packetOutput = process.env.VNEXT_PACKET_OUTPUT || "";
 const followUpsOutput = process.env.VNEXT_FOLLOWUPS_OUTPUT || "";
@@ -17,6 +18,16 @@ const coreSourceOfTruthFiles = [
 ];
 
 const input = readInput(inputPath);
+
+// Blocking gate: a vNext/repair packet requires a passing Prior-Work Check
+// verdict of extend_existing. build_new routes to packet:create instead.
+const priorWork = requirePriorWorkVerdict({
+  inline: input.priorWorkCheck,
+  envVar: "VNEXT_PACKET_PRIOR_WORK",
+  packetKind: "vnext_packet",
+  label: "vNext Packet"
+});
+
 const appName = input.name || process.env.APP_NAME || "Existing App";
 const slug = input.slug || process.env.APP_SLUG || slugify(appName);
 const currentVersion = input.currentVersion || process.env.APP_CURRENT_VERSION || "v1";
@@ -58,6 +69,13 @@ const packet = buildVNextPacket({
   nonGoals,
   newPaidResourcesExpected
 });
+
+packet.priorWork = {
+  verdict: priorWork.verdict,
+  runId: priorWork.runId,
+  targetRepo: priorWork.targetRepo,
+  source: priorWork.origin
+};
 
 packet.followUpTasks = packet.phases.map((phase) => toFollowUpTask(packet, phase));
 

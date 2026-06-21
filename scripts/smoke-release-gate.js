@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-release-gate-"));
+const priorWorkVerdict = writeTestVerdict("build_new", smokeRoot);
 const packetOutput = path.join(smokeRoot, "app-build-packet.json");
 const packetFollowUpsOutput = path.join(smokeRoot, "packet-follow-ups.json");
 const releaseOutput = path.join(smokeRoot, "release-gate-output.json");
@@ -16,6 +18,7 @@ const issuesOutput = path.join(smokeRoot, "dry-run-issues.json");
 
 runStep("packet embeds deployment and release gate", () => {
   runNode("scripts/create-app-build-packet.js", {
+    APP_BUILD_PACKET_PRIOR_WORK: priorWorkVerdict,
     APP_BUILD_PACKET_OUTPUT: packetOutput,
     APP_BUILD_PACKET_FOLLOWUPS_OUTPUT: packetFollowUpsOutput,
     APP_NAME: "Kind Help Desk",
@@ -100,6 +103,9 @@ runStep("standalone release generator creates follow-ups", () => {
   assertEqual(deployment.frontend.reviewUrl, "https://review.kind-help-desk.example.org", "deployment review URL");
   assertEqual(deployment.apiBackend.provider, "Render", "deployment backend provider");
   assertEqual(deployment.database.provider, "Neon", "deployment database provider");
+  assertEqual(deployment.database.placementRule.canonicalSharedIdentity.table, "person", "deployment canonical shared identity");
+  assertEqual(deployment.database.placementRule.sharedIdentityEcosystem.provider, "Supabase", "deployment shared identity provider");
+  assertIncludes(deployment.database.strategy, "identity-sharing", "deployment database strategy explains placement");
   assertArrayIncludes(deployment.environmentVariables.map((item) => item.name), "DATABASE_URL", "deployment env vars include database");
   assertEqual(deployment.guardrails.previewBeforeProduction, true, "deployment preview before production");
   assertEqual(deployment.guardrails.publicPreviewByDefault, true, "deployment public preview guardrail");

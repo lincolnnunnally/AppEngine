@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-cost-governance-"));
+const priorWorkVerdict = writeTestVerdict("build_new", smokeRoot);
 const continueArtifact = path.join(smokeRoot, "continue-cost-governance.json");
 const warningArtifact = path.join(smokeRoot, "warning-cost-governance.json");
 const pauseArtifact = path.join(smokeRoot, "pause-cost-governance.json");
@@ -166,6 +168,7 @@ console.log(`cost-governance smoke ok (${smokeRoot})`);
 
 function createPacket() {
   runNode("scripts/create-app-build-packet.js", {
+    APP_BUILD_PACKET_PRIOR_WORK: priorWorkVerdict,
     APP_BUILD_PACKET_OUTPUT: packetOutput,
     APP_NAME: "Spark of Hope Intake Lite",
     APP_SLUG: "spark-of-hope-intake-lite",

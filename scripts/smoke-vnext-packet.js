@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-vnext-packet-"));
+const priorWorkVerdict = writeTestVerdict("extend_existing", smokeRoot);
 const packetOutput = path.join(smokeRoot, "vnext-packet.json");
 const followUpsOutput = path.join(smokeRoot, "vnext-follow-ups.json");
 const codexOutput = path.join(smokeRoot, "codex-output.md");
@@ -23,6 +25,7 @@ const requiredPhaseIds = [
 
 runStep("vNext packet creation", () => {
   runNode("scripts/create-vnext-packet.js", {
+    VNEXT_PACKET_PRIOR_WORK: priorWorkVerdict,
     VNEXT_PACKET_OUTPUT: packetOutput,
     VNEXT_FOLLOWUPS_OUTPUT: followUpsOutput,
     APP_NAME: "Spark of Hope",

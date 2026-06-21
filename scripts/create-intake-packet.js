@@ -152,6 +152,9 @@ function buildNewAppPacket({ rawRequest, source, appName, slug, confidence, miss
     missingContext,
     selectedWorkflow: {
       packetKind: "app_build_packet",
+      priorWorkGate: "scripts/create-prior-work-check.js",
+      priorWorkCheckRequired: true,
+      requiredPriorWorkVerdict: "build_new",
       nextGenerator: "scripts/create-app-build-packet.js",
       recommendedLabels: ["ai:plan"],
       reason
@@ -213,6 +216,9 @@ function buildExistingAppPacket({ rawRequest, source, app, requestType, confiden
     missingContext: [],
     selectedWorkflow: {
       packetKind: "vnext_packet",
+      priorWorkGate: "scripts/create-prior-work-check.js",
+      priorWorkCheckRequired: true,
+      requiredPriorWorkVerdict: "extend_existing",
       nextGenerator: "scripts/create-vnext-packet.js",
       recommendedLabels: ["ai:plan"],
       reason
