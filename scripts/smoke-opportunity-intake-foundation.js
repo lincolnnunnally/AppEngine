@@ -39,7 +39,8 @@ runStep("adapter-backed Opportunity store and artifact exist", () => {
 
 runStep("opportunity intake runs through the Problem Intake Gate", () => {
   assertFileIncludes("src/lib/engine/opportunity-intake.ts", [
-    "buildProblemIntakeGateRecord",
+    "createProblemIntakeGateRecord",
+    "gatePacketId",
     "OpportunityControlGateView",
     "applicableControlGates",
     "nextSafePhase",

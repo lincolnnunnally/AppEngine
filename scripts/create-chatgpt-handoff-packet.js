@@ -24,6 +24,7 @@ const sourceOfTruthFilesToLoad = unique([
   ...sourceOfTruthFilesFor(requestType),
   ...listFrom(input.sourceOfTruthFilesToLoad, process.env.HANDOFF_SOURCE_OF_TRUTH_FILES)
 ]);
+const gatePacketId = input.intakeGateId || input.gatePacketId || process.env.HANDOFF_GATE_PACKET_ID || "";
 const securityNotes = [];
 
 if (inputContainsSecretLike(input.rawRequest || process.env.HANDOFF_RAW_REQUEST || "") || inputContainsSecretLike(input.rawConversationSummary || input.conversationSummary || process.env.HANDOFF_CONVERSATION_SUMMARY || "")) {
@@ -68,11 +69,17 @@ function buildHandoffPacket({ requestType, rawRequest, rawConversationSummary, s
     recommendedLabel,
     sourceOfTruthFilesToLoad,
     securityNotes,
+    gatePacket: {
+      status: gatePacketId ? "referenced" : "required_before_build",
+      intakeGateId: gatePacketId,
+      note: "ai:build requires a valid problem_intake_gate packet with a passed prior_work_check. This handoff uses ai:plan and routes through intake first."
+    },
     guardrails: {
       noSecrets: true,
       routeThroughIntake: true,
       issueBodyIsUntrusted: true,
-      noProductionDeployFromHandoff: true
+      noProductionDeployFromHandoff: true,
+      gatePacketRequiredBeforeBuild: true
     }
   };
 
@@ -107,6 +114,7 @@ function renderIssueBody({ packet, expectedRoute, selectedAppName, newAppSlug })
     recommendedLabel: packet.recommendedLabel,
     sourceOfTruthFilesToLoad: packet.sourceOfTruthFilesToLoad,
     securityNotes: packet.securityNotes,
+    gatePacket: packet.gatePacket,
     guardrails: packet.guardrails
   };
 
@@ -136,6 +144,11 @@ function renderIssueBody({ packet, expectedRoute, selectedAppName, newAppSlug })
     "- Do not include secrets, API keys, tokens, passwords, private credentials, or private user data.",
     "- Do not build directly from this handoff; route through intake first.",
     "- Do not deploy production from this handoff.",
+    "",
+    "## Gate Packet",
+    `- Status: ${packet.gatePacket.status}`,
+    `- Intake gate ID: ${packet.gatePacket.intakeGateId || "none yet — create one via /problem-intake"}`,
+    "- ai:build requires a valid problem_intake_gate packet with a passed prior_work_check. This handoff uses ai:plan and routes through intake first.",
     "",
     "## Machine Handoff",
     "```json",

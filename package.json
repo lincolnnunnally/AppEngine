@@ -109,6 +109,7 @@
     "smoke:phase-start-approval": "node scripts/smoke-phase-start-approval.js",
     "smoke:execution-label-dry-run": "node scripts/smoke-execution-label-dry-run.js",
     "smoke:problem-intake-gate": "node scripts/smoke-problem-intake-gate.js",
+    "smoke:intake-consolidation": "node scripts/smoke-intake-consolidation.js",
     "smoke:build-gate": "node scripts/smoke-build-gate.js",
     "smoke:codex-build-gate": "node scripts/smoke-codex-build-gate.js",
     "smoke:problem-intake-lite-ui": "node scripts/smoke-problem-intake-lite-ui.js",

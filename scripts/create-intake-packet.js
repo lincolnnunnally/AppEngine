@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { classifyIntake } from "./lib/intake-classify.js";
 
 const packetOutput = process.env.INTAKE_PACKET_OUTPUT || "";
 const followUpsOutput = process.env.INTAKE_FOLLOWUPS_OUTPUT || "";
@@ -32,6 +33,14 @@ const packet = buildIntakePacket({
   knownApps,
   requestedAppName: input.appName || embeddedHandoff?.selectedApp?.name || process.env.APP_NAME || "",
   requestedSlug: input.slug || embeddedHandoff?.selectedApp?.slug || embeddedHandoff?.newAppSlug || process.env.APP_SLUG || ""
+});
+
+// Use the same classification semantics as problem_intake_gate so the headless
+// intake command resolves to the same request type and next safe phase.
+packet.gateClassification = classifyIntake({
+  rawRequest,
+  appName: input.appName || embeddedHandoff?.selectedApp?.name || process.env.APP_NAME || "",
+  knownApps
 });
 
 validateIntakePacket(packet);

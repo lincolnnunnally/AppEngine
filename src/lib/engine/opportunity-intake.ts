@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { durableStateGuardrails, getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
 import {
-  buildProblemIntakeGateRecord,
+  createProblemIntakeGateRecord,
+  type ProblemIntakeGateRecord,
   type ProblemIntakeLikelyApp,
   type ProblemIntakeNextPhase,
   type ProblemIntakeRequestType
@@ -58,6 +59,7 @@ export type OpportunityIntakeRecord = {
   copyableNextPrompt: string;
   safetyNotes: string[];
   gate: OpportunityControlGateView;
+  gatePacketId: string;
   artifact: OpportunityIntakeArtifact;
 };
 
@@ -87,6 +89,7 @@ export type OpportunityIntakeArtifact = {
     ecosystemDestinationsNotAssumedBuilt: true;
   };
   controlGates: OpportunityControlGateView;
+  gatePacketId: string;
   sourceOfTruthFiles: string[];
   guardrails: ReturnType<typeof opportunityIntakeGuardrails>;
   ownerReadableSummary: string;
@@ -153,7 +156,17 @@ export async function createOpportunityIntakeRecord(input: CreateOpportunityInta
   const status: OpportunityStatus = route === "needs_clarification" ? "needs_clarification" : "ready_for_appengine_review";
   const title = createTitle(normalized.problemPain || normalized.existingIdeaVision);
   const routingReason = explainRoute(route, normalized.possibleSolutionType);
-  const gate = buildOpportunityControlGateView(normalized);
+  // Create the canonical problem_intake_gate packet and reference its ID. The
+  // opportunity record is a rich capture view; the gate packet is the source of
+  // truth for request type, control gates, and next safe phase.
+  const gateRecord = await createProblemIntakeGateRecord({
+    rawRequest: normalized.problemPain,
+    problemBeingSolved: normalized.problemPain,
+    intendedPerson: normalized.affectedPeople,
+    requestType: requestTypeForOpportunity(normalized.mode, normalized.possibleSolutionType)
+  });
+  const gate = toControlGateView(gateRecord);
+  const gatePacketId = gateRecord.id;
   const nextRecommendedAction = chooseNextRecommendedAction(route, gate);
   const safetyNotes = [
     "Saved through the AppEngine state adapter with local/mock persistence as the current default.",
@@ -172,6 +185,7 @@ export async function createOpportunityIntakeRecord(input: CreateOpportunityInta
     nextRecommendedAction,
     safetyNotes,
     gate,
+    gatePacketId,
     ...normalized
   };
   const copyableNextPrompt = buildNextPrompt(base);
@@ -216,6 +230,7 @@ function buildOpportunityIntakeArtifact(record: Omit<OpportunityIntakeRecord, "a
       ecosystemDestinationsNotAssumedBuilt: true
     },
     controlGates: record.gate,
+    gatePacketId: record.gatePacketId,
     sourceOfTruthFiles,
     guardrails: opportunityIntakeGuardrails(),
     ownerReadableSummary: `${record.title}: ${record.route.replaceAll("_", " ")}. Next: ${record.nextRecommendedAction}`,
@@ -313,16 +328,7 @@ function explainRoute(route: OpportunityRoute, solutionType: OpportunitySolution
   return "The selected solution type is specific enough for owner review before AppEngine routing.";
 }
 
-function buildOpportunityControlGateView(
-  normalized: ReturnType<typeof normalizeOpportunityIntake>
-): OpportunityControlGateView {
-  const gateRecord = buildProblemIntakeGateRecord({
-    rawRequest: normalized.problemPain,
-    problemBeingSolved: normalized.problemPain,
-    intendedPerson: normalized.affectedPeople,
-    requestType: requestTypeForOpportunity(normalized.mode, normalized.possibleSolutionType)
-  });
-
+function toControlGateView(gateRecord: ProblemIntakeGateRecord): OpportunityControlGateView {
   return {
     requestType: gateRecord.requestType,
     likelyApp: gateRecord.likelyApp,
