@@ -44,6 +44,7 @@ shared_context_files:
   - source-of-truth/pending-check-resolution-policy.md
   - source-of-truth/production-readiness-snapshot.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
+  - source-of-truth/problem-intake-gate.md
   - source-of-truth/opportunity-intake-foundation.md
   - source-of-truth/opportunity-clarification-engine.md
   - source-of-truth/opportunity-solution-path-router.md

@@ -15,10 +15,35 @@ export default function HomePage() {
       <header className="home-intro">
         <p className="eyebrow">App Engine</p>
         <h1>Where do you want to start?</h1>
-        <p>Two front doors into the build journey. Choose the one that fits where you are today.</p>
+        <p>Every new problem, opportunity, app idea, feature, or improvement starts at the Problem Intake Gate.</p>
       </header>
 
-      <section className="door-grid" aria-label="Choose a starting point">
+      <section className="door-grid" aria-label="Start here" data-testid="problem-intake-entry">
+        <Link className="door-card door-card-primary" href="/problem-intake">
+          <span className="door-card-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 5h16M4 12h16M4 19h10" />
+              <circle cx="19" cy="19" r="2.5" />
+            </svg>
+          </span>
+          <h2>Start here — Problem Intake Gate</h2>
+          <p>
+            Describe the request. AppEngine creates an intake packet and names the control gates first. No architecture,
+            design, or build begins from conversation text until intake and its gates exist.
+          </p>
+        </Link>
+      </section>
+
+      <section className="door-grid" aria-label="After intake routes you">
         <Link className="door-card" href="/opportunity-intake">
           <span className="door-card-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
