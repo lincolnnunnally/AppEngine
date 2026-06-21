@@ -112,6 +112,7 @@
     "smoke:intake-consolidation": "node scripts/smoke-intake-consolidation.js",
     "smoke:portfolio-registry-canonical": "node scripts/smoke-portfolio-registry-canonical.js",
     "smoke:prior-work-registry-hardening": "node scripts/smoke-prior-work-registry-hardening.js",
+    "smoke:loop-execution-canonical": "node scripts/smoke-loop-execution-canonical.js",
     "smoke:build-gate": "node scripts/smoke-build-gate.js",
     "smoke:codex-build-gate": "node scripts/smoke-codex-build-gate.js",
     "smoke:problem-intake-lite-ui": "node scripts/smoke-problem-intake-lite-ui.js",

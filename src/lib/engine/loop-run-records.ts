@@ -55,6 +55,54 @@ type LoopRunStore = {
   records: AppEngineLoopRunRecord[];
 };
 
+// Canonical execution record: the single execution trail from an approved packet
+// to a verified result. Stored under the loop_run_records store (key
+// "execution-loops") so loop_run_records is the one canonical execution record.
+export type AppEngineLoopExecutionRecord = {
+  id: string;
+  kind: "appengine_loop_execution_record";
+  schemaVersion: 1;
+  createdAt: string;
+  updatedAt: string;
+  runId: string;
+  appSlug: string;
+  gatePacketId: string;
+  packetKind: string;
+  goal: string;
+  acceptanceCriteria: string[];
+  status: AppEngineLoopStatus;
+  cycleCount: number;
+  result: "pending" | "verified" | "failed";
+  blockers: string[];
+  nextAction: string;
+  evidence: string[];
+  statusHistory: Array<{ status: AppEngineLoopStatus; at: string; note: string }>;
+  guardrails: ReturnType<typeof loopRunGuardrails>;
+  ownerReadableSummary: string;
+};
+
+type LoopExecutionStore = {
+  schemaVersion: 1;
+  records: AppEngineLoopExecutionRecord[];
+};
+
+type CreateLoopFromPacketInput = {
+  gatePacketId?: unknown;
+  appSlug?: unknown;
+  appName?: unknown;
+  packetKind?: unknown;
+  goal?: unknown;
+  acceptanceCriteria?: unknown;
+};
+
+type CompleteLoopOutcome = {
+  result?: "verified" | "failed";
+  evidence?: unknown;
+  blockers?: unknown;
+  nextAction?: unknown;
+  cycleCount?: unknown;
+};
+
 type CreateLoopRunInput = {
   appIdea?: unknown;
   problemBeingSolved?: unknown;
@@ -109,6 +157,138 @@ export async function attachLoopRunToRegistry(runId: string, options: { appSlug?
     cycleCount: record.cycleCount,
     evidence: record.acceptanceCriteria
   });
+}
+
+export async function listLoopExecutionRecords() {
+  const store = await readExecutionStore();
+  return [...store.records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getLoopExecutionRecord(runId: string) {
+  const store = await readExecutionStore();
+  return store.records.find((record) => record.runId === runId || record.id === runId) || null;
+}
+
+// Canonical execution path: an approved packet creates exactly one loop execution
+// record (idempotent per gatePacketId). No execution may happen without one.
+export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, now = new Date()) {
+  const gatePacketId = cleanText(input.gatePacketId);
+  if (!gatePacketId) {
+    throw new Error(
+      "createLoopRunFromPacket requires an approved packet's gatePacketId (prior_work_check -> candidate_packet_bridge first)."
+    );
+  }
+
+  const at = now.toISOString();
+  const appSlug = slugify(cleanText(input.appSlug) || cleanText(input.appName) || gatePacketId);
+  const packetKind = cleanText(input.packetKind) || "app_build_packet";
+  const goal = cleanText(input.goal) || `Execute ${packetKind} for ${appSlug}`;
+  const acceptanceCriteria = splitCriteria(input.acceptanceCriteria);
+
+  const store = await readExecutionStore();
+  const existing = store.records.find((record) => record.gatePacketId === gatePacketId);
+  if (existing) return existing;
+
+  const runId = `exec-${at.slice(0, 10)}-${appSlug}-${randomUUID().slice(0, 8)}`;
+  const record: AppEngineLoopExecutionRecord = {
+    id: runId,
+    kind: "appengine_loop_execution_record",
+    schemaVersion: 1,
+    createdAt: at,
+    updatedAt: at,
+    runId,
+    appSlug,
+    gatePacketId,
+    packetKind,
+    goal,
+    acceptanceCriteria,
+    status: "ready_to_build",
+    cycleCount: 0,
+    result: "pending",
+    blockers: [],
+    nextAction: "begin_execution",
+    evidence: [],
+    statusHistory: [{ status: "ready_to_build", at, note: "Loop execution record created from approved packet." }],
+    guardrails: loopRunGuardrails(),
+    ownerReadableSummary: `Execution loop for ${appSlug} (${packetKind}) is ready_to_build from approved packet ${gatePacketId}.`
+  };
+  store.records.unshift(record);
+  await writeExecutionStore(store);
+  return record;
+}
+
+// Fail-closed guard: no execution without a canonical loop_run_record.
+export async function requireLoopRunForExecution(runId: string) {
+  const record = await getLoopExecutionRecord(runId);
+  if (!record) {
+    throw new Error(
+      "No loop_run_record exists for this execution. Create one from the approved packet (createLoopRunFromPacket) before executing."
+    );
+  }
+  return record;
+}
+
+// Every completed loop writes evidence back into loop_run_records AND the
+// canonical app_portfolio_registry (success -> verified; failure -> blocker + next action).
+export async function completeLoopRun(runId: string, outcome: CompleteLoopOutcome = {}, now = new Date()) {
+  const store = await readExecutionStore();
+  const record = store.records.find((item) => item.runId === runId || item.id === runId);
+  if (!record) {
+    throw new Error("No loop_run_record exists for this execution. Create one from the approved packet before completing.");
+  }
+
+  const at = now.toISOString();
+  const verified = outcome.result !== "failed";
+  const blockers = arrFrom(outcome.blockers, []);
+
+  record.result = verified ? "verified" : "failed";
+  record.status = verified ? "deployed" : "needs_fix";
+  record.cycleCount = typeof outcome.cycleCount === "number" ? outcome.cycleCount : record.cycleCount + 1;
+  record.evidence = arrFrom(outcome.evidence, record.evidence);
+  record.blockers = verified ? [] : blockers.length ? blockers : ["Loop did not verify; see review."];
+  record.nextAction = verified ? "registry_updated_completed" : cleanText(outcome.nextAction) || "create_fix_issue";
+  record.updatedAt = at;
+  record.statusHistory.push({
+    status: record.status,
+    at,
+    note: verified ? "Loop verified and completed." : "Loop failed; blocker and next action recorded."
+  });
+  await writeExecutionStore(store);
+
+  await attachCompletedLoop(
+    record.appSlug,
+    {
+      runId: record.runId,
+      goal: record.goal,
+      status: record.status,
+      gatePacketId: record.gatePacketId,
+      cycleCount: record.cycleCount,
+      evidence: record.evidence,
+      blockers: record.blockers,
+      nextAction: record.nextAction
+    },
+    now
+  );
+
+  return record;
+}
+
+function executionStoreScope() {
+  return { kind: "loop_run_records" as const, key: "execution-loops" };
+}
+
+async function readExecutionStore(): Promise<LoopExecutionStore> {
+  return getAppEngineStateAdapter().readJson<LoopExecutionStore>(executionStoreScope(), { schemaVersion: 1, records: [] });
+}
+
+async function writeExecutionStore(store: LoopExecutionStore) {
+  await getAppEngineStateAdapter().writeJson(executionStoreScope(), store);
+}
+
+function arrFrom(value: unknown, fallback: string[]): string[] {
+  if (Array.isArray(value)) return value.map((item) => cleanText(item)).filter(Boolean);
+  if (typeof value === "string") return splitCriteria(value);
+  return fallback;
 }
 
 export async function createAppEngineLoopRunRecord(input: CreateLoopRunInput, now = new Date()) {

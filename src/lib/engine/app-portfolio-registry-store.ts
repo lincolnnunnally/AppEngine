@@ -16,6 +16,8 @@ export type CompletedLoopEvidence = {
   cycleCount?: number;
   completedAt: string;
   evidence: string[];
+  blockers: string[];
+  nextAction?: string;
 };
 
 export type RegisteredAppProject = {
@@ -101,7 +103,16 @@ export async function registerAppProject(input: RegisterInput, now = new Date())
 
 export async function attachCompletedLoop(
   slug: string,
-  loop: { runId: string; goal: string; status: string; gatePacketId?: string; cycleCount?: number; evidence?: string[] },
+  loop: {
+    runId: string;
+    goal: string;
+    status: string;
+    gatePacketId?: string;
+    cycleCount?: number;
+    evidence?: string[];
+    blockers?: string[];
+    nextAction?: string;
+  },
   now = new Date()
 ): Promise<RegisteredAppProject> {
   const at = now.toISOString();
@@ -131,7 +142,9 @@ export async function attachCompletedLoop(
     gatePacketId: cleanText(loop.gatePacketId) || undefined,
     cycleCount: typeof loop.cycleCount === "number" ? loop.cycleCount : undefined,
     completedAt: at,
-    evidence: arr(loop.evidence)
+    evidence: arr(loop.evidence),
+    blockers: arr(loop.blockers),
+    nextAction: cleanText(loop.nextAction) || undefined
   });
   entry.updatedAt = at;
 

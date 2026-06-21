@@ -2,6 +2,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ProjectMemory } from "./project-memory";
 
+// NON-CANONICAL: real_project_trials + trial_result_reviews are a historical
+// trial ledger / read-only evidence. The canonical execution record is
+// loop_run_records (createLoopRunFromPacket / completeLoopRun); this store must
+// not create competing execution records.
+export const CANONICAL_EXECUTION_NOTE =
+  "loop_run_records is the canonical execution record; real_project_trials/trial_result_reviews are read-only historical ledgers.";
+
 export type TrialPacketType = "app_build_packet" | "vnext_packet" | "non_app_solution_plan";
 
 export type TrialResultReviewStatus =
