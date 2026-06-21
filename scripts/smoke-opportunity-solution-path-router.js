@@ -44,7 +44,7 @@ runStep("api route and owner-visible output are wired", () => {
     "listOpportunitySolutionPaths",
     "Cache-Control"
   ]);
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "listOpportunitySolutionPaths",
     "initialSolutionPaths"
   ]);

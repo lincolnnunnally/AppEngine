@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 
-const ownerPage = read("src/app/owner-control-center/page.tsx");
+const ownerPage = read("src/app/(cockpit)/owner-control-center/page.tsx");
 assertIncludes(ownerPage, "listOrchestratorActionQueue", "owner page should load action queue");
 assertIncludes(ownerPage, "initialOrchestratorActionQueue", "owner page should pass initial action queue");
 

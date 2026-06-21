@@ -57,7 +57,7 @@ runStep("Owner Control Center shows guided request and copyable prepared handoff
     "Prepared AppEngine handoff",
     "copyable-prompt-box"
   ]);
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "FirstRealEcosystemBuildRequestPanel",
     "listFirstRealEcosystemBuildRequests",
     "firstRealEcosystemBuildRequestSeed"

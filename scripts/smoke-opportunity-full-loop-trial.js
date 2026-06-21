@@ -66,7 +66,7 @@ runStep("owner-gated API exposes the trial without unsafe automation", () => {
 });
 
 runStep("Owner Control Center exposes the guided full-loop panel", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "listOpportunityFullLoopTrials",
     "initialFullLoopTrials"
   ]);

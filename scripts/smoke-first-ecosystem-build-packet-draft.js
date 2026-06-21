@@ -59,7 +59,7 @@ runStep("Owner Control Center shows the draft clearly", () => {
     "Design intent",
     "Copyable next AppEngine prompt"
   ]);
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "FirstEcosystemBuildPacketDraftPanel",
     "listFirstEcosystemBuildPacketDrafts"
   ]);

@@ -51,7 +51,7 @@ runStep("terminal build loop state updates memory and audit trail", () => {
 });
 
 runStep("Owner Control Center renders the build loop dashboard", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "BuildLoopCompletionDashboardPanel",
     "loadBuildLoopCompletionDashboard",
     "buildLoopCompletionDashboard"

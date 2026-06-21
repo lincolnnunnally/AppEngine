@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { durableStateGuardrails, getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import {
+  buildProblemIntakeGateRecord,
+  type ProblemIntakeLikelyApp,
+  type ProblemIntakeNextPhase,
+  type ProblemIntakeRequestType
+} from "@/lib/engine/problem-intake-gate";
 
 export type OpportunityIntakeMode = "problem" | "vision" | "tools" | "help_start";
 
@@ -20,6 +26,18 @@ export type OpportunityRoute =
 
 export type OpportunityStatus = "submitted" | "needs_clarification" | "ready_for_appengine_review";
 
+// The opportunity intake runs through the Problem Intake Gate so the same
+// documents, control gates, and "no build before the gates" policy apply to the
+// vision/problem front door — it cannot route straight to a build phase.
+export type OpportunityControlGateView = {
+  requestType: ProblemIntakeRequestType;
+  likelyApp: ProblemIntakeLikelyApp;
+  nextSafePhase: ProblemIntakeNextPhase;
+  applicableControlGates: string[];
+  blockedActions: string[];
+  missingContext: string[];
+};
+
 export type OpportunityIntakeRecord = {
   id: string;
   createdAt: string;
@@ -39,6 +57,7 @@ export type OpportunityIntakeRecord = {
   nextRecommendedAction: string;
   copyableNextPrompt: string;
   safetyNotes: string[];
+  gate: OpportunityControlGateView;
   artifact: OpportunityIntakeArtifact;
 };
 
@@ -67,6 +86,7 @@ export type OpportunityIntakeArtifact = {
     appEngineFactory: true;
     ecosystemDestinationsNotAssumedBuilt: true;
   };
+  controlGates: OpportunityControlGateView;
   sourceOfTruthFiles: string[];
   guardrails: ReturnType<typeof opportunityIntakeGuardrails>;
   ownerReadableSummary: string;
@@ -109,7 +129,10 @@ export function opportunityIntakeGuardrails() {
     opportunityIsFrontDoorOnly: true,
     appEngineIsProductionFactory: true,
     ecosystemServicesNotAssumedBuilt: true,
-    ownerReviewRequiredBeforeRouting: true
+    ownerReviewRequiredBeforeRouting: true,
+    routesThroughProblemIntakeGate: true,
+    noBuildBeforeControlGates: true,
+    noArchitectureDesignImplementationFromConversation: true
   };
 }
 
@@ -130,7 +153,8 @@ export async function createOpportunityIntakeRecord(input: CreateOpportunityInta
   const status: OpportunityStatus = route === "needs_clarification" ? "needs_clarification" : "ready_for_appengine_review";
   const title = createTitle(normalized.problemPain || normalized.existingIdeaVision);
   const routingReason = explainRoute(route, normalized.possibleSolutionType);
-  const nextRecommendedAction = chooseNextRecommendedAction(route);
+  const gate = buildOpportunityControlGateView(normalized);
+  const nextRecommendedAction = chooseNextRecommendedAction(route, gate);
   const safetyNotes = [
     "Saved through the AppEngine state adapter with local/mock persistence as the current default.",
     "Opportunity is the guided front door; it does not claim Spark, Live On Mission, Best Life, or other ecosystem services are fully built.",
@@ -147,6 +171,7 @@ export async function createOpportunityIntakeRecord(input: CreateOpportunityInta
     routingReason,
     nextRecommendedAction,
     safetyNotes,
+    gate,
     ...normalized
   };
   const copyableNextPrompt = buildNextPrompt(base);
@@ -190,6 +215,7 @@ function buildOpportunityIntakeArtifact(record: Omit<OpportunityIntakeRecord, "a
       appEngineFactory: true,
       ecosystemDestinationsNotAssumedBuilt: true
     },
+    controlGates: record.gate,
     sourceOfTruthFiles,
     guardrails: opportunityIntakeGuardrails(),
     ownerReadableSummary: `${record.title}: ${record.route.replaceAll("_", " ")}. Next: ${record.nextRecommendedAction}`,
@@ -287,12 +313,45 @@ function explainRoute(route: OpportunityRoute, solutionType: OpportunitySolution
   return "The selected solution type is specific enough for owner review before AppEngine routing.";
 }
 
-function chooseNextRecommendedAction(route: OpportunityRoute) {
-  if (route === "needs_clarification") {
-    return "Ask one or two clarifying questions before creating a problem_solution_intake artifact.";
+function buildOpportunityControlGateView(
+  normalized: ReturnType<typeof normalizeOpportunityIntake>
+): OpportunityControlGateView {
+  const gateRecord = buildProblemIntakeGateRecord({
+    rawRequest: normalized.problemPain,
+    problemBeingSolved: normalized.problemPain,
+    intendedPerson: normalized.affectedPeople,
+    requestType: requestTypeForOpportunity(normalized.mode, normalized.possibleSolutionType)
+  });
+
+  return {
+    requestType: gateRecord.requestType,
+    likelyApp: gateRecord.likelyApp,
+    nextSafePhase: gateRecord.nextSafePhase,
+    applicableControlGates: gateRecord.applicableControlGates,
+    blockedActions: gateRecord.blockedActions,
+    missingContext: gateRecord.missingContext
+  };
+}
+
+function requestTypeForOpportunity(
+  mode: OpportunityIntakeMode,
+  solutionType: OpportunitySolutionType
+): ProblemIntakeRequestType | undefined {
+  if (solutionType === "app_tool_workflow") return "app_idea";
+  if (mode === "vision") return "opportunity";
+  if (mode === "problem" || mode === "help_start") return "problem";
+  // "tools" without an app/tool solution type: let the gate classify from text.
+  return undefined;
+}
+
+function chooseNextRecommendedAction(route: OpportunityRoute, gate: OpportunityControlGateView) {
+  const gateCount = gate.applicableControlGates.length;
+
+  if (gate.nextSafePhase === "clarify_problem" || route === "needs_clarification") {
+    return `Clarify the problem first, then run the ${gateCount} control gates starting with prior_work_check. No architecture, design, or implementation until the gates pass.`;
   }
 
-  return "Review the opportunity, then decide whether to convert it into a problem_solution_intake and portfolio candidate.";
+  return `Run the ${gateCount} control gates starting with prior_work_check, then decide problem_solution_intake vs portfolio candidate. No architecture, design, or implementation until the gates pass.`;
 }
 
 function buildNextPrompt(record: Omit<OpportunityIntakeRecord, "artifact" | "copyableNextPrompt">) {

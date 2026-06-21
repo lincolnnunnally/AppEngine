@@ -74,7 +74,7 @@ runStep("owner-gated API saves and lists reviews", () => {
 });
 
 runStep("Owner Control Center shows result review step", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "listRealOpportunityResultReviews",
     "initialRealOpportunityResultReviews"
   ]);

@@ -55,7 +55,7 @@ runStep("next operational action is one real internal Opportunity example", () =
 });
 
 runStep("Owner Control Center renders the readiness panel", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "OpportunityControlledUseReadinessPanel",
     "loadOpportunityControlledUseReadiness",
     "opportunityControlledUseReadiness"

@@ -45,7 +45,7 @@ runStep("owner dashboard renders portfolio fields and guardrails", () => {
 });
 
 runStep("owner control center loads and displays portfolio registry", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "OwnerPortfolioDashboard",
     "loadOwnerPortfolioRegistry",
     "portfolioRegistry",

@@ -11,7 +11,7 @@ runStep("source standard and UI route are discoverable", () => {
   assertFileIncludes("agents/manifest.yaml", ["source-of-truth/handoff-relay-reducer.md", "handoff_relay_summary"]);
   assertFileIncludes("agents/context/output-contracts.md", ["handoff_relay_summary"]);
   assertFileIncludes("src/lib/engine/agent-artifacts.ts", ["handoff_relay_summary"]);
-  assertFileIncludes("src/app/owner-control-center/page.tsx", ["HandoffRelayControlCenter"]);
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", ["HandoffRelayControlCenter"]);
   assertFileIncludes("src/components/engine/handoff-relay-control-center.tsx", ["data-testid=\"handoff-relay-reducer\"", "Copy Prompt"]);
 });
 

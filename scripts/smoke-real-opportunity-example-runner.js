@@ -73,7 +73,7 @@ runStep("owner-gated API exposes the runner safely", () => {
 });
 
 runStep("Owner Control Center exposes the real example flow", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "listRealOpportunityExamples",
     "initialRealOpportunityExamples"
   ]);

@@ -54,7 +54,7 @@ runStep("next operational instruction is explicit and owner-facing", () => {
 });
 
 runStep("Owner Control Center renders the completion check", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "OpportunityInternalUseCompletionCheckPanel",
     "loadOpportunityInternalUseCompletionCheck",
     "opportunityInternalUseCompletionCheck"

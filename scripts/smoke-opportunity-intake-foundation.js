@@ -4,7 +4,7 @@ import path from "node:path";
 const repoRoot = process.cwd();
 
 runStep("public Opportunity Intake route is discoverable", () => {
-  assertFileIncludes("src/app/opportunity-intake/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/opportunity-intake/page.tsx", [
     "OpportunityIntakeForm",
     "/owner-control-center",
     "/problem-intake-lite"
@@ -37,6 +37,18 @@ runStep("adapter-backed Opportunity store and artifact exist", () => {
   ]);
 });
 
+runStep("opportunity intake runs through the Problem Intake Gate", () => {
+  assertFileIncludes("src/lib/engine/opportunity-intake.ts", [
+    "buildProblemIntakeGateRecord",
+    "OpportunityControlGateView",
+    "applicableControlGates",
+    "nextSafePhase",
+    "controlGates: record.gate",
+    "routesThroughProblemIntakeGate",
+    "noArchitectureDesignImplementationFromConversation"
+  ]);
+});
+
 runStep("api route preserves no-execution guardrails", () => {
   assertFileIncludes("src/app/api/opportunity-intake/route.ts", [
     "createOpportunityIntakeRecord",
@@ -53,7 +65,7 @@ runStep("api route preserves no-execution guardrails", () => {
 });
 
 runStep("owner-visible Opportunity queue is wired", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "OwnerOpportunityQueue",
     "listOpportunityIntakeRecords",
     "/opportunity-intake"
