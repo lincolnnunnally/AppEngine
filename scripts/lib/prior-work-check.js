@@ -51,13 +51,26 @@ export function runPriorWorkCheck(input, options = {}) {
   }
 
   const capabilities = request.capabilities.map((cap) => evaluateCapability(cap, repo));
+
   // Resolve against the canonical app_portfolio_registry (registered apps +
-  // completed loop evidence) before recommending new build work.
+  // completed loop evidence) before recommending build. Fail closed if the
+  // registry lookup itself fails (corrupt/unreadable) so an unverifiable
+  // registry can never silently authorize a new build.
   const registrySearch = searchPortfolioRegistry(cwd, registryQuery(request));
+  if (!registrySearch.available) {
+    return registryUnavailableArtifact(request, repo, registrySearch);
+  }
+
   const fsPriorWork = capabilities.some((cap) => cap.priorWorkFound);
-  const registryPriorWork = registrySearch.registeredMatches.length > 0 || registrySearch.completedLoopMatches.length > 0;
-  const anyPriorWork = fsPriorWork || registryPriorWork;
-  const verdict = anyPriorWork ? "extend_existing" : "build_new";
+  const registryScore = strongestRegistryScore(registrySearch);
+  // Filesystem prior work (an existing surface) is an exact signal. Registry
+  // matches are exact (slug match or >=2 terms) or partial (single weak term).
+  const matchStrength = fsPriorWork ? "exact" : registryScore;
+
+  // exact -> reuse/extend; partial/unclear -> human review; none -> build new.
+  const verdict =
+    matchStrength === "exact" ? "extend_existing" : matchStrength === "partial" ? "needs_human_review" : "build_new";
+  const passed = verdict === "extend_existing" || verdict === "build_new";
 
   const extensionTargets = fsPriorWork ? buildExtensionTargets(capabilities, repo) : [];
   const sideDoorViolations = fsPriorWork ? buildSideDoorViolations(capabilities, request, extensionTargets) : [];
@@ -69,7 +82,7 @@ export function runPriorWorkCheck(input, options = {}) {
     kind: "prior_work_check",
     schemaVersion: 1,
     blocking: true,
-    passed: true,
+    passed,
     sourceRequest: request.source,
     targetRepo: {
       name: repo.name,
@@ -79,6 +92,7 @@ export function runPriorWorkCheck(input, options = {}) {
       evidenceSources: repo.evidenceSources
     },
     verdict,
+    matchStrength,
     capabilities,
     extensionTargets,
     sideDoorViolations,
@@ -87,19 +101,17 @@ export function runPriorWorkCheck(input, options = {}) {
     forbiddenSideDoors: request.forbiddenSideDoors,
     decision: {
       verdict,
-      proceed: true,
-      authorizesPacket: verdict === "extend_existing" ? "vnext_packet" : "app_build_packet",
+      proceed: passed,
+      authorizesPacket:
+        verdict === "extend_existing" ? "vnext_packet" : verdict === "build_new" ? "app_build_packet" : "none",
       nextSafeAction:
         verdict === "extend_existing"
           ? "route_to_vnext_packet_extending_existing_surfaces"
-          : "route_to_app_build_packet_verified_no_prior_work",
+          : verdict === "build_new"
+          ? "route_to_app_build_packet_verified_no_prior_work"
+          : "route_to_human_review_or_clarification",
       ownerApprovalRequired: true,
-      reason:
-        verdict === "extend_existing"
-          ? fsPriorWork
-            ? "Prior work exists in the target repo; extend the existing surfaces with a vNext/repair packet instead of building parallel ones."
-            : "Prior work exists in app_portfolio_registry (a registered app or completed loop); extend the existing app/project instead of building new."
-          : "Target repo and app_portfolio_registry were searched and no prior work was found; a new App Build Packet is authorized."
+      reason: priorWorkReason(verdict, fsPriorWork, registrySearch)
     },
     ownerReadableReport: "",
     followUpTasks: [],
@@ -369,6 +381,22 @@ function renderOwnerReport(artifact) {
     }
   }
 
+  if (artifact.verdict === "needs_human_review") {
+    lines.push("", "Possible prior work (not exact) in app_portfolio_registry:");
+    for (const match of artifact.registrySearch.registeredMatches) {
+      lines.push(`- ${match.score} match: registered app ${match.slug} (${match.name})`);
+    }
+    for (const match of artifact.registrySearch.completedLoopMatches) {
+      lines.push(`- ${match.score} match: completed loop ${match.runId} on ${match.appSlug}`);
+    }
+    lines.push("Next: human review/clarification with an explicit reuse-or-build decision before any new App Build Packet.");
+  }
+
+  if (artifact.verdict === "blocked_registry_unavailable") {
+    lines.push("", `Registry lookup error: ${(artifact.registrySearch.lookupErrors || []).join("; ") || "unreadable store"}`);
+    lines.push("Next: fix the app_portfolio_registry lookup, then rerun. Build stays blocked (fail-closed).");
+  }
+
   if (artifact.verdict === "blocked_cannot_verify") {
     lines.push("", `Tried paths: ${artifact.targetRepo.triedPaths.join(", ") || "none"}`);
     lines.push("Next: make the target repo visible (grant read access / correct path), then rerun.");
@@ -411,6 +439,38 @@ function buildFollowUpTasks(artifact) {
           "",
           "## Forbidden side doors",
           ...artifact.forbiddenSideDoors.map((item) => `- ${item}`)
+        ].join("\n")
+      }
+    ];
+  }
+
+  if (artifact.verdict === "needs_human_review") {
+    return [
+      {
+        title: `[${artifact.sourceRequest.runId}] Human review: possible prior work for ${artifact.targetRepo.name}`,
+        recommendedLabel: "ai:plan",
+        body: [
+          `Prior-Work Check verdict: needs_human_review for ${artifact.sourceRequest.title}.`,
+          "The registry has a partial (non-exact) match. Make an explicit reuse-or-build decision before any new App Build Packet.",
+          "",
+          "## Possible prior work",
+          ...artifact.registrySearch.registeredMatches.map((match) => `- ${match.score}: ${match.slug} (${match.name})`),
+          ...artifact.registrySearch.completedLoopMatches.map((match) => `- ${match.score}: completed loop ${match.runId} on ${match.appSlug}`)
+        ].join("\n")
+      }
+    ];
+  }
+
+  if (artifact.verdict === "blocked_registry_unavailable") {
+    return [
+      {
+        title: `[${artifact.sourceRequest.runId}] Fix app_portfolio_registry lookup`,
+        recommendedLabel: "ai:plan",
+        body: [
+          "The Prior-Work Check could not read the canonical app_portfolio_registry, so the build is blocked (fail-closed).",
+          "",
+          `Lookup error: ${(artifact.registrySearch.lookupErrors || []).join("; ") || "unreadable store"}`,
+          "Restore the registry store, then rerun the gate."
         ].join("\n")
       }
     ];
@@ -609,6 +669,14 @@ function unique(values) {
   return Array.from(new Set(values.filter((value) => value !== undefined && value !== null && String(value).trim() !== "")));
 }
 
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
 // ---------------------------------------------------------------------------
 // Canonical registry + completed-loop search (app_portfolio_registry)
 // ---------------------------------------------------------------------------
@@ -620,15 +688,26 @@ function registryQuery(request) {
     .filter((term) => term.length >= 4);
   const repoTerm = String(request.targetRepo.name || "").toLowerCase();
   const capabilityTerms = request.capabilities.map((cap) => cap.id);
-  return { terms: unique([...titleTerms, repoTerm, ...capabilityTerms]).filter((term) => term.length >= 4) };
+  return {
+    slug: slugify(request.targetRepo.name || ""),
+    terms: unique([...titleTerms, repoTerm, ...capabilityTerms]).filter((term) => term.length >= 4)
+  };
 }
 
 function searchPortfolioRegistry(cwd, query) {
   const root = stateRoot(cwd);
-  const registry = readJsonSafe(path.join(root, "app_portfolio_registry", "registered-apps.json"));
-  const loops = readJsonSafe(path.join(root, "loop_run_records", "manual-loop-runs.json"));
-  const entries = Array.isArray(registry?.entries) ? registry.entries : [];
-  const loopRecords = Array.isArray(loops?.records) ? loops.records : [];
+  const registry = readStoreFile(path.join(root, "app_portfolio_registry", "registered-apps.json"));
+  const loops = readStoreFile(path.join(root, "loop_run_records", "manual-loop-runs.json"));
+
+  // Fail closed: a present-but-unreadable store is a lookup FAILURE, not "empty".
+  // An absent store (never written) is a legitimately empty registry.
+  const available = registry.status !== "error" && loops.status !== "error";
+  const lookupErrors = [];
+  if (registry.status === "error") lookupErrors.push(`app_portfolio_registry: ${registry.error}`);
+  if (loops.status === "error") lookupErrors.push(`loop_run_records: ${loops.error}`);
+
+  const entries = Array.isArray(registry.data?.entries) ? registry.data.entries : [];
+  const loopRecords = Array.isArray(loops.data?.records) ? loops.data.records : [];
   const terms = (query.terms || []).map((term) => term.toLowerCase()).filter(Boolean);
   const slug = query.slug ? String(query.slug).toLowerCase() : "";
 
@@ -636,22 +715,96 @@ function searchPortfolioRegistry(cwd, query) {
   const completedLoopMatches = [];
   for (const entry of entries) {
     const loopGoals = Array.isArray(entry.completedLoops) ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
-    const entryMatch = (slug && entry.slug === slug) || matchTerms(`${entry.slug} ${entry.name} ${loopGoals}`, terms);
-    if (entryMatch) {
-      registeredMatches.push({ slug: entry.slug, name: entry.name, type: entry.type, completedLoops: (entry.completedLoops || []).length });
-    }
+    const score = scoreMatch(slug, entry.slug, `${entry.slug} ${entry.name} ${loopGoals}`, terms);
+    if (score === "none") continue;
+    registeredMatches.push({ slug: entry.slug, name: entry.name, type: entry.type, completedLoops: (entry.completedLoops || []).length, score });
     for (const loop of entry.completedLoops || []) {
-      if (entryMatch || matchTerms(`${loop.goal} ${loop.runId}`, terms)) {
-        completedLoopMatches.push({ appSlug: entry.slug, runId: loop.runId, goal: loop.goal, status: loop.status });
-      }
+      completedLoopMatches.push({ appSlug: entry.slug, runId: loop.runId, goal: loop.goal, status: loop.status, score });
     }
   }
 
   const loopRecordMatches = loopRecords
-    .filter((record) => matchTerms(`${record.appIdea} ${record.goal}`, terms))
+    .filter((record) => matchTermCount(`${record.appIdea} ${record.goal}`, terms) > 0)
     .map((record) => ({ runId: record.runId, goal: record.goal, appIdea: record.appIdea }));
 
-  return { stateRoot: relativeFromCwd(root), registeredMatches, completedLoopMatches, loopRecordMatches };
+  return { available, lookupErrors, stateRoot: relativeFromCwd(root), registeredMatches, completedLoopMatches, loopRecordMatches };
+}
+
+// Confidence scoring: exact = slug equality or >=2 term hits; partial = a single
+// weak term hit; none = no signal.
+function scoreMatch(querySlug, entrySlug, haystack, terms) {
+  if (querySlug && String(entrySlug || "").toLowerCase() === querySlug) return "exact";
+  const hits = matchTermCount(haystack, terms);
+  if (hits >= 2) return "exact";
+  if (hits === 1) return "partial";
+  return "none";
+}
+
+function matchTermCount(haystack, terms) {
+  const value = String(haystack || "").toLowerCase();
+  return terms.filter((term) => term.length >= 4 && value.includes(term)).length;
+}
+
+function strongestRegistryScore(registrySearch) {
+  const scores = [
+    ...registrySearch.registeredMatches.map((match) => match.score),
+    ...registrySearch.completedLoopMatches.map((match) => match.score)
+  ];
+  if (scores.includes("exact")) return "exact";
+  if (scores.includes("partial")) return "partial";
+  return "none";
+}
+
+function priorWorkReason(verdict, fsPriorWork, registrySearch) {
+  void registrySearch;
+  if (verdict === "extend_existing") {
+    return fsPriorWork
+      ? "Prior work exists in the target repo; extend the existing surfaces with a vNext/repair packet instead of building parallel ones."
+      : "Prior work exists in app_portfolio_registry (a registered app or completed loop); extend the existing app/project instead of building new.";
+  }
+  if (verdict === "needs_human_review") {
+    return "Possible prior work was found in app_portfolio_registry but the match is not exact. Route to human review/clarification for an explicit reuse-or-build decision before any new App Build Packet.";
+  }
+  return "Target repo and app_portfolio_registry were searched (registry available) and no prior work was found; a new App Build Packet is authorized.";
+}
+
+function registryUnavailableArtifact(request, repo, registrySearch) {
+  const artifact = {
+    kind: "prior_work_check",
+    schemaVersion: 1,
+    blocking: true,
+    passed: false,
+    sourceRequest: request.source,
+    targetRepo: {
+      name: repo.name,
+      resolvedPath: repo.resolvedRelative,
+      visible: true,
+      triedPaths: repo.triedPaths,
+      evidenceSources: repo.evidenceSources
+    },
+    verdict: "blocked_registry_unavailable",
+    matchStrength: "unknown",
+    capabilities: request.capabilities.map((cap) => ({ id: cap.id, description: cap.description, priorWorkFound: null, evidence: [] })),
+    extensionTargets: [],
+    sideDoorViolations: [],
+    findings: [],
+    registrySearch,
+    forbiddenSideDoors: request.forbiddenSideDoors,
+    decision: {
+      verdict: "blocked_registry_unavailable",
+      proceed: false,
+      authorizesPacket: "none",
+      nextSafeAction: "fix_registry_lookup_then_rerun_prior_work_check",
+      ownerApprovalRequired: true,
+      reason: `The app_portfolio_registry lookup failed (${(registrySearch.lookupErrors || []).join("; ") || "unreadable store"}). Per fail-closed policy, no build may proceed until the canonical registry can be read.`
+    },
+    ownerReadableReport: "",
+    followUpTasks: [],
+    guardrails: guardrails()
+  };
+  artifact.ownerReadableReport = renderOwnerReport(artifact);
+  artifact.followUpTasks = buildFollowUpTasks(artifact);
+  return artifact;
 }
 
 function stateRoot(cwd) {
@@ -659,16 +812,18 @@ function stateRoot(cwd) {
   return path.join(cwd, ".app-engine", "state");
 }
 
-function matchTerms(haystack, terms) {
-  const value = String(haystack || "").toLowerCase();
-  return terms.some((term) => term.length >= 4 && value.includes(term));
-}
-
-function readJsonSafe(absPath) {
+function readStoreFile(absPath) {
+  let raw;
   try {
-    return JSON.parse(fs.readFileSync(absPath, "utf8"));
-  } catch {
-    return null;
+    raw = fs.readFileSync(absPath, "utf8");
+  } catch (caught) {
+    if (caught && caught.code === "ENOENT") return { status: "absent", data: null };
+    return { status: "error", data: null, error: caught && caught.message ? caught.message : "unreadable" };
+  }
+  try {
+    return { status: "ok", data: JSON.parse(raw) };
+  } catch (caught) {
+    return { status: "error", data: null, error: `invalid JSON: ${caught && caught.message ? caught.message : "parse error"}` };
   }
 }
 

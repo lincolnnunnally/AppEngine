@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { runPriorWorkCheck, buildNewExampleRequest, selfExtendExampleRequest } from "./prior-work-check.js";
 
@@ -47,6 +48,20 @@ export function requirePriorWorkVerdict({ inline, envVar, packetKind, label }) {
     ]);
   }
 
+  // Defense in depth: a build_new verdict that itself recorded registry/loop
+  // prior work is contradictory — never let it create a new App Build Packet for
+  // something already represented in app_portfolio_registry.
+  if (required === "build_new") {
+    const search = artifact.registrySearch;
+    const registryHits = search ? (search.registeredMatches?.length || 0) + (search.completedLoopMatches?.length || 0) : 0;
+    if (registryHits > 0) {
+      refuse([
+        `${label} blocked: the verdict is build_new but its app_portfolio_registry search found ${registryHits} prior-work match(es).`,
+        "Resolve as reuse/extend (vNext) or get an explicit owner decision; a new App Build Packet cannot be created for work already in the registry."
+      ]);
+    }
+  }
+
   return {
     verdict: artifact.verdict,
     runId: artifact.sourceRequest?.runId ?? "unknown-run",
@@ -65,6 +80,12 @@ function hintFor(verdict) {
   }
   if (verdict === "blocked_cannot_verify") {
     return "The target repo could not be read. Make it visible and rerun the Prior-Work Check before any packet.";
+  }
+  if (verdict === "needs_human_review") {
+    return "Prior work is uncertain (partial registry match). Get an explicit reuse-or-build decision before any packet.";
+  }
+  if (verdict === "blocked_registry_unavailable") {
+    return "The app_portfolio_registry lookup failed. Fix the registry and rerun the Prior-Work Check before any packet.";
   }
   return "Run the Prior-Work Check and resolve its verdict before creating a packet.";
 }
@@ -99,6 +120,11 @@ function refuse(lines) {
 // need to exercise packet creation. Uses the actual gate engine so the verdict
 // is genuine, and points only at in-repo paths so it is CI-safe.
 export function writeTestVerdict(kind, dir) {
+  // Isolate the registry lookup to an empty state root so generated verdicts are
+  // deterministic (empty registrySearch) regardless of local .app-engine state.
+  if (!process.env.APPENGINE_STATE_ROOT) {
+    process.env.APPENGINE_STATE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-verdict-state-"));
+  }
   const request = kind === "extend_existing" ? selfExtendExampleRequest() : buildNewExampleRequest();
   const artifact = runPriorWorkCheck(request);
   if (artifact.verdict !== kind) {
