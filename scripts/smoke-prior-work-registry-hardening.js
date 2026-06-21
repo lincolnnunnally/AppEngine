@@ -79,6 +79,21 @@ runStep("another request's gated_intake placeholder is not exact prior work", ()
   );
 });
 
+runStep("completed-loop entry is never self-excluded (second identical request -> extend)", () => {
+  // The gate overwrites gatePacketId to the latest request, so a second identical
+  // request's selfGatePacketId can equal the entry's gatePacketId -- but because it
+  // already has a completed loop, it must still surface as prior work.
+  seedRegistry([
+    entry("toner-management", "Toner Management", [{ runId: "loop-9", goal: "toner reorder loop", status: "deployed" }], "gated_intake", "gate-second-req")
+  ]);
+  const artifact = check({ title: "Toner Management", repo: "Toner Management", selfGatePacketId: "gate-second-req" });
+  assertEqual(artifact.verdict, "extend_existing", "verdict");
+  assertTrue(
+    artifact.registrySearch.completedLoopMatches.some((loop) => loop.runId === "loop-9"),
+    "completed loop still discoverable despite self gate packet"
+  );
+});
+
 runStep("acceptance: a build_new verdict that recorded registry prior work is refused", () => {
   // Defense in depth at the packet layer: even a hand-supplied build_new verdict
   // cannot create an app_build_packet for something already in the registry.

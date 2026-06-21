@@ -722,10 +722,13 @@ function searchPortfolioRegistry(cwd, query) {
   const registeredMatches = [];
   const completedLoopMatches = [];
   for (const entry of entries) {
-    // Never self-match the current request's own gate placeholder.
-    if (selfGatePacketId && entry.gatePacketId === selfGatePacketId) continue;
-
     const completedCount = Array.isArray(entry.completedLoops) ? entry.completedLoops.length : 0;
+
+    // Never self-match the current request's own gate PLACEHOLDER. An entry that
+    // already has completed loops is genuine prior work and is never self-excluded,
+    // even though the gate overwrites gatePacketId to the latest request.
+    if (selfGatePacketId && entry.gatePacketId === selfGatePacketId && completedCount === 0) continue;
+
     const loopGoals = completedCount ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
     let score = scoreMatch(slug, entry.slug, `${entry.slug} ${entry.name} ${loopGoals}`, terms);
     if (score === "none") continue;
