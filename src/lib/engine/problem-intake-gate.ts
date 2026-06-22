@@ -214,7 +214,10 @@ export async function createProblemIntakeGateRecord(input: CreateProblemIntakeIn
       slug: record.likelyApp.slug,
       name: record.likelyApp.name,
       type: record.likelyApp.status === "existing" ? "existing_app" : "new_app_candidate",
-      status: "gated_intake",
+      // A new candidate is an in-flight gated_intake. An EXISTING app keeps its
+      // real lifecycle status (e.g. active_product) — the gate must not downgrade
+      // a built app to a placeholder, or prior_work_check would stop reusing it.
+      status: record.likelyApp.status === "existing" ? undefined : "gated_intake",
       gatePacketId: record.id,
       sourceOfTruthFiles: record.requiredSourceOfTruthFiles
     });

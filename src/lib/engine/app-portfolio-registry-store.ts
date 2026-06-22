@@ -18,6 +18,8 @@ export type CompletedLoopEvidence = {
   evidence: string[];
   blockers: string[];
   nextAction?: string;
+  // "non_build" = a process/workflow/human-responsibility loop (no software shipped).
+  solutionClass?: string;
 };
 
 export type RegisteredAppProject = {
@@ -125,20 +127,23 @@ export async function attachCompletedLoop(
     evidence?: string[];
     blockers?: string[];
     nextAction?: string;
+    solutionClass?: string;
   },
   now = new Date()
 ): Promise<RegisteredAppProject> {
   const at = now.toISOString();
   const cleaned = cleanSlug(slug) || "app";
+  const isNonBuild = loop.solutionClass === "non_build";
   const store = await readStore();
   let entry = store.entries.find((candidate) => candidate.slug === cleaned);
 
   if (!entry) {
+    // A non-build process loop registers a process initiative, not an app.
     entry = {
       slug: cleaned,
       name: cleaned,
-      type: "app_project",
-      status: "registered",
+      type: isNonBuild ? "process_initiative" : "app_project",
+      status: isNonBuild ? "active_process" : "registered",
       gatePacketId: loop.gatePacketId,
       sourceOfTruthFiles: [],
       completedLoops: [],
@@ -157,7 +162,8 @@ export async function attachCompletedLoop(
     completedAt: at,
     evidence: arr(loop.evidence),
     blockers: arr(loop.blockers),
-    nextAction: cleanText(loop.nextAction) || undefined
+    nextAction: cleanText(loop.nextAction) || undefined,
+    solutionClass: cleanText(loop.solutionClass) || undefined
   });
   entry.updatedAt = at;
 

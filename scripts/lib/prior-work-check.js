@@ -724,10 +724,16 @@ function searchPortfolioRegistry(cwd, query) {
   for (const entry of entries) {
     const completedCount = Array.isArray(entry.completedLoops) ? entry.completedLoops.length : 0;
 
-    // Never self-match the current request's own gate PLACEHOLDER. An entry that
-    // already has completed loops is genuine prior work and is never self-excluded,
-    // even though the gate overwrites gatePacketId to the latest request.
-    if (selfGatePacketId && entry.gatePacketId === selfGatePacketId && completedCount === 0) continue;
+    // Never self-match the current request's own gate PLACEHOLDER. Only a true
+    // placeholder (no completed loops AND a placeholder status) is self-excluded.
+    // A real existing app, or one with completed loops, is genuine prior work even
+    // when the gate just overwrote its gatePacketId to this request.
+    const isSelfPlaceholder =
+      selfGatePacketId &&
+      entry.gatePacketId === selfGatePacketId &&
+      completedCount === 0 &&
+      PLACEHOLDER_STATUSES.has(String(entry.status || ""));
+    if (isSelfPlaceholder) continue;
 
     const loopGoals = completedCount ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
     // Match on reuse metadata too: purpose, domain, and likely problem categories.

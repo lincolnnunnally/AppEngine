@@ -32,6 +32,17 @@ runStep("loop record creation fails closed without every approval", () => {
   ]);
 });
 
+runStep("supports a non-build (process/workflow) loop without a software build verdict", () => {
+  assertFileIncludes("src/lib/engine/loop-run-records.ts", [
+    "NON_BUILD_PACKET_KINDS",
+    "workflow_process",
+    'solutionClass: "non_build" | "software"',
+    "is required for a software build" // verdict gate only applies to software loops
+  ]);
+  // Non-build completion records process-initiative evidence in the registry.
+  assertFileIncludes("src/lib/engine/app-portfolio-registry-store.ts", ["process_initiative", "solutionClass"]);
+});
+
 runStep("no execution can happen without a loop_run_record (fail-closed guard)", () => {
   assertFileIncludes("src/lib/engine/loop-run-records.ts", [
     "export async function requireLoopRunForExecution",

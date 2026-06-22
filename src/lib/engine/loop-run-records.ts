@@ -13,7 +13,11 @@ export type AppEngineLoopStatus =
   | "deployed"
   | "improving"
   | "blocked"
-  | "escalated";
+  | "escalated"
+  // Non-build (process / workflow / human-responsibility) loops.
+  | "ready_to_run"
+  | "running"
+  | "completed";
 
 export type AppEngineLoopRunRecord = {
   id: string;
@@ -70,6 +74,7 @@ export type AppEngineLoopExecutionRecord = {
   candidatePacketId: string;
   priorWorkVerdict: string;
   packetKind: string;
+  solutionClass: "non_build" | "software";
   goal: string;
   acceptanceCriteria: string[];
   status: AppEngineLoopStatus;
@@ -175,6 +180,16 @@ export async function getLoopExecutionRecord(runId: string) {
 
 // Canonical execution path: an approved packet creates exactly one loop execution
 // record (idempotent per gatePacketId). No execution may happen without one.
+// Non-build solution kinds: a process/workflow or human-responsibility loop that
+// solves a problem without shipping software. These never create a software
+// build packet.
+const NON_BUILD_PACKET_KINDS = new Set([
+  "workflow_process",
+  "human_responsibility_loop",
+  "content_resource",
+  "ministry_community_model"
+]);
+
 export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, now = new Date()) {
   // Fail closed: a canonical execution record requires every approval —
   // gatePacketId, a passed prior_work_check, an approved candidate packet, and
@@ -184,11 +199,18 @@ export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, 
     throw new Error("createLoopRunFromPacket blocked: gatePacketId is required (problem_intake_gate first).");
   }
 
+  const packetKind = cleanText(input.packetKind) || "app_build_packet";
+  const isNonBuild = NON_BUILD_PACKET_KINDS.has(packetKind);
+  const solutionClass: "non_build" | "software" = isNonBuild ? "non_build" : "software";
+
   const priorWorkVerdict = cleanText(input.priorWork?.verdict);
   const priorWorkPassed = input.priorWork?.passed === true;
-  if (!priorWorkPassed || (priorWorkVerdict !== "build_new" && priorWorkVerdict !== "extend_existing")) {
+  // A software build requires a passed build/extend verdict. A non-build process
+  // loop does not build software, so it is not gated on a build verdict (it still
+  // requires the gate, an approved candidate, and acceptance criteria below).
+  if (!isNonBuild && (!priorWorkPassed || (priorWorkVerdict !== "build_new" && priorWorkVerdict !== "extend_existing"))) {
     throw new Error(
-      "createLoopRunFromPacket blocked: a passed prior_work_check verdict (build_new or extend_existing) is required."
+      "createLoopRunFromPacket blocked: a passed prior_work_check verdict (build_new or extend_existing) is required for a software build."
     );
   }
 
@@ -204,8 +226,8 @@ export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, 
 
   const at = now.toISOString();
   const appSlug = slugify(cleanText(input.appSlug) || cleanText(input.appName) || gatePacketId);
-  const packetKind = cleanText(input.packetKind) || "app_build_packet";
   const goal = cleanText(input.goal) || `Execute ${packetKind} for ${appSlug}`;
+  const initialStatus: AppEngineLoopStatus = isNonBuild ? "ready_to_run" : "ready_to_build";
 
   const store = await readExecutionStore();
   const existing = store.records.find((record) => record.gatePacketId === gatePacketId);
@@ -224,17 +246,18 @@ export async function createLoopRunFromPacket(input: CreateLoopFromPacketInput, 
     candidatePacketId,
     priorWorkVerdict,
     packetKind,
+    solutionClass,
     goal,
     acceptanceCriteria,
-    status: "ready_to_build",
+    status: initialStatus,
     cycleCount: 0,
     result: "pending",
     blockers: [],
-    nextAction: "begin_execution",
+    nextAction: isNonBuild ? "begin_process" : "begin_execution",
     evidence: [],
-    statusHistory: [{ status: "ready_to_build", at, note: "Loop execution record created from approved packet." }],
+    statusHistory: [{ status: initialStatus, at, note: `${isNonBuild ? "Non-build process" : "Loop execution"} record created from approved candidate.` }],
     guardrails: loopRunGuardrails(),
-    ownerReadableSummary: `Execution loop for ${appSlug} (${packetKind}) is ready_to_build from approved packet ${gatePacketId}.`
+    ownerReadableSummary: `${isNonBuild ? "Non-build process" : "Execution"} loop for ${appSlug} (${packetKind}) is ${initialStatus} from approved candidate ${candidatePacketId}.`
   };
   store.records.unshift(record);
   await writeExecutionStore(store);
@@ -264,9 +287,10 @@ export async function completeLoopRun(runId: string, outcome: CompleteLoopOutcom
   const at = now.toISOString();
   const verified = outcome.result !== "failed";
   const blockers = arrFrom(outcome.blockers, []);
+  const isNonBuild = record.solutionClass === "non_build";
 
   record.result = verified ? "verified" : "failed";
-  record.status = verified ? "deployed" : "needs_fix";
+  record.status = verified ? (isNonBuild ? "completed" : "deployed") : "needs_fix";
   record.cycleCount = typeof outcome.cycleCount === "number" ? outcome.cycleCount : record.cycleCount + 1;
   record.evidence = arrFrom(outcome.evidence, record.evidence);
   record.blockers = verified ? [] : blockers.length ? blockers : ["Loop did not verify; see review."];
@@ -289,7 +313,8 @@ export async function completeLoopRun(runId: string, outcome: CompleteLoopOutcom
       cycleCount: record.cycleCount,
       evidence: record.evidence,
       blockers: record.blockers,
-      nextAction: record.nextAction
+      nextAction: record.nextAction,
+      solutionClass: record.solutionClass
     },
     now
   );

@@ -94,6 +94,18 @@ runStep("completed-loop entry is never self-excluded (second identical request -
   );
 });
 
+runStep("existing built app (0 loops) is not self-excluded by its own gate packet", () => {
+  // A seeded existing app the gate just touched (gatePacketId overwritten to this
+  // request, still 0 completed loops) is genuine prior work -> extend, not build_new.
+  seedRegistry([entry("toner-management", "Toner Management", [], "active_product", "gate-self-built")]);
+  const artifact = check({ title: "Toner Management", repo: "Toner Management", selfGatePacketId: "gate-self-built" });
+  assertEqual(artifact.verdict, "extend_existing", "verdict");
+  assertTrue(
+    artifact.registrySearch.registeredMatches.some((m) => m.slug === "toner-management" && m.score === "exact"),
+    "existing app surfaced despite self gate packet"
+  );
+});
+
 runStep("acceptance: a build_new verdict that recorded registry prior work is refused", () => {
   // Defense in depth at the packet layer: even a hand-supplied build_new verdict
   // cannot create an app_build_packet for something already in the registry.
