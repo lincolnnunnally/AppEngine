@@ -6,6 +6,9 @@ import { runPriorWorkCheck, buildNewExampleRequest, selfExtendExampleRequest } f
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-final-packet-materialization-"));
+// Isolate engine state to this smoke (empty registry) so the example prior-work
+// verdicts are deterministic regardless of any seeded local registry.
+process.env.APPENGINE_STATE_ROOT = smokeRoot;
 const buildNewVerdict = runPriorWorkCheck(buildNewExampleRequest());
 const extendExistingVerdict = runPriorWorkCheck(selfExtendExampleRequest());
 
@@ -122,6 +125,7 @@ function runMaterialization(name, approval, priorWorkVerdict) {
     cwd: repoRoot,
     env: {
       ...process.env,
+      APPENGINE_STATE_ROOT: smokeRoot,
       FINAL_PACKET_MATERIALIZATION_INPUT: inputPath,
       FINAL_PACKET_MATERIALIZATION_OUTPUT: outputPath,
       FINAL_PACKET_MATERIALIZATION_MARKDOWN_OUTPUT: markdownPath,

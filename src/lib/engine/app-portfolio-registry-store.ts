@@ -27,6 +27,10 @@ export type RegisteredAppProject = {
   status: string;
   gatePacketId?: string;
   priorWork?: { verdict?: string; passed?: boolean };
+  // Reuse-matching metadata so prior_work_check can recommend an existing app.
+  purpose?: string;
+  domain?: string;
+  problemCategories?: string[];
   sourceOfTruthFiles: string[];
   completedLoops: CompletedLoopEvidence[];
   createdAt: string;
@@ -45,6 +49,9 @@ type RegisterInput = {
   status?: unknown;
   gatePacketId?: unknown;
   priorWork?: { verdict?: string; passed?: boolean };
+  purpose?: unknown;
+  domain?: unknown;
+  problemCategories?: unknown;
   sourceOfTruthFiles?: unknown;
 };
 
@@ -77,6 +84,9 @@ export async function registerAppProject(input: RegisterInput, now = new Date())
     existing.status = cleanText(input.status) || existing.status;
     if (cleanText(input.gatePacketId)) existing.gatePacketId = cleanText(input.gatePacketId);
     if (input.priorWork) existing.priorWork = input.priorWork;
+    if (cleanText(input.purpose)) existing.purpose = cleanText(input.purpose);
+    if (cleanText(input.domain)) existing.domain = cleanText(input.domain);
+    if (arr(input.problemCategories).length) existing.problemCategories = arr(input.problemCategories);
     if (arr(input.sourceOfTruthFiles).length) existing.sourceOfTruthFiles = arr(input.sourceOfTruthFiles);
     existing.updatedAt = at;
     await writeStore(store);
@@ -90,6 +100,9 @@ export async function registerAppProject(input: RegisterInput, now = new Date())
     status: cleanText(input.status) || "registered",
     gatePacketId: cleanText(input.gatePacketId) || undefined,
     priorWork: input.priorWork,
+    purpose: cleanText(input.purpose) || undefined,
+    domain: cleanText(input.domain) || undefined,
+    problemCategories: arr(input.problemCategories),
     sourceOfTruthFiles: arr(input.sourceOfTruthFiles),
     completedLoops: [],
     createdAt: at,

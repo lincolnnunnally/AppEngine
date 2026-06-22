@@ -699,7 +699,7 @@ function registryQuery(request) {
 }
 
 // In-flight intake placeholders are not completed prior work.
-const PLACEHOLDER_STATUSES = new Set(["gated_intake", "candidate", "planned", "registered", ""]);
+const PLACEHOLDER_STATUSES = new Set(["gated_intake", "candidate", "planned", "planned_app", "registered", ""]);
 
 function searchPortfolioRegistry(cwd, query) {
   const root = stateRoot(cwd);
@@ -730,11 +730,14 @@ function searchPortfolioRegistry(cwd, query) {
     if (selfGatePacketId && entry.gatePacketId === selfGatePacketId && completedCount === 0) continue;
 
     const loopGoals = completedCount ? entry.completedLoops.map((loop) => loop.goal).join(" ") : "";
-    let score = scoreMatch(slug, entry.slug, `${entry.slug} ${entry.name} ${loopGoals}`, terms);
+    // Match on reuse metadata too: purpose, domain, and likely problem categories.
+    const problemCategories = Array.isArray(entry.problemCategories) ? entry.problemCategories.join(" ") : "";
+    const haystack = `${entry.slug} ${entry.name} ${entry.purpose || ""} ${entry.domain || ""} ${problemCategories} ${loopGoals}`;
+    let score = scoreMatch(slug, entry.slug, haystack, terms);
     if (score === "none") continue;
 
     // Exact prior work requires completed work or a built/reusable status. A bare
-    // gated_intake placeholder (completedLoops: 0) is at most a partial signal
+    // placeholder or a planned (not-yet-built) app is at most a partial signal
     // (-> human review), never an exact build-blocker.
     const hasPriorEvidence = completedCount > 0 || !PLACEHOLDER_STATUSES.has(String(entry.status || ""));
     if (score === "exact" && !hasPriorEvidence) score = "partial";
