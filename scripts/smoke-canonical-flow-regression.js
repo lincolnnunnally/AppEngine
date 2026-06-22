@@ -22,6 +22,7 @@ process.env.APPENGINE_STATE_ROOT = stateRoot;
 const registryPath = path.join(stateRoot, "app_portfolio_registry", "registered-apps.json");
 
 let failures = 0;
+const results = [];
 const at = "2026-06-22T00:00:00.000Z";
 
 // ---------------------------------------------------------------------------
@@ -217,11 +218,34 @@ group("ACCEPTANCE invariants", () => {
   assertFileIncludes("scripts/smoke-build-gate.js", ["missing_passing_prior_work_check"]);
 });
 
+// Emit the latest-regression result for the read-only status dashboard. Written
+// to the PROJECT root (not the isolated temp state root) so the dashboard reads it.
+writeRegressionResult();
+
 if (failures) {
   console.error(`\ncanonical-flow-regression: ${failures} check(s) FAILED`);
   process.exit(1);
 }
 console.log(`\ncanonical-flow-regression: all checks passed (${stateRoot})`);
+
+function writeRegressionResult() {
+  const resultPath = path.join(repoRoot, ".app-engine", "regression", "canonical-flow-latest.json");
+  const payload = {
+    kind: "canonical_flow_regression_result",
+    suite: "canonical-flow-regression",
+    generatedAt: new Date().toISOString(),
+    passed: failures === 0,
+    totalChecks: results.length,
+    failedChecks: failures,
+    checks: results
+  };
+  try {
+    fs.mkdirSync(path.dirname(resultPath), { recursive: true });
+    fs.writeFileSync(resultPath, `${JSON.stringify(payload, null, 2)}\n`);
+  } catch {
+    // Non-fatal: the suite's own pass/fail is the source of truth.
+  }
+}
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -232,6 +256,7 @@ function group(title, fn) {
 }
 
 function check(label, ok, detail) {
+  results.push({ label, ok: Boolean(ok) });
   if (ok) {
     console.log(`  ok - ${label}`);
   } else {

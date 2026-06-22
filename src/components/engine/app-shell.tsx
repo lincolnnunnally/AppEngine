@@ -10,7 +10,7 @@ type RailGroup = { label: string; items: RailItem[] };
 // Step 1 rail map — operator routes that exist today only (see spec Appendix A).
 // Later steps add Portfolio / Build sub-pages / Ship as those routes are created.
 const NAV_GROUPS: RailGroup[] = [
-  { label: "Home", items: [{ label: "Dashboard", href: "/" }] },
+  { label: "Home", items: [{ label: "Dashboard", href: "/" }, { label: "Canonical status", href: "/canonical-status" }] },
   {
     label: "Intake",
     items: [
