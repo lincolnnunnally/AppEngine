@@ -235,7 +235,7 @@ function classifyRequestType(rawRequest: string, explicit: unknown): ProblemInta
   if (/\b(add|feature|support for|ability to|allow (?:users|people) to|new option|integrate)\b/.test(text)) return "feature_request";
   if (/\b(build|create|launch|app idea|an app|new app|tool that|platform|website|system to)\b/.test(text)) return "app_idea";
   if (/\bopportunit/.test(text)) return "opportunity";
-  if (/\b(problem|struggle|can'?t|cannot|need help|pain|frustrat|hard to|keep(?:s)? (?:dropping|missing|losing))\b/.test(text)) {
+  if (/\b(problem|struggl\w*|can'?t|cannot|need help|pain|frustrat|hard to|inconsistent|consistently|keep(?:s)? (?:dropping|missing|losing))\b/.test(text)) {
     return "problem";
   }
   return "ambiguous";

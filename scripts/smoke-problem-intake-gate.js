@@ -55,6 +55,12 @@ runStep("engine produces every required intake-packet field", () => {
   ]);
 });
 
+runStep("classifies a bare human/ministry problem as problem (not app_idea)", () => {
+  // "struggling ... consistently" must read as a problem signal, not fall through
+  // to ambiguous and never to app_idea, so a bare problem stays in clarification.
+  assertFileIncludes("src/lib/engine/problem-intake-gate.ts", ["struggl\\w*", "consistently", 'return "problem"']);
+});
+
 runStep("engine blocks build actions and names control gates", () => {
   assertFileIncludes("src/lib/engine/problem-intake-gate.ts", [
     '"begin_architecture"',
