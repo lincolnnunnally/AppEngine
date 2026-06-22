@@ -54,7 +54,7 @@ runStep("owner-gated API prepares the run without unsafe actions", () => {
 });
 
 runStep("Owner Control Center renders the first real build loop run panel", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "FirstRealBuildLoopRunPanel",
     "listFirstRealBuildLoopRuns",
     "firstRealBuildLoopRuns"

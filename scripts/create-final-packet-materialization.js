@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { requirePriorWorkVerdict } from "./lib/require-prior-work.js";
 
 const inputPath = process.env.FINAL_PACKET_MATERIALIZATION_INPUT || "";
 const artifactOutput = process.env.FINAL_PACKET_MATERIALIZATION_OUTPUT || "";
@@ -23,6 +24,22 @@ function buildFinalPacketMaterialization(approval) {
   validatePacketDraftApprovalInput(approval);
 
   const finalPacketType = approval.decision.finalPacketType || finalPacketTypeForDraft(approval.packetDraft.kind);
+
+  // Blocking gate: the reviewed chain may not materialize an app_build_packet or
+  // vnext_packet without a passing Prior-Work Check verdict. This closes the
+  // second app_build_packet emitter (the standalone packet:create builder is
+  // already gated). non_app_solution_plan builds no app code, so it is exempt.
+  // Placed after approval validation so non-approved/missing-field inputs still
+  // fail with their own honest errors first.
+  if (finalPacketType === "app_build_packet" || finalPacketType === "vnext_packet") {
+    requirePriorWorkVerdict({
+      inline: approval.priorWorkCheck,
+      envVar: "FINAL_PACKET_MATERIALIZATION_PRIOR_WORK",
+      packetKind: finalPacketType,
+      label: "Final Packet Materialization"
+    });
+  }
+
   const finalPacket = buildFinalPacket({ approval, finalPacketType });
 
   const artifact = {

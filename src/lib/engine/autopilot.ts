@@ -1,4 +1,5 @@
 import { generateProjectApp } from "./app-generator";
+import { assertProjectBuildAllowed } from "./build-gate";
 import { setupGeneratedAppDatabase } from "./database-setup";
 import { prepareProjectDeployment, runProjectAgents, runProjectAutomation } from "./execution";
 import { getProjectLaunchReadiness, type ProjectReadinessReport } from "./readiness";
@@ -21,6 +22,7 @@ export type ProjectAutopilotResult = {
 const maxAutopilotSteps = 6;
 
 export async function runProjectAutopilot(projectId: string): Promise<ProjectAutopilotResult> {
+  await assertProjectBuildAllowed(projectId, "run_project_autopilot");
   const steps: AutopilotStep[] = [];
   let readiness = await getProjectLaunchReadiness(projectId);
 

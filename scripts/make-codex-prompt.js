@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { assertBuildPromptGate } from "./lib/gate-evidence.js";
 
 const labelModeMap = new Map([
   ["ai:plan", "planner"],
@@ -37,6 +38,15 @@ const outputPath = path.resolve(repoRoot, process.env.PROMPT_OUTPUT || "generate
 if (!agent) {
   throw new Error("Agent manifest does not define a builder or selected agent.");
 }
+
+// Fail closed: a Codex build prompt (builder mode / ai:build) may not be
+// generated unless the issue references a valid gate packet with a passed
+// prior_work_check. Plan/review/fix/etc. modes are unaffected.
+assertBuildPromptGate({
+  mode: agent.id,
+  taskBody: process.env.TASK_BODY || "",
+  env: process.env
+});
 
 function readRequired(filePath) {
   return fs.readFileSync(path.join(repoRoot, filePath), "utf8").trim();

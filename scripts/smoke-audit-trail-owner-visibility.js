@@ -36,7 +36,7 @@ runStep("owner control center exposes audit trail section", () => {
 });
 
 runStep("owner page loads audit report server-side", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "loadAuditTrailOwnerVisibilityReport",
     "initialAuditTrailReport"
   ]);

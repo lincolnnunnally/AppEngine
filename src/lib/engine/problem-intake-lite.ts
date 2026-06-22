@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createProblemIntakeGateRecord } from "@/lib/engine/problem-intake-gate";
 
 export type ProblemIntakeMode = "problem_first" | "vision_first" | "hybrid";
 
@@ -37,6 +38,8 @@ export type ProblemIntakeRecord = {
   likelySolutionShape: ProblemIntakeSolutionShape;
   nextRecommendedAction: string;
   safetyNotes: string[];
+  gatePacketId: string;
+  deprecationNotice: string;
   artifacts: {
     problemSolutionIntake: Record<string, unknown>;
     problemPortfolioRouting: Record<string, unknown>;
@@ -142,8 +145,21 @@ export async function createProblemIntakeRecord(input: CreateProblemIntakeInput)
   const solutionCandidateReview = buildSolutionCandidateReviewArtifact(base, problemPortfolioRouting);
   const appPortfolioRegistryEntry = buildAppPortfolioRegistryEntry(base);
 
+  // Compatibility adapter: create the canonical problem_intake_gate packet and
+  // reference it. The lite artifacts below remain for backward compatibility but
+  // the gate packet is the single source of truth.
+  const gateRecord = await createProblemIntakeGateRecord({
+    rawRequest: normalized.problemSummary,
+    problemBeingSolved: normalized.problemSummary,
+    intendedPerson: normalized.affectedPeople,
+    requestType: normalized.likelySolutionShape === "app" ? "app_idea" : undefined
+  });
+
   const record: ProblemIntakeRecord = {
     ...base,
+    gatePacketId: gateRecord.id,
+    deprecationNotice:
+      "Problem Intake Lite is a compatibility adapter. New work should start at the Problem Intake Gate (/problem-intake). This record references the canonical problem_intake_gate packet.",
     artifacts: {
       problemSolutionIntake,
       problemPortfolioRouting,
@@ -236,7 +252,7 @@ function normalizeProblemIntake(input: CreateProblemIntakeInput) {
   };
 }
 
-function buildProblemSolutionIntakeArtifact(record: Omit<ProblemIntakeRecord, "artifacts">) {
+function buildProblemSolutionIntakeArtifact(record: Omit<ProblemIntakeRecord, "artifacts" | "gatePacketId" | "deprecationNotice">) {
   const answered = [
     "problem.summary",
     "problem.affectedPeople",
@@ -296,7 +312,7 @@ function buildProblemSolutionIntakeArtifact(record: Omit<ProblemIntakeRecord, "a
 }
 
 function buildProblemPortfolioRoutingArtifact(
-  record: Omit<ProblemIntakeRecord, "artifacts">,
+  record: Omit<ProblemIntakeRecord, "artifacts" | "gatePacketId" | "deprecationNotice">,
   problemSolutionIntake: Record<string, unknown>
 ) {
   const candidateType = toCandidateType(record.likelySolutionShape);
@@ -364,7 +380,7 @@ function buildProblemPortfolioRoutingArtifact(
 }
 
 function buildSolutionCandidateReviewArtifact(
-  record: Omit<ProblemIntakeRecord, "artifacts">,
+  record: Omit<ProblemIntakeRecord, "artifacts" | "gatePacketId" | "deprecationNotice">,
   problemPortfolioRouting: Record<string, unknown>
 ) {
   const readinessStatus =
@@ -416,7 +432,7 @@ function buildSolutionCandidateReviewArtifact(
   };
 }
 
-function buildAppPortfolioRegistryEntry(record: Omit<ProblemIntakeRecord, "artifacts">) {
+function buildAppPortfolioRegistryEntry(record: Omit<ProblemIntakeRecord, "artifacts" | "gatePacketId" | "deprecationNotice">) {
   return {
     kind: "app_portfolio_registry_candidate_entry",
     schemaVersion: 1,

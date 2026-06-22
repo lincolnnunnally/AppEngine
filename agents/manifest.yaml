@@ -28,6 +28,7 @@ shared_context_files:
   - source-of-truth/03-life-produces-life.md
   - source-of-truth/04-app-purpose-rules.md
   - source-of-truth/05-ecosystem-design-gates.md
+  - APPENGINE_LOOP_SYSTEM.md
   - source-of-truth/context-checklist.md
   - source-of-truth/agent-enforcement.md
   - source-of-truth/handoff-relay-reducer.md
@@ -43,6 +44,7 @@ shared_context_files:
   - source-of-truth/pending-check-resolution-policy.md
   - source-of-truth/production-readiness-snapshot.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
+  - source-of-truth/problem-intake-gate.md
   - source-of-truth/opportunity-intake-foundation.md
   - source-of-truth/opportunity-clarification-engine.md
   - source-of-truth/opportunity-solution-path-router.md
@@ -50,6 +52,7 @@ shared_context_files:
   - source-of-truth/opportunity-appengine-candidate-bridge.md
   - source-of-truth/problem-to-solution-intake-standard.md
   - source-of-truth/problem-portfolio-routing-standard.md
+  - source-of-truth/prior-work-check-gate.md
   - source-of-truth/solution-candidate-review-gate.md
   - source-of-truth/candidate-to-packet-bridge.md
   - source-of-truth/packet-draft-approval-gate.md

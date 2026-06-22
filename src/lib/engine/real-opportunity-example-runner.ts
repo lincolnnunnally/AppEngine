@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { getAppEngineAuditTrail } from "@/lib/engine/audit-trail-lite";
 import { durableStateGuardrails, getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+
+// NON-CANONICAL: real_opportunity_example_runner is an example runner / test
+// fixture. The canonical execution record is loop_run_records
+// (createLoopRunFromPacket / completeLoopRun); this runner is read-only evidence
+// and must not create competing execution records.
+export const CANONICAL_EXECUTION_NOTE =
+  "loop_run_records is the canonical execution record; real_opportunity_example_runner is a read-only example fixture.";
 import {
   runOpportunityFullLoopTrial,
   type OpportunityFullLoopTrialInput,

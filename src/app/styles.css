@@ -3422,3 +3422,277 @@ label {
     width: 100%;
   }
 }
+
+/* =====================================================================
+   Step 1 — Cockpit shell + two front doors (ADDITIVE, operator-only).
+   New classes only; every rule above is untouched. Uses :root tokens.
+   ===================================================================== */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 16px;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+
+.rail-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rail-brand-mark {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+/* Hidden on desktop; revealed under 860px as the rail collapses. */
+.rail-toggle {
+  display: none;
+  min-height: 40px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rail-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rail-group-label {
+  margin: 0 0 4px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rail-item {
+  display: block;
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.rail-item:hover {
+  background: var(--green-soft);
+  color: var(--ink);
+}
+
+.rail-item.active {
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.rail-item-sm {
+  font-size: 0.9rem;
+}
+
+.rail-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.rail-identity {
+  margin: 0;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 60px;
+  padding: 0 clamp(16px, 3vw, 32px);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+/* Reserved, intentionally empty slot for a future primary action. */
+.app-header-action {
+  min-width: 0;
+}
+
+.app-content {
+  flex: 1;
+  min-width: 0;
+  padding: clamp(18px, 3vw, 34px);
+}
+
+/* Let existing viewport-width page wrappers fill the cockpit content column
+   instead of measuring against 100vw, so they never overflow horizontally
+   inside the narrower content area. Scoped override — existing rules intact. */
+.app-content .shell,
+.app-content .wide-shell {
+  width: 100%;
+  margin: 0;
+}
+
+/* A touch more heading hierarchy inside the cockpit (weight only — no resize,
+   so existing pages keep their layout). */
+.app-content h1 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Operator home — two front doors */
+.home-intro {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.home-intro h1 {
+  font-size: clamp(2rem, 4vw, 2.6rem);
+}
+
+.home-intro p:last-child {
+  max-width: 640px;
+  color: var(--muted);
+}
+
+.door-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.door-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--teal);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.door-card:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.door-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.door-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.door-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--teal);
+  background: var(--green-soft);
+}
+
+.home-secondary {
+  margin-top: 8px;
+}
+
+/* Mobile: collapse the vertical rail into an in-flow top bar with a toggle.
+   No position: fixed; the nav panel slides down within normal flow. */
+@media (max-width: 860px) {
+  .app-shell {
+    display: block;
+  }
+
+  .app-rail {
+    flex-direction: column;
+    gap: 14px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rail-toggle {
+    display: inline-flex;
+  }
+
+  .rail-panel {
+    display: none;
+  }
+
+  .app-rail[data-open="true"] .rail-panel {
+    display: flex;
+  }
+
+  .rail-foot {
+    margin-top: 8px;
+  }
+
+  .door-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

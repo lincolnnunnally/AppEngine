@@ -1,4 +1,5 @@
 import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { listRegisteredAppProjects, type RegisteredAppProject } from "@/lib/engine/app-portfolio-registry-store";
 import { listBuildExecutionRequests } from "@/lib/engine/build-execution-request";
 import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
 import { listHandoffRelaySummaries } from "@/lib/engine/handoff-relay";
@@ -135,6 +136,10 @@ export type AppPortfolioRegistry = {
     byStateSource: Record<AppPortfolioStateSource, number>;
   };
   apps: AppPortfolioEntry[];
+  // Canonical durable registrations + completed-loop evidence (the single source
+  // of truth for what AppEngine has built or is building). Merged in from the
+  // app_portfolio_registry store on top of the derived/assembled apps above.
+  registeredAppProjects: RegisteredAppProject[];
   guardrails: {
     noSecretsInRegistry: true;
     noPrivateUserData: true;
@@ -184,7 +189,7 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
   ]);
   const sparkCapability = getStoryIntakeCapability();
 
-  return buildAppPortfolioRegistry([
+  const registry = buildAppPortfolioRegistry([
     deriveAppEngineCoreEntry(seedEntries[0], projectMemory, orchestratorActionQueue, buildExecutionRequests),
     deriveOpportunityEntry(seedEntries[1], {
       opportunityIntakes,
@@ -206,6 +211,11 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     deriveSparkEntry(seedEntries[3], sparkCapability),
     deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates })
   ]);
+
+  // Canonical durable registrations + completed-loop evidence are merged on top
+  // of the derived view so app_portfolio_registry is the single source of truth.
+  registry.registeredAppProjects = await listRegisteredAppProjects();
+  return registry;
 }
 
 export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfolioRegistry {
@@ -245,6 +255,7 @@ export function buildAppPortfolioRegistry(apps: AppPortfolioEntry[]): AppPortfol
       byStateSource
     },
     apps,
+    registeredAppProjects: [],
     guardrails: {
       noSecretsInRegistry: true,
       noPrivateUserData: true,

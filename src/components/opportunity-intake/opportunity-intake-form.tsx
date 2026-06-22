@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { OpportunityIntakeMode, OpportunitySolutionType } from "@/lib/engine/opportunity-intake";
+import type {
+  OpportunityControlGateView,
+  OpportunityIntakeMode,
+  OpportunitySolutionType
+} from "@/lib/engine/opportunity-intake";
 
 const modeOptions: Array<{ value: OpportunityIntakeMode; label: string; description: string }> = [
   {
@@ -46,6 +50,7 @@ export function OpportunityIntakeForm() {
   const [possibleSolutionType, setPossibleSolutionType] = useState<OpportunitySolutionType>("not_sure");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ type: "success" | "error"; title: string; message: string } | null>(null);
+  const [gate, setGate] = useState<OpportunityControlGateView | null>(null);
 
   async function submitOpportunity(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,10 +80,14 @@ export function OpportunityIntakeForm() {
         throw new Error(result.message || "The opportunity could not be saved.");
       }
 
+      const gateResult: OpportunityControlGateView | null = result.record?.gate || null;
+      setGate(gateResult);
       setNotice({
         type: "success",
         title: result.record?.title || "Opportunity saved",
-        message: `Saved for AppEngine review. Suggested route: ${result.record?.route?.replaceAll("_", " ") || "owner review"}.`
+        message: gateResult
+          ? `Saved for AppEngine review. Next safe phase: ${gateResult.nextSafePhase}. ${gateResult.applicableControlGates.length} control gates must pass before any architecture, design, or build.`
+          : `Saved for AppEngine review. Suggested route: ${result.record?.route?.replaceAll("_", " ") || "owner review"}.`
       });
       setProblemPain("");
       setAffectedPeople("");
@@ -230,6 +239,24 @@ export function OpportunityIntakeForm() {
           </button>
         </div>
       </form>
+
+      {gate ? (
+        <section className="panel" aria-label="Control gates before any build" data-testid="opportunity-control-gates">
+          <p className="eyebrow">Control Gates Before Any Build</p>
+          <p>
+            <strong>Next safe phase:</strong> {gate.nextSafePhase.replaceAll("_", " ")} — no architecture, design, or
+            implementation until the gates pass.
+          </p>
+          <p>
+            <strong>Gates that must pass:</strong> {gate.applicableControlGates.join(", ")}
+          </p>
+          {gate.missingContext.length ? (
+            <p>
+              <strong>Clarify first:</strong> {gate.missingContext.join(", ")}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
     </section>
   );
 }

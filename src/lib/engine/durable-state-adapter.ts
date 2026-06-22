@@ -20,6 +20,9 @@ export type AppEngineStateKind =
   | "real_opportunity_example_runner"
   | "real_opportunity_result_review"
   | "life_core"
+  | "app_portfolio_registry"
+  | "loop_run_records"
+  | "problem_intake_gate"
   | "problem_intake"
   | "problem_intake_feedback"
   | "spark_story_submissions"
@@ -106,6 +109,9 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("real_opportunity_example_runner", "Real Opportunity Example Runner", "local_json", "sensitive", true, true, "Owner-entered real Opportunity examples run through the controlled-use flow with local/mock persistence."),
   store("real_opportunity_result_review", "Real Opportunity Result Review", "local_json", "sensitive", true, true, "Owner reviews of real Opportunity example results and next-action readiness decisions."),
   store("life_core", "Life Produces Life Core", "local_json", "public_safe", false, false, "Read-only foundation preview data for shared ecosystem journey, experience, testimony, opportunity, and feed contracts."),
+  store("app_portfolio_registry", "App Portfolio Registry", "local_json", "internal", false, true, "Canonical app/project registry: registered apps/projects, prior-work references, and completed-loop evidence. Single source of truth for what AppEngine has built or is building."),
+  store("loop_run_records", "AppEngine Loop System", "local_json", "internal", true, true, "Manual loop intake records with acceptance criteria, status, cycle count, and circuit breaker state."),
+  store("problem_intake_gate", "Problem Intake Gate", "local_json", "sensitive", true, true, "Official front-door intake packets: raw request, problem, person, likely app, request type, control gates, blocked actions, and next safe phase before any build."),
   store("problem_intake", "Problem Intake Lite", "local_json", "sensitive", true, true, "Submitted problems and visions can contain personal stories or private operations context."),
   store("problem_intake_feedback", "Problem Intake Lite", "local_json", "private", true, false, "Owner feedback about intake quality and missing context."),
   store("spark_story_submissions", "Spark of Hope Intake Lite", "local_json", "sensitive", true, true, "Hope stories and intake details require privacy boundaries."),

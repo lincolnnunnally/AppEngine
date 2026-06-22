@@ -10,6 +10,7 @@ import {
   type StoredRun
 } from "./development-store";
 import { buildGeneratedAppHandoff, formatGeneratedAppHandoff } from "./app-output";
+import { assertProjectBuildAllowed } from "./build-gate";
 import { listProjectDatabaseSetups } from "./database-setup";
 import { getConfiguredDatabaseUrl, isLocalMode, isUsableDatabaseUrl } from "./local-mode";
 import { analyzeIdea } from "./planner";
@@ -223,6 +224,7 @@ export async function listProjectDeployments(projectId: string) {
 }
 
 export async function prepareProjectDeployment(projectId: string) {
+  await assertProjectBuildAllowed(projectId, "prepare_project_deployment");
   const health = await getEngineHealth();
 
   if (isLocalMode()) {
@@ -292,6 +294,7 @@ export async function prepareProjectDeployment(projectId: string) {
 }
 
 export async function runProjectAgents(projectId: string) {
+  await assertProjectBuildAllowed(projectId, "run_project_agents");
   const health = await getEngineHealth();
   const startedAt = new Date();
 
@@ -449,6 +452,7 @@ export async function runProjectAgents(projectId: string) {
 }
 
 export async function runProjectAutomation(projectId: string) {
+  await assertProjectBuildAllowed(projectId, "run_project_automation");
   const health = await getEngineHealth();
 
   if (isLocalMode()) {

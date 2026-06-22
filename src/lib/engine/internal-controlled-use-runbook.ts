@@ -1,6 +1,13 @@
 import { getAppEngineAuditTrail } from "./audit-trail-lite.ts";
 import { loadAuditTrailOwnerVisibilityReport, type AuditTrailOwnerVisibilityReport } from "./audit-trail-owner-visibility.ts";
 import { getAppEngineStateAdapter } from "./durable-state-adapter.ts";
+
+// NON-CANONICAL: internal_controlled_use_trials is a controlled-use trial /
+// historical ledger. The canonical execution record is loop_run_records
+// (createLoopRunFromPacket / completeLoopRun); this store is read-only evidence
+// and must not create competing execution records.
+export const CANONICAL_EXECUTION_NOTE =
+  "loop_run_records is the canonical execution record; internal_controlled_use_trials is a read-only historical ledger.";
 import {
   approveAndExportPreparedHandoff,
   listHandoffRelaySummaries,

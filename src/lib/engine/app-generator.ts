@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { getDatabase } from "@/lib/db/client";
 import type { AgentStructuredArtifact } from "./agent-artifacts";
 import { buildGeneratedAppHandoff, type GeneratedAppHandoff } from "./app-output";
+import { assertProjectBuildAllowed } from "./build-gate";
 import { createLocalExport, getLocalProject, listLocalExports, listLocalRuns } from "./development-store";
 import { isLocalMode } from "./local-mode";
 import { analyzeIdea } from "./planner";
@@ -53,6 +54,7 @@ export async function listGeneratedAppExports(projectId: string) {
 }
 
 export async function generateProjectApp(projectId: string) {
+  await assertProjectBuildAllowed(projectId, "generate_project_app");
   if (isLocalMode()) {
     const project = await getLocalProject(projectId);
 

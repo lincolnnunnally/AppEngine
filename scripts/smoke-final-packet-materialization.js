@@ -2,9 +2,15 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { runPriorWorkCheck, buildNewExampleRequest, selfExtendExampleRequest } from "./lib/prior-work-check.js";
 
 const repoRoot = process.cwd();
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-final-packet-materialization-"));
+// Isolate engine state to this smoke (empty registry) so the example prior-work
+// verdicts are deterministic regardless of any seeded local registry.
+process.env.APPENGINE_STATE_ROOT = smokeRoot;
+const buildNewVerdict = runPriorWorkCheck(buildNewExampleRequest());
+const extendExistingVerdict = runPriorWorkCheck(selfExtendExampleRequest());
 
 runStep("standard is discoverable", () => {
   assertFileIncludes("source-of-truth/final-packet-materialization.md", [
@@ -29,7 +35,7 @@ runStep("approved app build packet draft materializes final App Build Packet", (
     finalPacketType: "app_build_packet",
     candidateType: "new_app_candidate",
     candidateName: "Church Care Follow Up"
-  }));
+  }), buildNewVerdict);
 
   assertEqual(result.kind, "final_packet_materialization", "artifact kind");
   assertEqual(result.finalPacketType, "app_build_packet", "final packet type");
@@ -49,7 +55,7 @@ runStep("approved vNext packet draft materializes final vNext Packet", () => {
     candidateType: "existing_app_improvement",
     candidateName: "Spark Of Hope Intake Lite",
     candidateSlug: "spark-of-hope-intake-lite"
-  }));
+  }), extendExistingVerdict);
 
   assertEqual(result.finalPacketType, "vnext_packet", "final packet type");
   assertEqual(result.finalPacket.kind, "vnext_packet", "final packet kind");
@@ -67,6 +73,17 @@ runStep("approved non-app solution plan draft materializes final Non-App Solutio
   assertEqual(result.finalPacketType, "non_app_solution_plan", "final packet type");
   assertEqual(result.finalPacket.kind, "non_app_solution_plan", "final packet kind");
   assertEqual(result.finalPacket.plan.reviewPath.includes("phase creation approval"), true, "phase creation still gated");
+});
+
+runStep("app build packet materialization is blocked without a prior-work verdict", () => {
+  assertThrows(() => {
+    runMaterialization("app-no-verdict.json", packetDraftApproval({
+      draftKind: "app_build_packet_draft",
+      finalPacketType: "app_build_packet",
+      candidateType: "new_app_candidate",
+      candidateName: "Church Care Follow Up"
+    }));
+  }, "passing Prior-Work Check verdict is required");
 });
 
 runStep("non-approved statuses fail honestly", () => {
@@ -95,18 +112,20 @@ runStep("missing approval fields fail honestly", () => {
 
 console.log(`final-packet-materialization smoke ok (${smokeRoot})`);
 
-function runMaterialization(name, approval) {
+function runMaterialization(name, approval, priorWorkVerdict) {
   const inputPath = path.join(smokeRoot, name);
   const outputPath = path.join(smokeRoot, name.replace(".json", "-materialization.json"));
   const markdownPath = path.join(smokeRoot, name.replace(".json", "-materialization.md"));
   const followUpsPath = path.join(smokeRoot, name.replace(".json", "-followups.json"));
 
+  if (priorWorkVerdict) approval.priorWorkCheck = priorWorkVerdict;
   writeJson(inputPath, { packet_draft_approval: approval });
 
   execFileSync(process.execPath, [path.join(repoRoot, "scripts/create-final-packet-materialization.js")], {
     cwd: repoRoot,
     env: {
       ...process.env,
+      APPENGINE_STATE_ROOT: smokeRoot,
       FINAL_PACKET_MATERIALIZATION_INPUT: inputPath,
       FINAL_PACKET_MATERIALIZATION_OUTPUT: outputPath,
       FINAL_PACKET_MATERIALIZATION_MARKDOWN_OUTPUT: markdownPath,

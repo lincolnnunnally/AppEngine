@@ -19,7 +19,7 @@ runStep("public intake route is discoverable", () => {
 });
 
 runStep("owner control center is discoverable", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "OwnerControlCenter",
     "listProblemIntakeRecords"
   ]);

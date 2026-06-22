@@ -4,10 +4,12 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { writeTestVerdict } from "./lib/require-prior-work.js";
 
 const repoRoot = process.cwd();
 const execFileAsync = promisify(execFile);
 const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "appengine-build-completion-"));
+const priorWorkVerdict = writeTestVerdict("build_new", smokeRoot);
 const packetOutput = path.join(smokeRoot, "app-build-packet.json");
 const completionOutput = path.join(smokeRoot, "build-completion-output.json");
 const completionPlanOutput = path.join(smokeRoot, "build-completion-plan.json");
@@ -30,6 +32,7 @@ const server = await startPreviewServer();
 try {
   await runStep("app build packet creates build completion plan", async () => {
     await runNode("scripts/create-app-build-packet.js", {
+      APP_BUILD_PACKET_PRIOR_WORK: priorWorkVerdict,
       APP_BUILD_PACKET_OUTPUT: packetOutput,
       APP_NAME: "Spark of Hope Intake Lite",
       APP_SLUG: "spark-of-hope-intake-lite",

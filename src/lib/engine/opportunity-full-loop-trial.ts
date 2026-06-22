@@ -2,6 +2,13 @@ import { randomUUID } from "node:crypto";
 import { getAppEngineAuditTrail } from "@/lib/engine/audit-trail-lite";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import { durableStateGuardrails, getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+
+// NON-CANONICAL: opportunity full-loop trial proof / historical ledger. The
+// canonical execution record is loop_run_records (createLoopRunFromPacket /
+// completeLoopRun). This runner is read-only evidence and must not create
+// competing execution records.
+export const CANONICAL_EXECUTION_NOTE =
+  "loop_run_records is the canonical execution record; opportunity_full_loop_trial is a read-only historical ledger.";
 import { createOpportunityActionPlan, type OpportunityActionPlanRecord } from "@/lib/engine/opportunity-action-plan";
 import {
   createOpportunityAppEngineCandidate,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
+import { isBuildGateError } from "@/lib/engine/build-gate";
 import { getEngineHealth, listProjectDeployments, prepareProjectDeployment } from "@/lib/engine/execution";
 import { isLocalMode } from "@/lib/engine/local-mode";
 
@@ -44,6 +45,9 @@ export async function POST(_request: Request, context: RouteContext) {
   try {
     return NextResponse.json(await prepareProjectDeployment(projectId), { status: 201 });
   } catch (caught) {
+    if (isBuildGateError(caught)) {
+      return NextResponse.json({ error: caught.message, code: caught.code, reroute: "problem_intake_gate" }, { status: 403 });
+    }
     const message = caught instanceof Error ? caught.message : "Deployment preparation failed";
     const status = message === "Project not found" ? 404 : 500;
 

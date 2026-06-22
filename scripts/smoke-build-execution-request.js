@@ -82,7 +82,7 @@ runStep("Owner Control Center shows Create Build Execution Request action", () =
     "Owner approval",
     "Source packet draft"
   ]);
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "BuildExecutionRequestPanel",
     "listBuildExecutionHandoffSources",
     "listBuildExecutionRequests"

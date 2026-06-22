@@ -47,7 +47,7 @@ runStep("api route and owner output are wired", () => {
     "listOpportunityClarifications",
     "Cache-Control"
   ]);
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "listOpportunityClarifications",
     "initialClarifications"
   ]);

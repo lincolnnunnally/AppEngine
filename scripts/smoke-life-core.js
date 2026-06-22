@@ -40,7 +40,7 @@ runStep("United Under God and ChurchConnect remain distinct", () => {
     "Does not become church office software.",
     "Does not become the United Under God mission network."
   ]);
-  assertFileIncludes("src/app/life-core/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/life-core/page.tsx", [
     "Mission network",
     "Body-of-Christ collaboration",
     "Church communications",
@@ -70,13 +70,13 @@ runStep("API routes expose the foundation preview", () => {
 });
 
 runStep("owner-facing page is wired and documented", () => {
-  assertFileIncludes("src/app/life-core/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/life-core/page.tsx", [
     "data-testid=\"life-core-page\"",
     "Shared contracts for transformation-focused ecosystem experiences",
     "Foundation modules future slices can reuse",
     "Unified Activity Feed"
   ]);
-  assertFileIncludes("src/app/page.tsx", ["/life-core", "Life Core Preview"]);
+  assertFileIncludes("src/components/engine/app-shell.tsx", ["/life-core", "Life Core"]);
   assertFileIncludes("README.md", ["Life Produces Life Core", "/life-core", "/api/life-core/overview"]);
 });
 

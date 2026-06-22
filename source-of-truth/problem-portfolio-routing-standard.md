@@ -85,6 +85,7 @@ No candidate may become an App Build Packet, vNext Packet, or implementation iss
 
 All candidates require:
 
+- `prior_work_check_gate`: the target repo was inspected for existing surfaces that already deliver the requested capability. The verdict pins which packet may be created: `build_new` authorizes a new App Build Packet only; `extend_existing` authorizes a vNext/repair packet only (extend the named surfaces, do not start a new app); `blocked_cannot_verify` or a missing verdict stops the candidate. No App Build Packet may be created on `extend_existing`. If the target repo cannot be read, the gate returns `blocked_cannot_verify` per the can't-see-the-repo rule. See `source-of-truth/prior-work-check-gate.md`.
 - `source_of_truth_gate`: required source files are loaded.
 - `problem_clarity_gate`: problem, affected people, barriers, need, and desired transformation are understandable.
 - `owner_review_gate`: Lincoln can see and approve the candidate direction.

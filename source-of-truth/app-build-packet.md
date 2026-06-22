@@ -6,6 +6,8 @@ Every new app must have its own packet before implementation begins.
 
 Natural language requests must pass through the Intake Command Standard and App Selection Standard before an App Build Packet is created. The intake packet should prove that the request is a new app, not an existing-app improvement.
 
+The Prior-Work Check gate must pass before any App Build Packet is created. If the gate returns `extend_existing`, the work is a vNext improvement against the named surfaces, not a new App Build Packet. If the gate returns `blocked_cannot_verify`, stop and make the target repo visible before continuing. Only a verified `build_new` authorizes an App Build Packet. See `source-of-truth/prior-work-check-gate.md`.
+
 ## Required Packet Fields
 
 Each packet must define:
@@ -104,6 +106,10 @@ Use `source-of-truth/operations-cost-provider-strategy.md` for the required shap
 
 Every generated app must include a Deployment Environment plan before preview or production release work. The packet must state frontend provider, backend/API provider if needed, database provider, environment variable names and scopes, preview URL, production URL or approval-gated status, custom domain/subdomain plan, logs, health checks, and rollback notes.
 
+Database placement is decided by identity-sharing, not mission-vs-commercial. Shared-identity ecosystem apps use the shared Supabase ecosystem DB. Standalone/customer-generated apps use isolated Neon projects or branches, and that customer carries the cost.
+
+For this slice, `person` is the canonical shared identity table. `lpl_people` is not canonical unless a later reviewed migration explicitly changes that.
+
 Use `source-of-truth/deployment-environment-standard.md` for the required shape.
 
 ## Design Quality Requirement
@@ -153,6 +159,7 @@ Packets must enforce:
 - Do not let one app import another app's audience, features, data, or purpose without a documented integration reason.
 - Do not skip the app charter.
 - Do not skip the Context Gate.
+- Do not skip the Prior-Work Check; do not create a new app packet when the target repo already has a surface for the capability (extend it instead), and do not assume "nothing exists" when the repo cannot be read.
 - Do not deploy directly to production from an agent workflow.
 - Do not expose secrets, private data, API keys, tokens, or credentials.
 - Do not create new paid provider resources without provider/cost review and owner approval.
@@ -299,8 +306,14 @@ Agents should produce packet artifacts with this shape:
         "provider": "Vercel Functions or Render"
       },
       "database": {
-        "provider": "Neon",
-        "strategy": "generated-app branch or app-scoped database"
+        "provider": "Supabase or Neon by placement",
+        "strategy": "Shared-identity ecosystem apps use Supabase; standalone/customer-generated apps use isolated Neon",
+        "placementRule": {
+          "decisionAxis": "identity-sharing",
+          "canonicalSharedIdentity": "person",
+          "sharedIdentityEcosystem": "Supabase",
+          "standaloneCustomerGenerated": "Neon"
+        }
       }
     },
     "designReview": {

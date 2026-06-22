@@ -63,7 +63,7 @@ runStep("API route is owner-gated and adapter-backed", () => {
 });
 
 runStep("Owner Control Center exposes Prepare Packet Draft action", () => {
-  assertFileIncludes("src/app/owner-control-center/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "listOpportunityBuildPacketBridges",
     "initialBuildPacketBridges"
   ]);
