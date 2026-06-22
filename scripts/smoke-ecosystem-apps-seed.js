@@ -21,6 +21,19 @@ const SEEDED = [
 ];
 const ALLOWED_STATUSES = new Set(["existing_app", "planned_app", "active_product", "ministry_tool", "business_tool"]);
 
+// Canonical registry truth — test-protected so the seed cannot silently drift.
+// Live On Mission stays existing_app unless real usable app code exists.
+const EXPECTED_STATUS = {
+  churchconnect: "active_product",
+  "spark-of-hope": "active_product",
+  "milstead-us": "active_product",
+  "toner-management": "active_product",
+  "live-on-mission": "existing_app",
+  "best-life": "planned_app",
+  "united-under-god": "planned_app",
+  "kids-need-dads": "planned_app"
+};
+
 runStep("seed is idempotent and registers all known ecosystem apps", () => {
   seed();
   const first = readRegistry();
@@ -40,6 +53,21 @@ runStep("each app has a clear status, purpose, and problem categories", () => {
     assertTrue(typeof e.purpose === "string" && e.purpose.length > 0, `${slug} has a purpose`);
     assertTrue(Array.isArray(e.problemCategories) && e.problemCategories.length > 0, `${slug} has problem categories`);
   }
+});
+
+runStep("registry truth: each app carries its canonical status", () => {
+  const reg = readRegistry();
+  for (const [slug, status] of Object.entries(EXPECTED_STATUS)) {
+    const e = reg.entries.find((x) => x.slug === slug);
+    assertEqual(e.status, status, `${slug} status`);
+  }
+});
+
+runStep("Milstead.us includes the community category (and keeps its existing type)", () => {
+  const reg = readRegistry();
+  const m = reg.entries.find((x) => x.slug === "milstead-us");
+  assertTrue((m.problemCategories || []).includes("community"), "milstead-us problemCategories includes 'community'");
+  assertEqual(m.type, "business_tool", "milstead-us keeps its existing business_tool type (no new taxonomy)");
 });
 
 runStep("no fake completed loops are created (planned apps stay planned)", () => {

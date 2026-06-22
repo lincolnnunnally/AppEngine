@@ -70,7 +70,7 @@ const ECOSYSTEM_APPS = [
     type: "business_tool",
     purpose: "Milstead personal/business web presence and property.",
     domain: "business / website",
-    problemCategories: ["website", "business presence", "milstead", "landing page"]
+    problemCategories: ["website", "business presence", "milstead", "landing page", "community"]
   },
   {
     slug: "toner-management",
