@@ -1,0 +1,36 @@
+{
+  "decisionAxis": "identity-sharing",
+  "notDecisionAxis": "mission-vs-commercial",
+  "sharedIdentityEcosystemApps": [
+    "ChurchConnect",
+    "Spark",
+    "Live On Mission",
+    "Opportunity",
+    "United Under God"
+  ],
+  "canonicalSharedIdentity": {
+    "table": "person",
+    "status": "foundational_for_current_slice",
+    "notCanonicalForCurrentSlice": ["lpl_people"]
+  },
+  "supabaseBranchValidation": {
+    "costBearing": true,
+    "defaultPath": "local_copy",
+    "branchPath": "owner_approved_preview_branch",
+    "note": "Supabase preview branches are usage-billed; prefer local validation unless owner approval records the branch cost."
+  },
+  "sharedIdentityEcosystem": {
+    "provider": "Supabase",
+    "target": "shared Supabase ecosystem DB",
+    "strategy": "Reuse shared person/organization/testimony/service_activity records; do not create an isolated Neon target.",
+    "costOwner": "ecosystem/shared",
+    "setupAction": "Do not run generated-app Neon setup for shared-identity ecosystem apps."
+  },
+  "standaloneCustomerGenerated": {
+    "provider": "Neon",
+    "target": "isolated Neon project or branch",
+    "strategy": "Use an isolated Neon project or app-scoped branch for standalone/customer-generated apps.",
+    "costOwner": "customer",
+    "setupAction": "Use AppEngine generated-app database setup after the placement decision is recorded."
+  }
+}

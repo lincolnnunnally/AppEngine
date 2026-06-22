@@ -966,11 +966,11 @@ export function selfExtendExampleRequest() {
     },
     capabilities: [
       {
-        id: "loop-intake",
-        description: "Loop intake form surface",
-        componentHints: ["loop-intake-form"]
+        id: "problem-intake",
+        description: "Problem intake form surface",
+        componentHints: ["problem-intake-form"]
       }
     ],
-    proposedNewSurfaces: [{ kind: "component", name: "NewLoopIntakeForm", capabilityId: "loop-intake" }]
+    proposedNewSurfaces: [{ kind: "component", name: "NewProblemIntakeForm", capabilityId: "problem-intake" }]
   };
 }
