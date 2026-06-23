@@ -3696,3 +3696,124 @@ label {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Entry point — dark two-door front door. Scoped to .entry so it does not
+   affect any other page or shared component.
+   --------------------------------------------------------------------------- */
+.entry {
+  --entry-base: #0e1512;
+  --entry-panel: #18211c;
+  --entry-primary-door: #1d2722;
+  --entry-text: #eef2ee;
+  --entry-muted: #9aa79f;
+  --entry-gold: #e6a93a;
+  --entry-teal: #34c0ad;
+
+  background: var(--entry-base);
+  color: var(--entry-text);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  padding: clamp(2.75rem, 6vw, 5.5rem) clamp(1.5rem, 5vw, 4rem);
+}
+
+.entry-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.entry-title {
+  margin: 0;
+  color: var(--entry-text);
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.entry-sub {
+  margin: 0;
+  color: var(--entry-muted);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+}
+
+.entry-doors {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.25rem, 3vw, 2rem);
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+@media (min-width: 760px) {
+  .entry-doors {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.entry-door {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: clamp(1.75rem, 3vw, 2.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 4px solid transparent;
+  border-radius: 18px;
+  background: var(--entry-panel);
+  color: var(--entry-text);
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.entry-door:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+}
+
+.entry-door-accent {
+  width: 44px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.entry-door-title {
+  margin: 0;
+  color: var(--entry-text);
+  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+  font-weight: 650;
+}
+
+.entry-door-text {
+  margin: 0;
+  color: var(--entry-muted);
+  line-height: 1.55;
+}
+
+.entry-door--problem {
+  background: var(--entry-primary-door);
+  border-top-color: var(--entry-gold);
+}
+
+.entry-door--problem:hover {
+  border-color: var(--entry-gold);
+}
+
+.entry-door--problem .entry-door-accent {
+  background: var(--entry-gold);
+}
+
+.entry-door--build {
+  border-top-color: var(--entry-teal);
+}
+
+.entry-door--build:hover {
+  border-color: var(--entry-teal);
+}
+
+.entry-door--build .entry-door-accent {
+  background: var(--entry-teal);
+}
