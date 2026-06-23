@@ -63,11 +63,11 @@ runStep("registry truth: each app carries its canonical status", () => {
   }
 });
 
-runStep("Milstead.us includes the community category (and keeps its existing type)", () => {
+runStep("Milstead.us is ministry_tool and includes the community category", () => {
   const reg = readRegistry();
   const m = reg.entries.find((x) => x.slug === "milstead-us");
   assertTrue((m.problemCategories || []).includes("community"), "milstead-us problemCategories includes 'community'");
-  assertEqual(m.type, "business_tool", "milstead-us keeps its existing business_tool type (no new taxonomy)");
+  assertEqual(m.type, "ministry_tool", "milstead-us type is ministry_tool (existing taxonomy; not community/business presence)");
 });
 
 runStep("no fake completed loops are created (planned apps stay planned)", () => {

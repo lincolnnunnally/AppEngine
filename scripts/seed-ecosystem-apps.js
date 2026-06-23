@@ -67,7 +67,7 @@ const ECOSYSTEM_APPS = [
     slug: "milstead-us",
     name: "Milstead.us",
     status: "active_product",
-    type: "business_tool",
+    type: "ministry_tool",
     purpose: "Milstead personal/business web presence and property.",
     domain: "business / website",
     problemCategories: ["website", "business presence", "milstead", "landing page", "community"]
