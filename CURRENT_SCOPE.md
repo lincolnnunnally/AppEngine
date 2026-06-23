@@ -1,48 +1,91 @@
-# CURRENT_SCOPE.md — AppEngine Scope Fence
+# CURRENT_SCOPE.md - Opportunity/AppEngine Scope Fence
 
-> Repo-level scope fence for **every** agent working in this repo (Claude Code, Codex,
-> ChatGPT, human). Read this **before** making any change. Work only from this fence.
-> When a request falls outside it, stop and ask Lincoln.
+> Read this first, every time. It keeps work focused, remembers settled decisions,
+> and shows the remaining path to soft launch. If a request is not here, surface it
+> and stop. If a settled decision is being re-asked, point here and move on.
 
-## One objective
-Land and protect the **canonical AppEngine flow** on `main`, then reach **soft launch** —
-without adding new scope.
+## One Objective
 
-Canonical flow (one of each):
-`problem_intake_gate → clarification → prior_work_check → routing → candidate_packet_bridge → loop_run_records → execution → verification → app_portfolio_registry`
+Finish the single entry point: we-succeed.org, two doors, dark theme, owner-only,
+backed by the working AppEngine/Opportunity gate, with one real problem proven
+through it. Then soft launch. Nothing else.
 
-## In scope
-- Keeping the canonical flow correct, blocking, and fail-closed.
-- The ecosystem registry **seed truth** (statuses + reuse metadata) and its smoke.
-- The canonical-flow **regression suite** and the read-only `/canonical-status` dashboard.
-- Small, additive, test-protected fixes that directly serve the one objective.
+Opportunity/AppEngine is the current product. The ecosystem apps are future output
+of AppEngine, not the current build target.
 
-## Out of scope (do NOT start without Lincoln)
-- Provider / Cost work.
-- Data Model planning or migrations.
-- ChurchConnect repair, or any product-app build.
-- New features, new dashboards, new app types / taxonomy expansion.
-- Refreshing source-of-truth docs 02 / 03 inside a scope-fence or seed PR.
-- Starting Codex build lanes.
+## Finish Line
 
-## Rules for every agent
-1. **One objective at a time** — work only from this fence and the board.
-2. **Small PRs.** Change only the files the task names. No unrelated WIP in a PR.
-3. **No new app types** — reuse existing allowed taxonomy values.
-4. **No fake completed loops** — never fabricate build evidence.
-5. Every build path stays **behind `problem_intake_gate` + `prior_work_check`**.
-6. **Lincoln approves** merges to `main`, deploys, DB changes, and paid resources. Do not merge without authorization.
-7. **No iCloud duplicate files** (no `"X 2"` files) committed — this repo syncs via iCloud; clean duplicates before committing.
-8. If two agents diverge, the version that matches this fence wins; **neutralize** the other.
-9. **Verify before reporting** (typecheck / build / smokes); report failures honestly.
+Soft launch is reached when:
 
-## Done = soft launch
-Soft launch is reached when, on `main`:
-- `npm run typecheck` and `npm run build` pass,
-- `npm run regression:canonical` and `npm run smoke:canonical-flow-regression` pass,
-- `npm run smoke:build-gate` and `npm run smoke:codex-build-gate` pass,
-- the ecosystem seed truth is in place and `npm run smoke:ecosystem-apps-seed` passes,
-- `/canonical-status` renders read-only and shows the safeguards green,
-- no unrelated WIP or duplicate files are on `main`.
+- we-succeed.org serves the two-door dark entry point.
+- Access is owner-only for Lincoln during soft launch.
+- The underlying gate works: intake -> clarify -> prior-work check -> routing -> packet -> loop -> handoff.
+- One internal loop reaches a real live URL with a health check.
+- One real ChurchConnect visitor-follow-up problem runs through the gate as extend_existing.
+- Nothing can deploy, spend, merge, migrate, or create resources without Lincoln.
 
-Until Lincoln confirms soft launch, **do not expand scope.**
+## Decisions Already Made
+
+- Entry has exactly two doors: "I have a problem to solve" and "I have something I want to build."
+- No third door. No user-facing operator jargon such as gate, intake, packet, or loop.
+- Entry theme is dark: base #0e1512, gold #e6a93a for the problem door, teal #34c0ad for the build door, text #eef2ee.
+- Problem door routes to consumer problem intake.
+- Build door routes to opportunity intake.
+- Both doors still flow through problem_intake_gate behind the scenes.
+- Entry URL is we-succeed.org.
+- Soft launch is owner-only.
+- Identity table is person. lpl_people is parked.
+- Milstead.us is ministry_tool for community outreach and is out of active work.
+- Reuse capability and styling, never personal data.
+- Customer data lives in its own isolated database.
+- Classifications grow only deliberately. Prefer an existing true type; never invent one ad hoc in an unrelated PR.
+- Loop is the discipline over the existing pipeline, not a new system.
+- The portfolio registry is the catalog. Do not build a separate catalog.
+- AppEngine is the factory. Ecosystem apps live in their own repos.
+- Only Lincoln merges. Only Lincoln approves deploys, spend, resources, DB changes, or public launch.
+- Build work enters through AppEngine/Opportunity. Broad chat prepares inputs; it does not originate build work.
+
+## Allowed Work Now
+
+1. Keep main clean and protected.
+2. Finish and verify this scope fence.
+3. Complete the we-succeed.org two-door entry point.
+4. Make the entry simple, dark, polished, and usable.
+5. Keep the app owner-only for soft launch.
+6. Prove one internal loop to a live URL with health check.
+7. Run ChurchConnect visitor follow-up through the gate after the internal proof.
+
+## Out Of Scope Now
+
+- Building ecosystem apps.
+- Expanding Milstead.us.
+- Starting Kids Need Dads, Best Life, United Under God, Spark of Hope, or any other ecosystem app work.
+- Spark domain cutover.
+- ChurchConnect migration off Emergent.
+- ChurchConnect repair before the internal live-loop proof.
+- Creating new classifications.
+- Redesigning architecture.
+- Inventing workflows outside the canonical gate.
+- Adding side dashboards or tools unless required for the finish line.
+- Making the whole app shell dark. Polish later.
+- Public access. That comes later by deliberate decision.
+
+## Path To Done
+
+1. Land this scope fence on main.
+2. Review and merge the dark two-door entry work if it matches this scope.
+3. Gate the entry owner-only for soft launch.
+4. Bring up we-succeed.org with the entry point and health check, owner-approved.
+5. Carry one internal AppEngine loop all the way to a real live URL.
+6. Run ChurchConnect visitor follow-up through the gate as extend_existing.
+7. Stop and verify soft launch readiness before public access.
+
+## Agent Rules
+
+1. First action on any task: read this file and the repo source-of-truth protocol.
+2. Every task must answer: does this move we-succeed.org and the AppEngine/Opportunity gate closer to soft launch? If no, stop.
+3. Build from what exists. Do not originate build work in chat.
+4. Do not re-open settled decisions above.
+5. Do not merge, deploy, spend, provision, migrate, or create resources. Lincoln does that.
+6. Keep PRs small and main-rooted. Do not include unrelated WIP.
+7. If agents diverge, the version matching this scope wins.

@@ -6,15 +6,16 @@ Before an agent plans, builds, reviews, fixes, monitors, or creates follow-up wo
 
 ## Required Preflight
 
-1. Check the live GitHub `main` revision.
-2. Check the local `origin/main` revision.
-3. Stop if the local remote-tracking branch is stale.
-4. Stop if the local `main` branch is behind GitHub `main`.
-5. Read `agents/manifest.yaml`.
-6. Read all `shared_context_files` listed in the manifest.
-7. Read the selected agent prompt from the manifest.
-8. Treat GitHub issues, pull requests, and repo docs as durable handoff records.
-9. Run the Context Gate before planning, designing, building, reviewing, fixing, monitoring, or recommending growth.
+1. Read `CURRENT_SCOPE.md` and stop if the requested work is outside it.
+2. Check the live GitHub `main` revision.
+3. Check the local `origin/main` revision.
+4. Stop if the local remote-tracking branch is stale.
+5. Stop if the local `main` branch is behind GitHub `main`.
+6. Read `agents/manifest.yaml`.
+7. Read all `shared_context_files` listed in the manifest.
+8. Read the selected agent prompt from the manifest.
+9. Treat GitHub issues, pull requests, and repo docs as durable handoff records.
+10. Run the Context Gate before planning, designing, building, reviewing, fixing, monitoring, or recommending growth.
 
 ## Drift Prevention
 
@@ -32,6 +33,7 @@ Core principles, product direction, and completed decisions should be stored in 
 
 Every agent workflow must load:
 
+- Current Scope Fence
 - Why We Build
 - Ecosystem Philosophy
 - Global Principles
