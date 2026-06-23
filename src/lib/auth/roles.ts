@@ -23,6 +23,10 @@ export function canAccessAdmin(role?: string | null) {
   return role === "owner" || role === "admin";
 }
 
+export function canAccessOwner(role?: string | null) {
+  return role === "owner";
+}
+
 export function canAccessCustomerArea(role?: string | null) {
   return role === "owner" || role === "admin" || role === "customer" || role === "vendor";
 }

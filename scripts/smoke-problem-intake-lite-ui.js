@@ -3,8 +3,10 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 
-runStep("public intake route is discoverable", () => {
+runStep("soft-launch problem intake route is discoverable and owner-gated", () => {
   assertFileIncludes("src/app/problem-intake-lite/page.tsx", [
+    "canAccessEngineOwner",
+    "/soft-launch",
     "ProblemIntakeForm",
     "/owner-control-center",
     "/builder"
@@ -48,6 +50,8 @@ runStep("engine artifacts and guardrails are stored", () => {
 
 runStep("api routes do not trigger execution work", () => {
   assertFileIncludes("src/app/api/problem-intake-lite/route.ts", [
+    "canAccessEngineOwner",
+    "Unauthorized",
     "createProblemIntakeRecord",
     "listProblemIntakeRecords",
     "Cache-Control"

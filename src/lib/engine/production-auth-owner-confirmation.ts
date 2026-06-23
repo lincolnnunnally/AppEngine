@@ -20,6 +20,7 @@ export type ProductionAuthOwnerConfirmation = {
   ownerReadableSummary: string;
   requiredEnvVarNames: string[];
   protectedRoutes: string[];
+  ownerOnlyApis: string[];
   adminOnlyApis: string[];
   confirmationChecklist: Array<{
     id: string;
@@ -73,9 +74,9 @@ export function createProductionAuthOwnerConfirmation(
     ),
     checklistItem(
       "admin_apis_reviewed",
-      "Admin-only APIs reviewed",
+      "Protected APIs reviewed",
       Boolean(input.confirmedAdminApisReviewed),
-      `Admin-only APIs: ${readiness.adminOnlyApis.join(", ")}`
+      `Owner-only APIs: ${readiness.ownerOnlyApis.join(", ")}. Admin-only APIs: ${readiness.adminOnlyApis.join(", ")}`
     ),
     checklistItem(
       "production_bypass_disabled",
@@ -102,6 +103,7 @@ export function createProductionAuthOwnerConfirmation(
       : "Production auth is owner-confirmed for controlled use. Production release still requires the release gate.",
     requiredEnvVarNames: ["AUTH_SECRET", "APP_ENGINE_OWNER_EMAIL", "AUTH_GITHUB_ID", "AUTH_GITHUB_SECRET", "AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET"],
     protectedRoutes: readiness.protectedRoutes,
+    ownerOnlyApis: readiness.ownerOnlyApis,
     adminOnlyApis: readiness.adminOnlyApis,
     confirmationChecklist,
     missingOwnerConfirmations,
