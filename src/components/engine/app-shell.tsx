@@ -14,8 +14,8 @@ const NAV_GROUPS: RailGroup[] = [
   {
     label: "Intake",
     items: [
-      { label: "Vision intake", href: "/opportunity-intake" },
-      { label: "Problem intake", href: "/problem-intake-lite" }
+      { label: "Build something", href: "/opportunity-intake" },
+      { label: "Solve a problem", href: "/problem-intake-lite" }
     ]
   },
   {
