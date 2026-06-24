@@ -5,6 +5,8 @@
 Before AppEngine is used in production, the owner needs a clear report that answers:
 
 - Are admin and owner routes protected?
+- Is the two-door soft-launch entry protected?
+- Are Opportunity/problem intake routes and APIs protected?
 - Are admin-only APIs protected?
 - Are local/dev bypasses safely blocked for production?
 - Which auth environment assumptions are still missing?
@@ -23,6 +25,7 @@ Required fields:
 - `status`
 - `ownerReadableSummary`
 - `protectedRoutes`
+- `ownerOnlyApis`
 - `adminOnlyApis`
 - `checks`
 - `missingEnvAssumptions`
@@ -37,6 +40,8 @@ The report must check:
 - `APP_ENGINE_OWNER_EMAIL` owner/admin identity
 - OAuth provider readiness
 - protected owner/admin routes
+- protected soft-launch entry and intake surfaces
+- owner-only intake APIs
 - admin-only engine APIs
 - development/setup bypass risk
 
@@ -49,6 +54,7 @@ Production auth is blocked when:
 - development or setup bypass is enabled in production
 - admin-only APIs are not gated
 - protected owner/admin pages are not gated
+- the two-door entry or intake routes can be reached without owner access during soft launch
 
 OAuth provider setup may be `needs_owner_confirmation` until the owner selects GitHub, Google, or another provider path.
 

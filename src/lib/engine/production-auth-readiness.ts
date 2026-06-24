@@ -15,6 +15,7 @@ export type ProductionAuthReadinessReport = {
   status: ProductionAuthReadinessStatus;
   ownerReadableSummary: string;
   protectedRoutes: string[];
+  ownerOnlyApis: string[];
   adminOnlyApis: string[];
   checks: ProductionAuthReadinessCheck[];
   missingEnvAssumptions: string[];
@@ -31,7 +32,8 @@ export type ProductionAuthReadinessReport = {
 
 type RuntimeEnv = Record<string, string | undefined>;
 
-const protectedRoutes = ["/owner-control-center", "/admin"];
+const protectedRoutes = ["/", "/opportunity-intake", "/problem-intake-lite", "/owner-control-center", "/admin"];
+const ownerOnlyApis = ["/api/opportunity-intake", "/api/problem-intake-lite"];
 const adminOnlyApis = [
   "/api/engine/health",
   "/api/engine/setup-profile",
@@ -58,6 +60,7 @@ export function createProductionAuthReadinessReport(env: RuntimeEnv = process.en
       ? "Production auth is not complete yet. Keep production blocked until required auth env, admin access, and bypass settings are owner-confirmed."
       : "Production auth readiness checks are clear for preview review. Production still requires owner release approval.",
     protectedRoutes,
+    ownerOnlyApis,
     adminOnlyApis,
     checks,
     missingEnvAssumptions,
@@ -108,10 +111,11 @@ function buildChecks(env: RuntimeEnv, missingEnvAssumptions: string[]): Producti
     },
     {
       id: "admin_routes_gated",
-      label: "Admin routes and APIs are gated",
+      label: "Owner/admin routes and APIs are gated",
       status: "passed",
-      evidence: "Owner Control Center, health, setup-profile, handoff, memory, orchestrator, trial, and audit endpoints require canAccessEngineAdmin.",
-      productionImpact: "Owner/admin surfaces stay behind admin access checks."
+      evidence:
+        "Two-door entry, Opportunity intake, problem intake, intake APIs, Owner Control Center, health, setup-profile, handoff, memory, orchestrator, trial, and audit endpoints require owner/admin access checks.",
+      productionImpact: "Owner/admin surfaces stay behind access checks during soft launch."
     },
     {
       id: "dev_bypass_not_production",

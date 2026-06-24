@@ -8,7 +8,8 @@ runStep("owner confirmation artifact builds on auth readiness", () => {
     "production_auth_owner_confirmation",
     "createProductionAuthReadinessReport",
     "blocked_pending_owner_confirmation",
-    "confirmed_for_controlled_use"
+    "confirmed_for_controlled_use",
+    "ownerOnlyApis"
   ]);
 });
 
@@ -43,7 +44,12 @@ runStep("source of truth documents owner confirmation", () => {
     "Production Auth Owner Confirmation",
     "production_auth_owner_confirmation",
     "must fail honestly",
+    "Required Protected APIs",
+    "/opportunity-intake",
+    "/problem-intake-lite",
     "/owner-control-center",
+    "/api/opportunity-intake",
+    "/api/problem-intake-lite",
     "/api/engine/health"
   ]);
 });

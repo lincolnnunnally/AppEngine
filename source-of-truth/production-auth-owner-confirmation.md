@@ -21,6 +21,7 @@ Required fields:
 - status
 - required environment variable names
 - protected routes
+- owner-only APIs
 - admin-only APIs
 - confirmation checklist
 - missing owner confirmations
@@ -43,12 +44,21 @@ Before controlled production use, the owner must confirm:
 
 The confirmation must include:
 
+- `/`
+- `/opportunity-intake`
+- `/problem-intake-lite`
 - `/owner-control-center`
 - `/admin`
 
-## Required Admin APIs
+## Required Protected APIs
+
+The confirmation must include owner-only intake APIs such as:
+
+- `/api/opportunity-intake`
+- `/api/problem-intake-lite`
 
 The confirmation must include engine admin APIs such as:
+
 
 - `/api/engine/health`
 - `/api/engine/setup-profile`

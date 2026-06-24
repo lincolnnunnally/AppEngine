@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { canAccessAdmin, canAccessCustomerArea } from "./roles";
+import { canAccessAdmin, canAccessCustomerArea, canAccessOwner } from "./roles";
 
 export function hasAuthProvider() {
   return Boolean(
@@ -34,6 +34,20 @@ export async function canAccessEngineAdmin() {
   const session = await auth();
 
   return canAccessAdmin(session?.user?.role);
+}
+
+export async function canAccessEngineOwner() {
+  if (isDevelopmentAdminMode()) {
+    return true;
+  }
+
+  if (isSetupAdminMode()) {
+    return true;
+  }
+
+  const session = await auth();
+
+  return canAccessOwner(session?.user?.role);
 }
 
 export async function canAccessEngineCustomerArea() {

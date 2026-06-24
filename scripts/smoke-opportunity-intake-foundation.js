@@ -3,7 +3,7 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 
-runStep("public Opportunity Intake route is discoverable", () => {
+runStep("soft-launch Opportunity Intake route is discoverable and owner-gated", () => {
   assertFileIncludes("src/app/(cockpit)/opportunity-intake/page.tsx", [
     "OpportunityIntakeForm",
     "/owner-control-center",
@@ -52,6 +52,8 @@ runStep("opportunity intake runs through the Problem Intake Gate", () => {
 
 runStep("api route preserves no-execution guardrails", () => {
   assertFileIncludes("src/app/api/opportunity-intake/route.ts", [
+    "canAccessEngineOwner",
+    "Unauthorized",
     "createOpportunityIntakeRecord",
     "listOpportunityIntakeRecords",
     "Cache-Control"

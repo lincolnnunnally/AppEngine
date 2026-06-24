@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { canAccessEngineOwner } from "@/lib/auth/access";
 import { createOpportunityIntakeRecord, listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  if (!(await canAccessEngineOwner())) {
+    return unauthorized();
+  }
+
   return NextResponse.json(
     {
       ok: true,
@@ -18,6 +23,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await canAccessEngineOwner())) {
+    return unauthorized();
+  }
+
   let payload: unknown;
 
   try {
@@ -44,6 +53,21 @@ export async function POST(request: Request) {
   } catch (caught) {
     return opportunityError(caught instanceof Error ? caught.message : "The opportunity could not be saved.");
   }
+}
+
+function unauthorized() {
+  return NextResponse.json(
+    {
+      ok: false,
+      message: "Unauthorized"
+    },
+    {
+      status: 401,
+      headers: {
+        "Cache-Control": "no-store"
+      }
+    }
+  );
 }
 
 function opportunityError(message: string) {
