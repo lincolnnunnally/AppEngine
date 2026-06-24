@@ -10,23 +10,13 @@ import type {
 const modeOptions: Array<{ value: OpportunityIntakeMode; label: string; description: string }> = [
   {
     value: "problem",
-    label: "I see a problem",
+    label: "I have a problem to solve",
     description: "Start with the pain, gap, friction, or repeated struggle."
   },
   {
     value: "vision",
-    label: "I have an idea/vision",
+    label: "I have something I want to build",
     description: "Start with the change you can already imagine."
-  },
-  {
-    value: "tools",
-    label: "I need tools to solve this",
-    description: "Start with the app, workflow, automation, or resource you think is missing."
-  },
-  {
-    value: "help_start",
-    label: "I want to help but do not know where to start",
-    description: "Start with who you care about and what you hope becomes possible."
   }
 ];
 
@@ -110,7 +100,7 @@ export function OpportunityIntakeForm() {
   return (
     <section className="opportunity-intake-layout" data-testid="opportunity-intake-page">
       <div className="opportunity-intake-copy">
-        <p className="eyebrow">Opportunity Intake</p>
+        <p className="eyebrow">Build something</p>
         <h1>Start with the problem. Find the right next path.</h1>
         <p>
           Share what hurts, who it affects, and what better could look like. AppEngine keeps this as a reviewable
@@ -128,7 +118,7 @@ export function OpportunityIntakeForm() {
       <form className="panel opportunity-intake-form" onSubmit={submitOpportunity}>
         <div>
           <p className="eyebrow">What best describes where you are?</p>
-          <div className="opportunity-choice-grid" role="group" aria-label="Choose opportunity intake mode">
+          <div className="opportunity-choice-grid" role="group" aria-label="Choose how you want to begin">
             {modeOptions.map((option) => (
               <button
                 aria-pressed={mode === option.value}
