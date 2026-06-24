@@ -4,7 +4,7 @@ import path from "node:path";
 const repoRoot = process.cwd();
 
 runStep("soft-launch problem intake route is discoverable and owner-gated", () => {
-  assertFileIncludes("src/app/problem-intake-lite/page.tsx", [
+  assertFileIncludes("src/app/(cockpit)/problem-intake-lite/page.tsx", [
     "canAccessEngineOwner",
     "/soft-launch",
     "ProblemIntakeForm",
@@ -13,10 +13,18 @@ runStep("soft-launch problem intake route is discoverable and owner-gated", () =
   ]);
   assertFileIncludes("src/components/problem-intake-lite/problem-intake-form.tsx", [
     "data-testid=\"problem-intake-lite-page\"",
-    "I noticed a problem",
-    "I have a solution vision",
-    "Both",
+    "Solve a problem",
+    "Describe what",
+    "mode: \"problem_first\"",
     "Save for review"
+  ]);
+  // The user already chose the problem door, so the form must not re-ask
+  // problem-vs-vision: the redundant "Start Here" mode selector is gone and
+  // every submission defaults to problem_first.
+  assertFileExcludes("src/components/problem-intake-lite/problem-intake-form.tsx", [
+    "Start Here",
+    "intake-choice-grid",
+    "I noticed a problem"
   ]);
 });
 
