@@ -2,26 +2,6 @@
 
 import { useState } from "react";
 
-type IntakeMode = "problem_first" | "vision_first" | "hybrid";
-
-const modeOptions: Array<{ value: IntakeMode; label: string; description: string }> = [
-  {
-    value: "problem_first",
-    label: "I noticed a problem",
-    description: "Start with what feels stuck, painful, repeated, or costly."
-  },
-  {
-    value: "vision_first",
-    label: "I have a solution vision",
-    description: "Start with the thing you want to make or improve."
-  },
-  {
-    value: "hybrid",
-    label: "Both",
-    description: "Capture the problem and the possible answer together."
-  }
-];
-
 const solutionShapeOptions = [
   { value: "workflow_process", label: "A better workflow or process" },
   { value: "app", label: "A simple app or tool" },
@@ -33,7 +13,6 @@ const solutionShapeOptions = [
 ];
 
 export function ProblemIntakeForm() {
-  const [mode, setMode] = useState<IntakeMode>("problem_first");
   const [problemSummary, setProblemSummary] = useState("");
   const [affectedPeople, setAffectedPeople] = useState("");
   const [desiredChange, setDesiredChange] = useState("");
@@ -56,7 +35,7 @@ export function ProblemIntakeForm() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          mode,
+          mode: "problem_first",
           problemSummary,
           affectedPeople,
           desiredChange,
@@ -96,8 +75,8 @@ export function ProblemIntakeForm() {
   return (
     <section className="problem-intake-layout" data-testid="problem-intake-lite-page">
       <div className="problem-intake-copy">
-        <p className="eyebrow">Problem Intake Lite</p>
-        <h1>Turn a problem or vision into a safe next step.</h1>
+        <p className="eyebrow">Solve a problem</p>
+        <h1>Describe what&apos;s getting in the way.</h1>
         <p>
           Share what you noticed in plain English. AppEngine saves it as a reviewable candidate before any build work starts.
         </p>
@@ -111,24 +90,6 @@ export function ProblemIntakeForm() {
       </div>
 
       <form className="panel problem-intake-form" onSubmit={submitIntake}>
-        <div>
-          <p className="eyebrow">Start Here</p>
-          <div className="intake-choice-grid" role="group" aria-label="Choose intake mode">
-            {modeOptions.map((option) => (
-              <button
-                aria-pressed={mode === option.value}
-                className={`choice-button${mode === option.value ? " selected" : ""}`}
-                key={option.value}
-                onClick={() => setMode(option.value)}
-                type="button"
-              >
-                <strong>{option.label}</strong>
-                <span>{option.description}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <label>
           What did you notice?
           <textarea
