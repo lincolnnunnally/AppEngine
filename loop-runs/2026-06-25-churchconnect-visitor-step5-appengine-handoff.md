@@ -1,7 +1,18 @@
 # Step 5 — First real problem THROUGH AppEngine (AppEngine side)
 
 **Run:** ChurchConnect Visitor Capture (RUN-001) carried through the AppEngine pipeline.
-**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo execution + live verify remain (cross-boundary).
+**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo execution + live verify remain under Step 5.
+
+## Direction correction — 2026-06-25
+
+Lincoln clarified that ChurchConnect recovery is the proof that AppEngine can work on a real ecosystem app. It is not a parked side project and not an independent Codex track.
+
+Target direction:
+- AppEngine remains the conductor: intake, prior-work check, vNext packet, acceptance criteria, review gate, live verify, and run record.
+- Codex/Claude Code execute in the ChurchConnect repo as workers inside this Step 5 loop.
+- ChurchConnect must be pulled away from Mongo/Emergent and made operational on the consolidated Life Produces Life / ChurchConnect Supabase care/connect spine.
+- Mongo/Emergent branches are source material only, not the destination architecture.
+- The first implementation proof should map visitor follow-up onto existing Supabase tables such as `people`, `guests`, `guest_followup_tasks`, `care_requests`, and `care_follow_ups`, adding a new inbox table only if the gate proves the existing tables are insufficient.
 
 ## What this proves
 The first real product problem went **through the existing AppEngine pipeline** to an actionable, grounded handoff — not a fresh build, not chat memory. No new pipeline was created; this used the pieces already on `main`.
@@ -14,15 +25,16 @@ The first real product problem went **through the existing AppEngine pipeline** 
    - 8 phases: current_state → change_scope → provider_cost_delta → design_update → build_update → regression_testing → release_gate → monitoring_update (one follow-up task each).
 
 ## The fix the packet hands off (extend, do not rebuild)
-- **Bug:** `table_split` — admin/data surfaces read different tables (`connection_inbox` vs `connection_cards`), so visitor follow-up state is unreliable. Reconcile to one canonical table.
-- **Extend these existing surfaces:** `src/components/VisitorRegistration.tsx`, `src/components/ConnectionInbox.tsx`, `src/components/ConnectionCards.tsx`, `supabase/migrations` (connection_cards).
-- **Blocked side-doors (do NOT build):** `NewVisitorCaptureForm` (dup of VisitorRegistration), `VisitorAdminDashboard` (dup of ConnectionInbox), `visitor_submissions` table (dup of existing migrations).
+- **Bug:** visitor follow-up is unreliable because visitor capture and staff follow-up do not land on one operational care/connect path.
+- **Corrected data target:** Supabase consolidation. Use the existing consolidated Supabase care/connect tables first (`people`, `guests`, `guest_followup_tasks`, `care_requests`, `care_follow_ups`, plus staff/church membership tables as needed). Do not reconcile toward Mongo.
+- **Extend these existing surfaces:** `src/components/VisitorRegistration.tsx`, existing staff follow-up/admin surfaces in ChurchConnect, and the Supabase migration/schema layer. Prefer adapting the existing components to the Supabase client/path rather than building parallel visitor or admin screens.
+- **Blocked side-doors (do NOT build):** `NewVisitorCaptureForm` (dup of VisitorRegistration), `VisitorAdminDashboard` (parallel admin dashboard), `visitor_submissions` table (third capture table), Mongo/Emergent launch merge as the target path.
 - **Guardrails (from the packet):** doNotRestartWholeApp, preventGoalBleed, costReviewRequired; non-goals lock the extend-not-rebuild boundary.
 
-## Cross-boundary — what AppEngine cannot do from here
-- The ChurchConnect repo lives **outside this workspace's writable root** (`../../ChurchConnect/ChurchConnect`). Per the scope, **Codex executes the fix in the ChurchConnect repo** — this packet is the bridge object meant to cross that boundary.
+## Cross-boundary execution
+- The ChurchConnect repo lives **outside this workspace's writable root** (`../../ChurchConnect/ChurchConnect`). Per the scope, **Codex/Claude Code execute the fix in the ChurchConnect repo** as workers inside this AppEngine Step 5 loop.
 - The **verify-after-publish walkthrough** runs against ChurchConnect's own production after the fix deploys, on the existing Reviewer/Tester pieces — never recreated.
-- ChurchConnect appears here **only** as the gated AppEngine proof (scope step 5), not as direct side work.
+- ChurchConnect appears here **only** as the gated AppEngine proof (scope step 5), not as independent side work.
 
 ## Safety
-Nothing was deployed, migrated, provisioned, or spent. This run produced planning/handoff artifacts only (the pipeline is fail-closed). The actual ChurchConnect change is owner-gated and happens in its own repo.
+Nothing was deployed, migrated, provisioned, or spent in the #191 AppEngine-side run. The next execution must preserve that discipline until the Step 5 gate has a Supabase-targeted plan, configured spend/provider limits, and verification evidence.
