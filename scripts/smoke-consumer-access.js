@@ -86,6 +86,23 @@ runStep("consumer rail shows no operator jargon", () => {
   }
 });
 
+runStep("soft-launch copy is mode-aware and dormant by default", () => {
+  const text = read("src/app/soft-launch/page.tsx");
+  assertIncludes(text, "getPublicAccessMode", "reads the access mode");
+  for (const mode of ["owner:", "allowlist:", "public:"]) {
+    assertIncludes(text, mode, `COPY has ${mode} variant`);
+  }
+  // owner (default) keeps the current private soft-launch copy — flip changes nothing live
+  assertIncludes(text, "Owner-only soft launch", "owner copy preserved");
+  // public-facing variants use the consumer brand, never operator/infra jargon
+  assertIncludes(text, "We Succeed", "public variants use consumer brand");
+  for (const jargon of ["Neon", "Supabase", "Vercel", "provider", "App Engine"]) {
+    if (text.includes(jargon)) {
+      throw new Error(`soft-launch leaks infrastructure/operator jargon "${jargon}"`);
+    }
+  }
+});
+
 console.log("consumer-access smoke ok");
 
 function read(filePath) {
