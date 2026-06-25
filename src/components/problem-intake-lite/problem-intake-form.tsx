@@ -54,7 +54,8 @@ export function ProblemIntakeForm() {
       setNotice({
         type: "success",
         title: result.record?.title,
-        message: "Saved for owner review. No build, deploy, migration, paid resource, or execution label was triggered."
+        message:
+          "Saved. We'll clarify the next step, check what already exists, then route it toward the right build, workflow, or improvement path."
       });
       setProblemSummary("");
       setAffectedPeople("");
