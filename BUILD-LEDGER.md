@@ -58,9 +58,11 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
 - ✅ **3c · Exactly two doors, one consistent name** — rail/header/body all "Build something" / "Solve a problem"; build door trimmed 4→2 (**#182** + **#183**).
 - ✅ **3d · Palette pass** — dark theme (**#181**); `.entry`/`.soft-launch` inherit the locked `:root` tokens (**#184**).
 
-### STEP 4 — guardrail, then first real deploy  🔵 IN REVIEW (PR #186 · Codex · branch `codex/step4-guardrail-deploy-readiness`)
-- 🔵 **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
-  review: PR #186 · Codex · branch `codex/step4-guardrail-deploy-readiness`
+### STEP 4 — guardrail, then first real deploy  🟡 IN PROGRESS (Codex) — readiness gate merged (#186), NOT yet ✅
+- 🟡 **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
+  done so far: ✅ Step-4 readiness GATE merged (**#186**) — fail-closed `we_succeed_soft_launch_readiness` artifact composing the existing controlled-release-gate + production-auth-readiness; reviewed & merged by Claude Code.
+  remaining for ✅ ("loop to live"): (1) wire the provider/spend guardrail on the real deploy path; (2) provide live evidence — owner login verified, `/api/health` ok, both doors reach intake end-to-end with the rail — so the gate returns `ready_for_controlled_deploy`. The gate currently returns `blocked_pending_evidence` by design.
+  owner: Codex · branch `codex/step4-guardrail-deploy-readiness`
 
 ### STEP 5 — first real problem THROUGH AppEngine  ⛔ BLOCKED until Step 4 is ✅
 - ⛔ **5 · ChurchConnect visitor bug as `extend_existing` → vNext → Codex in the ChurchConnect repo** (gated AppEngine proof only). The verify-after-publish walkthrough is built and proven here, on the existing Reviewer/Tester pieces — never recreated.
