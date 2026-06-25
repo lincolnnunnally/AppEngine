@@ -70,10 +70,10 @@ const MODULES: ModuleCatalogEntry[] = [
     name: "Connection Engine (assess + match)",
     category: "connection",
     purpose:
-      "Assess and grow each person, then match on purpose/mindset/heartset for friendship and mutual growth — the reusable belonging engine behind community apps.",
-    capabilities: ["matching", "belonging", "assessment", "purpose discovery", "growth pairing", "mindset matching"],
+      "Assess and grow each person, then match on mindset/heartset for friendship and mutual growth — groups (pods) before pairs. The reusable belonging engine behind community apps.",
+    capabilities: ["matching", "belonging", "assessment", "loneliness prescription", "relational posture", "pods / groups", "coaching", "growth pairing"],
     usedByApps: ["kindred-connections", "churchconnect", "kids-need-dads"],
-    primarySource: "ChurchConnect backend/routes/purpose_assessment.py + purpose_matching.py + purpose_discovery.py",
+    primarySource: "Kindred-Connection (GitHub) backend/routers/soul_match.py + relational_posture.py + loneliness_prescription.py + pods.py — the canonical engine; ChurchConnect purpose_matching.py is a second impl",
     status: "extractable"
   },
   {
@@ -203,7 +203,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Match mentors, run guidance/coaching, and pair people for growth.",
     capabilities: ["mentorship", "coaching", "guidance", "pairing"],
     usedByApps: ["spark-of-hope", "best-life", "kids-need-dads"],
-    primarySource: "ChurchConnect backend/routes/counselor.py (compose with Connection Engine)",
+    primarySource: "Kindred-Connection (GitHub) backend/routers/coaching.py + ChurchConnect backend/routes/counselor.py",
     status: "extractable"
   },
   {
@@ -253,7 +253,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Generate simple sites and branded landing pages fast.",
     capabilities: ["website builder", "landing pages", "site generation", "branded pages"],
     usedByApps: ["easy-peasy-website", "churchconnect", "milstead-us"],
-    primarySource: "ChurchConnect src/components/WebsiteSetupWizard.tsx + BrandedLandingPage.tsx + Easy Peasy (Website-friends repo)",
+    primarySource: "Website-friends (GitHub, Easy Peasy) src/components/WebsitesAndDomains.tsx + LandingPage.tsx + ChurchConnect src/components/WebsiteSetupWizard.tsx",
     status: "extractable"
   },
   {
@@ -263,7 +263,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Register domains and publish/hand off generated sites (incl. WordPress).",
     capabilities: ["domain registration", "publishing", "site handoff", "wordpress"],
     usedByApps: ["easy-peasy-website", "churchconnect"],
-    primarySource: "ChurchConnect backend/routes/spaceship_domains.py + website_handoff.py + wordpress.py + domains.py",
+    primarySource: "Website-friends (GitHub) src/components/admin/DomainSearchModal.tsx + client/Web3Domains.tsx + ChurchConnect backend/routes/spaceship_domains.py + website_handoff.py",
     status: "extractable"
   },
   {
@@ -273,7 +273,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "In-app design editing, templates, branding settings, and logo/icon generation.",
     capabilities: ["design editor", "templates", "branding", "logo generation", "icons"],
     usedByApps: ["churchconnect", "iconium"],
-    primarySource: "ChurchConnect src/components/CanvaDesignHub.tsx + InAppDesignEditor.tsx + ChurchBrandingSettings.tsx + Iconium repo",
+    primarySource: "ChurchConnect src/components/CanvaDesignHub.tsx + InAppDesignEditor.tsx + ChurchBrandingSettings.tsx (Iconium is an early ~11KB stub, not a source yet)",
     status: "extractable"
   },
   {
