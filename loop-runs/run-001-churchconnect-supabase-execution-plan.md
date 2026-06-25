@@ -3,7 +3,7 @@
 **Date:** 2026-06-25  
 **Source run:** `run-001-2026-06-21-churchconnect-visitor-capture-cycle-1`  
 **AppEngine step:** Step 5 — first real product problem through AppEngine  
-**Status:** Ready for ChurchConnect-repo execution under the AppEngine gate.
+**Status:** Ready for ChurchConnect-repo execution through production under the AppEngine gate.
 
 ## Decision
 
@@ -15,12 +15,15 @@ AppEngine owns:
 - run record
 - review gate
 - verify-after-publish evidence
+- production completion standard
 
 Codex/Claude Code own:
 - code execution inside `github.com/lincolnnunnally/ChurchConnect`
+- Supabase migration execution inside the existing consolidated data path
 - tests/smokes
 - PR evidence
 - deployment/health evidence when the release gate allows it
+- live workflow walkthrough evidence
 
 ## Target Architecture
 
@@ -46,10 +49,12 @@ Visitor follow-up should land in one operational Supabase workflow:
 - Visitor intake writes to the consolidated Supabase path.
 - Staff follow-up reads from the same Supabase path.
 - Follow-up status persists and can be updated.
+- The ChurchConnect app is deployed/published within configured provider and spend limits.
+- The live URL passes a health check after publish.
 - Existing visitor/admin surfaces are extended; no parallel visitor form or admin dashboard is created.
 - No `visitor_submissions` table is added.
 - No new paid resource is created outside configured limits.
-- No production deploy is marked complete until health and visitor-follow-up walkthrough evidence are recorded.
+- Production is not marked complete until health and visitor-follow-up walkthrough evidence are recorded.
 
 ## Verification Required
 
