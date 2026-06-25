@@ -54,7 +54,8 @@ export function ProblemIntakeForm() {
       setNotice({
         type: "success",
         title: result.record?.title,
-        message: "Saved for owner review. No build, deploy, migration, paid resource, or execution label was triggered."
+        message:
+          "Saved. We'll clarify the next step, check what already exists, then route it toward the right build, workflow, or improvement path."
       });
       setProblemSummary("");
       setAffectedPeople("");
@@ -78,14 +79,15 @@ export function ProblemIntakeForm() {
         <p className="eyebrow">Solve a problem</p>
         <h1>Describe what&apos;s getting in the way.</h1>
         <p>
-          Share what you noticed in plain English. AppEngine saves it as a reviewable candidate before any build work starts.
+          Share what you noticed in plain English. We&apos;ll clarify it, then build and deploy a real,
+          working starter you can log into and improve.
         </p>
-        <div className="guardrail-strip" aria-label="Safety guardrails">
-          <span>No private details</span>
-          <span>No builds</span>
-          <span>No paid resources</span>
-          <span>No migrations</span>
-          <span>No production deploy</span>
+        <div className="guardrail-strip" aria-label="What to expect">
+          <span>Describe it</span>
+          <span>We clarify</span>
+          <span>We build &amp; deploy</span>
+          <span>We verify it live</span>
+          <span>You log in &amp; improve</span>
         </div>
       </div>
 

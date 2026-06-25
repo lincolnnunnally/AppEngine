@@ -105,12 +105,15 @@ runStep("intake UI captures the request and shows the packet", () => {
   ]);
 });
 
-runStep("the main entry route starts at intake", () => {
+runStep("the main entry route offers the two doors", () => {
+  // The entry page is the two-door front door (PR #177). Both doors flow through
+  // the problem_intake_gate behind the scenes: problem -> consumer problem intake
+  // (/problem-intake-lite), build -> /opportunity-intake.
   assertFileIncludes("src/app/(cockpit)/page.tsx", [
-    'href="/problem-intake"',
-    "Start here",
-    'data-testid="problem-intake-entry"',
-    "starts at the Problem Intake Gate"
+    'href="/problem-intake-lite"',
+    'href="/opportunity-intake"',
+    'data-testid="entry-door-problem"',
+    'data-testid="entry-door-build"'
   ]);
 });
 

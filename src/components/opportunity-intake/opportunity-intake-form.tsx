@@ -30,7 +30,7 @@ const solutionTypeOptions: Array<{ value: OpportunitySolutionType; label: string
 ];
 
 export function OpportunityIntakeForm() {
-  const [mode, setMode] = useState<OpportunityIntakeMode>("problem");
+  const [mode, setMode] = useState<OpportunityIntakeMode>("vision");
   const [problemPain, setProblemPain] = useState("");
   const [affectedPeople, setAffectedPeople] = useState("");
   const [betterOutcome, setBetterOutcome] = useState("");
@@ -103,15 +103,15 @@ export function OpportunityIntakeForm() {
         <p className="eyebrow">Build something</p>
         <h1>Start with the problem. Find the right next path.</h1>
         <p>
-          Share what hurts, who it affects, and what better could look like. AppEngine keeps this as a reviewable
-          opportunity before anything is built.
+          Share what hurts, who it affects, and what better could look like. We&apos;ll clarify it, then build
+          and deploy a real, working starter you can log into and improve.
         </p>
-        <div className="guardrail-strip" aria-label="Opportunity safety guardrails">
-          <span>Review first</span>
-          <span>No automatic build</span>
-          <span>No paid resources</span>
-          <span>No production deploy</span>
-          <span>No assumed destination</span>
+        <div className="guardrail-strip" aria-label="What to expect">
+          <span>Describe it</span>
+          <span>We clarify</span>
+          <span>We build &amp; deploy</span>
+          <span>We verify it live</span>
+          <span>You log in &amp; improve</span>
         </div>
       </div>
 

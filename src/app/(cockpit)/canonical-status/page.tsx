@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadCanonicalFlowStatus, type CompletedLoopRow } from "@/lib/engine/canonical-flow-status";
@@ -21,15 +20,6 @@ export default async function CanonicalStatusPage() {
 
   return (
     <main className="shell wide-shell">
-      <nav className="topnav">
-        <strong>AppEngine Canonical Status</strong>
-        <div className="navlinks">
-          <Link href="/">Home</Link>
-          <Link href="/owner-control-center">Owner Control Center</Link>
-          <Link href="/problem-intake">Intake</Link>
-        </div>
-      </nav>
-
       <section className="card" style={{ borderLeft: `6px solid ${tone.bg}` }}>
         <p className="eyebrow">Is AppEngine safe to use right now?</p>
         <p style={{ display: "inline-block", background: tone.bg, color: tone.fg, padding: "4px 12px", borderRadius: 6, fontWeight: 700, letterSpacing: 0.5 }}>

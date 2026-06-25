@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BuildLoopCompletionDashboardPanel } from "@/components/engine/build-loop-completion-dashboard-panel";
 import { BuildLoopControlledUseReadinessPanel } from "@/components/engine/build-loop-controlled-use-readiness-panel";
@@ -114,16 +113,6 @@ export default async function OwnerControlCenterPage() {
 
   return (
     <main className="shell wide-shell owner-control-page">
-      <nav className="topnav">
-        <strong>AppEngine Owner Control</strong>
-        <div className="navlinks">
-          <Link href="/">Home</Link>
-          <Link href="/opportunity-intake">Opportunity</Link>
-          <Link href="/problem-intake-lite">Problem Intake</Link>
-          <Link href="/builder">Builder</Link>
-          <Link href="/admin">Admin</Link>
-        </div>
-      </nav>
       <OwnerPortfolioDashboard registry={portfolioRegistry} />
       <HandoffRelayControlCenter
         initialHandoffs={handoffs}
