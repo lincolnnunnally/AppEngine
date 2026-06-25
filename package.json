@@ -113,6 +113,7 @@
     "smoke:intake-consolidation": "node scripts/smoke-intake-consolidation.js",
     "smoke:portfolio-registry-canonical": "node scripts/smoke-portfolio-registry-canonical.js",
     "smoke:ecosystem-apps-seed": "node scripts/smoke-ecosystem-apps-seed.js",
+    "smoke:module-catalog": "node scripts/smoke-module-catalog.js",
     "smoke:canonical-flow-regression": "node scripts/smoke-canonical-flow-regression.js",
     "regression:canonical": "node scripts/smoke-canonical-flow-regression.js && npm run -s smoke:problem-intake-gate && npm run -s smoke:prior-work-check && npm run -s smoke:prior-work-registry-hardening && npm run -s smoke:loop-execution-canonical && npm run -s smoke:portfolio-registry-canonical && npm run -s smoke:ecosystem-apps-seed && npm run -s smoke:build-gate && npm run -s smoke:codex-build-gate && npm run -s smoke:final-packet-materialization && npm run -s smoke:intake-consolidation",
     "smoke:prior-work-registry-hardening": "node scripts/smoke-prior-work-registry-hardening.js",
