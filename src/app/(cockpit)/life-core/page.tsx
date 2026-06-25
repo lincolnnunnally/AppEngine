@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getLifeCoreOverview, type LifeCoreJourneyStage } from "@/lib/engine/life-core";
 
 export const dynamic = "force-dynamic";
@@ -20,16 +19,6 @@ export default async function LifeCorePage() {
 
   return (
     <main className="shell wide-shell life-core-page" data-testid="life-core-page">
-      <nav className="topnav">
-        <strong>Life Produces Life Core</strong>
-        <div className="navlinks">
-          <Link href="/">Home</Link>
-          <Link href="/owner-control-center">Owner Control</Link>
-          <Link href="/problem-intake-lite">Problem Intake</Link>
-          <Link href="/builder">Builder</Link>
-        </div>
-      </nav>
-
       <section className="life-core-hero">
         <div>
           <p className="eyebrow">Foundation Preview</p>

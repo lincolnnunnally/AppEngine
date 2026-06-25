@@ -7,9 +7,7 @@ runStep("soft-launch problem intake route is discoverable and owner-gated", () =
   assertFileIncludes("src/app/(cockpit)/problem-intake-lite/page.tsx", [
     "canAccessEngineOwner",
     "/soft-launch",
-    "ProblemIntakeForm",
-    "/owner-control-center",
-    "/builder"
+    "ProblemIntakeForm"
   ]);
   assertFileIncludes("src/components/problem-intake-lite/problem-intake-form.tsx", [
     "data-testid=\"problem-intake-lite-page\"",

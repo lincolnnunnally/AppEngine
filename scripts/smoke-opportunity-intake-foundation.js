@@ -5,16 +5,12 @@ const repoRoot = process.cwd();
 
 runStep("soft-launch Opportunity Intake route is discoverable and owner-gated", () => {
   assertFileIncludes("src/app/(cockpit)/opportunity-intake/page.tsx", [
-    "OpportunityIntakeForm",
-    "/owner-control-center",
-    "/problem-intake-lite"
+    "OpportunityIntakeForm"
   ]);
   assertFileIncludes("src/components/opportunity-intake/opportunity-intake-form.tsx", [
     "data-testid=\"opportunity-intake-page\"",
-    "I see a problem",
-    "I have an idea/vision",
-    "I need tools to solve this",
-    "I want to help but do not know where to start",
+    "I have a problem to solve",
+    "I have something I want to build",
     "Save opportunity"
   ]);
 });

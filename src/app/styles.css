@@ -3705,13 +3705,16 @@ label {
    affect any other page or shared component.
    --------------------------------------------------------------------------- */
 .entry {
-  --entry-base: #0e1512;
-  --entry-panel: #18211c;
+  /* Inherit the locked :root palette — no competing theme. The --entry-* names
+     stay as local aliases the door styles read, but their values come from the
+     single source of truth so the entry can never drift from the app. */
+  --entry-base: var(--paper);
+  --entry-panel: var(--panel);
   --entry-primary-door: #1d2722;
-  --entry-text: #eef2ee;
-  --entry-muted: #9aa79f;
-  --entry-gold: #e6a93a;
-  --entry-teal: #34c0ad;
+  --entry-text: var(--ink);
+  --entry-muted: var(--muted);
+  --entry-gold: var(--gold);
+  --entry-teal: var(--teal);
 
   background: var(--entry-base);
   color: var(--entry-text);
@@ -3822,11 +3825,12 @@ label {
 }
 
 .soft-launch {
-  --soft-base: #0e1512;
-  --soft-panel: #18211c;
-  --soft-text: #eef2ee;
-  --soft-muted: #9aa79f;
-  --soft-teal: #34c0ad;
+  /* Inherit the locked :root palette — local aliases, single source of truth. */
+  --soft-base: var(--paper);
+  --soft-panel: var(--panel);
+  --soft-text: var(--ink);
+  --soft-muted: var(--muted);
+  --soft-teal: var(--teal);
 
   min-height: 100vh;
   display: grid;
