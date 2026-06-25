@@ -295,6 +295,126 @@ const MODULES: ModuleCatalogEntry[] = [
     usedByApps: ["churchconnect", "spark-of-hope", "best-life"],
     primarySource: "ChurchConnect backend/routes/reporting.py + user_analytics.py + src/components/SurveyAnalytics.tsx",
     status: "extractable"
+  },
+  {
+    slug: "idea-capture-forge",
+    name: "Idea Capture & Content Forge",
+    category: "intake",
+    purpose: "Capture an idea by voice, photo, OCR, or text, then forge/polish it into an article, post, app, or video. AppEngine's idea front door.",
+    capabilities: ["voice capture", "photo/ocr capture", "transcription", "idea forge", "content polish", "quick note"],
+    usedByApps: ["churchconnect", "spark-of-hope"],
+    primarySource: "ideas (GitHub) src/components/VoiceRecorderModal.jsx + OcrCard.jsx + TranscribeCard.jsx + ForgeModal.jsx + PolishModal.jsx + forge.js",
+    status: "extractable"
+  },
+  {
+    slug: "marketplace-orders",
+    name: "Marketplace & Orders",
+    category: "commerce",
+    purpose: "Product catalog, ordering, checkout, vendor/maker management, and parts marketplace.",
+    capabilities: ["product catalog", "orders", "checkout", "vendor management", "inventory", "coupons", "marketplace"],
+    usedByApps: ["laser-engrave-market"],
+    primarySource: "LaserEngraving (GitHub) src/components/ProductCatalogEnhanced.tsx + OrderAllocation.tsx + CheckoutForm.tsx + MakerManagement.tsx + JeepFix PartsMarketplacePage.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "design-studio",
+    name: "Design Studio & File Upload",
+    category: "design",
+    purpose: "Custom design canvas, asset upload, fonts, mockup generation, and proof preview.",
+    capabilities: ["design canvas", "file upload", "asset catalog", "mockup generation", "fonts", "proof preview"],
+    usedByApps: ["laser-engrave-market", "iconium"],
+    primarySource: "LaserEngraving (GitHub) src/components/CustomizationCanvas.tsx + DesignAssetUpload.tsx + FileUpload.tsx + MakerMockupGenerator.tsx + GoogleFontPicker.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "case-management",
+    name: "Case Management & Documentation",
+    category: "operations",
+    purpose: "Case timelines, document parsing, court-ready summaries, and agreement/attendance/exchange tracking.",
+    capabilities: ["case timeline", "document center", "document parsing", "court-ready summary", "agreement tracking", "attendance tracking"],
+    usedByApps: ["childfirst-solutions", "kids-need-dads"],
+    primarySource: "childfirst-solutions (GitHub) src/components/CaseTimeline.tsx + DocumentCenter.tsx + CourtReadySummaryCard.tsx + AgreementTrackerCard.tsx + RebuildingDads CourtDocumentation.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "mediated-communication",
+    name: "Mediated Communication",
+    category: "communication",
+    purpose: "AI-assisted neutral, conflict-reducing communication with exchange notes and conflict tracking.",
+    capabilities: ["neutral messaging", "conflict reduction", "communication insights", "exchange notes", "ai tone assist"],
+    usedByApps: ["childfirst-solutions", "kids-need-dads"],
+    primarySource: "childfirst-solutions (GitHub) src/components/CommunicationAssistant.tsx + ConflictReductionCard.tsx + CommunicationInsightsCard.tsx + ExchangeNotesCard.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "knowledge-base",
+    name: "Knowledge Base & Troubleshooting",
+    category: "content",
+    purpose: "Community Q&A, troubleshooting wizards, and solution guides with parts/resources.",
+    capabilities: ["q&a", "troubleshooting wizard", "solution guides", "categories", "how-to"],
+    usedByApps: ["churchconnect"],
+    primarySource: "JeepFix (GitHub) src/components/TroubleshootingWizard.tsx + ProblemDetailPage.tsx + SolutionPartsList.tsx + CategoryPage.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "mutual-aid-benevolence",
+    name: "Mutual Aid & Benevolence",
+    category: "care",
+    purpose: "Community aid funds, aid applications, benevolence cases, and stewardship.",
+    capabilities: ["aid applications", "benevolence fund", "benevolence cases", "stewardship", "financial assistance"],
+    usedByApps: ["churchconnect", "kids-need-dads", "live-on-mission"],
+    primarySource: "RebuildingDads (GitHub) src/components/MutualAidApplication.tsx + BrotherhoodFundSettings.tsx + honestly src/components/CreateCase.js + CaseDetail.js",
+    status: "extractable"
+  },
+  {
+    slug: "achievements-gamification",
+    name: "Achievements & Gamification",
+    category: "growth",
+    purpose: "Badges, achievements, streaks, rewards, and leaderboards that reinforce momentum.",
+    capabilities: ["badges", "achievements", "streaks", "rewards", "leaderboards"],
+    usedByApps: ["best-life", "live-on-mission", "kids-need-dads"],
+    primarySource: "RebuildingDads (GitHub) src/components/AchievementsBadge.tsx + JeepFix RewardsPage.tsx + LeaderboardPage.tsx + Kindred-Connection backend/routers/streak.py",
+    status: "extractable"
+  },
+  {
+    slug: "ratings-reviews",
+    name: "Ratings & Reviews",
+    category: "operations",
+    purpose: "Ratings, reviews, and reputation for makers, content, and churches.",
+    capabilities: ["ratings", "reviews", "reputation", "feedback"],
+    usedByApps: ["laser-engrave-market", "churchconnect"],
+    primarySource: "JeepFix (GitHub) src/components/RatingModal.tsx + LaserEngraving MakerReview.tsx + ChurchConnect backend/routes/church_reviews.py",
+    status: "extractable"
+  },
+  {
+    slug: "finance-accounting",
+    name: "Finance & Accounting",
+    category: "commerce",
+    purpose: "Budgets, expense tracking, and giving/financial reports for an organization.",
+    capabilities: ["budgets", "expense tracking", "giving reports", "financial reporting", "accounting"],
+    usedByApps: ["churchconnect"],
+    primarySource: "Association (GitHub) src/components/BudgetOverview.tsx + ExpenseTracking.tsx + GivingReports.tsx + Finances.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "multi-org-association",
+    name: "Multi-Org / Association",
+    category: "operations",
+    purpose: "Manage many organizations (e.g. churches) under one association, with profiles and rollups.",
+    capabilities: ["multi-org", "association management", "org profiles", "rollups", "tiered access"],
+    usedByApps: ["churchconnect"],
+    primarySource: "Association (GitHub) src/components/AssociationManagement.tsx + ChurchManagement.tsx + ChurchProfileFields.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "media-recording",
+    name: "Media Recording & Clips",
+    category: "media",
+    purpose: "Record video/audio, capture quick recordings, and produce shareable clips.",
+    capabilities: ["video recording", "audio recording", "quick record", "clips", "recordings library"],
+    usedByApps: ["churchconnect", "spark-of-hope"],
+    primarySource: "honestly (GitHub) src/components/VideoRecorder.js + QuickRecord.js + RecordingsTab.js + Snip.Show (clips)",
+    status: "extractable"
   }
 ];
 
