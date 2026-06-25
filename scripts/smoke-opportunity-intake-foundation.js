@@ -9,6 +9,7 @@ runStep("soft-launch Opportunity Intake route is discoverable and owner-gated", 
   ]);
   assertFileIncludes("src/components/opportunity-intake/opportunity-intake-form.tsx", [
     "data-testid=\"opportunity-intake-page\"",
+    "useState<OpportunityIntakeMode>(\"vision\")",
     "I have a problem to solve",
     "I have something I want to build",
     "Save opportunity"
