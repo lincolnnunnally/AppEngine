@@ -70,8 +70,16 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
   remaining for ✅: the real off-Emergent migration + visitor-follow-up fix runs in the **ChurchConnect repo** (`github.com/lincolnnunnally/ChurchConnect` — Codex + a Claude Code session already active there). Lincoln chose to keep AppEngine on its finish line, so this is **NOT an active AppEngine-board item** — it's Codex's track. Steps 6–7 wait on that proof + Lincoln's launch decision.
   owner: Codex (ChurchConnect repo) · Lincoln (launch/data decisions)
 
-### STEP 6 — open the doors  ⛔ BLOCKED until Step 5 is ✅
+### STEP 6 — open the doors  ⛔ BLOCKED until Step 5 is ✅ (it's a launch decision + a real code change, not a config flip)
 - ⛔ **6 · Owner-only → controlled real users → public login,** once spend/safety limits hold.
+
+  **Go-public checklist (grounded in the access model, `src/lib/auth/roles.ts` / `access.ts`):**
+  1. **Open the consumer surface to role `customer`.** Today the entry (`/`), both doors, and the intake APIs are `canAccessEngineOwner` (owner-only) — a non-owner who signs in becomes role `customer` and gets bounced to `/soft-launch`. Going public = let `customer` reach the two-door entry + `/problem-intake-lite` + `/opportunity-intake` + their POST APIs, while keeping operator screens (owner-control, builder, admin, canonical-status) owner/admin-only. **This is the core code change.**
+  2. **Stage it** (owner-only → controlled → public): the role model already reads a DB profile role, so a controlled allowlist (approve specific `customer` emails) is the natural middle rung before fully public.
+  3. **Soft-launch page** copy flips from "Owner sign in / owner-only soft launch" to a public welcome + sign-in.
+  4. **Spend/safety must hold** — free-tier default + the release gate (#186/#187); the one real switch only Lincoln can flip is the **Vercel/provider spend cap** on the account.
+  5. **Verify-after-publish** — walk the live app (every door/intake) once it's open, on the existing Reviewer/Tester pieces.
+  - Pre-public hardening already shipped (**#192**): public title → "We Succeed" (no "App Engine"/"Neon" jargon), security headers (X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy) live on we-succeed.org. (Strict CSP still open — needs nonces.)
 
 ### STEP 7 — confirm it holds  ⛔ BLOCKED until Step 6 is ✅
 - ⛔ **7 · Confirm spend limits hold under real use.** **Done = beautiful, public, usable app at we-succeed.org.**
