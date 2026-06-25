@@ -71,15 +71,16 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
   owner: Codex (ChurchConnect repo) · Lincoln (launch/data decisions)
 
 ### STEP 6 — open the doors  ⛔ BLOCKED until Step 5 is ✅ (it's a launch decision + a real code change, not a config flip)
-- ⛔ **6 · Owner-only → controlled real users → public login,** once spend/safety limits hold.
+- ⛔ **6 · Owner-only → controlled real users → public login,** once spend/safety limits hold. **Step stays BLOCKED — the *code half* is now built & merged default-off (#200); flipping it live is still Lincoln's launch decision + spend cap.**
 
   **Go-public checklist (grounded in the access model, `src/lib/auth/roles.ts` / `access.ts`):**
-  1. **Open the consumer surface to role `customer`.** Today the entry (`/`), both doors, and the intake APIs are `canAccessEngineOwner` (owner-only) — a non-owner who signs in becomes role `customer` and gets bounced to `/soft-launch`. Going public = let `customer` reach the two-door entry + `/problem-intake-lite` + `/opportunity-intake` + their POST APIs, while keeping operator screens (owner-control, builder, admin, canonical-status) owner/admin-only. **This is the core code change.**
-  2. **Stage it** (owner-only → controlled → public): the role model already reads a DB profile role, so a controlled allowlist (approve specific `customer` emails) is the natural middle rung before fully public.
-  3. **Soft-launch page** copy flips from "Owner sign in / owner-only soft launch" to a public welcome + sign-in.
-  4. **Spend/safety must hold** — free-tier default + the release gate (#186/#187); the one real switch only Lincoln can flip is the **Vercel/provider spend cap** on the account.
+  1. ✅ **Open the consumer surface to role `customer` — BUILT, default OFF (#200).** Shipped staged behind `APP_ENGINE_PUBLIC_ACCESS` (`owner` default → `allowlist` → `public`; unknown fails closed) via new `canAccessEngineConsumerSurface` gate. The two-door entry + `/problem-intake-lite` + `/opportunity-intake` + their **POST** APIs now open to a permitted `customer` when flipped; GET list-all + operator screens (owner-control, builder, admin, canonical-status, orchestrator, module-catalog, life-core) stay owner/admin-only (builder + life-core re-gated for defense-in-depth). Role-aware rail hides operator jargon from customers. `smoke:consumer-access` covers the decision table. **Default `owner` mode = identical to pre-#200 behavior, so the merge changed nothing live.**
+  2. ✅ **Stage it — BUILT (#200).** `allowlist` rung reads `APP_ENGINE_CUSTOMER_ALLOWLIST` (approved emails) as the controlled middle rung before fully `public`. Env vars documented in `.env.example` / `.env.vercel.example`.
+  3. **Soft-launch page** copy flips from "Owner sign in / owner-only soft launch" to a public welcome + sign-in. *(NOT in #200 — it's the visible go-public flip; left for the launch.)*
+  4. **Spend/safety must hold** — free-tier default + the release gate (#186/#187); the one real switch only Lincoln can flip is the **Vercel/provider spend cap** on the account. *(Note: Vercel `app-engine` deploys are free-tier rate-limited ~24h as of #200 — informational; #200 is default-off so the delayed deploy changes nothing.)*
   5. **Verify-after-publish** — walk the live app (every door/intake) once it's open, on the existing Reviewer/Tester pieces.
   - Pre-public hardening already shipped (**#192**): public title → "We Succeed" (no "App Engine"/"Neon" jargon), security headers (X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy) live on we-succeed.org. (Strict CSP still open — needs nonces.)
+  - **To go live when ready:** set the Vercel spend cap → `APP_ENGINE_PUBLIC_ACCESS=allowlist` + `APP_ENGINE_CUSTOMER_ALLOWLIST=<emails>` (controlled) → later `=public` → flip soft-launch copy (#3) → verify-after-publish (#5).
 
 ### STEP 7 — confirm it holds  ⛔ BLOCKED until Step 6 is ✅
 - ⛔ **7 · Confirm spend limits hold under real use.** **Done = beautiful, public, usable app at we-succeed.org.**
