@@ -19,7 +19,14 @@ The drift this ends: seven agents rebuilt the same connection engine seven times
 
 ## Seeded from real code
 
-The catalog is not abstract — it is mined from the completed repos. **ChurchConnect** is the richest source: its `purpose_assessment`/`purpose_matching` routes are the connection engine; `broadcasting`/`church_sms`/`email_service` are Communication; `stripe_payments`/`universal_giving`/`OnlineGiving` are Payments & Giving; `scripture_library`/`sermon_prep` are Scripture & Sermon Tools; `streaming`/`LiveStreamManager` are Live Service; `volunteer_force`/`background_checks` are Volunteer & Safety; `website_handoff`/`spaceship_domains` are Domains & Publishing; and so on. Each block's `primarySource` names the actual files to mine first. More repos (Iconium, Easy Peasy, Spark of Hope) are folded in as they're reviewed.
+The catalog is not abstract — it is mined from the completed repos, **verified against the GitHub repos** (not just local clones, which can be stale or missing). Sources span repos:
+
+- **ChurchConnect** (richest, completed): Communication (`broadcasting`/`church_sms`/`email_service`), Payments & Giving (`stripe_payments`/`universal_giving`/`OnlineGiving`), Scripture & Sermon Tools, Live Service (`streaming`/`LiveStreamManager`), Volunteer & Safety (`volunteer_force`/`background_checks`), CRM, Events, Testimony, Identity (phone OTP), Analytics.
+- **Kindred-Connection** (GitHub-only, Python) — the **canonical Connection Engine**: `backend/routers/soul_match.py`, `relational_posture.py`, `loneliness_prescription.py`, `pods.py` (group-first), `coaching.py`. Richer than ChurchConnect's `purpose_matching`.
+- **Website-friends / Easy Peasy** — Website Builder + Domains (`WebsitesAndDomains.tsx`, `DomainSearchModal.tsx`, `Web3Domains.tsx`).
+- Iconium is an early ~11KB stub (not a source yet); more repos fold in as reviewed.
+
+Each block's `primarySource` names the actual files to mine first.
 
 ## Each block records
 
