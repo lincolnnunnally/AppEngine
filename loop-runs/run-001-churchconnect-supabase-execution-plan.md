@@ -3,7 +3,7 @@
 **Date:** 2026-06-25  
 **Source run:** `run-001-2026-06-21-churchconnect-visitor-capture-cycle-1`  
 **AppEngine step:** Step 5 — first real product problem through AppEngine  
-**Status:** ChurchConnect repo code path merged; not complete until deploy/publish, health check, and live walkthrough evidence are recorded.
+**Status:** ChurchConnect code and Render env contract merged; not complete until the backend Supabase secret is configured, frontend production deploy is current, health check passes, and live walkthrough evidence is recorded.
 
 ## Decision
 
@@ -48,16 +48,24 @@ Visitor follow-up should land in one operational Supabase workflow:
 - ChurchConnect execution PR: https://github.com/lincolnnunnally/ChurchConnect/pull/9
 - Merge commit: `f2354ccba6b61dac16d27c143c236d1eefff4927`
 - Scope: new FastAPI `/api/churchconnect` Supabase visitor-follow-up route, server registration, existing visitor form routed through the backend, and `SUPABASE_URL` documented for deployment.
+- Render env-contract PR: https://github.com/lincolnnunnally/ChurchConnect/pull/10
+- Merge commit: `512f8ba37efe3e42bdf9cae6fa437ff0d0ae2fd8`
+- Scope: `render.yaml` now declares `SUPABASE_URL` and a `sync: false` `SUPABASE_SERVICE_ROLE_KEY` slot without committing the secret value.
+- Local env scan found `.env` still straddles the live Supabase project ref (`dzxipsskcrvbtvzekbgz`) and an `EMERGENT_MONGODB` value. Secret values were not printed.
 - Live Supabase read-only check on project `dzxipsskcrvbtvzekbgz` confirmed existing target tables and clean proof counts: `church_organizations` 7, `church_subdomains` 0, `people` 3, `guests` 0, `guest_followup_tasks` 0.
 - Local verification in prepared ChurchConnect work copy: Python compile passed for the new backend route/server wiring; frontend production build passed.
 
+## Live Probe Evidence
+
+- `https://www.churchconnect.cloud` is served by Vercel, but production is still an older build (`last-modified` June 19, 2026). Vercel showed PR-branch deployments for #9/#10 canceled after merge and no current `main` production deployment for the merged commits.
+- `https://api.churchconnect.cloud/api/health` returns 200 from Render/uvicorn with `status: healthy` and `database: connected`.
+- `https://api.churchconnect.cloud/api/churchconnect/church/milstead-church/public-profile` returns 503 with `ChurchConnect Supabase visitor follow-up is not configured.` This proves the new backend route is deployed, but Render is still missing the Supabase backend configuration required by the route.
+
 ## Deployment Verification Gap
 
-- Frontend deploy gap: Vercel project `church-connect` still showed the latest production deployment on the older `main` commit `a3e9b476325edccd140a911e3c01b02536a43b2a`. The #9 PR-branch deployment was canceled after merge, and no production deployment for `f2354ccba6b61dac16d27c143c236d1eefff4927` was visible yet.
-- Frontend live fetch gap: `www.churchconnect.cloud/church/milstead-church/visitor-registration` returned an older cached Vercel build (`last-modified` June 19, 2026), so the merged visitor form is not proven live.
-- Backend deploy gap: `render.yaml` declares `churchconnect-backend`, free plan, branch `main`, `autoDeploy: true`, and `/api/health`; however this environment does not have Render CLI/MCP access to confirm deployment or set env.
-- Backend env required before live proof: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` must be present on the existing backend service.
-- Health proof gap: local DNS resolution failed for `api.churchconnect.cloud`, so backend health and visitor route checks could not be trusted from this sandbox.
+- Frontend deploy gap: trigger or restore a Vercel production deployment for ChurchConnect `main` so the visitor form from #9 is live on `www.churchconnect.cloud`.
+- Backend env gap: set the actual `SUPABASE_SERVICE_ROLE_KEY` secret on the existing Render `churchconnect-backend` service, then redeploy.
+- Backend verification gap: after Render redeploy, rerun the public-profile route and a visitor-registration POST; then confirm `people`, `guests`, and `guest_followup_tasks` rows in Supabase.
 
 ## Acceptance Criteria
 
