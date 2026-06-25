@@ -3,11 +3,12 @@
 // Companion to app_portfolio_registry (which catalogs whole APPS). This catalogs
 // the reusable CAPABILITY modules that apps are composed from, so the factory
 // reuses a block instead of rebuilding it in each app (the inventory's "build it
-// once" rule). Distinct from life_core's data CONTRACTS (journey stage, feed) —
-// those describe the ecosystem; these are the buildable capability blocks.
+// once" rule). Distinct from life_core's data CONTRACTS (journey stage, feed).
 //
-// Curated, not user-generated: this is the canonical Lego set. usedByApps slugs
-// reference app_portfolio_registry entries.
+// SEEDED FROM REAL CODE: primarySource points at the strongest existing
+// implementation already built in a repo (mostly ChurchConnect, the most
+// complete ecosystem app) — mine that first, never rebuild from scratch
+// (THE ONE RULE). usedByApps slugs reference app_portfolio_registry entries.
 
 export type ModuleCategory =
   | "foundation"
@@ -15,9 +16,15 @@ export type ModuleCategory =
   | "communication"
   | "intake"
   | "content"
+  | "media"
   | "growth"
+  | "care"
   | "operations"
   | "commerce"
+  | "safety"
+  | "web"
+  | "design"
+  | "ai"
   | "analytics";
 
 export type ModuleStatus = "in_use" | "extractable" | "planned";
@@ -29,8 +36,7 @@ export type ModuleCatalogEntry = {
   purpose: string;
   capabilities: string[];
   usedByApps: string[];
-  // Where the strongest existing implementation lives — mine this first, never
-  // rebuild from scratch (THE ONE RULE).
+  // Where the strongest existing implementation lives — mine this first.
   primarySource: string;
   status: ModuleStatus;
 };
@@ -47,66 +53,77 @@ export type ModuleCatalog = {
   };
 };
 
-// The Lego set, derived from the canonical Ecosystem Inventory. Each block is
-// reused by several apps; the keystone (identity) is reused by all.
+// The Lego set, mined from the real repos (ChurchConnect unless noted).
 const MODULES: ModuleCatalogEntry[] = [
   {
     slug: "identity-auth",
     name: "Identity & Auth",
     category: "foundation",
-    purpose: "One login and one canonical person identity across the whole ecosystem.",
-    capabilities: ["login", "accounts", "person identity", "roles", "sessions"],
-    usedByApps: [
-      "churchconnect",
-      "spark-of-hope",
-      "live-on-mission",
-      "best-life",
-      "kindred-connections",
-      "kids-need-dads",
-      "childfirst-solutions"
-    ],
-    primarySource: "shared ecosystem identity (person table) + Auth.js",
-    status: "in_use"
+    purpose: "One login and one canonical person identity across the ecosystem, including phone/OTP and OAuth.",
+    capabilities: ["login", "accounts", "person identity", "roles", "sessions", "phone otp", "oauth", "password reset"],
+    usedByApps: ["churchconnect", "spark-of-hope", "live-on-mission", "best-life", "kindred-connections", "kids-need-dads", "childfirst-solutions"],
+    primarySource: "ChurchConnect backend/routes/auth_phone.py + auth_custom.py + oauth.py + src/components/PasswordReset.tsx",
+    status: "extractable"
   },
   {
     slug: "connection-engine",
-    name: "Connection Engine (Kindred Connections)",
+    name: "Connection Engine (assess + match)",
     category: "connection",
     purpose:
-      "Assess and grow each person, then match on mindset/heartset for friendship and mutual growth — groups before pairs, friends before romance. The reusable engine behind community apps.",
-    capabilities: ["matching", "belonging", "assessment", "growth pairing", "community groups", "mindset matching"],
+      "Assess and grow each person, then match on purpose/mindset/heartset for friendship and mutual growth — the reusable belonging engine behind community apps.",
+    capabilities: ["matching", "belonging", "assessment", "purpose discovery", "growth pairing", "mindset matching"],
     usedByApps: ["kindred-connections", "churchconnect", "kids-need-dads"],
-    primarySource: "Kindred-Connection repo (mine its matching/assessment logic first)",
+    primarySource: "ChurchConnect backend/routes/purpose_assessment.py + purpose_matching.py + purpose_discovery.py",
     status: "extractable"
   },
   {
     slug: "needs-helper-matching",
     name: "Needs ↔ Helper Matching",
     category: "connection",
-    purpose: "Match a need with a helper (asymmetric). One engine behind every needs/service/marketplace feature.",
-    capabilities: ["need matching", "helper matching", "service requests", "volunteer matching"],
+    purpose: "Match a need with a helper (asymmetric) — one engine behind every needs/service/outreach feature.",
+    capabilities: ["need matching", "helper matching", "service requests", "outreach", "pay it forward"],
     usedByApps: ["live-on-mission", "churchconnect"],
-    primarySource: "ChurchConnect needs/gifts matching schema",
+    primarySource: "ChurchConnect backend/routes/church_outreach.py + care.py + pay_it_forward.py",
     status: "extractable"
   },
   {
     slug: "communication",
     name: "Communication",
     category: "communication",
-    purpose: "The pipes — messaging, groups, notifications, email/SMS — shared by most apps.",
-    capabilities: ["messaging", "notifications", "groups", "email", "sms", "broadcast"],
+    purpose: "The pipes — messaging, SMS, email, broadcasts, notifications — shared by most apps.",
+    capabilities: ["messaging", "sms", "email", "broadcast", "notifications", "campaigns", "recipient targeting"],
     usedByApps: ["churchconnect", "live-on-mission", "kindred-connections"],
-    primarySource: "ChurchConnect broadcast/messaging",
+    primarySource: "ChurchConnect src/components/BroadcastHub.tsx + backend/routes/broadcasting.py + church_sms.py + email_service.py",
+    status: "extractable"
+  },
+  {
+    slug: "directory-community",
+    name: "Directory & Community",
+    category: "communication",
+    purpose: "Member directories, public community portals, and discovery.",
+    capabilities: ["directory", "community portal", "discovery", "public profiles", "rosters"],
+    usedByApps: ["churchconnect", "milstead-us"],
+    primarySource: "ChurchConnect src/components/ChurchDirectory.tsx + CommunityPortal.tsx + ChurchDiscovery.tsx",
     status: "extractable"
   },
   {
     slug: "events-scheduling",
     name: "Events & Scheduling",
     category: "operations",
-    purpose: "Events, RSVPs, calendars, and booking.",
-    capabilities: ["events", "rsvp", "calendar", "booking", "scheduling"],
+    purpose: "Events, RSVPs, calendars, booking, and facilities.",
+    capabilities: ["events", "rsvp", "calendar", "booking", "scheduling", "facilities"],
     usedByApps: ["churchconnect", "live-on-mission"],
-    primarySource: "ChurchConnect events",
+    primarySource: "ChurchConnect backend/routes/events.py + event_management.py + facilities.py",
+    status: "extractable"
+  },
+  {
+    slug: "checkin",
+    name: "Check-in & Staffing",
+    category: "operations",
+    purpose: "Secure check-in and staffing for events, kids, and services.",
+    capabilities: ["check-in", "childcare check-in", "staffing", "attendance"],
+    usedByApps: ["churchconnect"],
+    primarySource: "ChurchConnect backend/routes/checkin.py + childcare_staffing.py",
     status: "extractable"
   },
   {
@@ -116,7 +133,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Guided problem → structured profile. Opportunity is intake for people; AppEngine is intake for builders.",
     capabilities: ["intake", "clarification", "structured capture", "problem framing"],
     usedByApps: ["churchconnect"],
-    primarySource: "AppEngine problem_intake_gate + opportunity-intake (canonical)",
+    primarySource: "AppEngine problem_intake_gate + opportunity-intake (canonical, in this repo)",
     status: "in_use"
   },
   {
@@ -126,78 +143,158 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Suggest the next app, person, or resource for where someone is.",
     capabilities: ["recommendation", "routing", "next step", "navigator"],
     usedByApps: ["best-life"],
-    primarySource: "AppEngine opportunity-solution-path router",
+    primarySource: "AppEngine opportunity-solution-path router + ChurchConnect purpose_discovery.py",
     status: "in_use"
   },
   {
     slug: "testimony-engine",
     name: "Testimony Engine",
     category: "content",
-    purpose: "Capture, store, and surface real stories — and close the loop from solved problem back to testimony.",
-    capabilities: ["testimony", "stories", "encouragement", "story review", "approval queue"],
-    usedByApps: ["spark-of-hope"],
-    primarySource: "Spark of Hope testimony intake",
+    purpose: "Capture, store, surface, and review real stories — and close the loop from solved problem back to testimony.",
+    capabilities: ["testimony", "stories", "encouragement", "review queue", "approval"],
+    usedByApps: ["spark-of-hope", "churchconnect"],
+    primarySource: "ChurchConnect backend/routes/testimonies.py + Spark of Hope testimony intake",
+    status: "extractable"
+  },
+  {
+    slug: "scripture-sermon-tools",
+    name: "Scripture & Sermon Tools",
+    category: "content",
+    purpose: "Scripture library/search and AI-assisted sermon prep, research, and suggestions.",
+    capabilities: ["scripture library", "scripture search", "sermon prep", "sermon research", "reading"],
+    usedByApps: ["churchconnect"],
+    primarySource: "ChurchConnect backend/routes/scripture_library.py + scripture_ai.py + sermon_prep.py + src/components/ScriptureLibrary.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "discipleship-content",
+    name: "Discipleship & Content",
+    category: "content",
+    purpose: "Reading plans, devotionals, daily motivation, and challenges that move people forward.",
+    capabilities: ["reading plans", "devotionals", "daily motivation", "challenges", "discipleship"],
+    usedByApps: ["churchconnect", "best-life", "spark-of-hope"],
+    primarySource: "ChurchConnect backend/routes/reading_plans.py + devotionals.py + discipleship_routes.py + challenges.py",
+    status: "extractable"
+  },
+  {
+    slug: "live-service-streaming",
+    name: "Live Service & Streaming",
+    category: "media",
+    purpose: "Live worship/service control, streaming, recording, and service planning.",
+    capabilities: ["live streaming", "service control", "worship planning", "recording", "presentation"],
+    usedByApps: ["churchconnect"],
+    primarySource: "ChurchConnect src/components/LiveStreamManager.tsx + ServiceController.tsx + WorshipServicePlanner.tsx + backend/routes/streaming.py",
+    status: "extractable"
+  },
+  {
+    slug: "care-counseling",
+    name: "Care & Counseling",
+    category: "care",
+    purpose: "Care requests, counseling, and encouragement loops so no one in crisis is missed.",
+    capabilities: ["care requests", "counseling", "encouragement", "follow-up care"],
+    usedByApps: ["churchconnect", "kids-need-dads"],
+    primarySource: "ChurchConnect backend/routes/care.py + counselor.py + encouragement_loop.py",
     status: "extractable"
   },
   {
     slug: "mentorship-coaching",
     name: "Mentorship / Coaching",
     category: "growth",
-    purpose: "Match mentors, run an AI coach, and provide guidance.",
-    capabilities: ["mentorship", "coaching", "ai coach", "guidance"],
+    purpose: "Match mentors, run guidance/coaching, and pair people for growth.",
+    capabilities: ["mentorship", "coaching", "guidance", "pairing"],
     usedByApps: ["spark-of-hope", "best-life", "kids-need-dads"],
-    primarySource: "(planned — compose from Connection Engine + Communication)",
-    status: "planned"
+    primarySource: "ChurchConnect backend/routes/counselor.py (compose with Connection Engine)",
+    status: "extractable"
   },
   {
     slug: "growth-tracking",
     name: "Growth Tracking",
     category: "growth",
-    purpose: "Habits, goals, skills, and progress over time.",
-    capabilities: ["habits", "goals", "progress", "skills", "tracking"],
-    usedByApps: ["best-life"],
-    primarySource: "(planned)",
-    status: "planned"
+    purpose: "Habits, goals, reading progress, skills, and milestones over time.",
+    capabilities: ["habits", "goals", "progress", "skills", "tracking", "milestones"],
+    usedByApps: ["best-life", "churchconnect"],
+    primarySource: "ChurchConnect backend/routes/reading_plans.py + challenges.py (progress tracking)",
+    status: "extractable"
   },
   {
     slug: "crm-follow-up",
     name: "CRM / Follow-up",
     category: "operations",
-    purpose: "Track people and automate follow-up so no one falls through the cracks.",
-    capabilities: ["crm", "follow-up", "contact tracking", "pipeline", "reminders"],
+    purpose: "Track people and automate follow-up so no one falls through the cracks (guests, members, leads).",
+    capabilities: ["crm", "follow-up", "guest management", "people records", "pipeline", "reminders"],
     usedByApps: ["churchconnect", "toner-management"],
-    primarySource: "ChurchConnect connection/follow-up tables",
+    primarySource: "ChurchConnect backend/routes/church_crm.py + people.py + src/components/ConnectionInbox.tsx + GuestManagement.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "volunteer-safety",
+    name: "Volunteer & Safety",
+    category: "safety",
+    purpose: "Volunteer scheduling plus background checks and waivers for safe service.",
+    capabilities: ["volunteer scheduling", "background checks", "waivers", "compliance", "availability"],
+    usedByApps: ["churchconnect", "live-on-mission"],
+    primarySource: "ChurchConnect backend/routes/volunteer_force.py + background_checks.py + src/components/VolunteerAvailability.tsx + WaiverManagement.tsx",
     status: "extractable"
   },
   {
     slug: "payments-billing",
-    name: "Payments / Billing",
+    name: "Payments, Billing & Giving",
     category: "commerce",
-    purpose: "Donations, subscriptions, and invoicing.",
-    capabilities: ["payments", "billing", "donations", "subscriptions", "invoicing", "stripe"],
-    usedByApps: ["toner-management", "laser-engrave-market", "churchconnect"],
-    primarySource: "ChurchConnect Stripe integration",
+    purpose: "Donations, online giving, subscriptions, and invoicing.",
+    capabilities: ["payments", "online giving", "donations", "billing", "subscriptions", "invoicing", "stripe"],
+    usedByApps: ["churchconnect", "toner-management", "laser-engrave-market"],
+    primarySource: "ChurchConnect backend/routes/stripe_payments.py + stripe_billing.py + universal_giving.py + src/components/OnlineGiving.tsx",
     status: "extractable"
   },
   {
     slug: "website-builder",
     name: "Website Builder",
-    category: "operations",
-    purpose: "Generate simple sites and landing pages fast.",
-    capabilities: ["website builder", "landing pages", "site generation"],
+    category: "web",
+    purpose: "Generate simple sites and branded landing pages fast.",
+    capabilities: ["website builder", "landing pages", "site generation", "branded pages"],
     usedByApps: ["easy-peasy-website", "churchconnect", "milstead-us"],
-    primarySource: "Website-friends / Easy Peasy repo",
+    primarySource: "ChurchConnect src/components/WebsiteSetupWizard.tsx + BrandedLandingPage.tsx + Easy Peasy (Website-friends repo)",
+    status: "extractable"
+  },
+  {
+    slug: "domains-publishing",
+    name: "Domains & Publishing",
+    category: "web",
+    purpose: "Register domains and publish/hand off generated sites (incl. WordPress).",
+    capabilities: ["domain registration", "publishing", "site handoff", "wordpress"],
+    usedByApps: ["easy-peasy-website", "churchconnect"],
+    primarySource: "ChurchConnect backend/routes/spaceship_domains.py + website_handoff.py + wordpress.py + domains.py",
+    status: "extractable"
+  },
+  {
+    slug: "branding-design",
+    name: "Branding & Design",
+    category: "design",
+    purpose: "In-app design editing, templates, branding settings, and logo/icon generation.",
+    capabilities: ["design editor", "templates", "branding", "logo generation", "icons"],
+    usedByApps: ["churchconnect", "iconium"],
+    primarySource: "ChurchConnect src/components/CanvaDesignHub.tsx + InAppDesignEditor.tsx + ChurchBrandingSettings.tsx + Iconium repo",
+    status: "extractable"
+  },
+  {
+    slug: "ai-assist",
+    name: "AI Assist",
+    category: "ai",
+    purpose: "AI services for content generation, scripture/sermon help, and media analysis.",
+    capabilities: ["ai content", "ai scripture", "video analysis", "summarization", "suggestions"],
+    usedByApps: ["churchconnect", "iconium"],
+    primarySource: "ChurchConnect backend/routes/ai_services.py + scripture_ai.py + church_video_analyzer.py",
     status: "extractable"
   },
   {
     slug: "analytics-hope-index",
     name: "Analytics / Hope Index",
     category: "analytics",
-    purpose: "Measure hope, belonging, and engagement across the journey apps.",
-    capabilities: ["analytics", "metrics", "hope index", "engagement", "dashboards"],
-    usedByApps: ["spark-of-hope", "live-on-mission", "best-life"],
-    primarySource: "(planned — cross-experience, on life_core's unified feed)",
-    status: "planned"
+    purpose: "Reporting, engagement metrics, surveys, and a cross-app hope/belonging index.",
+    capabilities: ["analytics", "reporting", "surveys", "user analytics", "hope index", "dashboards"],
+    usedByApps: ["churchconnect", "spark-of-hope", "best-life"],
+    primarySource: "ChurchConnect backend/routes/reporting.py + user_analytics.py + src/components/SurveyAnalytics.tsx",
+    status: "extractable"
   }
 ];
 

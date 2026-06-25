@@ -17,6 +17,10 @@ The drift this ends: seven agents rebuilt the same connection engine seven times
 - **It is** the reusable code/capability blocks (Identity & Auth, Connection Engine, Needs↔Helper Matching, Communication, Events & Scheduling, Intake, Recommendation/Navigator, Testimony Engine, Mentorship/Coaching, Growth Tracking, CRM/Follow-up, Payments/Billing, Website Builder, Analytics/Hope Index).
 - **It is not** the `app_portfolio_registry` (that catalogs whole **apps**) or `life_core` (that describes ecosystem **data contracts** — journey stage, unified feed). Distinct layers; the catalog `usedByApps` slugs reference the app registry.
 
+## Seeded from real code
+
+The catalog is not abstract — it is mined from the completed repos. **ChurchConnect** is the richest source: its `purpose_assessment`/`purpose_matching` routes are the connection engine; `broadcasting`/`church_sms`/`email_service` are Communication; `stripe_payments`/`universal_giving`/`OnlineGiving` are Payments & Giving; `scripture_library`/`sermon_prep` are Scripture & Sermon Tools; `streaming`/`LiveStreamManager` are Live Service; `volunteer_force`/`background_checks` are Volunteer & Safety; `website_handoff`/`spaceship_domains` are Domains & Publishing; and so on. Each block's `primarySource` names the actual files to mine first. More repos (Iconium, Easy Peasy, Spark of Hope) are folded in as they're reviewed.
+
 ## Each block records
 
 - `slug`, `name`, `category`, `purpose`
