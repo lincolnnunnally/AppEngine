@@ -33,6 +33,27 @@ runStep("release gate fails honestly when evidence is missing", () => {
   ]);
 });
 
+runStep("missing evidence keeps deployment blocked", () => {
+  assertFileIncludes("src/lib/engine/controlled-production-release-gate.ts", [
+    "status: blockedReasons.length ? \"blocked_pending_evidence\" : \"approved_for_first_controlled_use\"",
+    "productionAction: blockedReasons.length ? \"blocked\" : \"ready_for_controlled_deploy\"",
+    "Controlled production release remains blocked. Missing evidence must be resolved before AppEngine serves controlled real use.",
+    "Resolve the first blocked evidence item before requesting controlled production approval.",
+    "Launch blocker status has not been accepted for controlled use."
+  ]);
+});
+
+runStep("complete evidence allows controlled deployment inside limits", () => {
+  assertFileIncludes("src/lib/engine/controlled-production-release-gate.ts", [
+    "approved_for_first_controlled_use",
+    "ready_for_controlled_deploy",
+    "Controlled production release evidence is complete for the Step 4 deploy path.",
+    "Run the existing controlled deploy path, then verify we-succeed.org, both doors, owner login, and /api/health.",
+    "Known critical blockers accepted for controlled soft launch",
+    "providerSpendMustStayWithinLimits: true"
+  ]);
+});
+
 runStep("release gate allows only controlled existing-provider deploys inside limits", () => {
   assertFileIncludes("src/lib/engine/controlled-production-release-gate.ts", [
     "productionAction: blockedReasons.length ? \"blocked\" : \"ready_for_controlled_deploy\"",
