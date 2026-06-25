@@ -48,7 +48,7 @@ runStep("existing auth hardening remains in place", () => {
   assertFileIncludes("src/lib/auth/config.ts", ["AUTH_SECRET is required in production", "app-engine-local-development-secret"]);
   assertFileIncludes("src/lib/auth/access.ts", ["canAccessEngineOwner", 'process.env.NODE_ENV === "development"', "APP_ENGINE_SETUP_ADMIN_BYPASS"]);
   assertFileIncludes("src/app/(cockpit)/layout.tsx", ["canAccessEngineOwner", "/soft-launch"]);
-  assertFileIncludes("src/app/problem-intake-lite/page.tsx", ["canAccessEngineOwner", "/soft-launch"]);
+  assertFileIncludes("src/app/(cockpit)/problem-intake-lite/page.tsx", ["canAccessEngineOwner", "/soft-launch"]);
   assertFileIncludes("src/app/api/opportunity-intake/route.ts", ["canAccessEngineOwner", "Unauthorized"]);
   assertFileIncludes("src/app/api/problem-intake-lite/route.ts", ["canAccessEngineOwner", "Unauthorized"]);
   assertFileIncludes("src/app/api/engine/health/route.ts", ["canAccessEngineAdmin", "Unauthorized"]);
