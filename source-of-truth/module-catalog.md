@@ -24,7 +24,13 @@ The catalog is not abstract — it is mined from the completed repos, **verified
 - **ChurchConnect** (richest, completed): Communication (`broadcasting`/`church_sms`/`email_service`), Payments & Giving (`stripe_payments`/`universal_giving`/`OnlineGiving`), Scripture & Sermon Tools, Live Service (`streaming`/`LiveStreamManager`), Volunteer & Safety (`volunteer_force`/`background_checks`), CRM, Events, Testimony, Identity (phone OTP), Analytics.
 - **Kindred-Connection** (GitHub-only, Python) — the **canonical Connection Engine**: `backend/routers/soul_match.py`, `relational_posture.py`, `loneliness_prescription.py`, `pods.py` (group-first), `coaching.py`. Richer than ChurchConnect's `purpose_matching`.
 - **Website-friends / Easy Peasy** — Website Builder + Domains (`WebsitesAndDomains.tsx`, `DomainSearchModal.tsx`, `Web3Domains.tsx`).
-- Iconium is an early ~11KB stub (not a source yet); more repos fold in as reviewed.
+- **ideas** — Idea Capture & Content Forge (voice/photo/OCR/transcribe → forge/polish).
+- **LaserEngraving** — Marketplace & Orders + Design Studio (canvas, upload, mockups).
+- **childfirst-solutions** — Case Management & Documentation + Mediated Communication.
+- **Association** — Finance & Accounting + Multi-Org / Association.
+- **JeepFix** — Knowledge Base & Troubleshooting + Ratings & Reviews.
+- **RebuildingDads / honestly** — Mutual Aid & Benevolence + Achievements; **honestly** — Media Recording.
+- Iconium is an early ~11KB stub (not a source yet); remaining repos fold in as reviewed.
 
 Each block's `primarySource` names the actual files to mine first.
 

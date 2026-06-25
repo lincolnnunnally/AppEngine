@@ -27,7 +27,19 @@ const MODULE_SLUGS = [
   "domains-publishing",
   "branding-design",
   "ai-assist",
-  "analytics-hope-index"
+  "analytics-hope-index",
+  "idea-capture-forge",
+  "marketplace-orders",
+  "design-studio",
+  "case-management",
+  "mediated-communication",
+  "knowledge-base",
+  "mutual-aid-benevolence",
+  "achievements-gamification",
+  "ratings-reviews",
+  "finance-accounting",
+  "multi-org-association",
+  "media-recording"
 ];
 
 runStep("module catalog engine defines the Lego set + query", () => {
