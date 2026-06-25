@@ -363,4 +363,4 @@ engine pointed at a specific community and the problem/purpose they gather aroun
 5. **`ideas` and `Million-Mistakes` aren't strays.** `ideas` is the capture-and-convert
    front end of App Engine (speak an idea → it becomes an app, article, post, or video).
    `Million-Mistakes` isn't an app at all — it's a principle already wired through the
-ecosystem. Both belong, just not as standalone apps.
+   ecosystem. Both belong, just not as standalone apps.
