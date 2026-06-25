@@ -45,6 +45,7 @@ This is a discipline enforced by git, not a hard lock. It works only if EVERY ag
 - ✅ Step-3 problem-intake door keeps the rail + two-door / one-name opportunity intake (**#182**).
 - ✅ Step-3 consumer-friendly problem door — dev label + redundant sub-choices dropped (**#183**).
 - ✅ Step-3 finished app shell — one AppShell header per cockpit screen (redundant topnav removed), `.entry`/`.soft-launch` inherit the locked `:root` palette, build-door default→"vision", doors set positive expectations; CURRENT_SCOPE v9 + this ledger landed (**#184**).
+- ✅ Step-4 "loop to live" — release gate + deploy readiness (**#186**/**#187**/**#189**, fail-closed, existing-provider-only, within limits), production deploy `READY` at we-succeed.org, live `/api/health` ok, owner-gate enforced, both doors verified end-to-end via Lincoln's owner walkthrough on production (a submission saved); build-door redundant selector removed (**#190**). Free-tier only.
 
 ---
 
@@ -58,15 +59,13 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
 - ✅ **3c · Exactly two doors, one consistent name** — rail/header/body all "Build something" / "Solve a problem"; build door trimmed 4→2 (**#182** + **#183**).
 - ✅ **3d · Palette pass** — dark theme (**#181**); `.entry`/`.soft-launch` inherit the locked `:root` tokens (**#184**).
 
-### STEP 4 — guardrail, then first real deploy  ⛔ BLOCKED on owner-authenticated walkthrough evidence, NOT yet ✅
-- ⛔ **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
-  done so far: ✅ Step-4 readiness GATE merged (**#186**) — fail-closed `we_succeed_soft_launch_readiness` artifact composing the existing controlled-release-gate + production-auth-readiness; reviewed & merged by Claude Code. ✅ Controlled deploy gate alignment merged (**#187**, merge commit `40845c299482d79e4efe8b41634118af7d7ac09b`) — release gate can now return `ready_for_controlled_deploy` for the existing provider project inside configured limits instead of always blocking deployment. ✅ Existing AppEngine Vercel production path deployed `main` commit `40845c299482d79e4efe8b41634118af7d7ac09b` as deployment `dpl_3XM2iCHPfQa8SDpicWHSPTJSUBZf` (`READY`). ✅ Live `https://www.we-succeed.org/api/health` returned `{"status":"ok"}`. ✅ Live Auth.js provider config exposes GitHub sign-in with callback `https://www.we-succeed.org/api/auth/callback/github`. ✅ Unauthenticated `/`, `/problem-intake-lite`, and `/opportunity-intake` requests redirect to `/soft-launch`, preserving owner-only access.
-  review now: 🔵 Release-gate smoke hardening PR **#189** explicitly protects missing-evidence blocked and complete-evidence allowed cases; no app behavior or provider/deploy setting changes.
-  remaining for ✅ ("loop to live"): owner-authenticated browser walkthrough: sign in as Lincoln, confirm `/problem-intake-lite` reaches the Solve a problem intake with rail intact, confirm `/opportunity-intake` reaches the Build something intake with rail intact, then mark Step 4 ✅ and unblock Step 5.
-  owner: Lincoln-assisted agent verification · branch after unblock: claim a fresh small Step-4 evidence branch
+### STEP 4 — guardrail, then first real deploy  ✅ **COMPLETE** ("loop to live" crossed)
+- ✅ **4 · Spend/provider guardrail + first real deploy: we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
+  Release gate + deploy readiness (**#186**/**#187**/**#189**) — fail-closed, existing-provider-only, within configured limits. Production deploy `READY` at we-succeed.org; live `/api/health` ok; owner-gate enforced (unauthenticated → `/soft-launch`); GitHub owner sign-in wired. Owner-authenticated walkthrough confirmed by Lincoln on production: both doors reach their intake with the rail, a submission saved. Build-door redundant selector removed (**#190**). Free-tier only; no new paid resources.
 
-### STEP 5 — first real problem THROUGH AppEngine  ⛔ BLOCKED until Step 4 is ✅
-- ⛔ **5 · ChurchConnect visitor bug as `extend_existing` → vNext → Codex in the ChurchConnect repo** (gated AppEngine proof only). The verify-after-publish walkthrough is built and proven here, on the existing Reviewer/Tester pieces — never recreated.
+### STEP 5 — first real problem THROUGH AppEngine  🟡 CLAIMED (Claude Code · branch `claude/step5-churchconnect-visitor-loop`)
+- 🟡 **5 · ChurchConnect visitor bug as `extend_existing` → vNext → Codex in the ChurchConnect repo** (gated AppEngine proof only). The verify-after-publish walkthrough is built and proven here, on the existing Reviewer/Tester pieces — never recreated.
+  claim: Claude Code · branch `claude/step5-churchconnect-visitor-loop` · scoping the run through the existing pipeline (intake gate → extend_existing routing → vNext packet → handoff), all through production where it touches a live target.
 
 ### STEP 6 — open the doors  ⛔ BLOCKED until Step 5 is ✅
 - ⛔ **6 · Owner-only → controlled real users → public login,** once spend/safety limits hold.
