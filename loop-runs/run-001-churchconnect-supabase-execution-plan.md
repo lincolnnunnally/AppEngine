@@ -3,7 +3,7 @@
 **Date:** 2026-06-25  
 **Source run:** `run-001-2026-06-21-churchconnect-visitor-capture-cycle-1`  
 **AppEngine step:** Step 5 — first real product problem through AppEngine  
-**Status:** ChurchConnect repo execution PR open; not complete until merge, deploy/publish, health check, and live walkthrough evidence are recorded.
+**Status:** ChurchConnect repo code path merged; not complete until deploy/publish, health check, and live walkthrough evidence are recorded.
 
 ## Decision
 
@@ -46,8 +46,7 @@ Visitor follow-up should land in one operational Supabase workflow:
 ## Current Execution Evidence
 
 - ChurchConnect execution PR: https://github.com/lincolnnunnally/ChurchConnect/pull/9
-- Branch: `codex/step5-supabase-visitor-followup`
-- PR status at creation: open and mergeable.
+- Merge commit: `f2354ccba6b61dac16d27c143c236d1eefff4927`
 - Scope: new FastAPI `/api/churchconnect` Supabase visitor-follow-up route, server registration, existing visitor form routed through the backend, and `SUPABASE_URL` documented for deployment.
 - Live Supabase read-only check on project `dzxipsskcrvbtvzekbgz` confirmed existing target tables and clean proof counts: `church_organizations` 7, `church_subdomains` 0, `people` 3, `guests` 0, `guest_followup_tasks` 0.
 - Local verification in prepared ChurchConnect work copy: Python compile passed for the new backend route/server wiring; frontend production build passed.
