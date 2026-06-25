@@ -63,9 +63,11 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
 - ✅ **4 · Spend/provider guardrail + first real deploy: we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
   Release gate + deploy readiness (**#186**/**#187**/**#189**) — fail-closed, existing-provider-only, within configured limits. Production deploy `READY` at we-succeed.org; live `/api/health` ok; owner-gate enforced (unauthenticated → `/soft-launch`); GitHub owner sign-in wired. Owner-authenticated walkthrough confirmed by Lincoln on production: both doors reach their intake with the rail, a submission saved. Build-door redundant selector removed (**#190**). Free-tier only; no new paid resources.
 
-### STEP 5 — first real problem THROUGH AppEngine  🟡 CLAIMED (Claude Code · branch `claude/step5-churchconnect-visitor-loop`)
+### STEP 5 — first real problem THROUGH AppEngine  🟡 IN PROGRESS (Claude Code) — AppEngine handoff done (#191), cross-boundary remains
 - 🟡 **5 · ChurchConnect visitor bug as `extend_existing` → vNext → Codex in the ChurchConnect repo** (gated AppEngine proof only). The verify-after-publish walkthrough is built and proven here, on the existing Reviewer/Tester pieces — never recreated.
-  claim: Claude Code · branch `claude/step5-churchconnect-visitor-loop` · scoping the run through the existing pipeline (intake gate → extend_existing routing → vNext packet → handoff), all through production where it touches a live target.
+  done so far: ✅ AppEngine side (**#191**, merged) — RUN-001 carried through the existing pipeline; prior-work verdict `extend_existing` → materialized the vNext packet + follow-ups (8 phases) handing off the real fix (reconcile `connection_inbox`/`connection_cards` table_split; extend VisitorRegistration/ConnectionInbox/ConnectionCards, do not rebuild). Fail-closed, nothing deployed.
+  remaining for ✅: **cross-boundary** — Codex executes the packet in the ChurchConnect repo (`../../ChurchConnect/ChurchConnect`, outside this workspace), it deploys to ChurchConnect production, then the verify-after-publish walkthrough runs live on the existing Reviewer/Tester pieces. Needs the ChurchConnect repo + Lincoln's steer on how Codex reaches it.
+  owner: Claude Code (AppEngine handoff, done) · Codex + Lincoln (ChurchConnect-repo execution + live verify)
 
 ### STEP 6 — open the doors  ⛔ BLOCKED until Step 5 is ✅
 - ⛔ **6 · Owner-only → controlled real users → public login,** once spend/safety limits hold.
