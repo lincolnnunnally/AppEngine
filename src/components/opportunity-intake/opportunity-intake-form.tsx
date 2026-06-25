@@ -30,7 +30,7 @@ const solutionTypeOptions: Array<{ value: OpportunitySolutionType; label: string
 ];
 
 export function OpportunityIntakeForm() {
-  const [mode, setMode] = useState<OpportunityIntakeMode>("problem");
+  const [mode, setMode] = useState<OpportunityIntakeMode>("vision");
   const [problemPain, setProblemPain] = useState("");
   const [affectedPeople, setAffectedPeople] = useState("");
   const [betterOutcome, setBetterOutcome] = useState("");
