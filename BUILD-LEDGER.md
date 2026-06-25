@@ -34,30 +34,35 @@ This is a discipline enforced by git, not a hard lock. It works only if EVERY ag
 
 ---
 
-## ✅ DONE (confirmed against the repo by the agents who merged it — never rebuild these)
-- ✅ Canonical pipeline merged to main (PR #165) — intake gate, prior-work check, routing, candidate→packet bridge, handoff, review gates, smoke tests.
-- ✅ Ecosystem registry seed corrected + truth-protection smoke tests + initial CURRENT_SCOPE.md (PR #175).
-- ✅ Deploy gate proven to halt before provisioning (PR #176) — the cost-stop works.
-- ✅ Dark two-door entry built (PR #177) — base `#0e1512`, gold/teal doors, per scope step 2.
-- ✅ Entry gated owner-only; GitHub OAuth login working at we-succeed.org.
-- ✅ CURRENT_SCOPE.md matured to v8 — locked: two doors; lifecycle build→deploy→verify→audit/improve; free-tier default + one Pro-Supabase exception; expectations up front; no infra jargon to users.
+## ✅ DONE (verified against actually-merged PRs on `main` — never rebuild these)
+- ✅ Canonical pipeline on main — intake gate, prior-work check, routing, candidate→packet bridge, handoff, review gates, 100+ smoke tests. (Merged across the #160s; **#165** added the Step-1 cockpit shell + two front doors.)
+- ✅ Ecosystem registry seed corrected + truth-protection smoke tests (**#175**); Opportunity/AppEngine scope-fence reset (**#178**).
+- ✅ Deploy/cost gate proven to halt before provisioning (**#176**) — the cost-stop works.
+- ✅ Dark two-door entry (**#177**) — base `#0e1512`, gold/teal doors (scope step 2).
+- ✅ Entry gated owner-only; GitHub OAuth login working at we-succeed.org (**#179**).
+- ✅ CURRENT_SCOPE.md synced to the we-succeed pathway — **v5 on `main`** (**#180**). NOTE: the earlier "matured to v8" line was memory-seeded and **wrong** — `main` is v5; the v8→v9 text is NOT on main yet, it lands via **#184** (below).
+- ✅ Step-3 dark theme across the whole app shell (**#181**).
+- ✅ Step-3 problem-intake door keeps the rail + two-door / one-name opportunity intake (**#182**).
+- ✅ Step-3 consumer-friendly problem door — dev label + redundant sub-choices dropped (**#183**).
 
 ---
 
 ## THE BOARD — claimable work
 
-### STEP 3 — make the whole app look finished  *(CURRENT STEP — these are claimable NOW)*
-Acceptance for the step: no route renders bare; no screen ships a competing theme; every door/intake keeps the rail.
-Items 3a–3d can run in parallel across agents; coordinate only where they touch the same file.
+### STEP 3 — make the whole app look finished  *(IN REVIEW — finishing via PR #184)*
+Acceptance: no route renders bare; no screen ships a competing theme; every door/intake keeps the rail.
+Reconciled to repo truth — these were already built, not fresh green work; do NOT rebuild them.
 
-- 🟢 **3a · Wrap every route in the shared AppShell** — find the existing AppShell (rail + header) and ensure every screen renders inside it. No bare routes.
-  claim: —
-- 🟢 **3b · Fix the problem-intake door dropping the rail** — it must render inside the AppShell like everything else; user is never stranded.
-  claim: —
-- 🟢 **3c · Collapse the build door to exactly two doors** — it currently shows four choices under three names. Two doors, one consistent consumer name per intake across rail/header/body. No operator jargon.
-  claim: —
-- 🟢 **3d · Palette pass** — every screen inherits `#0e1512` / gold `#e6a93a` / teal `#34c0ad` / text `#eef2ee`. Kill competing themes.
-  claim: —
+- ✅ **3b · Problem-intake door keeps the rail** — moved into the `(cockpit)` AppShell (**#182**, merged).
+  claim: done
+- ✅ **3c · Exactly two doors, one consistent name** — entry + rail/header/body all "Build something" / "Solve a problem"; build door trimmed 4→2 (**#182** + **#183**, merged).
+  claim: done
+- 🔵 **3a · Every route inside the shared AppShell** — redundant page-level `topnav` removed from all cockpit screens; one AppShell header each (**#184**, open). Exception flagged for Lincoln: `/account` (customer placeholder, not in the owner rail) and `/soft-launch` (public pre-login) render outside the owner shell by design.
+  claim: Claude Code · feat/step3-finished-app-shell · PR #184
+- 🔵 **3d · Palette pass** — dark theme merged (**#181**); `.entry` / `.soft-launch` now inherit the locked `:root` tokens instead of re-declaring them (**#184**, open).
+  claim: Claude Code · feat/step3-finished-app-shell · PR #184
+
+> **PR #184 also carries** CURRENT_SCOPE v9, this BUILD-LEDGER, the ecosystem-inventory / intake-seed / activation-snippets docs, the build-door default→"vision" fix, and the doors' positive-expectation copy. When #184 merges: Step 3 → ✅ and Step 4 unblocks.
 
 ### STEP 4 — guardrail, then first real deploy  ⛔ BLOCKED until Step 3 is ✅
 - ⛔ **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
