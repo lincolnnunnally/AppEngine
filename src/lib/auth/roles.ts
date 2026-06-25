@@ -4,6 +4,18 @@ export const roles = ["owner", "admin", "customer", "vendor"] as const;
 
 export type Role = (typeof roles)[number];
 
+// Staged go-public control (Step 6). The consumer surface (two-door entry +
+// problem/opportunity intakes + their POST APIs) opens in three rungs:
+//   owner     — closed to non-owners (DEFAULT; identical to pre-Step-6 behavior)
+//   allowlist — controlled real users: only approved customer emails get in
+//   public    — open: any signed-in customer reaches the consumer surface
+// Operator screens stay owner/admin-only in every mode. The mode is set by
+// APP_ENGINE_PUBLIC_ACCESS and defaults to "owner" (fail closed), so merging the
+// machinery changes nothing live — Lincoln flips the env var to open the doors.
+export const publicAccessModes = ["owner", "allowlist", "public"] as const;
+
+export type PublicAccessMode = (typeof publicAccessModes)[number];
+
 type RuntimeEnv = Record<string, string | undefined>;
 
 type SessionRoleUser = {
@@ -29,6 +41,64 @@ export function canAccessOwner(role?: string | null) {
 
 export function canAccessCustomerArea(role?: string | null) {
   return role === "owner" || role === "admin" || role === "customer" || role === "vendor";
+}
+
+export function getPublicAccessMode(env: RuntimeEnv = process.env): PublicAccessMode {
+  const raw = env.APP_ENGINE_PUBLIC_ACCESS?.trim().toLowerCase();
+
+  // Unknown/blank values fail closed to owner-only.
+  return (publicAccessModes as readonly string[]).includes(raw ?? "") ? (raw as PublicAccessMode) : "owner";
+}
+
+export function parseCustomerAllowlist(value?: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(/[\s,;]+/)
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isCustomerAllowlisted(email?: string | null, env: RuntimeEnv = process.env): boolean {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return false;
+  }
+
+  return parseCustomerAllowlist(env.APP_ENGINE_CUSTOMER_ALLOWLIST).includes(normalizedEmail);
+}
+
+// Pure decision used by the consumer-surface gate. Owner/admin operators always
+// pass; non-operators are gated by the staged public-access mode. Default
+// ("owner") closes the surface to everyone but operators — no live change.
+export function canAccessConsumerSurfaceForRole(
+  role?: string | null,
+  email?: string | null,
+  env: RuntimeEnv = process.env
+): boolean {
+  if (canAccessAdmin(role)) {
+    return true;
+  }
+
+  const mode = getPublicAccessMode(env);
+
+  if (mode === "owner") {
+    return false;
+  }
+
+  if (!canAccessCustomerArea(role)) {
+    return false;
+  }
+
+  if (mode === "public") {
+    return true;
+  }
+
+  // allowlist (controlled) rung
+  return isCustomerAllowlisted(email, env);
 }
 
 export function roleForEmail(email?: string | null, env: RuntimeEnv = process.env): Role {

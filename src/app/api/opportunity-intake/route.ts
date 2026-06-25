@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { canAccessEngineOwner } from "@/lib/auth/access";
+import { canAccessEngineConsumerSurface, canAccessEngineOwner } from "@/lib/auth/access";
 import { createOpportunityIntakeRecord, listOpportunityIntakeRecords } from "@/lib/engine/opportunity-intake";
 
 export const dynamic = "force-dynamic";
 
+// GET lists every submission — an operator view; stays owner-only so customers
+// cannot enumerate other people's opportunities.
 export async function GET() {
   if (!(await canAccessEngineOwner())) {
     return unauthorized();
@@ -22,8 +24,10 @@ export async function GET() {
   );
 }
 
+// POST is a customer action — submitting your own idea. Open to the staged
+// consumer surface (default owner-only until Lincoln opens the doors).
 export async function POST(request: Request) {
-  if (!(await canAccessEngineOwner())) {
+  if (!(await canAccessEngineConsumerSurface())) {
     return unauthorized();
   }
 

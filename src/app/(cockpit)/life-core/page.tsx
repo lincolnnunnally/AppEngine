@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { getLifeCoreOverview, type LifeCoreJourneyStage } from "@/lib/engine/life-core";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,12 @@ const stageLabels: Record<LifeCoreJourneyStage, string> = {
 };
 
 export default async function LifeCorePage() {
+  // Operator surface. The (cockpit) layout now also admits customers (staged
+  // go-public), so this page re-gates itself owner/admin-only — defense in depth.
+  if (!(await canAccessEngineAdmin())) {
+    redirect("/");
+  }
+
   const overview = await getLifeCoreOverview();
   const unitedUnderGod = overview.experiences.find((experience) => experience.id === "united_under_god");
   const churchConnect = overview.experiences.find((experience) => experience.id === "church_connect");

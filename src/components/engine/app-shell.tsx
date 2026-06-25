@@ -7,9 +7,8 @@ import { useState, type ReactNode } from "react";
 type RailItem = { label: string; href: string };
 type RailGroup = { label: string; items: RailItem[] };
 
-// Step 1 rail map — operator routes that exist today only (see spec Appendix A).
-// Later steps add Portfolio / Build sub-pages / Ship as those routes are created.
-const NAV_GROUPS: RailGroup[] = [
+// Operator rail — the full factory cockpit. Shown only to owner/admin.
+const OPERATOR_GROUPS: RailGroup[] = [
   { label: "Home", items: [{ label: "Dashboard", href: "/" }, { label: "Canonical status", href: "/canonical-status" }] },
   {
     label: "Intake",
@@ -35,11 +34,27 @@ const NAV_GROUPS: RailGroup[] = [
   }
 ];
 
-// Settings sits in the rail footer, rendered smaller.
+// Settings sits in the rail footer, rendered smaller. Operator-only.
 const SETTINGS_GROUP: RailGroup = {
   label: "Settings",
   items: [{ label: "Admin", href: "/admin" }]
 };
+
+// Consumer rail — only the two doors a customer is allowed to use. No operator
+// jargon (orchestrator, builder, admin, catalog) ever reaches a customer.
+const CONSUMER_GROUPS: RailGroup[] = [
+  { label: "Home", items: [{ label: "Home", href: "/" }] },
+  {
+    label: "Start here",
+    items: [
+      { label: "Build something", href: "/opportunity-intake" },
+      { label: "Solve a problem", href: "/problem-intake-lite" }
+    ]
+  }
+];
+
+const OPERATOR_BRAND = "App Engine";
+const CONSUMER_BRAND = "We Succeed";
 
 function normalizePath(pathname: string | null): string {
   if (!pathname) return "/";
@@ -54,15 +69,20 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function sectionLabel(pathname: string): string {
-  const items = [...NAV_GROUPS, SETTINGS_GROUP].flatMap((group) => group.items);
+function sectionLabel(pathname: string, groups: RailGroup[], fallback: string): string {
+  const items = groups.flatMap((group) => group.items);
   const match = items.find((item) => isActive(pathname, item.href));
-  return match ? match.label : "App Engine";
+  return match ? match.label : fallback;
 }
 
-export default function AppShell({ children }: { children: ReactNode }) {
+export default function AppShell({ children, isOperator = true }: { children: ReactNode; isOperator?: boolean }) {
   const pathname = normalizePath(usePathname());
   const [open, setOpen] = useState(false);
+
+  const navGroups = isOperator ? OPERATOR_GROUPS : CONSUMER_GROUPS;
+  const settingsGroup = isOperator ? SETTINGS_GROUP : null;
+  const brand = isOperator ? OPERATOR_BRAND : CONSUMER_BRAND;
+  const labelGroups = settingsGroup ? [...navGroups, settingsGroup] : navGroups;
 
   const renderItem = (item: RailItem, extraClass = "") => {
     const active = isActive(pathname, item.href);
@@ -84,7 +104,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <aside className="app-rail" data-open={open ? "true" : "false"}>
         <div className="rail-brand">
           <Link className="rail-brand-mark" href="/" onClick={() => setOpen(false)}>
-            App Engine
+            {brand}
           </Link>
           <button
             type="button"
@@ -98,8 +118,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="rail-panel" id="rail-panel">
-          <nav className="rail-nav" aria-label="Operator navigation">
-            {NAV_GROUPS.map((group) => (
+          <nav className="rail-nav" aria-label={isOperator ? "Operator navigation" : "Navigation"}>
+            {navGroups.map((group) => (
               <div className="rail-group" key={group.label}>
                 <p className="rail-group-label">{group.label}</p>
                 {group.items.map((item) => renderItem(item))}
@@ -107,19 +127,21 @@ export default function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          <div className="rail-foot">
-            <div className="rail-group">
-              <p className="rail-group-label">{SETTINGS_GROUP.label}</p>
-              {SETTINGS_GROUP.items.map((item) => renderItem(item, "rail-item-sm"))}
+          {settingsGroup ? (
+            <div className="rail-foot">
+              <div className="rail-group">
+                <p className="rail-group-label">{settingsGroup.label}</p>
+                {settingsGroup.items.map((item) => renderItem(item, "rail-item-sm"))}
+              </div>
+              <p className="rail-identity">Owner</p>
             </div>
-            <p className="rail-identity">Owner</p>
-          </div>
+          ) : null}
         </div>
       </aside>
 
       <div className="app-main">
         <header className="app-header">
-          <h2 className="app-header-title">{sectionLabel(pathname)}</h2>
+          <h2 className="app-header-title">{sectionLabel(pathname, labelGroups, brand)}</h2>
           {/* Reserved slot for a future primary action — intentionally empty in Step 1. */}
           <div className="app-header-action" aria-hidden="true" />
         </header>
