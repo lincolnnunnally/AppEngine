@@ -30,13 +30,15 @@ export type ControlledProductionReleaseGate = {
   }>;
   blockedReasons: string[];
   nextSafeAction: string;
-  productionAction: "blocked";
+  productionAction: "blocked" | "ready_for_controlled_deploy";
   guardrails: {
     releaseGateOnly: true;
-    noProductionDeploy: true;
-    noPaidResources: true;
+    noUnreviewedProductionDeploy: true;
+    noNewPaidResources: true;
     noLiveMigrations: true;
     noSecretsOrEnvChanges: true;
+    existingProviderProjectOnly: true;
+    providerSpendMustStayWithinLimits: true;
     repositoryVisibilityUnchanged: true;
     noCodexAutoExecution: true;
     noGitHubIssueCreation: true;
@@ -104,10 +106,12 @@ export async function createControlledProductionReleaseGate(
       "launch_blocker_status_accepted",
       "Launch blocker status accepted for controlled use",
       launchBlockers.kind,
-      Boolean(input.launchBlockersAcceptedForControlledUse) && launchBlockers.criticalBlockers.length === 0,
-      launchBlockers.criticalBlockers.length
-        ? `Critical blockers remain: ${launchBlockers.criticalBlockers.map((blocker) => blocker.id).join(", ")}`
-        : "No critical launch blockers remain in the latest report."
+      Boolean(input.launchBlockersAcceptedForControlledUse),
+      input.launchBlockersAcceptedForControlledUse
+        ? launchBlockers.criticalBlockers.length
+          ? `Known critical blockers accepted for controlled soft launch: ${launchBlockers.criticalBlockers.map((blocker) => blocker.id).join(", ")}`
+          : "No critical launch blockers remain in the latest report."
+        : "Launch blocker status has not been accepted for controlled use."
     ),
     evidenceItem(
       "owner_approval_notes_present",
@@ -126,19 +130,21 @@ export async function createControlledProductionReleaseGate(
     status: blockedReasons.length ? "blocked_pending_evidence" : "approved_for_first_controlled_use",
     ownerReadableSummary: blockedReasons.length
       ? "Controlled production release remains blocked. Missing evidence must be resolved before AppEngine serves controlled real use."
-      : "Controlled production release evidence is complete for first controlled use. Production deployment still requires a separate explicit owner action.",
+      : "Controlled production release evidence is complete for the Step 4 deploy path. AppEngine may use the existing provider project within configured limits.",
     requiredEvidence,
     blockedReasons,
     nextSafeAction: blockedReasons.length
       ? "Resolve the first blocked evidence item before requesting controlled production approval."
-      : "Owner may approve a separate production deployment workflow with rollback notes visible.",
-    productionAction: "blocked",
+      : "Run the existing controlled deploy path, then verify we-succeed.org, both doors, owner login, and /api/health.",
+    productionAction: blockedReasons.length ? "blocked" : "ready_for_controlled_deploy",
     guardrails: {
       releaseGateOnly: true,
-      noProductionDeploy: true,
-      noPaidResources: true,
+      noUnreviewedProductionDeploy: true,
+      noNewPaidResources: true,
       noLiveMigrations: true,
       noSecretsOrEnvChanges: true,
+      existingProviderProjectOnly: true,
+      providerSpendMustStayWithinLimits: true,
       repositoryVisibilityUnchanged: true,
       noCodexAutoExecution: true,
       noGitHubIssueCreation: true,
