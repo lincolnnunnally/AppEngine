@@ -89,6 +89,69 @@ const ECOSYSTEM_APPS = [
     purpose: "Support fatherhood, mentoring, and father engagement.",
     domain: "ministry / family",
     problemCategories: ["fatherhood", "mentoring", "father engagement", "family support"]
+  },
+  {
+    slug: "kindred-connections",
+    name: "Kindred Connections",
+    status: "existing_app",
+    type: "ministry_tool",
+    purpose:
+      "Belonging + growth engine: assess and grow each person, then match on mindset/heartset for friendship and mutual growth. The reusable Connection engine behind community configs (e.g. RacketPro, JeepFix) and the people layer of ChurchConnect / Kids Need Dads — build configs on it, do not rebuild it.",
+    domain: "ministry / belonging / matching",
+    problemCategories: [
+      "belonging",
+      "connection",
+      "loneliness",
+      "matching people",
+      "community",
+      "mentorship",
+      "mindset and heartset"
+    ]
+  },
+  {
+    slug: "childfirst-solutions",
+    name: "ChildFirst Solutions",
+    status: "existing_app",
+    type: "ministry_tool",
+    purpose: "Co-parenting support — parenting plans, neutral communication, documentation, and court prep.",
+    domain: "family / co-parenting",
+    problemCategories: ["co-parenting", "custody", "parenting plan", "child support", "family conflict"]
+  },
+  {
+    slug: "iconium",
+    name: "Iconium",
+    status: "active_product",
+    type: "business_tool",
+    purpose: "AI icon, logo, and image generation.",
+    domain: "creative / design",
+    problemCategories: ["icon generation", "logo design", "image generation", "branding", "ai art"]
+  },
+  {
+    slug: "easy-peasy-website",
+    name: "Easy Peasy Website",
+    status: "active_product",
+    type: "business_tool",
+    purpose: "All-in-one rapid website builder (easypeazy.site).",
+    domain: "business / website",
+    problemCategories: ["website builder", "landing page", "small business website", "web presence"]
+  },
+  {
+    slug: "snip-show",
+    name: "Snip.Show",
+    status: "active_product",
+    type: "business_tool",
+    purpose: "Create and share short video clips.",
+    domain: "creative / content",
+    problemCategories: ["video clips", "clip sharing", "content creation", "highlights"]
+  },
+  {
+    slug: "laser-engrave-market",
+    name: "Laser Engrave Market",
+    status: "active_product",
+    type: "business_tool",
+    purpose: "Laser-engraving marketplace for custom products.",
+    domain: "business / marketplace",
+    problemCategories: ["laser engraving", "custom products", "marketplace", "personalized gifts"]
   }
 ];
 
