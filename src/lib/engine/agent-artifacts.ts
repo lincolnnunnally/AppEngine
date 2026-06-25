@@ -41,6 +41,7 @@ export type AgentArtifactKind =
   | "phase_start_approval"
   | "execution_label_dry_run"
   | "production_readiness_snapshot"
+  | "we_succeed_soft_launch_readiness"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"
