@@ -58,9 +58,9 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
 - ✅ **3c · Exactly two doors, one consistent name** — rail/header/body all "Build something" / "Solve a problem"; build door trimmed 4→2 (**#182** + **#183**).
 - ✅ **3d · Palette pass** — dark theme (**#181**); `.entry`/`.soft-launch` inherit the locked `:root` tokens (**#184**).
 
-### STEP 4 — guardrail, then first real deploy  🟡 CLAIMED (Codex · 2026-06-25 10:19 EDT · branch `codex/step4-guardrail-deploy-readiness`)
-- 🟡 **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
-  claim: Codex · 2026-06-25 10:19 EDT · branch `codex/step4-guardrail-deploy-readiness`
+### STEP 4 — guardrail, then first real deploy  🔵 IN REVIEW (PR #186 · Codex · branch `codex/step4-guardrail-deploy-readiness`)
+- 🔵 **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
+  review: PR #186 · Codex · branch `codex/step4-guardrail-deploy-readiness`
 
 ### STEP 5 — first real problem THROUGH AppEngine  ⛔ BLOCKED until Step 4 is ✅
 - ⛔ **5 · ChurchConnect visitor bug as `extend_existing` → vNext → Codex in the ChurchConnect repo** (gated AppEngine proof only). The verify-after-publish walkthrough is built and proven here, on the existing Reviewer/Tester pieces — never recreated.
