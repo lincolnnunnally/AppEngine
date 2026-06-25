@@ -44,28 +44,23 @@ This is a discipline enforced by git, not a hard lock. It works only if EVERY ag
 - ✅ Step-3 dark theme across the whole app shell (**#181**).
 - ✅ Step-3 problem-intake door keeps the rail + two-door / one-name opportunity intake (**#182**).
 - ✅ Step-3 consumer-friendly problem door — dev label + redundant sub-choices dropped (**#183**).
+- ✅ Step-3 finished app shell — one AppShell header per cockpit screen (redundant topnav removed), `.entry`/`.soft-launch` inherit the locked `:root` palette, build-door default→"vision", doors set positive expectations; CURRENT_SCOPE v9 + this ledger landed (**#184**).
 
 ---
 
 ## THE BOARD — claimable work
 
-### STEP 3 — make the whole app look finished  *(IN REVIEW — finishing via PR #184)*
+### STEP 3 — make the whole app look finished  ✅ **COMPLETE** (merged via #181/#182/#183/#184)
 Acceptance: no route renders bare; no screen ships a competing theme; every door/intake keeps the rail.
-Reconciled to repo truth — these were already built, not fresh green work; do NOT rebuild them.
 
-- ✅ **3b · Problem-intake door keeps the rail** — moved into the `(cockpit)` AppShell (**#182**, merged).
-  claim: done
-- ✅ **3c · Exactly two doors, one consistent name** — entry + rail/header/body all "Build something" / "Solve a problem"; build door trimmed 4→2 (**#182** + **#183**, merged).
-  claim: done
-- 🔵 **3a · Every route inside the shared AppShell** — redundant page-level `topnav` removed from all cockpit screens; one AppShell header each (**#184**, open). Exception flagged for Lincoln: `/account` (customer placeholder, not in the owner rail) and `/soft-launch` (public pre-login) render outside the owner shell by design.
-  claim: Claude Code · feat/step3-finished-app-shell · PR #184
-- 🔵 **3d · Palette pass** — dark theme merged (**#181**); `.entry` / `.soft-launch` now inherit the locked `:root` tokens instead of re-declaring them (**#184**, open).
-  claim: Claude Code · feat/step3-finished-app-shell · PR #184
+- ✅ **3a · Every route inside the shared AppShell** — redundant page-level `topnav` removed; one AppShell header per cockpit screen (**#184**). Open caveat for Lincoln: `/account` (customer placeholder, not in the owner rail) and `/soft-launch` (public pre-login) render outside the owner shell by design — wrap `/account` only if you want it in the owner surface.
+- ✅ **3b · Problem-intake door keeps the rail** — moved into the `(cockpit)` AppShell (**#182**).
+- ✅ **3c · Exactly two doors, one consistent name** — rail/header/body all "Build something" / "Solve a problem"; build door trimmed 4→2 (**#182** + **#183**).
+- ✅ **3d · Palette pass** — dark theme (**#181**); `.entry`/`.soft-launch` inherit the locked `:root` tokens (**#184**).
 
-> **PR #184 also carries** CURRENT_SCOPE v9, this BUILD-LEDGER, the ecosystem-inventory / intake-seed / activation-snippets docs, the build-door default→"vision" fix, and the doors' positive-expectation copy. When #184 merges: Step 3 → ✅ and Step 4 unblocks.
-
-### STEP 4 — guardrail, then first real deploy  ⛔ BLOCKED until Step 3 is ✅
-- ⛔ **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
+### STEP 4 — guardrail, then first real deploy  🟢 AVAILABLE (Step 3 ✅) — claim before building
+- 🟢 **4 · Spend/provider guardrail in place, then deploy we-succeed.org with BOTH doors working end to end + health check, within limits.** ("loop to live")
+  claim: —
 
 ### STEP 5 — first real problem THROUGH AppEngine  ⛔ BLOCKED until Step 4 is ✅
 - ⛔ **5 · ChurchConnect visitor bug as `extend_existing` → vNext → Codex in the ChurchConnect repo** (gated AppEngine proof only). The verify-after-publish walkthrough is built and proven here, on the existing Reviewer/Tester pieces — never recreated.
