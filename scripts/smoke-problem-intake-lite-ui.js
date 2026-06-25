@@ -14,6 +14,7 @@ runStep("soft-launch problem intake route is discoverable and owner-gated", () =
     "Solve a problem",
     "Describe what",
     "mode: \"problem_first\"",
+    "Saved. We'll clarify the next step, check what already exists, then route it toward the right build, workflow, or improvement path.",
     "Save for review"
   ]);
   // The user already chose the problem door, so the form must not re-ask
@@ -22,7 +23,10 @@ runStep("soft-launch problem intake route is discoverable and owner-gated", () =
   assertFileExcludes("src/components/problem-intake-lite/problem-intake-form.tsx", [
     "Start Here",
     "intake-choice-grid",
-    "I noticed a problem"
+    "I noticed a problem",
+    "No build",
+    "paid resource",
+    "execution label"
   ]);
 });
 
