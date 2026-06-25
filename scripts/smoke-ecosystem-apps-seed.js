@@ -17,7 +17,13 @@ const SEEDED = [
   "united-under-god",
   "milstead-us",
   "toner-management",
-  "kids-need-dads"
+  "kids-need-dads",
+  "kindred-connections",
+  "childfirst-solutions",
+  "iconium",
+  "easy-peasy-website",
+  "snip-show",
+  "laser-engrave-market"
 ];
 const ALLOWED_STATUSES = new Set(["existing_app", "planned_app", "active_product", "ministry_tool", "business_tool"]);
 
