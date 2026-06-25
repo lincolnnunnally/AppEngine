@@ -25,7 +25,13 @@ const NAV_GROUPS: RailGroup[] = [
       { label: "Owner control", href: "/owner-control-center" }
     ]
   },
-  { label: "Ecosystem", items: [{ label: "Life Core", href: "/life-core" }] }
+  {
+    label: "Ecosystem",
+    items: [
+      { label: "Module catalog", href: "/module-catalog" },
+      { label: "Life Core", href: "/life-core" }
+    ]
+  }
 ];
 
 // Settings sits in the rail footer, rendered smaller.
