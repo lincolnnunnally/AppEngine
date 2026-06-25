@@ -41,6 +41,7 @@ export type AgentArtifactKind =
   | "phase_start_approval"
   | "execution_label_dry_run"
   | "production_readiness_snapshot"
+  | "we_succeed_soft_launch_readiness"
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"
@@ -232,7 +233,7 @@ export function buildLocalStructuredArtifacts(
           screens: [
             { path: "/app", purpose: "customer work dashboard" },
             { path: "/account", purpose: "profile, organization, plan, notifications" },
-            { path: "/requests", purpose: "customer workflow requests" },
+            { path: "/requests", purpose: "customer request tracking" },
             { path: "/admin", purpose: "admin operating console" },
             { path: "/admin/customers", purpose: "customer health and support" },
             { path: "/admin/projects", purpose: "generated app projects and readiness" }
