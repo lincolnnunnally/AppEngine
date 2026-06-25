@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { canAccessAdmin, canAccessCustomerArea, canAccessOwner } from "./roles";
+import { canAccessAdmin, canAccessConsumerSurfaceForRole, canAccessCustomerArea, canAccessOwner } from "./roles";
 
 export function hasAuthProvider() {
   return Boolean(
@@ -62,4 +62,22 @@ export async function canAccessEngineCustomerArea() {
   const session = await auth();
 
   return canAccessCustomerArea(session?.user?.role);
+}
+
+// Consumer surface gate (Step 6, staged): the two-door entry + problem/opportunity
+// intakes + their POST APIs. Owner/admin operators always pass; non-owner customers
+// pass only when Lincoln has opened the doors via APP_ENGINE_PUBLIC_ACCESS
+// (allowlist/public). Defaults closed (owner-only), so this is inert until flipped.
+export async function canAccessEngineConsumerSurface() {
+  if (isDevelopmentAdminMode()) {
+    return true;
+  }
+
+  if (isSetupAdminMode()) {
+    return true;
+  }
+
+  const session = await auth();
+
+  return canAccessConsumerSurfaceForRole(session?.user?.role, session?.user?.email);
 }
