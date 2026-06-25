@@ -233,7 +233,7 @@ export function buildLocalStructuredArtifacts(
           screens: [
             { path: "/app", purpose: "customer work dashboard" },
             { path: "/account", purpose: "profile, organization, plan, notifications" },
-            { path: "/requests", purpose: "customer request tracking" },
+            { path: "/requests", purpose: "customer workflow requests" },
             { path: "/admin", purpose: "admin operating console" },
             { path: "/admin/customers", purpose: "customer health and support" },
             { path: "/admin/projects", purpose: "generated app projects and readiness" }
