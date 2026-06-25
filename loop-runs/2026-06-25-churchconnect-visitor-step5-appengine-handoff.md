@@ -1,7 +1,7 @@
 # Step 5 — First real problem THROUGH AppEngine (AppEngine side)
 
 **Run:** ChurchConnect Visitor Capture (RUN-001) carried through the AppEngine pipeline.
-**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo execution + live verify remain under Step 5.
+**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine packet materialized; ChurchConnect-repo code, Supabase migration, deploy, live verify, and evidence capture remain under Step 5.
 
 ## Direction correction — 2026-06-25
 
@@ -15,7 +15,7 @@ Target direction:
 - The first implementation proof should map visitor follow-up onto existing Supabase tables such as `people`, `guests`, `guest_followup_tasks`, `care_requests`, and `care_follow_ups`, adding a new inbox table only if the gate proves the existing tables are insufficient.
 
 ## What this proves
-The first real product problem went **through the existing AppEngine pipeline** to an actionable, grounded handoff — not a fresh build, not chat memory. No new pipeline was created; this used the pieces already on `main`.
+The first real product problem went **through the existing AppEngine pipeline** to executable work — not a fresh build, not chat memory. No new pipeline was created; this used the pieces already on `main`.
 
 ## The loop (existing pipeline, in order)
 1. **Prior-Work Check** — already on `main`: [`loop-runs/run-001-prior-work-check.json`](run-001-prior-work-check.json) / [`.md`](run-001-prior-work-check.md). Verdict **`extend_existing`** → authorizes `vnext_packet`. Target repo: `ChurchConnect -> ../../ChurchConnect/ChurchConnect`.
@@ -32,7 +32,7 @@ The first real product problem went **through the existing AppEngine pipeline** 
 - **Guardrails (from the packet):** doNotRestartWholeApp, preventGoalBleed, costReviewRequired; non-goals lock the extend-not-rebuild boundary.
 
 ## Cross-boundary execution
-- The ChurchConnect repo lives **outside this workspace's writable root** (`../../ChurchConnect/ChurchConnect`). Per the scope, **Codex/Claude Code execute the fix in the ChurchConnect repo** as workers inside this AppEngine Step 5 loop.
+- The ChurchConnect repo lives **outside this workspace's writable root** (`../../ChurchConnect/ChurchConnect`). Per the scope, **Codex/Claude Code execute the code, Supabase migration, deploy, live verification, and evidence capture in the ChurchConnect repo** as workers inside this AppEngine Step 5 loop.
 - The **verify-after-publish walkthrough** runs against ChurchConnect's own production after the fix deploys, on the existing Reviewer/Tester pieces — never recreated.
 - ChurchConnect appears here **only** as the gated AppEngine proof (scope step 5), not as independent side work.
 
