@@ -33,14 +33,16 @@ runStep("release gate fails honestly when evidence is missing", () => {
   ]);
 });
 
-runStep("release gate never deploys or mutates production", () => {
+runStep("release gate allows only controlled existing-provider deploys inside limits", () => {
   assertFileIncludes("src/lib/engine/controlled-production-release-gate.ts", [
-    "productionAction: \"blocked\"",
+    "productionAction: blockedReasons.length ? \"blocked\" : \"ready_for_controlled_deploy\"",
     "releaseGateOnly: true",
-    "noProductionDeploy: true",
-    "noPaidResources: true",
+    "noUnreviewedProductionDeploy: true",
+    "noNewPaidResources: true",
     "noLiveMigrations: true",
     "noSecretsOrEnvChanges: true",
+    "existingProviderProjectOnly: true",
+    "providerSpendMustStayWithinLimits: true",
     "noCodexAutoExecution: true",
     "noGitHubIssueCreation: true",
     "noLabelChanges: true"
@@ -55,7 +57,9 @@ runStep("source of truth documents the controlled release gate", () => {
     "production auth owner confirmation",
     "runtime monitoring review",
     "audit trail review",
-    "rollback notes"
+    "rollback notes",
+    "existing provider project",
+    "within configured limits"
   ]);
 });
 
