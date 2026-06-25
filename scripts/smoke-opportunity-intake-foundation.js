@@ -9,10 +9,17 @@ runStep("soft-launch Opportunity Intake route is discoverable and owner-gated", 
   ]);
   assertFileIncludes("src/components/opportunity-intake/opportunity-intake-form.tsx", [
     "data-testid=\"opportunity-intake-page\"",
-    "useState<OpportunityIntakeMode>(\"vision\")",
-    "I have a problem to solve",
-    "I have something I want to build",
+    "Build something",
+    "mode: \"vision\"",
     "Save opportunity"
+  ]);
+  // The user already chose the build door at the entry, so the form must not
+  // re-ask problem-vs-build: the redundant selector is gone and every
+  // submission defaults to mode "vision" (mirrors the problem door, #183).
+  assertFileExcludes("src/components/opportunity-intake/opportunity-intake-form.tsx", [
+    "What best describes where you are?",
+    "opportunity-choice-grid",
+    "I have a problem to solve"
   ]);
 });
 

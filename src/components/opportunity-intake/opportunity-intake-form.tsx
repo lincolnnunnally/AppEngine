@@ -3,22 +3,8 @@
 import { useState } from "react";
 import type {
   OpportunityControlGateView,
-  OpportunityIntakeMode,
   OpportunitySolutionType
 } from "@/lib/engine/opportunity-intake";
-
-const modeOptions: Array<{ value: OpportunityIntakeMode; label: string; description: string }> = [
-  {
-    value: "problem",
-    label: "I have a problem to solve",
-    description: "Start with the pain, gap, friction, or repeated struggle."
-  },
-  {
-    value: "vision",
-    label: "I have something I want to build",
-    description: "Start with the change you can already imagine."
-  }
-];
 
 const solutionTypeOptions: Array<{ value: OpportunitySolutionType; label: string }> = [
   { value: "not_sure", label: "I am not sure yet" },
@@ -30,7 +16,6 @@ const solutionTypeOptions: Array<{ value: OpportunitySolutionType; label: string
 ];
 
 export function OpportunityIntakeForm() {
-  const [mode, setMode] = useState<OpportunityIntakeMode>("vision");
   const [problemPain, setProblemPain] = useState("");
   const [affectedPeople, setAffectedPeople] = useState("");
   const [betterOutcome, setBetterOutcome] = useState("");
@@ -54,7 +39,7 @@ export function OpportunityIntakeForm() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          mode,
+          mode: "vision",
           problemPain,
           affectedPeople,
           betterOutcome,
@@ -116,24 +101,6 @@ export function OpportunityIntakeForm() {
       </div>
 
       <form className="panel opportunity-intake-form" onSubmit={submitOpportunity}>
-        <div>
-          <p className="eyebrow">What best describes where you are?</p>
-          <div className="opportunity-choice-grid" role="group" aria-label="Choose how you want to begin">
-            {modeOptions.map((option) => (
-              <button
-                aria-pressed={mode === option.value}
-                className={`choice-button${mode === option.value ? " selected" : ""}`}
-                key={option.value}
-                onClick={() => setMode(option.value)}
-                type="button"
-              >
-                <strong>{option.label}</strong>
-                <span>{option.description}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <label>
           What problem, pain, or opportunity do you see?
           <textarea
