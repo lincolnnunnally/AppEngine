@@ -51,6 +51,14 @@ Visitor follow-up should land in one operational Supabase workflow:
 - Live Supabase read-only check on project `dzxipsskcrvbtvzekbgz` confirmed existing target tables and clean proof counts: `church_organizations` 7, `church_subdomains` 0, `people` 3, `guests` 0, `guest_followup_tasks` 0.
 - Local verification in prepared ChurchConnect work copy: Python compile passed for the new backend route/server wiring; frontend production build passed.
 
+## Deployment Verification Gap
+
+- Frontend deploy gap: Vercel project `church-connect` still showed the latest production deployment on the older `main` commit `a3e9b476325edccd140a911e3c01b02536a43b2a`. The #9 PR-branch deployment was canceled after merge, and no production deployment for `f2354ccba6b61dac16d27c143c236d1eefff4927` was visible yet.
+- Frontend live fetch gap: `www.churchconnect.cloud/church/milstead-church/visitor-registration` returned an older cached Vercel build (`last-modified` June 19, 2026), so the merged visitor form is not proven live.
+- Backend deploy gap: `render.yaml` declares `churchconnect-backend`, free plan, branch `main`, `autoDeploy: true`, and `/api/health`; however this environment does not have Render CLI/MCP access to confirm deployment or set env.
+- Backend env required before live proof: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` must be present on the existing backend service.
+- Health proof gap: local DNS resolution failed for `api.churchconnect.cloud`, so backend health and visitor route checks could not be trusted from this sandbox.
+
 ## Acceptance Criteria
 
 - ChurchConnect no longer depends on Mongo/Emergent as the target production data path for visitor follow-up.
