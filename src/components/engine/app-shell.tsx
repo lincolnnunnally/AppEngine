@@ -21,6 +21,7 @@ const NAV_GROUPS: RailGroup[] = [
   {
     label: "Build",
     items: [
+      { label: "Orchestrator", href: "/orchestrator" },
       { label: "Builder", href: "/builder" },
       { label: "Owner control", href: "/owner-control-center" }
     ]
