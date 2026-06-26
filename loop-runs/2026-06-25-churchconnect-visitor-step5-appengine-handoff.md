@@ -1,7 +1,7 @@
 # Step 5 — First real problem THROUGH AppEngine (AppEngine side)
 
 **Run:** ChurchConnect Visitor Capture (RUN-001) carried through the AppEngine pipeline.
-**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo execution + live verify remain (cross-boundary).
+**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo backend execution is partially proven live; staff follow-up UI verify remains open.
 
 ## What this proves
 The first real product problem went **through the existing AppEngine pipeline** to an actionable, grounded handoff — not a fresh build, not chat memory. No new pipeline was created; this used the pieces already on `main`.
@@ -24,5 +24,26 @@ The first real product problem went **through the existing AppEngine pipeline** 
 - The **verify-after-publish walkthrough** runs against ChurchConnect's own production after the fix deploys, on the existing Reviewer/Tester pieces — never recreated.
 - ChurchConnect appears here **only** as the gated AppEngine proof (scope step 5), not as direct side work.
 
+## ChurchConnect execution evidence — 2026-06-26
+
+Codex executed the backend recovery in `github.com/lincolnnunnally/ChurchConnect` against the existing `main` deploy path.
+
+- Render blueprint no longer defaults `SUPABASE_URL` to the old ChurchConnect Supabase project; it requires the host env and labels the target as `life_produces_life`.
+- Backend route now supports `sb_secret_...` Supabase secret keys without treating them as legacy JWT service-role tokens.
+- Backend route now exposes `GET /api/churchconnect/supabase-readiness` for AppEngine/live proof.
+- Live readiness result: `ready=true`, `targetShape=life_produces_life`, canonical tables available: `organization`, `person`, `ecosystem_event`; legacy ChurchConnect tables not exposed.
+- Live public profile result: `GET /api/churchconnect/church/milstead-church/public-profile` returned `200` with `id=churchconnect:milstead-church`.
+- Live visitor proof result: `POST /api/churchconnect/church/milstead-church/visitor-registration` returned `200` with:
+  - `person_id=a3a872e8-f205-4f43-b58d-f4be03bf13a8`
+  - `guest_id=4e1f13ab-e869-4c2b-a592-12d424e731c2`
+  - `followup_task_id=e5a3c2bd-2833-469f-904e-18c881a810d3`
+
+## Remaining before Step 5 can be called complete
+
+- The `organization` table is reachable but currently has no sampled row; `milstead-church` is resolving through a configured fallback. Seed or connect the real Life Produces Life organization row before broader use.
+- Staff follow-up read/update UI has not yet been proven against the new `ecosystem_event` follow-up record.
+- Frontend production freshness still needs verification after Vercel deployment limits clear.
+- Do not mark Step 5 complete until the staff follow-up status can be seen, updated, persisted, and walked live.
+
 ## Safety
-Nothing was deployed, migrated, provisioned, or spent. This run produced planning/handoff artifacts only (the pipeline is fail-closed). The actual ChurchConnect change is owner-gated and happens in its own repo.
+The AppEngine pipeline stayed in its lane: it produced the gated handoff, then the actual code executed in the ChurchConnect repo. No new paid resource was created. The backend proof wrote a clearly marked AppEngine test visitor into the shared Supabase path; Step 5 remains open until staff follow-up is verified.
