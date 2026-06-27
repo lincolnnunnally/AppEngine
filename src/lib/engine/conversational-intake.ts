@@ -32,7 +32,7 @@ export const conversationSteps: ConversationStep[] = [
     kind: "textarea",
     minLength: 12,
     prompt: {
-      problem: "What's the problem you want an app or tool to solve?",
+      problem: "What do you want built, or what problem should it solve?",
       build: "What do you want to build? Describe the app or tool."
     },
     placeholder: {

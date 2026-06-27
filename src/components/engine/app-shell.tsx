@@ -12,10 +12,9 @@ const OPERATOR_GROUPS: RailGroup[] = [
   { label: "Home", items: [{ label: "Dashboard", href: "/" }, { label: "Canonical status", href: "/canonical-status" }] },
   {
     label: "Intake",
-    items: [
-      { label: "Build something", href: "/opportunity-intake" },
-      { label: "Solve a problem", href: "/problem-intake-lite" }
-    ]
+    // One unified entrance (the conversation lives at "/"). The standalone form is
+    // the fallback; both intake routes still exist but are no longer two front doors.
+    items: [{ label: "Intake form", href: "/problem-intake-lite" }]
   },
   {
     label: "Build",
@@ -40,17 +39,11 @@ const SETTINGS_GROUP: RailGroup = {
   items: [{ label: "Admin", href: "/admin" }]
 };
 
-// Consumer rail — only the two doors a customer is allowed to use. No operator
-// jargon (orchestrator, builder, admin, catalog) ever reaches a customer.
+// Consumer rail — a single entrance (the unified conversation at "/"). No more
+// problem-vs-build fork, and no operator jargon (orchestrator, builder, admin,
+// catalog) ever reaches a customer.
 const CONSUMER_GROUPS: RailGroup[] = [
-  { label: "Home", items: [{ label: "Home", href: "/" }] },
-  {
-    label: "Start here",
-    items: [
-      { label: "Build something", href: "/opportunity-intake" },
-      { label: "Solve a problem", href: "/problem-intake-lite" }
-    ]
-  }
+  { label: "Home", items: [{ label: "Start an app", href: "/" }] }
 ];
 
 const OPERATOR_BRAND = "App Engine";
