@@ -1,7 +1,7 @@
 # Step 5 — First real problem THROUGH AppEngine (AppEngine side)
 
 **Run:** ChurchConnect Visitor Capture (RUN-001) carried through the AppEngine pipeline.
-**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo backend execution is partially proven live; staff follow-up UI verify remains open.
+**Date:** 2026-06-25. **Classification:** `extend_existing`. **Status:** AppEngine handoff materialized; ChurchConnect-repo backend execution is partially proven live; protected staff follow-up API is live; authenticated staff walkthrough remains open.
 
 ## What this proves
 The first real product problem went **through the existing AppEngine pipeline** to an actionable, grounded handoff — not a fresh build, not chat memory. No new pipeline was created; this used the pieces already on `main`.
@@ -38,12 +38,32 @@ Codex executed the backend recovery in `github.com/lincolnnunnally/ChurchConnect
   - `guest_id=4e1f13ab-e869-4c2b-a592-12d424e731c2`
   - `followup_task_id=e5a3c2bd-2833-469f-904e-18c881a810d3`
 
+## ChurchConnect execution evidence — 2026-06-27
+
+Codex continued the ChurchConnect transfer from the AppEngine handoff and pushed `lincolnnunnally/ChurchConnect@e0d685d` (`Continue ChurchConnect Supabase follow-up transfer`) to `main`.
+
+- Backend added protected staff endpoints backed by the shared Life Produces Life `ecosystem_event` records:
+  - `GET /api/churchconnect/church/{church_slug}/visitor-followups`
+  - `PATCH /api/churchconnect/visitor-followups/{followup_id}`
+- Existing `src/components/ConnectionInbox.tsx` now reads and updates through those backend endpoints instead of the stale direct `connection_inbox` / `connection_followup_log` path.
+- Verification before push:
+  - `python3 -m py_compile backend/routes/supabase_visitor_followup.py` passed.
+  - `npm run build` passed in a clean ChurchConnect checkout after installing existing dependencies.
+- Live deployment proof after Render picked up `e0d685d`:
+  - `GET /api/churchconnect/church/milstead-church/visitor-followups` without staff auth returned `401 Not authenticated`, proving the follow-up list fails closed instead of exposing visitor data.
+  - `PATCH /api/churchconnect/visitor-followups/16d9dbe6-2f48-4e7e-8224-5441b52f461a` without staff auth returned `401 Not authenticated`, proving follow-up updates fail closed.
+  - `GET /api/churchconnect/supabase-readiness` returned `ready=true`, `keyMode=supabase_secret`, `targetShape=life_produces_life`; canonical `organization`, `person`, and `ecosystem_event` remain reachable.
+  - `POST /api/churchconnect/church/milstead-church/visitor-registration` returned `200` with:
+    - `person_id=28608b9e-9cda-44fb-8d1e-cfe65b5230b7`
+    - `guest_id=518f5c61-2101-4b25-8c85-fce19a5200b1`
+    - `followup_task_id=16d9dbe6-2f48-4e7e-8224-5441b52f461a`
+
 ## Remaining before Step 5 can be called complete
 
 - The `organization` table is reachable but currently has no sampled row; `milstead-church` is resolving through a configured fallback. Seed or connect the real Life Produces Life organization row before broader use.
-- Staff follow-up read/update UI has not yet been proven against the new `ecosystem_event` follow-up record.
+- Staff follow-up read/update is now implemented in code and the protected backend is live, but an authenticated staff walkthrough still needs to prove that the Connection Inbox can see, update, and persist a follow-up from the production UI.
 - Frontend production freshness still needs verification after Vercel deployment limits clear.
 - Do not mark Step 5 complete until the staff follow-up status can be seen, updated, persisted, and walked live.
 
 ## Safety
-The AppEngine pipeline stayed in its lane: it produced the gated handoff, then the actual code executed in the ChurchConnect repo. No new paid resource was created. The backend proof wrote a clearly marked AppEngine test visitor into the shared Supabase path; Step 5 remains open until staff follow-up is verified.
+The AppEngine pipeline stayed in its lane: it produced the gated handoff, then the actual code executed in the ChurchConnect repo. No new paid resource was created. The backend proof wrote clearly marked AppEngine test visitors into the shared Supabase path; Step 5 remains open until staff follow-up is verified end to end.
