@@ -65,5 +65,11 @@ Codex continued the ChurchConnect transfer from the AppEngine handoff and pushed
 - Frontend production freshness still needs verification after Vercel deployment limits clear.
 - Do not mark Step 5 complete until the staff follow-up status can be seen, updated, persisted, and walked live.
 
+## Transfer coverage ledger — 2026-06-27
+
+- ChurchConnect now has a draft app-specific transfer ledger in `lincolnnunnally/ChurchConnect#11`: <https://github.com/lincolnnunnally/ChurchConnect/pull/11>.
+- The ledger records the visible `/church/welcome` feature cards, additional existing ChurchConnect modules not shown in the screenshots, current code surfaces, legacy/runtime status, shared Supabase proof status, and next transfer slices.
+- Future ChurchConnect transfer work should name the ledger row or slice it advances before changing code. This keeps the transfer focused on carrying forward the existing app instead of recreating a smaller replacement.
+
 ## Safety
 The AppEngine pipeline stayed in its lane: it produced the gated handoff, then the actual code executed in the ChurchConnect repo. No new paid resource was created. The backend proof wrote clearly marked AppEngine test visitors into the shared Supabase path; Step 5 remains open until staff follow-up is verified end to end.
