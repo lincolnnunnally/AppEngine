@@ -55,6 +55,7 @@ All agent workflows must load and answer this checklist before taking action.
 - Compatibility Standard for generated apps, Safari/mobile readiness, common browser testing, and launch work
 - Release Gate Standard for generated apps, preview deploys, production approval, monitoring, and vNext work
 - App Improvement and vNext Packet Standard for existing app improvements, feature additions, fixes, user feedback, and v2 work
+- App Transfer Ledger Standard for existing app transfers, recoveries, migrations, consolidations, feature-parity audits, and broad vNext work that must preserve existing functionality
 - Current Context from GitHub issue, pull request, docs, or committed source
 - Active Task and triggering label
 - Relevant manifest agent prompt
@@ -149,8 +150,10 @@ All agent workflows must load and answer this checklist before taking action.
 65. Does the app have a Compatibility Test Plan covering iPhone/iPad Safari, desktop Safari, Chrome mobile/desktop, common desktop browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens?
 66. Does the app have a Release Gate with v1/vNext rules, preview deploy contract, production approval, post-launch monitoring, and Super Admin status update?
 67. If this is an existing app improvement, is there a vNext packet that loaded charter, current version, registry, monitoring data, known issues, and release history?
-68. Are any core files, docs, prompts, context, or issue links missing?
-69. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
+68. If this is an existing app transfer, recovery, migration, consolidation, or broad feature-parity vNext, does an `app_transfer_ledger` exist or need to be created before build work?
+69. Does each transfer implementation task name the ledger row/slice it advances and the verification needed before that slice can be marked transferred?
+70. Are any core files, docs, prompts, context, or issue links missing?
+71. Should the agent proceed, pause, ask for clarification, or create a follow-up issue?
 
 ## Output
 
