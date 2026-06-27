@@ -56,6 +56,7 @@
     "smoke:consumer-access": "node scripts/smoke-consumer-access.js",
     "smoke:llm-usage": "node scripts/smoke-llm-usage.js",
     "smoke:integrations-config": "node scripts/smoke-integrations-config.js",
+    "smoke:billing": "node scripts/smoke-billing.js",
     "smoke:chatgpt-handoff": "node scripts/smoke-chatgpt-handoff.js",
     "smoke:handoff-relay": "node scripts/smoke-handoff-relay-reducer.js",
     "smoke:project-memory": "node scripts/smoke-project-memory.js",

@@ -24,7 +24,10 @@ export const INTEGRATION_FIELDS: IntegrationField[] = [
   { key: "AUTH_RESEND_KEY", label: "Resend API Key (email sign-in)", group: "Sign-in", secret: true, placeholder: "re_…" },
   { key: "EMAIL_FROM", label: "Email From Address", group: "Sign-in", secret: false, placeholder: "We Succeed <signin@we-succeed.org>" },
   { key: "OPENAI_API_KEY", label: "OpenAI API Key", group: "AI builds", secret: true, placeholder: "sk-…" },
-  { key: "OPENAI_MODEL", label: "OpenAI Model", group: "AI builds", secret: false, placeholder: "gpt-5.1" }
+  { key: "OPENAI_MODEL", label: "OpenAI Model", group: "AI builds", secret: false, placeholder: "gpt-5.1" },
+  { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", group: "Payments", secret: true, placeholder: "sk_live_… (use sk_test_… first)" },
+  { key: "STRIPE_WEBHOOK_SECRET", label: "Stripe Webhook Signing Secret", group: "Payments", secret: true, placeholder: "whsec_…" },
+  { key: "APP_ENGINE_BILLING_ENABLED", label: "Billing enabled (true to charge for builds)", group: "Payments", secret: false, placeholder: "false" }
 ];
 
 const VERCEL_API = "https://api.vercel.com";

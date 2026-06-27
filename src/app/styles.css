@@ -4310,3 +4310,14 @@ label {
   font-size: 0.85rem;
   margin-top: 8px;
 }
+
+/* Buy credits */
+.buy-credits {
+  margin-top: 12px;
+}
+
+.buy-credits-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
