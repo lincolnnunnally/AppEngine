@@ -32,11 +32,11 @@ export const conversationSteps: ConversationStep[] = [
     kind: "textarea",
     minLength: 12,
     prompt: {
-      problem: "Tell me what's going on — what's the problem, in your own words?",
-      build: "Tell me about what you'd like to build — what's the idea?"
+      problem: "What's the problem you want an app or tool to solve?",
+      build: "What do you want to build? Describe the app or tool."
     },
     placeholder: {
-      problem: "Example: People ask for help, but the next step gets unclear or forgotten.",
+      problem: "Example: People ask for help, but the next step gets unclear or forgotten — so we lose them.",
       build: "Example: A simple way for visitors to sign up and actually get followed up with."
     }
   },
@@ -45,11 +45,11 @@ export const conversationSteps: ConversationStep[] = [
     kind: "textarea",
     minLength: 3,
     prompt: {
-      problem: "Who's affected by this?",
-      build: "Who is this for?"
+      problem: "Who would use the app?",
+      build: "Who's it for?"
     },
     placeholder: {
-      problem: "People asking for help, volunteers, staff, families...",
+      problem: "Staff, volunteers, members, customers, families...",
       build: "Leaders, teams, members, customers, families..."
     }
   },
@@ -58,11 +58,11 @@ export const conversationSteps: ConversationStep[] = [
     kind: "textarea",
     minLength: 3,
     prompt: {
-      problem: "If this worked, what would be better?",
-      build: "If you had it, what would be different day to day?"
+      problem: "When the app works, what should it let them do?",
+      build: "What should the app let them do?"
     },
     placeholder: {
-      problem: "What would change if the right support existed?",
+      problem: "See every open request, assign it, mark it done...",
       build: "What does a good day look like once this is working?"
     }
   },
@@ -71,11 +71,11 @@ export const conversationSteps: ConversationStep[] = [
     kind: "textarea",
     minLength: 3,
     prompt: {
-      problem: "What's getting in the way right now?",
-      build: "What's made this hard to pull off so far?"
+      problem: "How is this handled today, and what makes it hard?",
+      build: "What's made it hard to build so far?"
     },
     placeholder: {
-      problem: "Time, trust, knowledge, coordination, cost, privacy...",
+      problem: "Spread across texts, email, and memory — nothing in one place...",
       build: "Time, tools, know-how, budget, where to start..."
     }
   },
@@ -83,7 +83,7 @@ export const conversationSteps: ConversationStep[] = [
     slot: "fifth",
     kind: "chips",
     prompt: {
-      problem: "How pressing is this?",
+      problem: "How soon do you need it?",
       build: "What's the bigger impact you're going for?"
     },
     placeholder: {
@@ -102,11 +102,11 @@ export const conversationSteps: ConversationStep[] = [
     optional: true,
     minLength: 3,
     prompt: {
-      problem: "Any idea what would help? Totally fine if not — we can figure that out together.",
+      problem: "Any thoughts on how the app should work? Totally fine if not — we'll figure it out.",
       build: "Anything specific in mind for how it should work? Optional."
     },
     placeholder: {
-      problem: "A tool, a workflow, a website, a small change — or leave this blank.",
+      problem: "A screen, a flow, a feature — or leave this blank.",
       build: "A feature, a flow, a look — or leave this blank."
     }
   }
@@ -174,9 +174,9 @@ export function reflectBack(frame: IntakeFrame, answers: ConversationAnswers): s
   const problem = tidy(answers.problem, "");
 
   if (frame === "problem") {
-    return `A problem affecting ${who}: ${problem}. The win — ${outcome}.`;
+    return `We'll build an app for ${who} that solves: ${problem}. So they can ${outcome}.`;
   }
-  return `Something to build for ${who}: ${problem}. The win — ${outcome}.`;
+  return `We'll build ${problem} for ${who}. So they can ${outcome}.`;
 }
 
 // Whether a given step should be shown for a frame (currently all steps apply to

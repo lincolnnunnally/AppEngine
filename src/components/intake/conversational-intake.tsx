@@ -15,8 +15,8 @@ import {
 type Notice = { type: "success" | "error"; title: string; message: string };
 
 const FRAME_LABEL: Record<IntakeFrame, string> = {
-  problem: "A problem I'm facing",
-  build: "Something I want to build"
+  problem: "Solve a problem with an app",
+  build: "Build an app I have in mind"
 };
 
 export function ConversationalIntake() {
@@ -113,23 +113,25 @@ export function ConversationalIntake() {
   // Frame choice — the opening turn replaces the old two-door wall.
   if (!frame) {
     return (
-      <section className="convo" aria-label="Start a conversation">
+      <section className="convo" aria-label="Start building an app">
         <header className="convo-head">
-          <h1 className="convo-title">Let's find the opportunity together.</h1>
+          <p className="convo-eyebrow">We build the app for you</p>
+          <h1 className="convo-title">What app should we build for you?</h1>
           <p className="convo-sub">
-            No long form to fill out — I'll ask a few questions, one at a time. First, what brings you here?
+            Describe a problem you want an app to solve, or a tool you already have in mind — I&apos;ll ask a few quick
+            questions, then we build you a real, working app for it. No long form.
           </p>
         </header>
         <div className="convo-frames" role="group" aria-label="Choose how to begin">
           <button type="button" className="convo-frame convo-frame--problem" onClick={() => chooseFrame("problem")}>
             <span className="convo-frame-accent" aria-hidden="true" />
             <span className="convo-frame-title">{FRAME_LABEL.problem}</span>
-            <span className="convo-frame-text">Tell me what&apos;s getting in the way, and we&apos;ll work toward a solution.</span>
+            <span className="convo-frame-text">Describe what&apos;s not working in your world or work, and we&apos;ll build a tool that fixes it.</span>
           </button>
           <button type="button" className="convo-frame convo-frame--build" onClick={() => chooseFrame("build")}>
             <span className="convo-frame-accent" aria-hidden="true" />
             <span className="convo-frame-title">{FRAME_LABEL.build}</span>
-            <span className="convo-frame-text">Share your idea and we&apos;ll shape it, building on what already works.</span>
+            <span className="convo-frame-text">You already know the app or tool you want — describe it and we&apos;ll build it.</span>
           </button>
         </div>
       </section>
@@ -142,7 +144,7 @@ export function ConversationalIntake() {
     <section className="convo" aria-label="Discovery conversation">
       <header className="convo-head">
         <p className="convo-eyebrow">{FRAME_LABEL[frame]}</p>
-        <h1 className="convo-title">A few quick questions.</h1>
+        <h1 className="convo-title">A few quick questions, then we build it.</h1>
       </header>
 
       <div className="convo-thread">

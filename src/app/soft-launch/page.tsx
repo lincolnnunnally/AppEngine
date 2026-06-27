@@ -19,20 +19,20 @@ const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   owner: {
     kicker: "we-succeed.org",
     title: "Owner-only soft launch",
-    body: "Opportunity is in a controlled preview right now. Lincoln can sign in to review the two-door entry point and run the app privately before public access opens.",
+    body: "We Succeed builds real, working apps from a problem or idea you describe. It's in a controlled preview right now — Lincoln can sign in to run it privately before public access opens.",
     cta: "Owner sign in"
   },
   allowlist: {
-    kicker: "We Succeed",
+    kicker: "We Succeed — app builder",
     title: "You're invited in early",
-    body: "We Succeed is opening to a small group first. If your email is on the early-access list, sign in to bring a problem you want solved — or something you'd like to build.",
+    body: "Describe a problem you want solved or a tool you want to build, and We Succeed builds you a real, working app for it. If your email is on the early-access list, sign in to start.",
     cta: "Sign in"
   },
   public: {
-    kicker: "We Succeed",
-    title: "Every problem has an opportunity inside it",
-    body: "Bring a problem you want solved, or something you'd like to build. We'll turn it into a real, live starter you can sign in and shape from there.",
-    cta: "Sign in to begin"
+    kicker: "We Succeed — app builder",
+    title: "Describe it. We build the app.",
+    body: "Tell us a problem you want solved or a tool you want to build, and we build you a real, working app for it — live, online, ready to sign into. The first version is a working starter you then improve with us.",
+    cta: "Sign in to start"
   }
 };
 
