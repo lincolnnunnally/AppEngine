@@ -23,10 +23,17 @@
    is enabled** (the Neon/durable-persistence switch — an owner action); without it, records are
    best-effort/local. Set the real `$/1k token` rates via env once measured.
 2. **Set pricing** from those numbers (cover cost + hosting + ~30% margin). *Lincoln's decision.*
-3. **Add the paywall gate** at the build step — a build only runs if the user has credit / an active
-   plan. Intake stays free. Fail-closed (no credit → no build, friendly message).
-4. **Stripe integration** — checkout + customer portal + webhook to grant credit/plan. Test mode first.
-5. **Turn it on** — Lincoln flips it live after a test purchase end-to-end.
+3. **Paywall gate** — ✅ **Built (dormant).** Model chosen: **flat price per build** charged from a
+   prepaid credit balance (predictable; works because the per-run guard bounds build cost). Helpers
+   `canAffordBuild` / `chargeForBuild` / `grantFreeStarterIfNew` live in `billing.ts`. *Remaining:* wire
+   the charge into the customer-build trigger (that path opens with customer builds, alongside this).
+4. **Stripe integration** — ✅ **Built (dormant).** `/api/billing/checkout` (buy a credit pack) +
+   `/api/billing/webhook` (signature-verified, idempotent per Stripe event → tops up balance) + a
+   credits panel + buy buttons on `/account`. No SDK (REST + HMAC). Wallet on Postgres in integer
+   cents; ledger UNIQUE(reference) makes every credit/charge idempotent. Schema: `db/billing-schema.sql`.
+5. **Turn it on** — Lincoln: (a) enter Stripe **test** keys in Integrations, (b) point a Stripe webhook
+   at `/api/billing/webhook`, (c) set `APP_ENGINE_BILLING_ENABLED=true`, (d) run a test purchase →
+   confirm balance tops up → then switch to live keys. Charging is OFF until all of this is done.
 
 ## 3. Pricing models to choose from (Lincoln picks one)
 | Model | How it works | Best when |
