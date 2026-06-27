@@ -13,6 +13,7 @@ import { buildGeneratedAppHandoff, formatGeneratedAppHandoff } from "./app-outpu
 import { assertProjectBuildAllowed } from "./build-gate";
 import { listProjectDatabaseSetups } from "./database-setup";
 import { getConfiguredDatabaseUrl, isLocalMode, isUsableDatabaseUrl } from "./local-mode";
+import { getMaxLlmCallsPerRun } from "./llm-usage";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
 import { getLocalWorkerAdapter, getWorkerAdapter, getWorkerProvider, type AgentJobContext, type AgentJobResult } from "./worker-adapters";
@@ -614,8 +615,21 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
   };
   const taskResults: AgentJobResult[] = [];
   let useLocalFallback = adapter.provider === "local";
+  // Spend guard: cap how many real (paid) model calls a single build run makes, so
+  // one build can't fan out into a runaway bill. Once hit, the rest of the run uses
+  // free deterministic output.
+  const maxRealCalls = getMaxLlmCallsPerRun();
+  let realCalls = 0;
 
   for (const task of defaultTaskGraph) {
+    const cappedThisTask = !useLocalFallback && realCalls >= maxRealCalls;
+    if (cappedThisTask) {
+      useLocalFallback = true;
+    }
+    if (!useLocalFallback) {
+      realCalls += 1;
+    }
+
     const taskContext = {
         ...context,
         completedAgents: taskResults.map((result) => ({
@@ -629,6 +643,13 @@ async function buildAgentRunPayload(project: RunProject, health: EngineHealth, s
         }))
       };
     let taskResult = await (useLocalFallback ? fallbackAdapter : adapter).runTask(task, taskContext);
+
+    if (cappedThisTask) {
+      taskResult.recommendations = [
+        `Per-run model-call limit (${maxRealCalls}) reached — remaining steps used free deterministic output to cap cost.`,
+        ...taskResult.recommendations
+      ];
+    }
 
     if (!useLocalFallback && shouldUseLocalWorkerFallback(taskResult)) {
       useLocalFallback = true;
