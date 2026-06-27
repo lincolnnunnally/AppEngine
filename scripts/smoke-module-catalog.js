@@ -46,7 +46,14 @@ const MODULE_SLUGS = [
   "ratings-reviews",
   "finance-accounting",
   "multi-org-association",
-  "media-recording"
+  "media-recording",
+  "fleet-monitoring-agent",
+  "supplier-order-automation",
+  "proof-approval-artifact",
+  "content-publishing-scheduler",
+  "creator-analytics-coaching",
+  "business-formation-provisioning",
+  "brand-kit-generator"
 ];
 
 runStep("module catalog engine defines the Lego set + query", () => {

@@ -105,6 +105,102 @@ export const coreTemplates: CoreTemplate[] = [
     includes: ["Dashboard", "Users", "Reports", "Operations", "Settings", "AI usage", "Audit log"]
   },
   {
+    id: "church-organization-os",
+    name: "Church / Organization Operating System",
+    category: "Operations",
+    description: "Rebrandable ChurchConnect and Association template for people, guests, events, communications, care, giving, admin, and multi-organization operations.",
+    triggers: ["church","organization","nonprofit","association","members","guests","giving","events","communications"],
+    includes: ["People","Guests","Events","Communications","Care","Giving","Admin","Association rollups"]
+  },
+  {
+    id: "managed-website-domain-launch",
+    name: "Managed Website + Domain Launch",
+    category: "Web",
+    description: "Rebrandable Easy Peasy template for website signup, domain search, client portal, admin portal, checkout, and provisioning.",
+    triggers: ["website","domain","hosting","provision","client portal","business formation","easy peasy"],
+    includes: ["Signup","Domain search","Client portal","Admin portal","Checkout","Provisioning"]
+  },
+  {
+    id: "toner-fleet-auto-ordering",
+    name: "Toner Fleet + Auto Ordering",
+    category: "Operations",
+    description: "Rebrandable toner platform template for printer inventory, fleet monitoring, auto ordering, supplier pricing, billing, and admin operations.",
+    triggers: ["toner","printer","fleet","monitoring","supplier","auto order","inventory"],
+    includes: ["Printers","Network monitor","Ordering","Supplier pricing","Customer portal","Admin portal"]
+  },
+  {
+    id: "creator-clip-publishing",
+    name: "Creator Clip + Publishing Platform",
+    category: "Media",
+    description: "Rebrandable Snip.Show template for upload, clipping, remixing, scheduling, publishing, analytics, and creator growth.",
+    triggers: ["video","clip","creator","publishing","scheduler","snip","remix","content"],
+    includes: ["Upload","Clip library","Timeline editor","AI remix","Scheduler","Analytics","Growth dashboard"]
+  },
+  {
+    id: "product-marketplace-proof-approval",
+    name: "Product Marketplace + Proof Approval",
+    category: "Commerce",
+    description: "Rebrandable Laser Engraving template for product catalogs, makers, custom design, proof approval, checkout, and fulfillment.",
+    triggers: ["marketplace","maker","product","engraving","proof","design","checkout","fulfillment"],
+    includes: ["Product catalog","Design canvas","Proof approval","Maker dashboard","Order allocation","Checkout"]
+  },
+  {
+    id: "coparenting-case-coordination",
+    name: "Co-parenting Case Coordination",
+    category: "Care",
+    description: "Rebrandable ChildFirst template for schedule changes, documents, communication support, court-ready summaries, agreements, and resolution workflows.",
+    triggers: ["coparent","co-parent","custody","case","schedule","court","resolution","agreement"],
+    includes: ["Schedule changes","Document center","Communication assistant","Court summaries","Resolution workflows","Agreements"]
+  },
+  {
+    id: "idea-capture-content-forge",
+    name: "Idea Capture + Content Forge",
+    category: "Intake",
+    description: "Rebrandable Ideas template for voice, OCR, meeting recording, transcription, quick notes, forge, polish, and library organization.",
+    triggers: ["idea","voice","ocr","transcribe","meeting","forge","polish","capture"],
+    includes: ["Voice capture","OCR","Meeting recorder","Transcription","Forge","Polish","Library"]
+  },
+  {
+    id: "brand-kit-logo-generator",
+    name: "Brand Kit + Logo Generator",
+    category: "Design",
+    description: "Rebrandable Iconium template for brand prompts, logo concepts, SVG previews, editor controls, palettes, and exports.",
+    triggers: ["logo","brand","icon","svg","palette","identity","iconium"],
+    includes: ["Brand prompt","Concept cards","Logo preview","SVG export","Palette","Editor controls"]
+  },
+  {
+    id: "mutual-aid-recovery-community",
+    name: "Mutual Aid + Recovery Community",
+    category: "Care",
+    description: "Rebrandable RebuildingDads/KND template for mutual aid, support matching, court documentation, recovery progress, group chat, and resources.",
+    triggers: ["recovery","mutual aid","support","dads","resource hub","group chat","partner matching"],
+    includes: ["Aid applications","Support matching","Court documentation","Progress chart","Group chat","Resources"]
+  },
+  {
+    id: "troubleshooting-knowledge-marketplace",
+    name: "Troubleshooting Knowledge Marketplace",
+    category: "Content",
+    description: "Rebrandable JeepFix template for problem cards, troubleshooting, solution guides, parts/resources, ratings, rewards, and reputation.",
+    triggers: ["troubleshooting","problem","solution","parts","knowledge base","reviews","leaderboard"],
+    includes: ["Problem cards","Wizard","Solution guides","Parts marketplace","Ratings","Rewards"]
+  },
+  {
+    id: "coach-training-growth-community",
+    name: "Coach / Training Growth Community",
+    category: "Growth",
+    description: "Rebrandable RacketPro template for coach profiles, coach discovery, training journals, mental practice, assessments, and achievements.",
+    triggers: ["coach","training","sports","journal","assessment","achievement","racket"],
+    includes: ["Coach profiles","Find coaches","Training journal","Mental practice","Assessments","Achievements"]
+  },
+  {
+    id: "media-case-evidence",
+    name: "Media Case Evidence",
+    category: "Media",
+    description: "Rebrandable Honestly template for video recording, case creation, participant portal, counselor notes, recordings, and analysis.",
+    triggers: ["recording","evidence","case","participant","video","analysis","counselor"],
+    includes: ["Video recorder","Case detail","Participant portal","Counselor notes","Recordings","Analysis"]
+  },
+  {
     id: "billing",
     name: "Billing + Plans",
     category: "Revenue",

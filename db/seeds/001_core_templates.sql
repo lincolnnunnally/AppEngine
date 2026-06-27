@@ -85,6 +85,90 @@ values
     '{"source":"Kindred Connections","includes":["Dashboard","Users","Reports","Operations","Settings","AI usage","Audit log"],"rebrandFields":["admin nouns","report categories","ops actions","kpi labels"],"credentialFields":["admin auth","database","ai provider optional","email optional"]}'::jsonb
   ),
   (
+    'church-organization-os',
+    'Church / Organization Operating System',
+    'Operations',
+    'Rebrandable ChurchConnect and Association template for people, guests, events, communications, care, giving, admin, and multi-organization operations.',
+    '{"source":"ChurchConnect + Association","includes":["People","Guests","Events","Communications","Care","Giving","Admin","Association rollups"]}'::jsonb
+  ),
+  (
+    'managed-website-domain-launch',
+    'Managed Website + Domain Launch',
+    'Web',
+    'Rebrandable Easy Peasy template for website signup, domain search, client portal, admin portal, checkout, and provisioning.',
+    '{"source":"Easy Peasy Websites / Website-friends","includes":["Signup","Domain search","Client portal","Admin portal","Checkout","Provisioning"]}'::jsonb
+  ),
+  (
+    'toner-fleet-auto-ordering',
+    'Toner Fleet + Auto Ordering',
+    'Operations',
+    'Rebrandable toner platform template for printer inventory, fleet monitoring, auto ordering, supplier pricing, billing, and admin operations.',
+    '{"source":"Toner Management ecosystem","includes":["Printers","Network monitor","Ordering","Supplier pricing","Customer portal","Admin portal"]}'::jsonb
+  ),
+  (
+    'creator-clip-publishing',
+    'Creator Clip + Publishing Platform',
+    'Media',
+    'Rebrandable Snip.Show template for upload, clipping, remixing, scheduling, publishing, analytics, and creator growth.',
+    '{"source":"Snip.Show / emergent","includes":["Upload","Clip library","Timeline editor","AI remix","Scheduler","Analytics","Growth dashboard"]}'::jsonb
+  ),
+  (
+    'product-marketplace-proof-approval',
+    'Product Marketplace + Proof Approval',
+    'Commerce',
+    'Rebrandable Laser Engraving template for product catalogs, makers, custom design, proof approval, checkout, and fulfillment.',
+    '{"source":"Laser Engraving","includes":["Product catalog","Design canvas","Proof approval","Maker dashboard","Order allocation","Checkout"]}'::jsonb
+  ),
+  (
+    'coparenting-case-coordination',
+    'Co-parenting Case Coordination',
+    'Care',
+    'Rebrandable ChildFirst template for schedule changes, documents, communication support, court-ready summaries, agreements, and resolution workflows.',
+    '{"source":"ChildFirst Solutions","includes":["Schedule changes","Document center","Communication assistant","Court summaries","Resolution workflows","Agreements"]}'::jsonb
+  ),
+  (
+    'idea-capture-content-forge',
+    'Idea Capture + Content Forge',
+    'Intake',
+    'Rebrandable Ideas template for voice, OCR, meeting recording, transcription, quick notes, forge, polish, and library organization.',
+    '{"source":"ideas","includes":["Voice capture","OCR","Meeting recorder","Transcription","Forge","Polish","Library"]}'::jsonb
+  ),
+  (
+    'brand-kit-logo-generator',
+    'Brand Kit + Logo Generator',
+    'Design',
+    'Rebrandable Iconium template for brand prompts, logo concepts, SVG previews, editor controls, palettes, and exports.',
+    '{"source":"Iconium","includes":["Brand prompt","Concept cards","Logo preview","SVG export","Palette","Editor controls"]}'::jsonb
+  ),
+  (
+    'mutual-aid-recovery-community',
+    'Mutual Aid + Recovery Community',
+    'Care',
+    'Rebrandable RebuildingDads/KND template for mutual aid, support matching, court documentation, recovery progress, group chat, and resources.',
+    '{"source":"RebuildingDads + KND-google-ai","includes":["Aid applications","Support matching","Court documentation","Progress chart","Group chat","Resources"]}'::jsonb
+  ),
+  (
+    'troubleshooting-knowledge-marketplace',
+    'Troubleshooting Knowledge Marketplace',
+    'Content',
+    'Rebrandable JeepFix template for problem cards, troubleshooting, solution guides, parts/resources, ratings, rewards, and reputation.',
+    '{"source":"JeepFix","includes":["Problem cards","Wizard","Solution guides","Parts marketplace","Ratings","Rewards"]}'::jsonb
+  ),
+  (
+    'coach-training-growth-community',
+    'Coach / Training Growth Community',
+    'Growth',
+    'Rebrandable RacketPro template for coach profiles, coach discovery, training journals, mental practice, assessments, and achievements.',
+    '{"source":"RacketPro","includes":["Coach profiles","Find coaches","Training journal","Mental practice","Assessments","Achievements"]}'::jsonb
+  ),
+  (
+    'media-case-evidence',
+    'Media Case Evidence',
+    'Media',
+    'Rebrandable Honestly template for video recording, case creation, participant portal, counselor notes, recordings, and analysis.',
+    '{"source":"Honestly","includes":["Video recorder","Case detail","Participant portal","Counselor notes","Recordings","Analysis"]}'::jsonb
+  ),
+  (
     'billing',
     'Billing + Plans',
     'Revenue',

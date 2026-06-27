@@ -49,6 +49,18 @@ Kindred now contributes more than the original `connection-engine` entry. The re
 The rebrandable app-template layer lives in `source-of-truth/rebrandable-template-catalog.md`. New apps should choose a source-backed template, replace brand/copy/taxonomy, plug credentials, map database placement, and only then build the app-specific difference.
 
 
+## Full Repo Mining Update - 2026-06-27
+
+The wider repo-mining pass added deployment-aware module evidence for the rest of the portfolio:
+
+- Toner contributes `fleet-monitoring-agent` and `supplier-order-automation`.
+- Laser Engraving contributes `proof-approval-artifact` for immutable customer approval proof.
+- Snip.Show/emergent contributes `content-publishing-scheduler` and `creator-analytics-coaching`.
+- Easy Peasy contributes `business-formation-provisioning` in addition to website/domain launch work.
+- Iconium contributes `brand-kit-generator`.
+
+The deployable-app view now lives in `source-of-truth/ecosystem-deployment-queue.md`. That document is the gate between "code builds" and "safe to deploy." It records build proof, launch blockers, canonical-source blockers, and production approval status.
+
 ## Each block records
 
 - `slug`, `name`, `category`, `purpose`
