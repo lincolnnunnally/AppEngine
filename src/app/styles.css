@@ -4243,3 +4243,70 @@ label {
 .signin-none {
   color: var(--soft-muted);
 }
+
+/* Owner Integrations page */
+.integration-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.integration-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.integration-status {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+.integration-status--set {
+  color: var(--teal);
+  border: 1px solid color-mix(in srgb, var(--teal) 45%, transparent);
+}
+
+.integration-status--unset {
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.integration-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.integration-input {
+  flex: 1;
+}
+
+.integration-notice {
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.integration-notice--ok {
+  border: 1px solid color-mix(in srgb, var(--teal) 45%, transparent);
+  color: var(--teal);
+}
+
+.integration-notice--error {
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent);
+  color: var(--gold);
+}
+
+.integration-warn {
+  color: var(--gold);
+}
+
+.integration-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 8px;
+}

@@ -36,7 +36,10 @@ const OPERATOR_GROUPS: RailGroup[] = [
 // Settings sits in the rail footer, rendered smaller. Operator-only.
 const SETTINGS_GROUP: RailGroup = {
   label: "Settings",
-  items: [{ label: "Admin", href: "/admin" }]
+  items: [
+    { label: "Integrations", href: "/integrations" },
+    { label: "Admin", href: "/admin" }
+  ]
 };
 
 // Consumer rail — a single entrance (the unified conversation at "/"). No more
