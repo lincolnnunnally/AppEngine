@@ -95,6 +95,7 @@ shared_context_files:
   - source-of-truth/compatibility-standard.md
   - source-of-truth/release-gate-standard.md
   - source-of-truth/app-improvement-vnext-packet.md
+  - source-of-truth/app-transfer-ledger-standard.md
   - source-of-truth/charters/appengine.md
   - agents/context/mission.md
   - agents/context/source-of-truth.md

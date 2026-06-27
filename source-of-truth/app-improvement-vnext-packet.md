@@ -12,6 +12,8 @@ Use this standard for requests such as:
 - Make version 2
 - Respond to user feedback
 - Make the app easier for a specific audience to use
+- Transfer, recover, migrate, or consolidate an existing app without losing
+  feature coverage
 
 ## Required Context
 
@@ -34,6 +36,8 @@ Before planning an improvement, agents must load:
 - User feedback or request
 - Release history
 - Current source-of-truth docs and active task
+- App Transfer Ledger when the work is a transfer, recovery, migration,
+  consolidation, or broad feature-parity effort
 
 If this context is missing, the agent should create a context-gathering follow-up instead of inventing the current app state.
 
@@ -87,6 +91,9 @@ Agents must stop or create follow-up work when:
 - The improvement advances without a `deployment_lifecycle` artifact naming the current review URL, production URL, deployment URL, current version, review version, and production version.
 - Preview is claimed without route-specific `preview_verification` and a known owner review URL.
 - The improvement is broad enough to need a new App Build Packet or explicit v2 packet.
+- The work is a transfer/recovery/migration and advances implementation without
+  an `app_transfer_ledger` naming current features, existing surfaces,
+  destination targets, transfer statuses, and verification needed.
 
 ## Machine Shape
 
