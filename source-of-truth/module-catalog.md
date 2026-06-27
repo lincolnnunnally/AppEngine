@@ -22,7 +22,7 @@ The drift this ends: seven agents rebuilt the same connection engine seven times
 The catalog is not abstract — it is mined from the completed repos, **verified against the GitHub repos** (not just local clones, which can be stale or missing). Sources span repos:
 
 - **ChurchConnect** (richest, completed): Communication (`broadcasting`/`church_sms`/`email_service`), Payments & Giving (`stripe_payments`/`universal_giving`/`OnlineGiving`), Scripture & Sermon Tools, Live Service (`streaming`/`LiveStreamManager`), Volunteer & Safety (`volunteer_force`/`background_checks`), CRM, Events, Testimony, Identity (phone OTP), Analytics.
-- **Kindred-Connection** (GitHub-only, Python) — the **canonical Connection Engine**: `backend/routers/soul_match.py`, `relational_posture.py`, `loneliness_prescription.py`, `pods.py` (group-first), `coaching.py`. Richer than ChurchConnect's `purpose_matching`.
+- **Kindred-Connection / Kindred Connections** — the **canonical Connection Engine** and strongest rebrandable human-growth app source: `backend/routers/soul_match.py`, `relational_posture.py`, `loneliness_prescription.py`, `pods.py`, `knowing.py`, `identity.py`, `forgiveness.py`, `coaching.py`, `events.py`, `event_curation.py`, `webhooks.py`, `public_profile.py`, `admin.py`, and frontend pages for onboarding, becoming, discover, match detail, invites, public profiles, events, coaching, forgiveness, mediation, and admin. Mine these before rebuilding any belonging, matching, referral, profile-sharing, coaching, event-service, repair, or admin/moderation flow.
 - **Website-friends / Easy Peasy** — Website Builder + Domains (`WebsitesAndDomains.tsx`, `DomainSearchModal.tsx`, `Web3Domains.tsx`).
 - **ideas** — Idea Capture & Content Forge (voice/photo/OCR/transcribe → forge/polish).
 - **LaserEngraving** — Marketplace & Orders + Design Studio (canvas, upload, mockups).
@@ -33,6 +33,21 @@ The catalog is not abstract — it is mined from the completed repos, **verified
 - Iconium is an early ~11KB stub (not a source yet); remaining repos fold in as reviewed.
 
 Each block's `primarySource` names the actual files to mine first.
+
+## Kindred Mining Update - 2026-06-27
+
+Kindred now contributes more than the original `connection-engine` entry. The repo has been mined into catalog-visible reusable blocks and a separate template layer:
+
+- `purpose-onboarding` for deep user/app setup before value delivery.
+- `becoming-growth-dashboard` for journals, goals, check-ins, readiness, rituals, and progress scoring.
+- `public-invite-loop` for trusted user-owned referrals and invite-attributed signup.
+- `public-profile-og-sharing` for public pages, rich share previews, and generated profile cards.
+- `event-curation-service-loop` for event CRUD, RSVP, attendance, imported events, and service recommendations.
+- `relationship-repair` for forgiveness, reflection, letter drafting, mediation, and conflict repair.
+- `admin-ops-moderation` for owner dashboards, reports, operations, settings, AI usage, and audit logs.
+
+The rebrandable app-template layer lives in `source-of-truth/rebrandable-template-catalog.md`. New apps should choose a source-backed template, replace brand/copy/taxonomy, plug credentials, map database placement, and only then build the app-specific difference.
+
 
 ## Each block records
 

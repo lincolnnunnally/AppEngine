@@ -1,6 +1,7 @@
 import { buildLocalStructuredArtifacts, type AgentStructuredArtifact } from "./agent-artifacts";
 import { getAgentRole, type AgentRole } from "./agent-roles";
 import { isLocalMode } from "./local-mode";
+import { extractUsage, recordLlmUsage } from "./llm-usage";
 import type { EngineTask } from "./tasks";
 
 export type WorkerProvider = "local" | "openai" | "anthropic";
@@ -120,6 +121,17 @@ class OpenAiWorkerAdapter implements WorkerAdapter {
         return buildFailedResult(this.provider, task, getProviderErrorMessage(payload, parseError || "OpenAI worker request failed"), payload);
       }
 
+      const usage = extractUsage(payload);
+      await recordLlmUsage({
+        provider: "openai",
+        model: process.env.OPENAI_MODEL || "gpt-5.1",
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        agent: task.agent,
+        project: context.projectName,
+        task: task.title
+      });
+
       return normalizeWorkerText(this.provider, task, context, extractOpenAiText(payload), payload);
     } catch (caught) {
       return buildFailedResult(this.provider, task, getCaughtErrorMessage(caught, "OpenAI worker request failed"), {
@@ -159,6 +171,17 @@ class AnthropicWorkerAdapter implements WorkerAdapter {
       if (!response.ok || parseError) {
         return buildFailedResult(this.provider, task, getProviderErrorMessage(payload, parseError || "Anthropic worker request failed"), payload);
       }
+
+      const usage = extractUsage(payload);
+      await recordLlmUsage({
+        provider: "anthropic",
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        agent: task.agent,
+        project: context.projectName,
+        task: task.title
+      });
 
       return normalizeWorkerText(this.provider, task, context, extractAnthropicText(payload), payload);
     } catch (caught) {

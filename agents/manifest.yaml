@@ -45,6 +45,9 @@ shared_context_files:
   - source-of-truth/production-readiness-snapshot.md
   - source-of-truth/we-succeed-soft-launch-readiness.md
   - source-of-truth/module-catalog.md
+  - source-of-truth/kindred-connection-mining-audit.md
+  - source-of-truth/rebrandable-template-catalog.md
+  - source-of-truth/template-credential-contract.md
   - source-of-truth/execution-dispatcher-dry-run.md
   - source-of-truth/chatgpt-handoff-issue-standard.md
   - source-of-truth/problem-intake-gate.md

@@ -77,6 +77,76 @@ const MODULES: ModuleCatalogEntry[] = [
     status: "extractable"
   },
   {
+    slug: "purpose-onboarding",
+    name: "Purpose Onboarding",
+    category: "intake",
+    purpose: "Deep first-run setup for purpose, values, goals, drivers, motivation, profile fields, and AI analysis before the app starts matching or guiding.",
+    capabilities: ["onboarding", "purpose questionnaire", "values capture", "profile setup", "ai analysis", "motivation capture", "rebrandable setup flow"],
+    usedByApps: ["kindred-connections", "best-life", "spark-of-hope", "kids-need-dads"],
+    primarySource: "Kindred Connections backend/server.py + frontend/src/pages/Onboarding.js + Profile.js + design_guidelines.json",
+    status: "extractable"
+  },
+  {
+    slug: "becoming-growth-dashboard",
+    name: "Becoming / Growth Dashboard",
+    category: "growth",
+    purpose: "A warm personal growth dashboard with reflection, goals, check-ins, readiness, ritual steps, alignment scoring, and streak protection.",
+    capabilities: ["growth dashboard", "journal", "goals", "check-ins", "readiness sliders", "alignment score", "ritual steps", "streak pause"],
+    usedByApps: ["kindred-connections", "best-life", "spark-of-hope", "kids-need-dads"],
+    primarySource: "Kindred Connections backend/routers/becoming.py + streak.py + frontend/src/pages/Becoming.js + Journal.js + Goals.js",
+    status: "extractable"
+  },
+  {
+    slug: "public-invite-loop",
+    name: "Public Invite Loop",
+    category: "communication",
+    purpose: "Trusted peer invitation with situational share messages, public invite landing pages, and signup attribution.",
+    capabilities: ["invite codes", "referrals", "share messages", "public invite page", "signup attribution", "friend growth loop"],
+    usedByApps: ["kindred-connections", "spark-of-hope", "churchconnect", "live-on-mission"],
+    primarySource: "Kindred Connections backend/routers/invites.py + frontend/src/pages/Invite.js + PublicInvite.js + Auth.js",
+    status: "extractable"
+  },
+  {
+    slug: "public-profile-og-sharing",
+    name: "Public Profile & Share Cards",
+    category: "web",
+    purpose: "Public profile pages and rich share previews, including generated Open Graph HTML and image cards.",
+    capabilities: ["public profile", "share card", "og image", "social preview", "public handle", "profile sharing"],
+    usedByApps: ["kindred-connections", "spark-of-hope", "churchconnect", "easy-peasy-website"],
+    primarySource: "Kindred Connections backend/routers/public_profile.py + frontend/src/pages/PublicProfile.js + Settings.js",
+    status: "extractable"
+  },
+  {
+    slug: "event-curation-service-loop",
+    name: "Event Curation & Service Loop",
+    category: "operations",
+    purpose: "Events, RSVP, attendance verification, admin curation, webhook imports, and recommendations that move personal need into service action.",
+    capabilities: ["events", "rsvp", "attendance", "event import", "event curation", "webhooks", "service prescription", "admin event review"],
+    usedByApps: ["kindred-connections", "live-on-mission", "churchconnect"],
+    primarySource: "Kindred Connections backend/routers/events.py + event_curation.py + webhooks.py + loneliness_prescription.py + frontend/src/pages/Events.js + EventCreate.js + EventDetail.js + admin/AdminEventsCurate.js",
+    status: "extractable"
+  },
+  {
+    slug: "relationship-repair",
+    name: "Relationship Repair & Mediation",
+    category: "care",
+    purpose: "Guided forgiveness, reflection, letter drafting, connection reflection, and two-person mediation.",
+    capabilities: ["forgiveness", "mediation", "conflict reflection", "letter drafting", "repair journey", "connection reflection", "co-parenting support"],
+    usedByApps: ["kindred-connections", "kids-need-dads", "childfirst-solutions"],
+    primarySource: "Kindred Connections backend/routers/forgiveness.py + frontend/src/pages/Forgiveness.js + ForgivenessJourney.js + Mediation.js + ConnectionReflection.js",
+    status: "extractable"
+  },
+  {
+    slug: "admin-ops-moderation",
+    name: "Admin Ops & Moderation",
+    category: "operations",
+    purpose: "Owner/admin console for users, reports, pods/events, operations, settings, AI usage, audit logs, suspension, and soft delete.",
+    capabilities: ["admin dashboard", "user management", "reports", "moderation", "operations", "settings", "ai usage", "audit log", "soft delete"],
+    usedByApps: ["kindred-connections", "churchconnect", "childfirst-solutions", "toner-management"],
+    primarySource: "Kindred Connections backend/routers/admin.py + backend/core.py + frontend/src/pages/admin/*",
+    status: "extractable"
+  },
+  {
     slug: "needs-helper-matching",
     name: "Needs ↔ Helper Matching",
     category: "connection",

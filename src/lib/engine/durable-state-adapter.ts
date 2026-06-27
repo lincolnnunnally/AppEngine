@@ -29,6 +29,7 @@ export type AppEngineStateKind =
   | "spark_review_queue"
   | "spark_reminder_queue"
   | "internal_controlled_use_trials"
+  | "llm_usage"
   | "development_projects";
 
 export type AppEngineStateSensitivity = "public_safe" | "internal" | "private" | "sensitive";
@@ -118,6 +119,7 @@ export const appEngineStateStores: AppEngineStateStoreDefinition[] = [
   store("spark_review_queue", "Spark of Hope Intake Lite", "browser_local_storage", "sensitive", true, true, "Review statuses and moderation notes currently live in browser-local state."),
   store("spark_reminder_queue", "Spark of Hope Intake Lite", "browser_local_storage", "sensitive", true, true, "Reminder preferences stay local/mock and must not send messages automatically."),
   store("internal_controlled_use_trials", "Internal Controlled Use", "local_json", "internal", false, true, "Owner-run first trial state for proving AppEngine can operate internally with adapter-backed stores."),
+  store("llm_usage", "LLM Usage Metering", "local_json", "internal", false, true, "Per-call model token counts and estimated cost for builds; powers cost metering and the spend guard. Durable cross-build totals require the database to be enabled."),
   store("development_projects", "Engine Development Store", "local_json", "internal", false, false, "Legacy engine project dev store.")
 ];
 

@@ -6,15 +6,23 @@
 
 ## 1. The cost reality (why we charge)
 - The **intake is free** (deterministic, no model calls) — keep it that way; it captures interest.
-- The **cost is the build step**: each real app build is many large LLM calls (currently OpenAI,
-  `OPENAI_MODEL`). That's the thing to cover.
-- **We don't actually know the per-build cost yet.** Pricing should be set from *measured* cost,
-  not a guess. So **step 1 is metering** (below), not picking a price.
+- The **cost is the build step**: a build fans out **one model call per task in the graph** (currently
+  OpenAI, `OPENAI_MODEL`, ~900 output tokens each). Run many builds and it adds up.
+- **Real signal:** Lincoln burned **~$40 in a couple days of testing**. After ~**June 18** testing
+  stopped, so spend stopped — most likely just "stopped running builds" (builds are owner-gated, so
+  no public traffic triggers them), not a code change. Worth a quick confirm that a build still calls
+  OpenAI before relying on metering.
+- **We still don't know the precise per-build cost.** Pricing should be set from *measured* cost, not
+  a guess — which is why metering (now built, below) comes before any price.
 
 ## 2. Build it in this order
-1. **Meter token usage** (no charging). Record tokens + $ cost per build, per user. Run a handful
-   of real builds → learn the true cost-per-build distribution (likely a range, e.g. small vs large app).
-2. **Set pricing** from those numbers (cover cost + hosting + margin). *Lincoln's decision.*
+1. **Meter token usage** (no charging). ✅ **Built** — every model call records provider/model/token
+   counts + estimated cost (`src/lib/engine/llm-usage.ts`), and a **per-run guard** caps how many paid
+   calls one build makes (degrades to free deterministic output past the cap), so a single build can't
+   run away. *Caveat:* durable cross-build **totals** + a daily cap accumulate only when the **database
+   is enabled** (the Neon/durable-persistence switch — an owner action); without it, records are
+   best-effort/local. Set the real `$/1k token` rates via env once measured.
+2. **Set pricing** from those numbers (cover cost + hosting + ~30% margin). *Lincoln's decision.*
 3. **Add the paywall gate** at the build step — a build only runs if the user has credit / an active
    plan. Intake stays free. Fail-closed (no credit → no build, friendly message).
 4. **Stripe integration** — checkout + customer portal + webhook to grant credit/plan. Test mode first.
@@ -37,8 +45,10 @@ cost per build and removes the "unlimited free = unbounded OpenAI bill" risk.
 - This keeps the funnel open (anyone can describe their idea) while protecting the cost center.
 
 ## 5. Margin / safety
-- Price each build at **measured token cost × markup** (e.g. 3–5×) to cover OpenAI + hosting + support + margin.
-- **Per-user spend cap** + alerting so a runaway build can't exceed bought credit.
+- Price each build at **measured token cost + ~30% margin** (Lincoln's target) to cover OpenAI + hosting + a little profit.
+  *Note:* validate that 30% also absorbs failed/retried builds and support overhead — if not, nudge it up.
+- **Per-run spend guard** is built (caps calls per build). **Per-user / daily $ caps** + alerting come with the
+  durable DB + the paywall.
 - Keep generated apps on free-tier hosting by default (already the scope rule) so hosting cost stays low.
 
 ## 6. Who does what
