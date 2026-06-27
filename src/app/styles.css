@@ -3824,6 +3824,320 @@ label {
   background: var(--entry-teal);
 }
 
+/* ---------------------------------------------------------------------------
+   Conversational intake — one guided discovery that replaces the form wall.
+   Lives inside .entry so it inherits the locked palette. Warm, one question at
+   a time, chat-style transcript.
+   --------------------------------------------------------------------------- */
+.convo {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.convo-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.convo-eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.convo-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.6rem, 3.4vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.convo-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.12rem);
+  line-height: 1.55;
+}
+
+/* Opening frame choice — the two intents, as the first turn. */
+.convo-frames {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+@media (min-width: 640px) {
+  .convo-frames {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.convo-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: clamp(1.4rem, 3vw, 1.9rem);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 4px solid transparent;
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.convo-frame:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+}
+
+.convo-frame-accent {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.convo-frame-title {
+  font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+  font-weight: 650;
+}
+
+.convo-frame-text {
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 0.96rem;
+}
+
+.convo-frame--problem {
+  background: #1d2722;
+  border-top-color: var(--gold);
+}
+.convo-frame--problem:hover {
+  border-color: var(--gold);
+}
+.convo-frame--problem .convo-frame-accent {
+  background: var(--gold);
+}
+.convo-frame--build {
+  border-top-color: var(--teal);
+}
+.convo-frame--build:hover {
+  border-color: var(--teal);
+}
+.convo-frame--build .convo-frame-accent {
+  background: var(--teal);
+}
+
+/* Thread of past exchanges + the active question. */
+.convo-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.convo-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.convo-q {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.convo-q--active {
+  color: var(--ink);
+  font-size: clamp(1.15rem, 2.4vw, 1.4rem);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.convo-optional {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
+.convo-a {
+  margin: 0;
+  align-self: flex-start;
+  max-width: 90%;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  background: var(--green-soft);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.convo-current {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.convo-input {
+  width: 100%;
+  resize: vertical;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.5;
+}
+
+.convo-input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(52, 192, 173, 0.18);
+}
+
+.convo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.convo-chip {
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.convo-chip:hover {
+  border-color: var(--teal);
+  background: var(--green-soft);
+}
+
+.convo-review {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--teal);
+  background: var(--panel);
+}
+
+.convo-reflect {
+  margin: 0.4rem 0 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.convo-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.convo-advance {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.convo-go {
+  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--teal);
+  color: #06120f;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.convo-go:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.convo-go:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.convo-back,
+.convo-skip {
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.convo-back:hover:not(:disabled),
+.convo-skip:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.convo-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+}
+
+.convo-notice strong {
+  color: var(--ink);
+}
+
+.convo-notice span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.convo-notice--success {
+  border-left: 4px solid var(--teal);
+}
+
+.convo-notice--error {
+  border-left: 4px solid var(--coral);
+}
+
+.convo-fallback {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.convo-fallback a {
+  color: var(--teal);
+  text-decoration: none;
+}
+
+.convo-fallback a:hover {
+  text-decoration: underline;
+}
+
 .soft-launch {
   /* Inherit the locked :root palette — local aliases, single source of truth. */
   --soft-base: var(--paper);
