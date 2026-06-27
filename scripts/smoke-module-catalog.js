@@ -6,6 +6,13 @@ const root = process.cwd();
 const MODULE_SLUGS = [
   "identity-auth",
   "connection-engine",
+  "purpose-onboarding",
+  "becoming-growth-dashboard",
+  "public-invite-loop",
+  "public-profile-og-sharing",
+  "event-curation-service-loop",
+  "relationship-repair",
+  "admin-ops-moderation",
   "needs-helper-matching",
   "communication",
   "directory-community",

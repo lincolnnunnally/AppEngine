@@ -1,0 +1,371 @@
+{
+  "kind": "app_portfolio_registry",
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-27T20:10:00.000Z",
+  "owner": "Lincoln",
+  "summary": {
+    "totalApps": 15,
+    "reviewReadyApps": 0,
+    "productionLiveApps": 1,
+    "blockedApps": 15,
+    "byDeploymentState": {
+      "production_live": 1,
+      "review_blocked": 1,
+      "production_blocked": 13
+    },
+    "byBuildState": {
+      "ready_for_vnext": 1,
+      "review_blocked": 1,
+      "ready_for_build": 3,
+      "planned": 10
+    },
+    "nextSafeActions": {
+      "create_vnext_packet": 1,
+      "create_fix_issue": 1,
+      "create_implementation_issue": 1,
+      "create_planning_issue": 12
+    }
+  },
+  "apps": [
+    {
+      "name": "AppEngine / We Succeed",
+      "slug": "appengine",
+      "reviewUrl": "https://www.we-succeed.org",
+      "productionUrl": "https://www.we-succeed.org",
+      "currentVersion": "2026-06-27-public",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "sourceOfTruthFiles": [
+        "CURRENT_SCOPE.md",
+        "BUILD-LEDGER.md",
+        "source-of-truth/ecosystem-build-ledger.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 205,
+          "title": "Conversational intake",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/205",
+          "state": "merged"
+        }
+      ],
+      "blockers": [
+        "Portfolio registry should import the ecosystem ledger before new app dispatch starts."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "ChurchConnect",
+      "slug": "churchconnect",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "shared-supabase-recovery",
+      "deploymentState": "review_blocked",
+      "buildState": "review_blocked",
+      "nextSafeAction": "create_fix_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "loop-runs/2026-06-25-churchconnect-visitor-step5-appengine-handoff.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Authenticated staff follow-up walkthrough still needs live proof.",
+        "AIPOS restart audit and Launch Pack need to be installed in the canonical repo."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Kindred Connections",
+      "slug": "kindred-connections",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "kindred-mined-2026-06-27",
+      "deploymentState": "production_blocked",
+      "buildState": "ready_for_build",
+      "nextSafeAction": "create_implementation_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "source-of-truth/ecosystem-github-audit-summary.md",
+        "source-of-truth/kindred-connection-mining-audit.md",
+        "source-of-truth/rebrandable-template-catalog.md",
+        "source-of-truth/template-credential-contract.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "AIPOS + Launch Pack docs still need to be installed or filled inside the Kindred repo.",
+        "Runtime database/provider decision needs to be reconciled with the consolidated Supabase ecosystem rule before production release.",
+        "Live owner review URL and production launch path are not verified."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Spark of Hope",
+      "slug": "spark-of-hope",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "package-surface",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "life-produces-life/apps/spark-of-hope"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Needs Launch Pack from the existing life-produces-life package surface before build dispatch."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Opportunity",
+      "slug": "opportunity",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "boundary-decision-needed",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "CURRENT_SCOPE.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Decide whether Opportunity remains the We Succeed/AppEngine front door or becomes its own app package."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Best Life",
+      "slug": "best-life",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "package-stub",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "life-produces-life/apps/best-life"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Needs app profile, Launch Pack, and first build packet before coding."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Live On Mission",
+      "slug": "live-on-mission",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "package-stub",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "life-produces-life/apps/live-on-mission"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Needs app profile, Launch Pack, and shared needs-to-helper matching decision before coding."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Kids Need Dads",
+      "slug": "kids-need-dads",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "canonical-source-needed",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "RebuildingDads",
+        "KND-google-ai"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Choose canonical source between RebuildingDads, KND-google-ai, and any local Kids Need Dads folders."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "ChildFirst Solutions",
+      "slug": "childfirst-solutions",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "existing-next-supabase-app",
+      "deploymentState": "production_blocked",
+      "buildState": "ready_for_build",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "childfirst-solutions"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Install AIPOS + Launch Pack and verify current deploy path."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Easy Peasy Website",
+      "slug": "easy-peasy-website",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "website-friends-source",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "Website-friends"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Confirm rename/alias and mine Website Builder module before launch work."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Snip.Show",
+      "slug": "snip-show",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "canonical-merge-needed",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "Snip.Show",
+        "emergent"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Decide canonical repo and merge direction; likely preserve Snip.Show name and mine emergent source."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Toner Management",
+      "slug": "toner-management",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "canonicalization-needed",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "TotalTonerManagement",
+        "TM-UserDash",
+        "TM-Admin-portal"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Choose canonical repo/local source and merge dashboard/admin variants into one platform."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Laser Engrave Market",
+      "slug": "laser-engrave-market",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "existing-supabase-app",
+      "deploymentState": "production_blocked",
+      "buildState": "ready_for_build",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "LaserEngraving"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Install AIPOS + Launch Pack and preserve proof/approval workflow before build work."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Iconium",
+      "slug": "iconium",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "existing-next-prisma-app",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "Iconium"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Decide whether Prisma stays or moves to Supabase ecosystem tree before launch."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    },
+    {
+      "name": "Ideas / Idea Capture",
+      "slug": "ideas",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "existing-backend-frontend-mobile",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "ideas"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Decide relation to Opportunity/AppEngine intake before launch work."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-06-27T20:10:00.000Z"
+    }
+  ],
+  "guardrails": {
+    "noSecretsInRegistry": true,
+    "noPrivateUserData": true,
+    "productionApprovalRequired": true,
+    "protectedPreviewBypassLinksBlocked": true,
+    "appBoundariesRequired": true
+  }
+}
