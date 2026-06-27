@@ -45,7 +45,7 @@ export default function SoftLaunchPage() {
         <p className="soft-launch-kicker">{copy.kicker}</p>
         <h1>{copy.title}</h1>
         <p>{copy.body}</p>
-        <Link className="soft-launch-action" href="/api/auth/signin?callbackUrl=%2F">
+        <Link className="soft-launch-action" href="/signin">
           {copy.cta}
         </Link>
       </section>
