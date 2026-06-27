@@ -46,6 +46,8 @@ This is a discipline enforced by git, not a hard lock. It works only if EVERY ag
 - ✅ Step-3 consumer-friendly problem door — dev label + redundant sub-choices dropped (**#183**).
 - ✅ Step-3 finished app shell — one AppShell header per cockpit screen (redundant topnav removed), `.entry`/`.soft-launch` inherit the locked `:root` palette, build-door default→"vision", doors set positive expectations; CURRENT_SCOPE v9 + this ledger landed (**#184**).
 - ✅ Step-4 "loop to live" — release gate + deploy readiness (**#186**/**#187**/**#189**, fail-closed, existing-provider-only, within limits), production deploy `READY` at we-succeed.org, live `/api/health` ok, owner-gate enforced, both doors verified end-to-end via Lincoln's owner walkthrough on production (a submission saved); build-door redundant selector removed (**#190**). Free-tier only.
+- ✅ **Public launch (Step 6)** — we-succeed.org is live & PUBLIC since 2026-06-27 (staged access #200/#201 + `APP_ENGINE_PUBLIC_ACCESS=public` on Vercel prod). See Step 6 below.
+- ✅ **Conversational intake (post-launch, #205)** — the two-door **form wall** is replaced by **one conversational discovery**: asks one question at a time, reflects back, then maps the answers onto the **existing** intake APIs (no backend change); a "use the form" fallback keeps the original forms. The two intents (problem/build) are now the opening turn. **The "two doors" locked decision is superseded by CURRENT_SCOPE v10 — do not rebuild the two-door entry.** Deterministic + free; built so a Claude clarification worker can drive it later (worker-adapters).
 
 ---
 

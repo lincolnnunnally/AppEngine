@@ -1,7 +1,9 @@
 # CURRENT_SCOPE.md — one narrow line from here to a finished, usable app
 
-> **Version: 2026-06-25 (v9). Supersedes all earlier versions.**
+> **Version: 2026-06-27 (v10). Supersedes all earlier versions.**
 > The repo copy is the single source of truth; Claude-project and ChatGPT-project copies must match it verbatim. Newest-dated repo copy wins. Copy exactly; do not re-author.
+>
+> **v10 change (from v9):** the intake is now **one conversational discovery**, not two separate form doors. Live feedback showed the forms felt like homework, and the two doors asked the same question set in a different order. So the entry asks one question at a time and reflects back; the two intents (problem / build) are the opening turn, and a form fallback remains. Updated the "Two doors" and "Door routing" locked decisions below. No change to the finish line. (App went **public** 2026-06-27 — see BUILD-LEDGER Step 6.)
 >
 > **v9 change (from v8):** folded the BUILD-LEDGER check-out rule into Agent rules, so the one instruction-box doc carries it — agents pull the live ledger and claim their item before building, so multiple agents don't collide or rebuild. The detailed protocol stays in BUILD-LEDGER.md (referenced, not duplicated). No change to scope or finish line.
 
@@ -18,14 +20,14 @@ Agents run this — they build, merge, and deploy on their own to reach the fini
 A polished, simple, user-friendly app live at we-succeed.org that real people log into and use, with the two-door entry and the AppEngine gate/registry/loop behind it, inside Lincoln's spend/provider limits.
 
 ## Locked decisions — DO NOT RE-OPEN
-- **Two doors:** "I have a problem to solve" / "I have something I want to build." No third/fourth choice. One consistent consumer name per intake across rail, header, body. No operator jargon ("Vision intake," "Opportunity Intake," "mode") shown to users.
+- **One conversational discovery, two intents:** the entry is a guided conversation that asks one question at a time and reflects back — not a wall of form fields. The two intents — "a problem I'm facing" / "something I want to build" — are the **opening turn**, then the questions converge (they're the same set in a different order). A **form fallback** ("prefer to fill out a form?") keeps the original forms for anyone who wants them. No third/fourth intent. No operator jargon ("Vision intake," "Opportunity Intake," "mode") shown to users. (Deterministic + free today; built so a Claude clarification worker can drive it later.)
 - **AppEngine builds AND deploys — that's the product.** The user describes the problem and the result they want; AppEngine does everything between and ships a real, deployed, loggable-into app at a live URL (the Vercel hosting URL by default, or one the user provides). Auto-build and auto-deploy are the value, never a disclaimer. **Lifecycle: tell the problem → clarify → build → deploy → verify → audit/improve.** After publish, AI walks the live app itself — every workflow, every button, every function — and confirms each works before handing it back. Starter apps are expected imperfect at launch — the user logs in, tests, improves. No screen may say "no automatic build," "no production deploy," or "no assumed destination."
 - **Set expectations up front.** The biggest source of user frustration is expecting one thing and getting another. So the process tells the user plainly: the first version is a real, live, working starter — not the final polished product — and after publish it is verified, then tested and improved with their input. Naming the arc up front is part of the product, not a disclaimer.
 - **Prompt for solutions, not single tasks.** Intake asks for the outcome the user wants. Agents run longer loops completing a whole solution per turn — fewer handoffs, less redone work.
 - **Free tier by default; one paid exception.** All engine/generated-app resources stay free-tier / pre-approved, so a deploy can't surprise-cost. The only paid resource is Lincoln's own ecosystem identity/data on Pro Supabase. Spending stays inside configured limits.
 - **No infrastructure jargon to users.** Customers never see provider/database names ("Neon," "Supabase," "Vercel," "provider," "paid resources"). Placement (shared ecosystem identity → Supabase; standalone customer app → isolated Neon) is internal only.
 - **Look:** dark, polished, welcoming. Base `#0e1512`, gold `#e6a93a` (problem), teal `#34c0ad` (build), text `#eef2ee`.
-- **Door routing:** problem → consumer problem intake; build → opportunity-intake. Both flow through `problem_intake_gate` behind the scenes.
+- **Intent routing:** the conversation maps the problem intent → consumer problem intake (`/api/problem-intake-lite`) and the build intent → opportunity-intake (`/api/opportunity-intake`); the form fallback hits the same endpoints. Both flow through `problem_intake_gate` behind the scenes.
 - **Entry URL = we-succeed.org. Public login is the goal.**
 - **Identity table:** `person` canonical; `lpl_people` parked.
 - **Reuse/Lego:** reuse capability + styling, never personal data; customer data lives in its own isolated DB. Modules cataloged, reused, improved — not rebuilt.
