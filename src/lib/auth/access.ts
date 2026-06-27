@@ -1,11 +1,21 @@
 import { auth } from "@/auth";
 import { canAccessAdmin, canAccessConsumerSurfaceForRole, canAccessCustomerArea, canAccessOwner } from "./roles";
 
+export function hasGoogleProvider() {
+  return Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+}
+
+export function hasGithubProvider() {
+  return Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
+}
+
+// Email magic-link also needs a database (verification tokens) to function.
+export function hasEmailSignIn() {
+  return Boolean(process.env.AUTH_RESEND_KEY && process.env.EMAIL_FROM);
+}
+
 export function hasAuthProvider() {
-  return Boolean(
-    (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) ||
-      (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
-  );
+  return hasGithubProvider() || hasGoogleProvider() || hasEmailSignIn();
 }
 
 export function isSetupAdminMode() {

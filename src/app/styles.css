@@ -4198,3 +4198,48 @@ label {
   font-weight: 900;
   text-decoration: none;
 }
+
+/* Sign-in page: stacked provider options. */
+.signin-options {
+  display: grid;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.signin-full {
+  width: 100%;
+}
+
+.signin-email {
+  display: grid;
+  gap: 8px;
+}
+
+.signin-label {
+  color: var(--soft-muted);
+  font-size: 0.85rem;
+}
+
+.signin-input {
+  width: 100%;
+}
+
+.signin-secondary {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--soft-muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.signin-secondary:hover {
+  color: var(--soft-text);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.signin-none {
+  color: var(--soft-muted);
+}
