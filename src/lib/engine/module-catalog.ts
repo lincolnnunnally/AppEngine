@@ -485,6 +485,76 @@ const MODULES: ModuleCatalogEntry[] = [
     usedByApps: ["churchconnect", "spark-of-hope"],
     primarySource: "honestly (GitHub) src/components/VideoRecorder.js + QuickRecord.js + RecordingsTab.js + Snip.Show (clips)",
     status: "extractable"
+  },
+  {
+    slug: "fleet-monitoring-agent",
+    name: "Fleet Monitoring Agent",
+    category: "operations",
+    purpose: "Register customer devices, collect readings/heartbeats, detect toner status, and surface fleet health.",
+    capabilities: ["device registration", "monitoring agent", "heartbeat", "readings", "fleet health", "printer status"],
+    usedByApps: ["toner-management"],
+    primarySource: "TonerTrackerPro monitoring installers + toner-management-app server/routes/agent.ts + customer inventory routes",
+    status: "extractable"
+  },
+  {
+    slug: "supplier-order-automation",
+    name: "Supplier Ordering Automation",
+    category: "commerce",
+    purpose: "Forecast supply needs, compare vendor pricing, automate purchase/order flows, and reconcile fulfillment.",
+    capabilities: ["supplier pricing", "auto ordering", "demand forecasts", "order reconciliation", "fulfillment", "shipment labels"],
+    usedByApps: ["toner-management"],
+    primarySource: "toner-management-app server/routes/supplier.ts + AutoOrderSettings.tsx + SupplierIntegration.tsx + TonerTrackerPro order automation services",
+    status: "extractable"
+  },
+  {
+    slug: "proof-approval-artifact",
+    name: "Proof Approval Artifact",
+    category: "safety",
+    purpose: "Generate and preserve an immutable customer approval proof before customized physical work is produced.",
+    capabilities: ["proof preview", "approval lock", "immutable artifact", "customer signoff", "production handoff"],
+    usedByApps: ["laser-engrave-market"],
+    primarySource: "LaserEngraving CustomizationCanvas.tsx + DesignPreview.tsx + ShareDesignDialog.tsx + SharedDesignLanding.tsx",
+    status: "extractable"
+  },
+  {
+    slug: "content-publishing-scheduler",
+    name: "Content Publishing Scheduler",
+    category: "media",
+    purpose: "Plan, schedule, publish, and repurpose content across creator channels from one workflow.",
+    capabilities: ["content scheduling", "auto publishing", "repurposing", "channel management", "campaigns", "calendar"],
+    usedByApps: ["snip-show"],
+    primarySource: "emergent frontend/src/pages/AutoSchedulerPage.js + SchedulerPage.js + Campaigns.js + backend/routes/scheduler.py + repurpose.py",
+    status: "extractable"
+  },
+  {
+    slug: "creator-analytics-coaching",
+    name: "Creator Analytics & Coaching",
+    category: "analytics",
+    purpose: "Analyze content performance, algorithm signals, growth patterns, and next best actions for creators.",
+    capabilities: ["creator analytics", "algorithm insights", "growth dashboard", "coaching", "performance reports"],
+    usedByApps: ["snip-show"],
+    primarySource: "emergent frontend/src/pages/AlgorithmInsights.js + GrowthDashboardPage.js + CoachingReportPage.js + backend/services/advanced_analytics.py + algorithm_tracker.py",
+    status: "extractable"
+  },
+  {
+    slug: "business-formation-provisioning",
+    name: "Business Formation & Provisioning",
+    category: "web",
+    purpose: "Guide customers from site purchase into domain, email, business formation, and service provisioning.",
+    capabilities: ["business formation", "domain provisioning", "email provisioning", "client portal", "checkout", "service request"],
+    usedByApps: ["easy-peasy-website"],
+    primarySource: "Easy Peazy Websites backend/provisioner.py + BusinessFormation.jsx + SignupPage.jsx + ClientPortal.jsx + provisioning tests",
+    status: "extractable"
+  },
+  {
+    slug: "brand-kit-generator",
+    name: "Brand Kit Generator",
+    category: "design",
+    purpose: "Turn brand prompts into logo concepts, SVG previews, palettes, and exportable starter identity assets.",
+    capabilities: ["brand prompt", "logo generation", "svg export", "palette", "concept cards", "brand kit"],
+    usedByApps: ["iconium", "easy-peasy-website"],
+    primarySource: "Iconium src/components/BrandPrompt.tsx + ConceptCards.tsx + LogoPreview.tsx + src/lib/logo-generator.ts + svg-engine.ts",
+    status: "extractable"
   }
 ];
 

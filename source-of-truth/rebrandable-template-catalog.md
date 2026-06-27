@@ -303,6 +303,439 @@ Credentials:
 - AI provider if usage reporting tracks AI calls
 - Email provider if admin-triggered messages are enabled
 
+### Church / Organization Operating System
+
+Source: ChurchConnect + Association
+
+Mine first:
+
+- `src/components/People.tsx`
+- `src/components/GuestManagement.tsx`
+- `src/components/ConnectionInbox.tsx`
+- `src/components/Events.tsx`
+- `src/components/Communications.tsx`
+- `src/components/OnlineGiving.tsx`
+- `src/components/LiveStreamManager.tsx`
+- `src/components/SuperAdminDashboard.tsx`
+- `Association/src/components/AssociationManagement.tsx`
+- `Association/src/components/ChurchManagement.tsx`
+- `Association/src/components/GivingReports.tsx`
+
+Use when:
+
+- The app manages a church, nonprofit, association, community, or multi-organization network.
+
+Rebrand:
+
+- Organization nouns
+- Member/guest labels
+- Event taxonomy
+- Giving/payment labels
+- Staff/admin roles
+- Public discovery language
+
+Credentials:
+
+- Auth
+- Database
+- Email/SMS provider
+- Payment provider if giving or billing remains enabled
+- Streaming provider if live video remains enabled
+
+### Managed Website + Domain Launch App
+
+Source: Easy Peasy Websites / Website-friends
+
+Mine first:
+
+- `frontend/src/components/LandingPage.jsx`
+- `frontend/src/components/SignupPage.jsx`
+- `frontend/src/components/ClientPortal.jsx`
+- `frontend/src/components/AdminDashboard.jsx`
+- `frontend/src/components/BusinessFormation.jsx`
+- `backend/provisioner.py`
+- `backend/tests/test_domain_search.py`
+- `backend/tests/test_provisioning.py`
+- `LAUNCH_RUNBOOK.md`
+
+Use when:
+
+- A user needs a simple managed website, domain search, hosting/provisioning, and client/admin portal.
+
+Rebrand:
+
+- Offer name
+- Site package names
+- Domain/provider language
+- Client portal labels
+- Support language
+
+Credentials:
+
+- Auth
+- Database
+- Domain registrar/provider credentials
+- Email provider
+- Payment provider
+- Hosting provider credentials
+
+### Toner Fleet + Auto Ordering App
+
+Source: Toner Management, TotalTonerManagement, TM-UserDash, TM-Admin-portal, TonerTrackerPro
+
+Mine first:
+
+- `src/pages/Dashboard.tsx`
+- `src/pages/Printers.tsx`
+- `src/pages/NetworkMonitor.tsx`
+- `src/pages/AutoOrderSettings.tsx`
+- `src/pages/SupplierIntegration.tsx`
+- `src/pages/SupplierPricingImport.tsx`
+- `server/routes/customer.ts`
+- `server/routes/agent.ts`
+- `server/routes/supplier.ts`
+- monitoring installer code from TonerTrackerPro
+
+Use when:
+
+- The app monitors customer printers, predicts toner needs, automates ordering, and gives admins an operations dashboard.
+
+Rebrand:
+
+- Service name
+- Device/printer vocabulary
+- Supplier labels
+- Plan names
+- Support and dispatch language
+
+Credentials:
+
+- Auth
+- Database
+- Monitoring agent registration secret
+- Email provider
+- Supplier API credentials
+- Payment provider if billing remains enabled
+
+### Creator Clip + Publishing Platform
+
+Source: Snip.Show / emergent
+
+Mine first:
+
+- `frontend/src/pages/Upload.js`
+- `frontend/src/pages/Dashboard.js`
+- `frontend/src/pages/VideoDetailPage.js`
+- `frontend/src/pages/TimelineEditor.js`
+- `frontend/src/pages/ContentLibraryPage.js`
+- `frontend/src/pages/AutoSchedulerPage.js`
+- `frontend/src/pages/AlgorithmInsights.js`
+- `frontend/src/pages/GrowthDashboardPage.js`
+- `backend/services/ai_video_editor.py`
+- `backend/services/content_remix_ai.py`
+- `backend/routes/video.py`
+- `backend/routes/repurpose.py`
+- `backend/routes/scheduler.py`
+
+Use when:
+
+- The app helps creators upload, clip, remix, schedule, analyze, and publish media.
+
+Rebrand:
+
+- Creator vocabulary
+- Platform channel labels
+- Clip/remix language
+- Analytics labels
+- Pricing/plan labels
+
+Credentials:
+
+- Auth
+- Database
+- Storage provider
+- AI provider
+- Social platform OAuth credentials
+- Payment provider if subscriptions or marketplace remain enabled
+
+### Product Marketplace + Proof Approval App
+
+Source: Laser Engraving
+
+Mine first:
+
+- `src/components/ProductCatalogEnhanced.tsx`
+- `src/components/CustomizationCanvas.tsx`
+- `src/components/DesignAssetUpload.tsx`
+- `src/components/FileUpload.tsx`
+- `src/components/MakerDashboard.tsx`
+- `src/components/MakerManagement.tsx`
+- `src/components/MakerMockupGenerator.tsx`
+- `src/components/OrderAllocation.tsx`
+- `src/components/CheckoutForm.tsx`
+- `src/components/ShareDesignDialog.tsx`
+- `src/components/SharedDesignLanding.tsx`
+
+Use when:
+
+- The app sells customizable physical products, routes work to makers/vendors, and requires customer proof approval.
+
+Rebrand:
+
+- Product taxonomy
+- Maker/vendor nouns
+- Proof approval wording
+- Shipping/fulfillment language
+- Marketplace commission labels
+
+Credentials:
+
+- Auth
+- Database
+- Storage provider
+- Payment provider
+- Email provider
+- Optional maker payout provider
+
+### Co-parenting Case Coordination App
+
+Source: ChildFirst Solutions
+
+Mine first:
+
+- `src/components/ScheduleChangeRequestPanel.tsx`
+- `src/components/CommunicationAssistant.tsx`
+- `src/components/ConflictReductionCard.tsx`
+- `src/components/DocumentCenter.tsx`
+- `src/components/CourtReadySummaryCard.tsx`
+- `src/components/IssueResolutionWorkflowCard.tsx`
+- `src/components/AgreementTrackerCard.tsx`
+- `src/lib/services/case.ts`
+- `src/lib/services/resolution.ts`
+- `src/lib/services/calendar-sync.ts`
+
+Use when:
+
+- The app coordinates cases, schedules, documents, communication, agreements, and resolution workflows.
+
+Rebrand:
+
+- Case nouns
+- Party/role labels
+- Document categories
+- Resolution workflow steps
+- Safety/legal disclaimer
+
+Credentials:
+
+- Auth
+- Database
+- Email/notification provider
+- AI provider if communication rewriting or summaries remain enabled
+- Calendar integration credentials if sync remains enabled
+
+### Idea Capture + Content Forge App
+
+Source: ideas
+
+Mine first:
+
+- `src/components/VoiceRecorderModal.jsx`
+- `src/components/OcrCard.jsx`
+- `src/components/TranscribeCard.jsx`
+- `src/components/MeetingRecorderModal.jsx`
+- `src/components/ForgeModal.jsx`
+- `src/components/PolishModal.jsx`
+- `src/components/QuickTextModal.jsx`
+
+Use when:
+
+- The app captures ideas from voice, images, meetings, OCR, or quick text and turns them into useful drafts.
+
+Rebrand:
+
+- Capture categories
+- Output formats
+- Library/folder language
+- Polish/forge terminology
+
+Credentials:
+
+- Auth
+- Database
+- Storage provider
+- AI provider
+- Transcription/OCR provider if not handled by the AI provider
+
+### Brand Kit + Logo Generator App
+
+Source: Iconium
+
+Mine first:
+
+- `src/components/BrandPrompt.tsx`
+- `src/components/ConceptCards.tsx`
+- `src/components/EditorControls.tsx`
+- `src/components/LogoPreview.tsx`
+- `src/components/SvgPreview.tsx`
+- `src/lib/logo-generator.ts`
+- `src/lib/ai/interpretBrand.ts`
+- `src/lib/svg-engine.ts`
+
+Use when:
+
+- The app creates logos, icon systems, SVG exports, palettes, and starter brand kits.
+
+Rebrand:
+
+- Brand prompt questions
+- Export labels
+- Palette names
+- Style presets
+- Project nouns
+
+Credentials:
+
+- Auth
+- Database
+- AI provider
+- Storage provider if exports/projects are saved
+
+### Mutual Aid + Recovery Community App
+
+Source: RebuildingDads + KND-google-ai
+
+Mine first:
+
+- `src/components/MutualAidApplication.tsx`
+- `src/components/CourtDocumentation.tsx`
+- `src/components/RelationshipHealthHub.tsx`
+- `src/components/SupportPartnerMatching.tsx`
+- `src/components/GroupChat.tsx`
+- `src/components/RecoveryProgressChart.tsx`
+- `src/components/VictoryStreakTracker.tsx`
+- `src/pages/ResourceHub.tsx`
+
+Use when:
+
+- The app supports a community through recovery, support matching, mutual aid, documentation, resources, and group encouragement.
+
+Rebrand:
+
+- Community name
+- Support categories
+- Aid fund vocabulary
+- Progress labels
+- Safety and escalation language
+
+Credentials:
+
+- Auth
+- Database
+- Payment/donation provider if aid funds remain enabled
+- Email/SMS provider
+- AI provider if coaching or triage remains enabled
+
+### Troubleshooting Knowledge Marketplace
+
+Source: JeepFix
+
+Mine first:
+
+- `src/components/TroubleshootingWizard.tsx`
+- `src/components/ProblemCard.tsx`
+- `src/components/ProblemDetailPage.tsx`
+- `src/components/SolutionPartsList.tsx`
+- `src/components/PartsMarketplacePage.tsx`
+- `src/components/LeaderboardPage.tsx`
+- `src/components/RewardsPage.tsx`
+- `src/components/RatingModal.tsx`
+
+Use when:
+
+- The app helps a niche community diagnose problems, share solutions, recommend parts/resources, and reward contributors.
+
+Rebrand:
+
+- Problem categories
+- Solution vocabulary
+- Marketplace item labels
+- Reward and reputation labels
+
+Credentials:
+
+- Auth
+- Database
+- Payment/provider credentials if marketplace purchases remain enabled
+- Email provider
+
+### Coach / Training Growth Community
+
+Source: RacketPro
+
+Mine first:
+
+- coach profile setup
+- find coaches
+- mental training journal
+- mental imagery
+- self-talk
+- assessments
+- achievements
+
+Use when:
+
+- The app connects learners to coaches and combines training plans, assessments, growth tracking, and community.
+
+Rebrand:
+
+- Sport/domain vocabulary
+- Coach profile fields
+- Assessment names
+- Training journal labels
+- Achievement labels
+
+Credentials:
+
+- Auth
+- Database
+- Payment provider if coaching bookings are paid
+- Email/notification provider
+
+### Media Case Evidence App
+
+Source: Honestly
+
+Mine first:
+
+- `src/components/VideoRecorder.js`
+- `src/components/RecordingsTab.js`
+- `src/components/CounselorNotes.js`
+- `src/pages/CreateCase.js`
+- `src/pages/CaseDetail.js`
+- `src/pages/Analysis.js`
+- `src/pages/ParticipantPortal.js`
+
+Use when:
+
+- The app records media, organizes cases, gathers participant input, and supports review or analysis workflows.
+
+Rebrand:
+
+- Case vocabulary
+- Participant roles
+- Recording labels
+- Review workflow
+- Privacy/safety disclaimer
+
+Credentials:
+
+- Auth
+- Database
+- Storage provider
+- AI provider if analysis remains enabled
+- Email provider if participant invitations remain enabled
+
 ## Build Flow For New Apps
 
 1. Pick the closest template.
