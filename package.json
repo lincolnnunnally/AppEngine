@@ -58,6 +58,7 @@
     "smoke:integrations-config": "node scripts/smoke-integrations-config.js",
     "smoke:billing": "node scripts/smoke-billing.js",
     "smoke:customer-build": "node scripts/smoke-customer-build.js",
+    "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
     "smoke:chatgpt-handoff": "node scripts/smoke-chatgpt-handoff.js",
     "smoke:handoff-relay": "node scripts/smoke-handoff-relay-reducer.js",
     "smoke:project-memory": "node scripts/smoke-project-memory.js",
