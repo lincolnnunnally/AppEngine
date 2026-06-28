@@ -32,6 +32,15 @@ runStep("credit model is money-safe: integer cents + idempotent ledger", () => {
   assertIncludes(text, "free_starter:", "free starter granted once per user");
 });
 
+runStep("builds are charged real cost x margin, never a flat fee, never mid-build", () => {
+  const text = read("src/lib/engine/billing.ts");
+  assertIncludes(text, "marginMultiplier", "margin-based pricing");
+  assertIncludes(text, "priceForBuildCents", "price = cost x margin helper");
+  assertIncludes(text, "actualCostCents", "charge takes the real measured cost");
+  assertIncludes(text, "minBuildStartCents", "only blocks starting, not mid-build");
+  if (text.includes("pricePerBuildCents")) throw new Error("flat per-build price should be gone (metered model)");
+});
+
 runStep("billing is dormant until explicitly enabled + fully configured", () => {
   const text = read("src/lib/engine/billing.ts");
   assertIncludes(text, 'process.env.APP_ENGINE_BILLING_ENABLED === "true"', "needs explicit flag");
