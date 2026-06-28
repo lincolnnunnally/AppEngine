@@ -1,8 +1,8 @@
-// Prepaid-credit billing for app builds. Model (matches the OpenAI mental model):
-// the user loads credits (a $ amount) via Stripe; each build charges a flat price
-// from their balance; builds are blocked when the balance runs out. A flat price
-// works because the per-run spend guard bounds a build's cost, so we can price it
-// predictably above (measured cost + margin).
+// Prepaid-credit billing for app builds. Model (exactly the OpenAI model): the
+// user loads credits (a $ amount) via Stripe; each build runs to completion, then
+// deducts its REAL measured cost + a margin (default 30%) from their balance; a
+// build is only blocked from STARTING if the balance is below a small floor — it
+// never stops a build mid-way. Token cost comes from the metering (llm-usage).
 //
 // SERVER ONLY. Money lives in the real Postgres DB (balance in integer cents to
 // avoid float drift); the ledger's UNIQUE reference makes credits/charges
@@ -20,20 +20,32 @@ function dollarsEnv(name: string, fallback: number): number {
 
 export type BillingConfig = {
   enabled: boolean;
-  pricePerBuildCents: number;
+  marginMultiplier: number;
+  minBuildStartCents: number;
   freeStarterCents: number;
   currency: "usd";
   packsCents: number[];
 };
 
 export function getBillingConfig(): BillingConfig {
+  // Margin is a multiplier on our actual cost: 1.30 = cost + 30% profit.
+  const margin = Number(process.env.APP_ENGINE_BILLING_MARGIN);
   return {
     enabled: process.env.APP_ENGINE_BILLING_ENABLED === "true",
-    pricePerBuildCents: Math.max(0, Math.round(dollarsEnv("APP_ENGINE_BILLING_PRICE_PER_BUILD_USD", 1) * 100)),
+    marginMultiplier: Number.isFinite(margin) && margin >= 1 ? margin : 1.3,
+    // A build can't be priced until it finishes, so we require this small floor
+    // balance to START one (covers a typical build); the real cost is deducted after.
+    minBuildStartCents: Math.max(1, Math.round(dollarsEnv("APP_ENGINE_BILLING_MIN_BUILD_START_USD", 0.5) * 100)),
     freeStarterCents: Math.max(0, Math.round(dollarsEnv("APP_ENGINE_BILLING_FREE_STARTER_USD", 1) * 100)),
     currency: "usd",
     packsCents: [500, 2000, 5000]
   };
+}
+
+// Price a build = our actual measured cost (cents) + margin. Rounded up, min 1c.
+export function priceForBuildCents(actualCostCents: number): number {
+  const { marginMultiplier } = getBillingConfig();
+  return Math.max(1, Math.ceil(Math.max(0, actualCostCents) * marginMultiplier));
 }
 
 export function hasStripe() {
@@ -126,22 +138,23 @@ export async function creditAccount(userKey: string, amountCents: number, refere
   return applyLedger(userKey, Math.abs(Math.round(amountCents)), "credit", reference, note);
 }
 
-export type AffordResult = { ok: boolean; balanceCents: number; priceCents: number; reason?: string };
+export type AffordResult = { ok: boolean; balanceCents: number; minBuildStartCents: number; reason?: string };
 
 export async function canAffordBuild(userKey: string): Promise<AffordResult> {
-  const { pricePerBuildCents } = getBillingConfig();
+  const { minBuildStartCents } = getBillingConfig();
   const balanceCents = await getBalanceCents(userKey);
-  if (balanceCents >= pricePerBuildCents) {
-    return { ok: true, balanceCents, priceCents: pricePerBuildCents };
+  if (balanceCents >= minBuildStartCents) {
+    return { ok: true, balanceCents, minBuildStartCents };
   }
-  return { ok: false, balanceCents, priceCents: pricePerBuildCents, reason: "Not enough credits for a build." };
+  return { ok: false, balanceCents, minBuildStartCents, reason: "Add credits to start a build." };
 }
 
-// Charges the flat per-build price. Idempotent per build reference. Returns the
-// new balance, or null if the build had already been charged.
-export async function chargeForBuild(userKey: string, buildReference: string): Promise<number> {
-  const { pricePerBuildCents } = getBillingConfig();
-  return applyLedger(userKey, -Math.abs(pricePerBuildCents), "build", `build:${buildReference}`, "App build");
+// Charges a build's REAL cost + margin after it completes (never mid-build).
+// actualCostCents comes from the metering. Idempotent per build reference, so a
+// retry never double-charges.
+export async function chargeForBuild(userKey: string, buildReference: string, actualCostCents: number): Promise<number> {
+  const price = priceForBuildCents(actualCostCents);
+  return applyLedger(userKey, -Math.abs(price), "build", `build:${buildReference}`, `App build (cost ${Math.round(actualCostCents)}c + margin)`);
 }
 
 // One-time free starter credit per user (the freemium hook). Idempotent.

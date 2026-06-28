@@ -23,10 +23,12 @@
    is enabled** (the Neon/durable-persistence switch — an owner action); without it, records are
    best-effort/local. Set the real `$/1k token` rates via env once measured.
 2. **Set pricing** from those numbers (cover cost + hosting + ~30% margin). *Lincoln's decision.*
-3. **Paywall gate** — ✅ **Built (dormant).** Model chosen: **flat price per build** charged from a
-   prepaid credit balance (predictable; works because the per-run guard bounds build cost). Helpers
-   `canAffordBuild` / `chargeForBuild` / `grantFreeStarterIfNew` live in `billing.ts`. *Remaining:* wire
-   the charge into the customer-build trigger (that path opens with customer builds, alongside this).
+3. **Paywall gate** — ✅ **Built (dormant).** Model chosen (Lincoln, the OpenAI model): **prepaid credits,
+   each build deducts its REAL measured cost × margin** (`APP_ENGINE_BILLING_MARGIN`, default 1.30 =
+   cost + 30%). A build always runs to completion — it's only blocked from *starting* if the balance is
+   below a small floor (`canAffordBuild`); the real cost is deducted after via `chargeForBuild(userKey,
+   buildRef, actualCostCents)`. `grantFreeStarterIfNew` is the freemium hook. *Remaining:* wire the
+   charge into the customer-build trigger (sum the build's metering → pass as actualCostCents).
 4. **Stripe integration** — ✅ **Built (dormant).** `/api/billing/checkout` (buy a credit pack) +
    `/api/billing/webhook` (signature-verified, idempotent per Stripe event → tops up balance) + a
    credits panel + buy buttons on `/account`. No SDK (REST + HMAC). Wallet on Postgres in integer
