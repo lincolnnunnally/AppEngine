@@ -14,7 +14,10 @@
 // So this is safe: billing is dormant until enabled, and deploy stays prepare-only.
 import { generateProjectApp } from "@/lib/engine/app-generator";
 import { canAffordBuild, chargeForBuild, isBillingEnabled } from "@/lib/engine/billing";
+import type { BuildGateClearance } from "@/lib/engine/build-gate";
+import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
+import { isLocalMode } from "@/lib/engine/local-mode";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 
 export class BuildAffordabilityError extends Error {
@@ -23,6 +26,46 @@ export class BuildAffordabilityError extends Error {
     super(message);
     this.name = "BuildAffordabilityError";
   }
+}
+
+export class CustomerBuildUnavailableError extends Error {
+  code = "CUSTOMER_BUILD_NOT_ENABLED";
+  constructor(message: string) {
+    super(message);
+    this.name = "CustomerBuildUnavailableError";
+  }
+}
+
+// The clearance a customer build carries through the canonical build gate: they
+// came through intake + the conversation (clarification) and we're building new.
+function customerGateClearance(userKey: string, at: string): BuildGateClearance {
+  return {
+    intakeGateId: `customer:${userKey}:${at}`,
+    clarified: true,
+    priorWork: { passed: true, verdict: "build_new" }
+  };
+}
+
+// Customer's described idea -> a project they own that's cleared to build -> a
+// billed build. Local/dev only until the production customer-projects migration
+// is applied (gate-clearance + owner columns); see db/customer-projects-migration.sql.
+export async function startCustomerBuild(
+  userKey: string,
+  idea: string,
+  name?: string
+): Promise<BilledBuildResult & { projectId: string }> {
+  if (!isLocalMode()) {
+    throw new CustomerBuildUnavailableError("Customer builds aren't enabled on production yet.");
+  }
+
+  const at = new Date().toISOString();
+  const created = await createLocalPlannedProject(
+    { idea, name, revenueModel: "Not sure yet", appType: "Auto detect" },
+    { customerEmail: userKey, gateClearance: customerGateClearance(userKey, at) }
+  );
+  const projectId = created.project.id;
+  const result = await runBilledBuild(projectId, userKey);
+  return { projectId, ...result };
 }
 
 export type BilledBuildResult = {

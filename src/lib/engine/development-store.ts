@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentStructuredArtifact } from "./agent-artifacts";
+import type { BuildGateClearance } from "./build-gate";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
 import type { CreateProjectInput } from "./persistence";
@@ -25,6 +26,9 @@ type StoredProject = {
   created_at: string;
   updated_at: string;
   plan: ReturnType<typeof analyzeIdea>;
+  // Customer ownership + canonical-gate clearance for customer-triggered builds.
+  created_by_user_email?: string;
+  gateClearance?: BuildGateClearance;
 };
 
 export type StoredRun = {
@@ -166,7 +170,10 @@ export async function getLocalStoreStats() {
   };
 }
 
-export async function createLocalPlannedProject(input: CreateProjectInput) {
+export async function createLocalPlannedProject(
+  input: CreateProjectInput,
+  ownership?: { customerEmail?: string; gateClearance?: BuildGateClearance }
+) {
   const store = await readStore();
   const plan = analyzeIdea(input);
   const now = new Date().toISOString();
@@ -182,7 +189,9 @@ export async function createLocalPlannedProject(input: CreateProjectInput) {
     task_count: defaultTaskGraph.length,
     created_at: now,
     updated_at: now,
-    plan
+    plan,
+    created_by_user_email: ownership?.customerEmail,
+    gateClearance: ownership?.gateClearance
   };
 
   store.projects.unshift(project);

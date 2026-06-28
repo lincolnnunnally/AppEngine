@@ -32,6 +32,30 @@ runStep("deploy stays prepare-only (no real deploy executed here)", () => {
   }
 });
 
+runStep("customer build entry creates an owned, gate-cleared project; prod-gated", () => {
+  const text = read("src/lib/engine/customer-build.ts");
+  assertIncludes(text, "startCustomerBuild", "customer entry function");
+  assertIncludes(text, "customerGateClearance", "constructs canonical-gate clearance");
+  assertIncludes(text, "clarified: true", "clearance marks clarification done");
+  assertIncludes(text, '"build_new"', "clearance verdict build_new");
+  assertIncludes(text, "customerEmail: userKey", "project owned by the customer");
+  assertIncludes(text, "if (!isLocalMode())", "production is gated until the migration");
+  assertIncludes(text, "CustomerBuildUnavailableError", "clear prod-not-enabled error");
+});
+
+runStep("build route is sign-in gated and maps errors to friendly statuses", () => {
+  const text = read("src/app/api/build/start/route.ts");
+  assertIncludes(text, "canAccessEngineConsumerSurface", "requires sign-in");
+  assertIncludes(text, "BuildAffordabilityError", "402 on insufficient credits");
+  assertIncludes(text, "CustomerBuildUnavailableError", "503 when not enabled on prod");
+});
+
+runStep("a reviewable prod migration exists and is additive/backward-compatible", () => {
+  const text = read("db/customer-projects-migration.sql");
+  assertIncludes(text, "ADD COLUMN IF NOT EXISTS created_by_user_email", "owner column");
+  assertIncludes(text, "ADD COLUMN IF NOT EXISTS gate_clearance", "gate clearance column");
+});
+
 console.log("customer-build smoke ok");
 
 function read(p) {
