@@ -1,9 +1,29 @@
 import { z } from "zod";
 import { getDatabase } from "@/lib/db/client";
+import type { BuildGateClearance } from "./build-gate";
 import { createLocalPlannedProject, listLocalProjects } from "./development-store";
 import { isLocalMode } from "./local-mode";
 import { analyzeIdea } from "./planner";
 import { defaultTaskGraph } from "./tasks";
+
+export type ProjectOwnership = { customerEmail?: string; gateClearance?: BuildGateClearance };
+
+// Self-applies the additive customer-project columns (idempotent). The Vercel API
+// won't hand out the prod connection string, so the app applies this safe,
+// backward-compatible migration itself on first use. See db/customer-projects-migration.sql.
+let customerColumnsReady: Promise<void> | null = null;
+export async function ensureCustomerProjectColumns(sql: ReturnType<typeof getDatabase>): Promise<void> {
+  if (!customerColumnsReady) {
+    customerColumnsReady = (async () => {
+      await sql`ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS created_by_user_email text`;
+      await sql`ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS gate_clearance jsonb`;
+    })().catch((error) => {
+      customerColumnsReady = null;
+      throw error;
+    });
+  }
+  return customerColumnsReady;
+}
 
 export const createProjectInput = z.object({
   idea: z.string().min(8),
@@ -39,14 +59,16 @@ export async function listPlannedProjects() {
   };
 }
 
-export async function createPlannedProject(input: CreateProjectInput) {
+export async function createPlannedProject(input: CreateProjectInput, ownership?: ProjectOwnership) {
   if (isLocalMode()) {
-    return createLocalPlannedProject(input);
+    return createLocalPlannedProject(input, ownership);
   }
 
   const sql = getDatabase();
+  await ensureCustomerProjectColumns(sql);
   const plan = analyzeIdea(input);
   const projectName = input.name || plan.title || "Untitled App";
+  const gateClearanceJson = ownership?.gateClearance ? JSON.stringify(ownership.gateClearance) : null;
 
   const [project] = await sql`
     insert into app_projects (
@@ -60,7 +82,9 @@ export async function createPlannedProject(input: CreateProjectInput) {
       build_target,
       status,
       readiness_score,
-      created_by_user_id
+      created_by_user_id,
+      created_by_user_email,
+      gate_clearance
     )
     values (
       ${projectName},
@@ -73,7 +97,9 @@ export async function createPlannedProject(input: CreateProjectInput) {
       ${input.buildTarget || plan.recommendedTarget},
       'planned',
       25,
-      null
+      null,
+      ${ownership?.customerEmail ?? null},
+      ${gateClearanceJson}::jsonb
     )
     returning *
   `;

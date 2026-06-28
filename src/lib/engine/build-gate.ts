@@ -1,5 +1,7 @@
+import { getDatabase } from "@/lib/db/client";
 import { getLocalProject } from "@/lib/engine/development-store";
 import { isLocalMode } from "@/lib/engine/local-mode";
+import { ensureCustomerProjectColumns } from "@/lib/engine/persistence";
 
 // Build gate (guardrail, not a feature).
 //
@@ -63,9 +65,14 @@ export async function loadProjectGateClearance(projectId: string): Promise<Build
     return project?.gateClearance ?? null;
   }
 
-  // Durable (DB) clearance requires a future approved migration to persist a
-  // gate-clearance column. Until then, the DB-backed legacy build fails closed.
-  return null;
+  // Production: read the project's clearance from the DB (the column is applied
+  // idempotently on first use). A project with no clearance still fails closed.
+  const sql = getDatabase();
+  await ensureCustomerProjectColumns(sql);
+  const rows = (await sql`select gate_clearance from app_projects where id = ${projectId} limit 1`) as Array<{
+    gate_clearance?: BuildGateClearance | null;
+  }>;
+  return (rows[0]?.gate_clearance as BuildGateClearance) ?? null;
 }
 
 export async function assertProjectBuildAllowed(projectId: string, action: string): Promise<void> {

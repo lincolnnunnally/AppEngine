@@ -32,15 +32,23 @@ runStep("deploy stays prepare-only (no real deploy executed here)", () => {
   }
 });
 
-runStep("customer build entry creates an owned, gate-cleared project; prod-gated", () => {
+runStep("customer build entry creates an owned, gate-cleared project (local + DB)", () => {
   const text = read("src/lib/engine/customer-build.ts");
   assertIncludes(text, "startCustomerBuild", "customer entry function");
   assertIncludes(text, "customerGateClearance", "constructs canonical-gate clearance");
   assertIncludes(text, "clarified: true", "clearance marks clarification done");
   assertIncludes(text, '"build_new"', "clearance verdict build_new");
   assertIncludes(text, "customerEmail: userKey", "project owned by the customer");
-  assertIncludes(text, "if (!isLocalMode())", "production is gated until the migration");
-  assertIncludes(text, "CustomerBuildUnavailableError", "clear prod-not-enabled error");
+  assertIncludes(text, "createPlannedProject(input, ownership)", "DB-mode customer project");
+});
+
+runStep("DB mode self-applies columns + reads gate clearance", () => {
+  const persistence = read("src/lib/engine/persistence.ts");
+  assertIncludes(persistence, "ADD COLUMN IF NOT EXISTS created_by_user_email", "idempotent owner column");
+  assertIncludes(persistence, "ADD COLUMN IF NOT EXISTS gate_clearance", "idempotent clearance column");
+  assertIncludes(persistence, "gate_clearance", "clearance written on insert");
+  const gate = read("src/lib/engine/build-gate.ts");
+  assertIncludes(gate, "select gate_clearance from app_projects", "gate reads clearance from DB");
 });
 
 runStep("build route is sign-in gated and maps errors to friendly statuses", () => {

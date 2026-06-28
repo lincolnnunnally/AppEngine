@@ -19,6 +19,7 @@ import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
 import { isLocalMode } from "@/lib/engine/local-mode";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
+import { createPlannedProject } from "@/lib/engine/persistence";
 
 export class BuildAffordabilityError extends Error {
   code = "INSUFFICIENT_CREDITS";
@@ -54,16 +55,15 @@ export async function startCustomerBuild(
   idea: string,
   name?: string
 ): Promise<BilledBuildResult & { projectId: string }> {
-  if (!isLocalMode()) {
-    throw new CustomerBuildUnavailableError("Customer builds aren't enabled on production yet.");
-  }
-
   const at = new Date().toISOString();
-  const created = await createLocalPlannedProject(
-    { idea, name, revenueModel: "Not sure yet", appType: "Auto detect" },
-    { customerEmail: userKey, gateClearance: customerGateClearance(userKey, at) }
-  );
-  const projectId = created.project.id;
+  const input = { idea, name, revenueModel: "Not sure yet", appType: "Auto detect" };
+  const ownership = { customerEmail: userKey, gateClearance: customerGateClearance(userKey, at) };
+
+  const created = isLocalMode()
+    ? await createLocalPlannedProject(input, ownership)
+    : await createPlannedProject(input, ownership);
+
+  const projectId = String((created as { project: { id: string } }).project.id);
   const result = await runBilledBuild(projectId, userKey);
   return { projectId, ...result };
 }
