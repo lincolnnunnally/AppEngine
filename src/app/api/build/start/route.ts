@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { auth } from "@/auth";
 import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
-import { BuildAffordabilityError, CustomerBuildUnavailableError, startCustomerBuild } from "@/lib/engine/customer-build";
+import { createBuildJob } from "@/lib/engine/build-jobs";
+import { runCustomerBuildJob } from "@/lib/engine/customer-build";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// A full build (LLM agents + deploy kickoff) runs longer than a default request,
+// so we use the function's allowed budget and run the work after responding.
+export const maxDuration = 60;
 
-// A signed-in customer triggers a build of their described idea. Today this runs
-// the real generation pipeline in local/dev mode; on production it returns a
-// clear "not enabled yet" until the customer-projects migration is applied.
+// Kicks off a customer's build and returns a job id immediately. The heavy work
+// (generate the real app -> deploy it live) runs in the background; the client
+// polls /api/build/status for progress and the live URL.
 export async function POST(request: Request) {
   if (!(await canAccessEngineConsumerSurface())) {
     return json({ ok: false, message: "Please sign in first." }, 401);
@@ -34,18 +39,12 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "Describe what you want built (a sentence or two)." }, 400);
   }
 
-  try {
-    const result = await startCustomerBuild(userKey, idea, name);
-    return json({ ok: true, projectId: result.projectId, charge: result.charge });
-  } catch (caught) {
-    if (caught instanceof CustomerBuildUnavailableError) {
-      return json({ ok: false, message: caught.message, code: caught.code }, 503);
-    }
-    if (caught instanceof BuildAffordabilityError) {
-      return json({ ok: false, message: caught.message, code: caught.code }, 402);
-    }
-    return json({ ok: false, message: caught instanceof Error ? caught.message : "Build failed." }, 500);
-  }
+  const job = await createBuildJob(userKey, idea);
+  after(async () => {
+    await runCustomerBuildJob(job.id, userKey, idea, name);
+  });
+
+  return json({ ok: true, jobId: job.id, status: "building" });
 }
 
 function json(body: Record<string, unknown>, status = 200) {
