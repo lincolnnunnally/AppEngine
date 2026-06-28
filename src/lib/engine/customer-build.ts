@@ -12,14 +12,18 @@
 //     commands — real execution is a separate, outward-facing build),
 //   - auto-provision a per-app Neon database.
 // So this is safe: billing is dormant until enabled, and deploy stays prepare-only.
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { generateProjectApp } from "@/lib/engine/app-generator";
 import { canAffordBuild, chargeForBuild, isBillingEnabled } from "@/lib/engine/billing";
 import type { BuildGateClearance } from "@/lib/engine/build-gate";
+import { updateBuildJob } from "@/lib/engine/build-jobs";
 import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
 import { isLocalMode } from "@/lib/engine/local-mode";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 import { createPlannedProject } from "@/lib/engine/persistence";
+import { deployGeneratedAppToVercel, type DeployFile } from "@/lib/engine/vercel-deploy";
 
 export class BuildAffordabilityError extends Error {
   code = "INSUFFICIENT_CREDITS";
@@ -66,6 +70,59 @@ export async function startCustomerBuild(
   const projectId = String((created as { project: { id: string } }).project.id);
   const result = await runBilledBuild(projectId, userKey);
   return { projectId, ...result };
+}
+
+// Reads the generated app bundle back from disk (written moments earlier in this
+// same request) into deployable {path, content} files, skipping engine manifests.
+async function readGeneratedBundle(projectId: string): Promise<DeployFile[]> {
+  const root = join(process.cwd(), ".app-engine", "generated-apps");
+  const dirs = await readdir(root).catch(() => [] as string[]);
+  const dir = dirs.find((entry) => entry.startsWith(projectId));
+  if (!dir) return [];
+  const base = join(root, dir);
+  const files: DeployFile[] = [];
+
+  async function walk(rel: string) {
+    const entries = await readdir(join(base, rel), { withFileTypes: true });
+    for (const entry of entries) {
+      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules" || entry.name === ".next") continue;
+        await walk(childRel);
+      } else if (!entry.name.startsWith("app-engine-")) {
+        files.push({ path: childRel, content: await readFile(join(base, childRel), "utf8") });
+      }
+    }
+  }
+
+  await walk("");
+  return files;
+}
+
+// The async build worker (run after the response): generate the real app, deploy
+// it live to its own Vercel project, and advance the job through its states.
+export async function runCustomerBuildJob(jobId: string, userKey: string, idea: string, name?: string): Promise<void> {
+  try {
+    const built = await startCustomerBuild(userKey, idea, name);
+    await updateBuildJob(jobId, { projectId: built.projectId, status: "deploying" });
+
+    const files = await readGeneratedBundle(built.projectId);
+    if (!files.length) {
+      await updateBuildJob(jobId, { status: "failed", error: "No generated files were produced to deploy." });
+      return;
+    }
+
+    const deploy = await deployGeneratedAppToVercel((name || idea).slice(0, 40), files);
+    if (!deploy.ok) {
+      await updateBuildJob(jobId, { status: "failed", error: deploy.message || "Deploy didn't start." });
+      return;
+    }
+
+    // URL exists now; the Vercel build finishes async — status polling flips it to "live".
+    await updateBuildJob(jobId, { status: "deploying", deploymentId: deploy.deploymentId ?? null, url: deploy.url ?? null });
+  } catch (error) {
+    await updateBuildJob(jobId, { status: "failed", error: error instanceof Error ? error.message : "Build failed." });
+  }
 }
 
 export type BilledBuildResult = {
