@@ -27,7 +27,9 @@ export const INTEGRATION_FIELDS: IntegrationField[] = [
   { key: "OPENAI_MODEL", label: "OpenAI Model", group: "AI builds", secret: false, placeholder: "gpt-5.1" },
   { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", group: "Payments", secret: true, placeholder: "sk_live_… (use sk_test_… first)" },
   { key: "STRIPE_WEBHOOK_SECRET", label: "Stripe Webhook Signing Secret", group: "Payments", secret: true, placeholder: "whsec_…" },
-  { key: "APP_ENGINE_BILLING_ENABLED", label: "Billing enabled (true to charge for builds)", group: "Payments", secret: false, placeholder: "false" }
+  { key: "APP_ENGINE_BILLING_ENABLED", label: "Billing enabled (true to charge for builds)", group: "Payments", secret: false, placeholder: "false" },
+  { key: "PORKBUN_API_KEY", label: "Porkbun API Key (custom domains)", group: "Domains", secret: true, placeholder: "pk1_…" },
+  { key: "PORKBUN_SECRET_KEY", label: "Porkbun Secret Key", group: "Domains", secret: true, placeholder: "sk1_…" }
 ];
 
 const VERCEL_API = "https://api.vercel.com";
