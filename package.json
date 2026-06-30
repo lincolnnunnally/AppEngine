@@ -61,6 +61,7 @@
     "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
     "smoke:async-build": "node scripts/smoke-async-build.js",
     "smoke:domains": "node scripts/smoke-domains.js",
+    "smoke:domain-purchase": "node scripts/smoke-domain-purchase.js",
     "smoke:chatgpt-handoff": "node scripts/smoke-chatgpt-handoff.js",
     "smoke:handoff-relay": "node scripts/smoke-handoff-relay-reducer.js",
     "smoke:project-memory": "node scripts/smoke-project-memory.js",
