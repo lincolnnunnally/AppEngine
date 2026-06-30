@@ -157,6 +157,12 @@ export async function chargeForBuild(userKey: string, buildReference: string, ac
   return applyLedger(userKey, -Math.abs(price), "build", `build:${buildReference}`, `App build (cost ${Math.round(actualCostCents)}c + margin)`);
 }
 
+// Charges a domain purchase (the price already includes margin). Idempotent per
+// domain, so a retry never double-charges. Refund via creditAccount on failure.
+export async function chargeForDomain(userKey: string, domain: string, priceCents: number): Promise<number> {
+  return applyLedger(userKey, -Math.abs(Math.round(priceCents)), "domain", `domain:${domain.toLowerCase()}`, `Domain ${domain}`);
+}
+
 // One-time free starter credit per user (the freemium hook). Idempotent.
 export async function grantFreeStarterIfNew(userKey: string): Promise<void> {
   const { freeStarterCents } = getBillingConfig();

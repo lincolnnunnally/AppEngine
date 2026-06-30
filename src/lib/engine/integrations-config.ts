@@ -30,6 +30,7 @@ export const INTEGRATION_FIELDS: IntegrationField[] = [
   { key: "APP_ENGINE_BILLING_ENABLED", label: "Billing enabled (true to charge for builds)", group: "Payments", secret: false, placeholder: "false" },
   { key: "SPACESHIP_API_KEY", label: "Spaceship API Key (custom domains)", group: "Domains", secret: true },
   { key: "SPACESHIP_API_SECRET", label: "Spaceship API Secret", group: "Domains", secret: true },
+  { key: "SPACESHIP_CONTACT_ID", label: "Spaceship Contact ID (registrant for purchases)", group: "Domains", secret: false },
   { key: "PORKBUN_API_KEY", label: "Porkbun API Key (alt. registrar)", group: "Domains", secret: true, placeholder: "pk1_…" },
   { key: "PORKBUN_SECRET_KEY", label: "Porkbun Secret Key", group: "Domains", secret: true, placeholder: "sk1_…" }
 ];
