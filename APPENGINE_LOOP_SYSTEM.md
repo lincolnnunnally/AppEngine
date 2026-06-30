@@ -101,6 +101,18 @@ Use `loop-runs/RUN_RECORD_TEMPLATE.md` for manual records.
 6. Do not build automation until at least one manual loop has passed with a real run record.
 7. Run the Prior-Work Check before defining acceptance criteria for a build. It is blocking: extend existing surfaces when prior work is found, and never assume "nothing exists" when the target repo cannot be read. See `source-of-truth/prior-work-check-gate.md`.
 
+## App Output Conventions
+
+When AppEngine owns or migrates an app build, the app repo should use an `appengine/<app-slug>-<purpose>` branch.
+
+Each AppEngine-managed app should keep these app-level documents:
+
+- `PRODUCT_SOURCE_OF_TRUTH.md`: goal, problem, target customer, philosophy, customer-facing solution, and decision boundaries.
+- `LAUNCH_RUNBOOK.md`: deployment, provider setup, environment variables, DNS, migration order, and verification.
+- `BUILD_LOG.md`: dated build history, changes made, tests run, and evidence.
+
+These are not interchangeable. The source of truth says why and what. The runbook says how to operate and launch. The build log says what happened.
+
 ## Where This Lives
 
 Now:
@@ -158,4 +170,4 @@ Acceptance criteria:
 
 The proof record lives in `loop-runs/2026-06-21-internal-appengine-intake-page-cycle-1.md`.
 
-Last updated: 2026-06-21, v1.
+Last updated: 2026-06-30, v1.1.
