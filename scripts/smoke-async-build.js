@@ -22,12 +22,22 @@ runStep("start route returns a job id fast and runs the work after responding", 
   assertIncludes(text, "canAccessEngineConsumerSurface", "sign-in gated");
 });
 
-runStep("worker generates the real app then deploys it live", () => {
+runStep("worker generates -> provisions its own Neon DB -> deploys it live", () => {
   const text = read("src/lib/engine/customer-build.ts");
   assertIncludes(text, "runCustomerBuildJob", "worker exists");
   assertIncludes(text, "readGeneratedBundle", "reads the generated files");
-  assertIncludes(text, "deployGeneratedAppToVercel", "deploys them live");
+  assertIncludes(text, "provisionGeneratedAppDatabaseUrl", "each app gets its own Neon DB");
+  assertIncludes(text, "setupGeneratedAppDatabase", "applies the app's schema");
+  assertIncludes(text, "DATABASE_URL", "passes the DB url to the deploy env");
+  assertIncludes(text, "deployGeneratedAppToVercel", "deploys with env");
   assertIncludes(text, "updateBuildJob", "advances the job state");
+});
+
+runStep("deploy sets the app's env before building", () => {
+  const text = read("src/lib/engine/vercel-deploy.ts");
+  assertIncludes(text, "env?: Record<string, string>", "accepts env");
+  assertIncludes(text, "/v9/projects", "creates the project up front");
+  assertIncludes(text, "/env?upsert=true", "sets env vars");
 });
 
 runStep("status route polls the deploy and flips to live with the URL", () => {

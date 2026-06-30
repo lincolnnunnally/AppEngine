@@ -415,6 +415,14 @@ async function getGeneratedDatabaseTarget(projectId: string, projectName?: strin
   return neonTarget;
 }
 
+// Provisions (or reuses) this app's own isolated Neon database and returns its
+// connection string, so the deploy can set it as the app's DATABASE_URL. Returns
+// null when no Neon API is configured (then the app deploys without its own DB).
+export async function provisionGeneratedAppDatabaseUrl(projectId: string, projectName?: string): Promise<string | null> {
+  const target = await getGeneratedDatabaseTarget(projectId, projectName);
+  return target?.databaseUrl ?? null;
+}
+
 export function buildGeneratedAppDatabaseEnvKeys(projectId: string, projectName?: string) {
   const keys = [`GENERATED_APP_DATABASE_URL_${toEnvKeySuffix(projectId)}`];
   const nameSuffix = projectName ? toEnvKeySuffix(projectName) : "";
