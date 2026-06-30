@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { getBuildJob, updateBuildJob } from "@/lib/engine/build-jobs";
-import { getDeploymentState } from "@/lib/engine/vercel-deploy";
+import { getDeploymentState, verifyDeployedApp } from "@/lib/engine/vercel-deploy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,8 +35,12 @@ export async function GET(request: Request) {
     const state = await getDeploymentState(job.deploymentId);
     if (state.state === "READY") {
       const url = state.url || job.url;
+      // Completion gate (AIPOS): record whether the URL actually serves, so "live"
+      // is verified — not just "Vercel says READY". We don't block on it (avoids a
+      // hang if the app is slow to warm), but we report it honestly.
+      const verified = url ? await verifyDeployedApp(url) : false;
       await updateBuildJob(jobId, { status: "live", url });
-      return json({ ok: true, status: "live", url });
+      return json({ ok: true, status: "live", url, verified });
     }
     if (state.state === "ERROR" || state.state === "CANCELED") {
       await updateBuildJob(jobId, { status: "failed", error: "The deployment failed while building." });
