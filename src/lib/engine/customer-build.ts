@@ -12,12 +12,14 @@
 //     commands — real execution is a separate, outward-facing build),
 //   - auto-provision a per-app Neon database.
 // So this is safe: billing is dormant until enabled, and deploy stays prepare-only.
+import crypto from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { generateProjectApp } from "@/lib/engine/app-generator";
 import { canAffordBuild, chargeForBuild, isBillingEnabled } from "@/lib/engine/billing";
 import type { BuildGateClearance } from "@/lib/engine/build-gate";
 import { updateBuildJob } from "@/lib/engine/build-jobs";
+import { provisionGeneratedAppDatabaseUrl, setupGeneratedAppDatabase } from "@/lib/engine/database-setup";
 import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
 import { isLocalMode } from "@/lib/engine/local-mode";
@@ -112,7 +114,21 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
       return;
     }
 
-    const deploy = await deployGeneratedAppToVercel((name || idea).slice(0, 40), files);
+    // Each customer app gets its OWN isolated Neon database (free tier). Provision
+    // it, apply the generated schema, and pass it to the deploy as env so the live
+    // app is wired to its own DB. If Neon isn't configured, deploy without one.
+    let appEnv: Record<string, string> | undefined;
+    try {
+      const dbUrl = await provisionGeneratedAppDatabaseUrl(built.projectId, name);
+      if (dbUrl) {
+        await setupGeneratedAppDatabase(built.projectId).catch(() => {});
+        appEnv = { DATABASE_URL: dbUrl, AUTH_SECRET: crypto.randomBytes(32).toString("hex") };
+      }
+    } catch {
+      // Provisioning is best-effort; a build still deploys (DB features need it though).
+    }
+
+    const deploy = await deployGeneratedAppToVercel((name || idea).slice(0, 40), files, appEnv);
     if (!deploy.ok) {
       await updateBuildJob(jobId, { status: "failed", error: deploy.message || "Deploy didn't start." });
       return;

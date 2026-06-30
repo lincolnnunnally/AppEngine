@@ -50,7 +50,11 @@ async function vercel(path: string, init?: RequestInit) {
   });
 }
 
-export async function deployGeneratedAppToVercel(slug: string, files: DeployFile[]): Promise<DeployResult> {
+export async function deployGeneratedAppToVercel(
+  slug: string,
+  files: DeployFile[],
+  env?: Record<string, string>
+): Promise<DeployResult> {
   if (!vercelDeployConfigured()) {
     return { ok: false, message: "Vercel deploy isn't configured (VERCEL_TOKEN)." };
   }
@@ -61,6 +65,24 @@ export async function deployGeneratedAppToVercel(slug: string, files: DeployFile
   const projectName = projectNameFromSlug(slug);
 
   try {
+    // 0. Create the project up front + set its env, so the build/runtime have the
+    //    app's own DATABASE_URL etc. (env applies to deployments created after it).
+    if (env && Object.keys(env).length) {
+      await vercel("/v9/projects", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: projectName, framework: "nextjs" })
+      }).catch(() => {});
+      for (const [key, value] of Object.entries(env)) {
+        if (!value) continue;
+        await vercel(`/v10/projects/${encodeURIComponent(projectName)}/env?upsert=true`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ key, value, type: "encrypted", target: ["production"] })
+        }).catch(() => {});
+      }
+    }
+
     // 1. Upload each file by sha.
     const refs: Array<{ file: string; sha: string; size: number }> = [];
     for (const file of files) {
