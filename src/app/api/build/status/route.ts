@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       // hang if the app is slow to warm), but we report it honestly.
       const verified = url ? await verifyDeployedApp(url) : false;
       await updateBuildJob(jobId, { status: "live", url });
-      return json({ ok: true, status: "live", url, verified });
+      return json({ ok: true, status: "live", url, verified, project: job.vercelProject });
     }
     if (state.state === "ERROR" || state.state === "CANCELED") {
       await updateBuildJob(jobId, { status: "failed", error: "The deployment failed while building." });
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return json({ ok: true, status: job.status, url: job.url, error: job.error });
+  return json({ ok: true, status: job.status, url: job.url, error: job.error, project: job.vercelProject });
 }
 
 function json(body: Record<string, unknown>, status = 200) {

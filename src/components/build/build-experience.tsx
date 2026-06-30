@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { DomainStep } from "@/components/build/domain-step";
 
 type Phase = "idle" | "building" | "deploying" | "live" | "failed";
 
@@ -12,10 +13,11 @@ const LABEL: Record<Phase, string> = {
   failed: "Something went wrong."
 };
 
-export function BuildExperience() {
+export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: boolean }) {
   const [idea, setIdea] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState<string | null>(null);
+  const [project, setProject] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,6 +29,7 @@ export function BuildExperience() {
           ok?: boolean;
           status?: Phase;
           url?: string;
+          project?: string;
           error?: string;
           message?: string;
         };
@@ -37,6 +40,7 @@ export function BuildExperience() {
         }
         if (data.status) setPhase(data.status);
         if (data.url) setUrl(data.url);
+        if (data.project) setProject(data.project);
         if (data.status === "live") return;
         if (data.status === "failed") {
           setError(data.error || "Build failed.");
@@ -53,6 +57,7 @@ export function BuildExperience() {
   async function start() {
     setError(null);
     setUrl(null);
+    setProject(null);
     setPhase("building");
     try {
       const response = await fetch("/api/build/start", {
@@ -108,6 +113,8 @@ export function BuildExperience() {
           {error ? <p className="integration-notice integration-notice--error">{error}</p> : null}
         </div>
       ) : null}
+
+      {phase === "live" ? <DomainStep projectName={project} domainsEnabled={domainsEnabled} /> : null}
     </section>
   );
 }

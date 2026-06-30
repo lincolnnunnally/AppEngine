@@ -135,7 +135,13 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
     }
 
     // URL exists now; the Vercel build finishes async — status polling flips it to "live".
-    await updateBuildJob(jobId, { status: "deploying", deploymentId: deploy.deploymentId ?? null, url: deploy.url ?? null });
+    // Persist the Vercel project name so the domain step can attach a bought domain to it.
+    await updateBuildJob(jobId, {
+      status: "deploying",
+      deploymentId: deploy.deploymentId ?? null,
+      url: deploy.url ?? null,
+      vercelProject: deploy.projectName ?? null
+    });
   } catch (error) {
     await updateBuildJob(jobId, { status: "failed", error: error instanceof Error ? error.message : "Build failed." });
   }
