@@ -18,6 +18,8 @@ export type BuildJob = {
   deploymentId: string | null;
   url: string | null;
   error: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 };
 
 const memory = new Map<string, BuildJob>();
@@ -65,11 +67,20 @@ function rowToJob(row: Record<string, unknown>): BuildJob {
     status: (row.status as BuildJobStatus) ?? "building",
     deploymentId: (row.deployment_id as string) ?? null,
     url: (row.url as string) ?? null,
-    error: (row.error as string) ?? null
+    error: (row.error as string) ?? null,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at)
   };
 }
 
+function toIso(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
 export async function createBuildJob(userEmail: string, idea: string): Promise<BuildJob> {
+  const now = new Date().toISOString();
   const job: BuildJob = {
     id: newJobId(),
     projectId: null,
@@ -78,7 +89,9 @@ export async function createBuildJob(userEmail: string, idea: string): Promise<B
     status: "building",
     deploymentId: null,
     url: null,
-    error: null
+    error: null,
+    createdAt: now,
+    updatedAt: now
   };
 
   if (useDb()) {
@@ -101,6 +114,21 @@ export async function getBuildJob(id: string): Promise<BuildJob | null> {
   return memory.get(id) ?? null;
 }
 
+// Every build a customer has started, newest first — backs the account dashboard.
+export async function listBuildJobsForUser(userEmail: string): Promise<BuildJob[]> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      select * from app_build_jobs where user_email = ${userEmail} order by created_at desc
+    `) as Array<Record<string, unknown>>;
+    return rows.map(rowToJob);
+  }
+  return [...memory.values()]
+    .filter((job) => job.userEmail === userEmail)
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
 export async function updateBuildJob(id: string, patch: Partial<BuildJob>): Promise<void> {
   if (useDb()) {
     const sql = getDatabase();
@@ -118,5 +146,5 @@ export async function updateBuildJob(id: string, patch: Partial<BuildJob>): Prom
     return;
   }
   const existing = memory.get(id);
-  if (existing) memory.set(id, { ...existing, ...patch });
+  if (existing) memory.set(id, { ...existing, ...patch, updatedAt: new Date().toISOString() });
 }

@@ -4224,6 +4224,104 @@ label {
   width: 100%;
 }
 
+/* Account dashboard: the customer's list of built apps. */
+.account-apps {
+  display: grid;
+  gap: 14px;
+}
+
+.account-app {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--green-soft);
+  display: grid;
+  gap: 8px;
+}
+
+.account-app-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-app-head h3 {
+  margin: 0;
+}
+
+.account-app-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.account-app-error {
+  color: var(--coral);
+  margin: 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.status-badge--live {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.status-badge--building,
+.status-badge--deploying {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.status-badge--failed {
+  border-color: var(--coral);
+  color: var(--coral);
+}
+
+.account-empty {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.account-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--teal);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  width: fit-content;
+}
+
+.account-change-form {
+  display: grid;
+  gap: 10px;
+}
+
+.account-change-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.account-change-done {
+  color: var(--muted);
+  margin: 0;
+}
+
 .signin-secondary {
   min-height: 40px;
   width: 100%;
