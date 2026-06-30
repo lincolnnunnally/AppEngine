@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { BuildExperience } from "@/components/build/build-experience";
 import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
+import { domainPurchaseEnabled } from "@/lib/engine/domain-purchase";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export default async function BuildPage() {
 
   return (
     <main className="shell">
-      <BuildExperience />
+      <BuildExperience domainsEnabled={domainPurchaseEnabled()} />
     </main>
   );
 }

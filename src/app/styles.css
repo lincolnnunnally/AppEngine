@@ -4322,6 +4322,47 @@ label {
   margin: 0;
 }
 
+/* Domain review step: optional custom domain after a build goes live. */
+.domain-step {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.domain-search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.domain-search .convo-input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.domain-result {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin: 4px 0 0;
+}
+
+.domain-confirm {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.domain-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .signin-secondary {
   min-height: 40px;
   width: 100%;

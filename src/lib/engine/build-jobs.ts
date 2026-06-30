@@ -18,6 +18,7 @@ export type BuildJob = {
   deploymentId: string | null;
   url: string | null;
   error: string | null;
+  vercelProject: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -46,6 +47,9 @@ async function ensureTable(sql: ReturnType<typeof getDatabase>): Promise<void> {
           updated_at timestamptz NOT NULL DEFAULT now()
         )
       `;
+      // Self-applying column add for tables created before the domain step shipped
+      // (Vercel won't expose the prod connection string, so migrations run at runtime).
+      await sql`ALTER TABLE app_build_jobs ADD COLUMN IF NOT EXISTS vercel_project text`;
     })().catch((error) => {
       tableReady = null;
       throw error;
@@ -68,6 +72,7 @@ function rowToJob(row: Record<string, unknown>): BuildJob {
     deploymentId: (row.deployment_id as string) ?? null,
     url: (row.url as string) ?? null,
     error: (row.error as string) ?? null,
+    vercelProject: (row.vercel_project as string) ?? null,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at)
   };
@@ -90,6 +95,7 @@ export async function createBuildJob(userEmail: string, idea: string): Promise<B
     deploymentId: null,
     url: null,
     error: null,
+    vercelProject: null,
     createdAt: now,
     updatedAt: now
   };
@@ -139,6 +145,7 @@ export async function updateBuildJob(id: string, patch: Partial<BuildJob>): Prom
         status = coalesce(${patch.status ?? null}, status),
         deployment_id = coalesce(${patch.deploymentId ?? null}, deployment_id),
         url = coalesce(${patch.url ?? null}, url),
+        vercel_project = coalesce(${patch.vercelProject ?? null}, vercel_project),
         error = ${patch.error ?? null},
         updated_at = now()
       where id = ${id}

@@ -61,6 +61,23 @@ The wider repo-mining pass added deployment-aware module evidence for the rest o
 
 The deployable-app view now lives in `source-of-truth/ecosystem-deployment-queue.md`. That document is the gate between "code builds" and "safe to deploy." It records build proof, launch blockers, canonical-source blockers, and production approval status.
 
+## Domain Review Step - 2026-06-30 (AppEngine, flagged for Codex review)
+
+AppEngine now ships a consumer-facing **domain review-step** in the build flow
+(`src/components/build/domain-step.tsx`): after a built app goes live, the customer
+can optionally search for a custom domain and buy it (paid, two-step confirm, from
+their credits + margin). It reuses the existing AppEngine domain APIs
+(`src/lib/engine/domains.ts` availability/attach + `domain-purchase.ts` Spaceship
+quote/buy), which were themselves mined from Easy Peasy's domain capability
+(`DomainSearchModal.tsx` / `WebsitesAndDomains.tsx`).
+
+**For Codex:** this is the consumer review-step UI on top of our domain backend — it
+is NOT a second Spaceship module. As the Easy Peasy / EasyPeazy Spaceship search +
+buy + manage component is finished, reconcile the two so there is **one canonical
+domain block** (capability mined once, reused here), not divergent implementations.
+Candidate slug: `domain-search-buy-manage` (source: Easy Peasy; consumed by AppEngine
+build flow).
+
 ## Each block records
 
 - `slug`, `name`, `category`, `purpose`
