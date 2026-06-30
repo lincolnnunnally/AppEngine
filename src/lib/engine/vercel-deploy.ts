@@ -140,6 +140,18 @@ export async function deployGeneratedAppToVercel(
   }
 }
 
+// Completion gate (AIPOS pattern): a build is only "live" once the URL actually
+// responds — not merely once Vercel reports READY. Best-effort; a transient miss
+// just means we report not-yet-verified, never a false failure.
+export async function verifyDeployedApp(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { method: "GET", redirect: "manual" });
+    return response.status >= 200 && response.status < 400;
+  } catch {
+    return false;
+  }
+}
+
 // Async status check for a kicked-off deployment (the build finishes after we return).
 export async function getDeploymentState(deploymentId: string): Promise<{ state: string; url?: string }> {
   try {
