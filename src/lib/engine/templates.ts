@@ -205,7 +205,9 @@ export const coreTemplates: CoreTemplate[] = [
     name: "Billing + Plans",
     category: "Revenue",
     description: "Pricing tiers, subscription state, invoices, usage limits, and upgrade prompts.",
-    triggers: ["saas", "subscription", "usage", "marketplace"],
+    // Foundational Build Packet v1: payments/billing ship as a standard, always-on
+    // module (real Stripe checkout, feature-flagged off-able). See foundation-modules.ts.
+    triggers: ["always"],
     includes: ["Plans", "Subscription", "Invoices", "Usage limits"]
   },
   {
@@ -221,7 +223,8 @@ export const coreTemplates: CoreTemplate[] = [
     name: "Notifications",
     category: "Retention",
     description: "Email and in-app messages for account events, workflow updates, failures, and opportunities.",
-    triggers: ["workflow", "service", "operations", "automation"],
+    // Foundational Build Packet v1: email is a standard, always-on module (Resend).
+    triggers: ["always"],
     includes: ["Email", "In-app feed", "Preferences", "Failure alerts"]
   },
   {
@@ -229,7 +232,9 @@ export const coreTemplates: CoreTemplate[] = [
     name: "Marketplace Core",
     category: "Commerce",
     description: "Supply/demand listings, matches, commissions, vendor profiles, and transaction records.",
-    triggers: ["marketplace", "vendor", "supplier"],
+    // Foundational Build Packet v1: the product catalog / commerce surface is standard
+    // and always-on (real storefront + checkout), feature-flagged off-able.
+    triggers: ["always"],
     includes: ["Listings", "Vendors", "Matches", "Commissions", "Transactions"]
   },
   {

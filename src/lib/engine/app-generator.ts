@@ -7,6 +7,13 @@ import { assertProjectBuildAllowed } from "./build-gate";
 import { createLocalExport, getLocalProject, listLocalExports, listLocalRuns } from "./development-store";
 import { isLocalMode } from "./local-mode";
 import { analyzeIdea } from "./planner";
+import {
+  foundationEnvLines,
+  foundationHomeLinks,
+  foundationModuleFiles,
+  foundationSchemaSql,
+  foundationSeedSql
+} from "./foundation-modules";
 
 type GeneratorProject = {
   id: string;
@@ -372,7 +379,8 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
         'ANTHROPIC_API_KEY=""',
         'VERCEL_TOKEN=""',
         'VERCEL_ORG_ID=""',
-        'VERCEL_PROJECT_ID=""'
+        'VERCEL_PROJECT_ID=""',
+        ...foundationEnvLines()
       ].join("\n")
     },
     {
@@ -405,7 +413,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Open App</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
+      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Open App</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/sign-in/page.tsx",
@@ -541,7 +549,8 @@ export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
     {
       path: "vercel.json",
       content: `${JSON.stringify({ framework: "nextjs", buildCommand: "npm run build" }, null, 2)}\n`
-    }
+    },
+    ...foundationModuleFiles()
   ];
 }
 
@@ -576,6 +585,9 @@ p, small { color: #344138; line-height: 1.55; }
 .button.primary { border-color: var(--teal); color: #fff; background: var(--teal); }
 .card .button { margin-top: 8px; }
 .session-note { display: inline-flex; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--muted); font-size: .9rem; }
+.stack { display: grid; gap: 10px; margin-top: 14px; max-width: 520px; }
+.input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; background: #fff; color: var(--ink); }
+.note { color: var(--muted); font-size: .9rem; margin: 6px 0 0; }
 @media (max-width: 760px) { .grid, .metric-grid { grid-template-columns: 1fr; } }
 `;
 }
@@ -1165,7 +1177,7 @@ create index if not exists deployments_project_environment_idx on deployments(pr
 create index if not exists customer_requests_org_status_idx on customer_requests(organization_id, status);
 create index if not exists notifications_org_read_idx on notifications(organization_id, read_at);
 create index if not exists audit_events_org_idx on audit_events(organization_id, created_at desc);
-`;
+` + foundationSchemaSql() + "\n";
 }
 
 function buildSeedSql(
@@ -1272,7 +1284,7 @@ on conflict (organization_id, name) do update set
   status = excluded.status,
   readiness_score = excluded.readiness_score,
   updated_at = now();
-`;
+` + foundationSeedSql() + "\n";
 }
 
 function slugify(input: string) {
