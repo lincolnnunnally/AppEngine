@@ -26,22 +26,23 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "We couldn't find your account email." }, 400);
   }
 
-  let body: { idea?: unknown; name?: unknown };
+  let body: { idea?: unknown; name?: unknown; themeId?: unknown };
   try {
-    body = (await request.json()) as { idea?: unknown; name?: unknown };
+    body = (await request.json()) as { idea?: unknown; name?: unknown; themeId?: unknown };
   } catch {
     return json({ ok: false, message: "Invalid request." }, 400);
   }
 
   const idea = typeof body.idea === "string" ? body.idea.trim() : "";
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
+  const themeId = typeof body.themeId === "string" ? body.themeId.trim() : undefined;
   if (idea.length < 8) {
     return json({ ok: false, message: "Describe what you want built (a sentence or two)." }, 400);
   }
 
   const job = await createBuildJob(userKey, idea);
   after(async () => {
-    await runCustomerBuildJob(job.id, userKey, idea, name);
+    await runCustomerBuildJob(job.id, userKey, idea, name, themeId);
   });
 
   return json({ ok: true, jobId: job.id, status: "building" });
