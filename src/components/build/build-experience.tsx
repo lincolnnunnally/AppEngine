@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { DomainStep } from "@/components/build/domain-step";
+import { ThemePicker } from "@/components/build/theme-picker";
 
 type Phase = "idle" | "building" | "deploying" | "live" | "failed";
 
@@ -15,6 +16,7 @@ const LABEL: Record<Phase, string> = {
 
 export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: boolean }) {
   const [idea, setIdea] = useState("");
+  const [themeId, setThemeId] = useState("auto");
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
       const response = await fetch("/api/build/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ idea })
+        body: JSON.stringify({ idea, themeId })
       });
       const data = (await response.json().catch(() => ({}))) as { ok?: boolean; jobId?: string; message?: string };
       if (!data.ok || !data.jobId) {
@@ -94,6 +96,7 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
         disabled={busy}
         aria-label="Describe the app you want"
       />
+      {!busy && phase === "idle" ? <ThemePicker value={themeId} onChange={setThemeId} /> : null}
       <div style={{ marginTop: 12 }}>
         <button className="soft-launch-action" type="button" onClick={start} disabled={busy || idea.trim().length < 8}>
           {busy ? "Building…" : "Build it"}

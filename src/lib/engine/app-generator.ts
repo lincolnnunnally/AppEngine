@@ -14,6 +14,7 @@ import {
   foundationSchemaSql,
   foundationSeedSql
 } from "./foundation-modules";
+import { buildThemedCss, resolveTheme } from "./themes";
 
 type GeneratorProject = {
   id: string;
@@ -60,7 +61,7 @@ export async function listGeneratedAppExports(projectId: string) {
   };
 }
 
-export async function generateProjectApp(projectId: string) {
+export async function generateProjectApp(projectId: string, options: { themeId?: string } = {}) {
   await assertProjectBuildAllowed(projectId, "generate_project_app");
   if (isLocalMode()) {
     const project = await getLocalProject(projectId);
@@ -69,7 +70,7 @@ export async function generateProjectApp(projectId: string) {
       throw new Error("Project not found");
     }
 
-    const exportResult = await writeGeneratedBundle(project, await getLatestAgentOutputs(projectId));
+    const exportResult = await writeGeneratedBundle(project, await getLatestAgentOutputs(projectId), options.themeId);
     const generatedExport = await createLocalExport(projectId, exportResult);
 
     return {
@@ -90,7 +91,7 @@ export async function generateProjectApp(projectId: string) {
     throw new Error("Project not found");
   }
 
-  const exportResult = await writeGeneratedBundle(project as GeneratorProject, await getLatestAgentOutputs(projectId));
+  const exportResult = await writeGeneratedBundle(project as GeneratorProject, await getLatestAgentOutputs(projectId), options.themeId);
   const [artifact] = await sql`
     insert into artifacts (project_id, artifact_type, title, uri, metadata, content)
     values (
@@ -123,7 +124,7 @@ export async function generateProjectApp(projectId: string) {
   };
 }
 
-async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: GeneratorAgentOutput[] = []) {
+async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: GeneratorAgentOutput[] = [], themeId?: string) {
   const plan =
     project.plan ||
     analyzeIdea({
@@ -136,7 +137,7 @@ async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: Gen
   const handoff = buildGeneratedAppHandoff(plan, agentOutputs);
   const safeSlug = slugify(project.name || plan.title || project.id);
   const outputDir = join(process.cwd(), ".app-engine", "generated-apps", `${project.id}-${safeSlug}`);
-  const files = buildGeneratedFiles(project, plan, handoff);
+  const files = buildGeneratedFiles(project, plan, handoff, themeId);
 
   for (const file of files) {
     const fullPath = join(outputDir, file.path);
@@ -207,7 +208,8 @@ function extractAgentOutputs(source: unknown): GeneratorAgentOutput[] {
     }));
 }
 
-function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff): GeneratedFile[] {
+function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff, themeId?: string): GeneratedFile[] {
+  const theme = resolveTheme(themeId, `${project.idea} ${plan.appType} ${plan.customer}`);
   const projectName = escapeText(project.name || plan.title || "Generated App");
   const customer = escapeText(plan.customer);
   const problem = escapeText(plan.problem);
@@ -385,7 +387,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/layout.tsx",
-      content: `import "./styles.css";\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n`
+      content: `import "./styles.css";\n\nexport const viewport = {\n  width: "device-width",\n  initialScale: 1,\n  themeColor: "${theme.paper}",\n  colorScheme: "${theme.mode}"\n};\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n`
     },
     {
       path: "src/auth.ts",
@@ -409,7 +411,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/styles.css",
-      content: buildGeneratedCss()
+      content: buildThemedCss(theme)
     },
     {
       path: "src/app/page.tsx",
@@ -552,44 +554,6 @@ export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
     },
     ...foundationModuleFiles()
   ];
-}
-
-function buildGeneratedCss() {
-  return `:root {
-  --ink: #17211b;
-  --muted: #66736c;
-  --line: #d9d4ca;
-  --paper: #f6f3ed;
-  --panel: #ffffff;
-  --teal: #127c73;
-  --blue: #456ea8;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* { box-sizing: border-box; }
-body { margin: 0; color: var(--ink); background: var(--paper); }
-a { color: inherit; }
-.shell { width: min(1120px, calc(100vw - 32px)); margin: 0 auto; padding: 32px 0; }
-.hero { min-height: 70vh; display: grid; align-content: center; }
-.eyebrow, .card span { margin: 0 0 6px; color: var(--muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
-h1 { margin: 0 0 14px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1; }
-p, small { color: #344138; line-height: 1.55; }
-.grid, .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
-.metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.panel-list { display: grid; gap: 10px; margin-top: 18px; }
-.card, .metric-card, .wide-card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--panel); }
-.card strong, .metric-card strong, .wide-card strong { display: block; }
-.metric-card strong { font-size: 1.6rem; line-height: 1; }
-.wide-card span, .metric-card span { display: block; margin-bottom: 6px; color: var(--muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
-.action-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.button { min-height: 40px; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 0 14px; background: #fff; font-weight: 800; text-decoration: none; }
-.button.primary { border-color: var(--teal); color: #fff; background: var(--teal); }
-.card .button { margin-top: 8px; }
-.session-note { display: inline-flex; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--muted); font-size: .9rem; }
-.stack { display: grid; gap: 10px; margin-top: 14px; max-width: 520px; }
-.input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; background: #fff; color: var(--ink); }
-.note { color: var(--muted); font-size: .9rem; margin: 6px 0 0; }
-@media (max-width: 760px) { .grid, .metric-grid { grid-template-columns: 1fr; } }
-`;
 }
 
 type RolePermission = {

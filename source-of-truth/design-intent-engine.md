@@ -6,6 +6,10 @@ Design intent is the bridge between the app's purpose and the visual/interaction
 
 This is a foundation/design-intent standard only. It does not authorize redesigns of existing UI, production deployment, paid resources, migrations, secrets, environment changes, repository visibility changes, automatic Codex build work, or execution labels.
 
+## Wired into the generator (2026-07-01)
+
+The named style profiles are no longer planning-only — they are REAL, selectable themes that drive every generated app's stylesheet (`src/lib/engine/themes.ts`, consumed by `app-generator.ts`). Six themes ship: `warm-approachable` (default), `professional-clean`, `premium-modern`, `playful-friendly`, `ministry-community`, `operations-dashboard`. In the build flow a person picks one from a visual "choose a look" gallery; if they skip it, `pickThemeForIdea` auto-matches a fitting theme from their idea, so no app renders in a generic default by accident. Each theme sets palette, typography, corner style, and light/dark mode. Every generated app is now mobile-first and ships the `<meta viewport>` (via Next `viewport` export) with `themeColor` + `colorScheme` — closing the prior gap where generated apps rendered zoomed-out on phones. Custom brand color / logo per app is a future extension on top of these presets.
+
 ## Purpose
 
 The Design Intent Engine answers:

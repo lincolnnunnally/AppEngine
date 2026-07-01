@@ -4363,6 +4363,96 @@ label {
   gap: 14px;
 }
 
+/* Build-flow theme picker: visual "pick your look" gallery. */
+.theme-picker {
+  margin-top: 18px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.theme-card {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--green-soft);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.theme-card--selected {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal);
+}
+
+.theme-card-name {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.theme-card-desc {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.theme-swatch {
+  display: block;
+  height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.theme-swatch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 6px;
+  margin-bottom: 6px;
+}
+
+.theme-swatch-line {
+  display: block;
+  width: 42%;
+  height: 5px;
+  border-radius: 3px;
+}
+
+.theme-swatch-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.theme-swatch-btn {
+  display: block;
+  width: 44px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.theme-auto-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 58px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--teal);
+  font-size: 1.4rem;
+}
+
 .signin-secondary {
   min-height: 40px;
   width: 100%;
