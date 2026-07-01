@@ -6,6 +6,24 @@ Every new app must have its own packet before implementation begins.
 
 Natural language requests must pass through the Intake Command Standard and App Selection Standard before an App Build Packet is created. The intake packet should prove that the request is a new app, not an existing-app improvement.
 
+## Foundational Build Packet v1 (standard starting template)
+
+Every generated app starts from ONE standard foundation — never a blank screen — emitted deterministically by the app generator (`src/lib/engine/app-generator.ts` + `src/lib/engine/foundation-modules.ts`). The packet's app-specific work is layered on top of this base; it is not rebuilt each time.
+
+**Always-included foundation (real, working code):**
+- Homepage, sign-in + auth (Auth.js), roles (owner/admin/customer), protected routes, sessions
+- Customer workspace + account portal + guided onboarding
+- Admin console (customers, projects, products, support, email)
+- Database foundation (schema + seed + setup script), health check, QA acceptance checks, e2e test, deployment plan
+- **Product catalog** — storefront + admin + `/api/products` + `products` table
+- **Support ticketing** — customer submit/list + admin queue + `/api/support` + `support_tickets` table
+- **Email (transactional)** — Resend-backed `sendEmail` + admin console + `/api/email/send`
+- **Payments** — real Stripe checkout + webhook + `/api/billing/checkout` + `payments` table
+
+**Present by default, switch-off-able:** each standard module ships ON and is toggled per app via `src/lib/app-config.ts` feature flags (`FEATURE_PRODUCT_CATALOG`, `FEATURE_SUPPORT`, `FEATURE_EMAIL`, `FEATURE_PAYMENTS`) — set any to `false` to turn it off. Turning a module off does not remove the scaffold; it hides the surface.
+
+**Cost/credential fence:** modules are fully wired and active, but the ones that move money or send mail run on the **app owner's own credentials** (Stripe `STRIPE_SECRET_KEY`, Resend `RESEND_API_KEY` + `SENDER_EMAIL`). No key means the UI is live but real transactions/sends wait until the owner connects their keys — so no generated app can surprise-charge the ecosystem. This satisfies the standard credential contract (`template-credential-contract.md`).
+
 The Prior-Work Check gate must pass before any App Build Packet is created. If the gate returns `extend_existing`, the work is a vNext improvement against the named surfaces, not a new App Build Packet. If the gate returns `blocked_cannot_verify`, stop and make the target repo visible before continuing. Only a verified `build_new` authorizes an App Build Packet. See `source-of-truth/prior-work-check-gate.md`.
 
 ## Required Packet Fields

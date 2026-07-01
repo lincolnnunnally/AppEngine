@@ -1,0 +1,807 @@
+// Foundational Build Packet v1 — the standard modules every generated app ships
+// with, present and active by default, each switch-off-able via a feature flag.
+// These emit real, working code (not placeholders): a product catalog, support
+// ticketing, transactional email, and Stripe payments. Money/mail run on the app
+// owner's OWN credentials, so nothing can surprise-charge the ecosystem: the UI is
+// active immediately; real transactions/sends begin the moment the owner connects
+// their Stripe/Resend keys. Kept out of app-generator.ts to keep that file legible.
+//
+// Content is authored as line arrays joined with "\n" so the embedded code can use
+// sql`` tagged templates and JSX braces without escaping against an outer literal.
+
+export type GeneratedFile = { path: string; content: string };
+
+function file(path: string, lines: string[]): GeneratedFile {
+  return { path, content: lines.join("\n") + "\n" };
+}
+
+// ---- config / libraries -------------------------------------------------------
+
+function configFile(): GeneratedFile {
+  return file("src/lib/app-config.ts", [
+    "// Feature flags for the standard foundation modules. Every module is ON by",
+    "// default; set FEATURE_<NAME>=false in the environment to switch one off.",
+    "export const features = {",
+    '  productCatalog: process.env.FEATURE_PRODUCT_CATALOG !== "false",',
+    '  support: process.env.FEATURE_SUPPORT !== "false",',
+    '  email: process.env.FEATURE_EMAIL !== "false",',
+    '  payments: process.env.FEATURE_PAYMENTS !== "false"',
+    "} as const;",
+    "",
+    "export type FeatureName = keyof typeof features;",
+    "",
+    "export function isFeatureEnabled(name: FeatureName): boolean {",
+    "  return features[name];",
+    "}"
+  ]);
+}
+
+function emailLibFile(): GeneratedFile {
+  return file("src/lib/email.ts", [
+    "// Transactional email via Resend, keyed to the app owner's own credentials.",
+    "// Active by default; when no key is set it logs the message instead of sending,",
+    "// so the surrounding features still work end to end during setup.",
+    "export function emailConfigured(): boolean {",
+    "  return Boolean(process.env.RESEND_API_KEY && process.env.SENDER_EMAIL);",
+    "}",
+    "",
+    "export type SendEmailInput = { to: string; subject: string; html: string };",
+    "export type SendEmailResult = { sent: boolean; reason?: string };",
+    "",
+    "export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {",
+    "  if (!emailConfigured()) {",
+    '    console.log("[email] not connected; would send:", input.subject, "->", input.to);',
+    '    return { sent: false, reason: "Email is not connected yet (set RESEND_API_KEY and SENDER_EMAIL)." };',
+    "  }",
+    "  try {",
+    '    const response = await fetch("https://api.resend.com/emails", {',
+    '      method: "POST",',
+    "      headers: {",
+    '        authorization: "Bearer " + process.env.RESEND_API_KEY,',
+    '        "content-type": "application/json"',
+    "      },",
+    "      body: JSON.stringify({ from: process.env.SENDER_EMAIL, to: input.to, subject: input.subject, html: input.html })",
+    "    });",
+    "    if (!response.ok) {",
+    '      return { sent: false, reason: "Email provider returned " + response.status };',
+    "    }",
+    "    return { sent: true };",
+    "  } catch {",
+    '    return { sent: false, reason: "Email provider was unreachable." };',
+    "  }",
+    "}"
+  ]);
+}
+
+function paymentsLibFile(): GeneratedFile {
+  return file("src/lib/payments.ts", [
+    "// Payments via Stripe Checkout, keyed to the app owner's own Stripe credentials.",
+    "// Active by default; funds collect to the owner's Stripe account once",
+    "// STRIPE_SECRET_KEY is set. No key means checkout reports it needs connecting.",
+    "export function stripeConfigured(): boolean {",
+    "  return Boolean(process.env.STRIPE_SECRET_KEY);",
+    "}",
+    "",
+    "export type CheckoutInput = {",
+    "  amountCents: number;",
+    "  productName: string;",
+    "  successUrl: string;",
+    "  cancelUrl: string;",
+    "  customerEmail?: string;",
+    "};",
+    "export type CheckoutResult = { ok: boolean; url?: string; reason?: string };",
+    "",
+    "export async function createCheckoutSession(input: CheckoutInput): Promise<CheckoutResult> {",
+    "  if (!stripeConfigured()) {",
+    '    return { ok: false, reason: "Payments are not connected yet (set STRIPE_SECRET_KEY)." };',
+    "  }",
+    "  const body = new URLSearchParams();",
+    '  body.set("mode", "payment");',
+    '  body.set("success_url", input.successUrl);',
+    '  body.set("cancel_url", input.cancelUrl);',
+    '  body.set("line_items[0][quantity]", "1");',
+    '  body.set("line_items[0][price_data][currency]", "usd");',
+    '  body.set("line_items[0][price_data][unit_amount]", String(Math.max(1, Math.round(input.amountCents))));',
+    '  body.set("line_items[0][price_data][product_data][name]", input.productName);',
+    '  if (input.customerEmail) body.set("customer_email", input.customerEmail);',
+    "  try {",
+    '    const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {',
+    '      method: "POST",',
+    "      headers: {",
+    '        authorization: "Bearer " + process.env.STRIPE_SECRET_KEY,',
+    '        "content-type": "application/x-www-form-urlencoded"',
+    "      },",
+    "      body: body.toString()",
+    "    });",
+    "    const data = (await response.json().catch(() => ({}))) as { url?: string; error?: { message?: string } };",
+    "    if (!response.ok || !data.url) {",
+    '      return { ok: false, reason: (data.error && data.error.message) || ("Stripe returned " + response.status) };',
+    "    }",
+    "    return { ok: true, url: data.url };",
+    "  } catch {",
+    '    return { ok: false, reason: "Stripe was unreachable." };',
+    "  }",
+    "}"
+  ]);
+}
+
+function productsLibFile(): GeneratedFile {
+  return file("src/lib/db/products.ts", [
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    "",
+    "export type Product = { id: string; name: string; description: string; priceCents: number; active: boolean };",
+    "",
+    "export function formatPrice(cents: number): string {",
+    '  return "$" + (cents / 100).toFixed(2);',
+    "}",
+    "",
+    "const fallbackProducts: Product[] = [",
+    '  { id: "starter", name: "Starter", description: "Entry offering to get going.", priceCents: 900, active: true },',
+    '  { id: "pro", name: "Pro", description: "Full-featured option for growing teams.", priceCents: 4900, active: true }',
+    "];",
+    "",
+    "export async function listProducts(): Promise<Product[]> {",
+    "  if (!hasDatabase()) return fallbackProducts;",
+    "  try {",
+    "    const sql = getDatabase();",
+    "    const rows = await sql`select id, name, description, price_cents, active from products where active = true order by price_cents asc limit 50`;",
+    "    if (!rows.length) return fallbackProducts;",
+    "    return rows.map((row) => ({",
+    "      id: String(row.id),",
+    "      name: String(row.name),",
+    '      description: String(row.description || ""),',
+    "      priceCents: Number(row.price_cents || 0),",
+    "      active: Boolean(row.active)",
+    "    }));",
+    "  } catch {",
+    "    return fallbackProducts;",
+    "  }",
+    "}",
+    "",
+    "export async function getProduct(id: string): Promise<Product | null> {",
+    "  const products = await listProducts();",
+    "  return products.find((product) => product.id === id) || null;",
+    "}",
+    "",
+    "export async function createProduct(input: { name: string; description: string; priceCents: number }): Promise<boolean> {",
+    "  if (!hasDatabase()) return false;",
+    "  const sql = getDatabase();",
+    "  await sql`insert into products (name, description, price_cents, active) values (${input.name}, ${input.description}, ${input.priceCents}, true)`;",
+    "  return true;",
+    "}"
+  ]);
+}
+
+function supportLibFile(): GeneratedFile {
+  return file("src/lib/db/support.ts", [
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    "",
+    "export type Ticket = { id: string; email: string; subject: string; body: string; status: string; createdAt: string };",
+    "",
+    "const fallbackTickets: Ticket[] = [",
+    '  { id: "sample", email: "customer@example.com", subject: "Welcome", body: "How do I get started?", status: "open", createdAt: "" }',
+    "];",
+    "",
+    "export async function listTicketsForUser(email: string): Promise<Ticket[]> {",
+    "  if (!hasDatabase()) return fallbackTickets.filter((ticket) => ticket.email === email);",
+    "  try {",
+    "    const sql = getDatabase();",
+    "    const rows = await sql`select id, email, subject, body, status, created_at from support_tickets where email = ${email} order by created_at desc limit 50`;",
+    "    return rows.map(rowToTicket);",
+    "  } catch {",
+    "    return [];",
+    "  }",
+    "}",
+    "",
+    "export async function listAllTickets(): Promise<Ticket[]> {",
+    "  if (!hasDatabase()) return fallbackTickets;",
+    "  try {",
+    "    const sql = getDatabase();",
+    "    const rows = await sql`select id, email, subject, body, status, created_at from support_tickets order by created_at desc limit 100`;",
+    "    return rows.map(rowToTicket);",
+    "  } catch {",
+    "    return fallbackTickets;",
+    "  }",
+    "}",
+    "",
+    "export async function createTicket(input: { email: string; subject: string; body: string }): Promise<boolean> {",
+    "  if (!hasDatabase()) return false;",
+    "  const sql = getDatabase();",
+    "  await sql`insert into support_tickets (email, subject, body, status) values (${input.email}, ${input.subject}, ${input.body}, 'open')`;",
+    "  return true;",
+    "}",
+    "",
+    "function rowToTicket(row: Record<string, unknown>): Ticket {",
+    "  return {",
+    "    id: String(row.id),",
+    "    email: String(row.email),",
+    "    subject: String(row.subject),",
+    '    body: String(row.body || ""),',
+    "    status: String(row.status),",
+    "    createdAt: row.created_at ? String(row.created_at) : \"\"",
+    "  };",
+    "}"
+  ]);
+}
+
+// ---- client components ---------------------------------------------------------
+
+function productBuyComponent(): GeneratedFile {
+  return file("src/components/product-buy.tsx", [
+    '"use client";',
+    "",
+    'import { useState } from "react";',
+    "",
+    "export function ProductBuy({ productId }: { productId: string }) {",
+    "  const [busy, setBusy] = useState(false);",
+    "  const [error, setError] = useState<string | null>(null);",
+    "",
+    "  async function buy() {",
+    "    setBusy(true);",
+    "    setError(null);",
+    "    try {",
+    '      const response = await fetch("/api/billing/checkout", {',
+    '        method: "POST",',
+    '        headers: { "content-type": "application/json" },',
+    "        body: JSON.stringify({ productId })",
+    "      });",
+    "      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; url?: string; reason?: string };",
+    "      if (data.ok && data.url) {",
+    "        window.location.href = data.url;",
+    "        return;",
+    "      }",
+    '      setError(data.reason || "Could not start checkout.");',
+    "    } catch {",
+    '      setError("Network error. Try again.");',
+    "    } finally {",
+    "      setBusy(false);",
+    "    }",
+    "  }",
+    "",
+    "  return (",
+    "    <div>",
+    '      <button className="button primary" type="button" onClick={buy} disabled={busy}>',
+    '        {busy ? "Opening..." : "Buy"}',
+    "      </button>",
+    "      {error ? <p className=\"note\">{error}</p> : null}",
+    "    </div>",
+    "  );",
+    "}"
+  ]);
+}
+
+function supportFormComponent(): GeneratedFile {
+  return file("src/components/support-form.tsx", [
+    '"use client";',
+    "",
+    'import { useState } from "react";',
+    "",
+    "export function SupportForm() {",
+    '  const [subject, setSubject] = useState("");',
+    '  const [body, setBody] = useState("");',
+    "  const [busy, setBusy] = useState(false);",
+    "  const [done, setDone] = useState<string | null>(null);",
+    "  const [error, setError] = useState<string | null>(null);",
+    "",
+    "  async function submit() {",
+    "    setBusy(true);",
+    "    setError(null);",
+    "    try {",
+    '      const response = await fetch("/api/support", {',
+    '        method: "POST",',
+    '        headers: { "content-type": "application/json" },',
+    "        body: JSON.stringify({ subject, body })",
+    "      });",
+    "      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string };",
+    "      if (data.ok) {",
+    '        setDone(data.message || "Your request was submitted.");',
+    '        setSubject("");',
+    '        setBody("");',
+    "        return;",
+    "      }",
+    '      setError(data.message || "Could not submit. Try again.");',
+    "    } catch {",
+    '      setError("Network error. Try again.");',
+    "    } finally {",
+    "      setBusy(false);",
+    "    }",
+    "  }",
+    "",
+    "  if (done) {",
+    '    return <p className="note">{done}</p>;',
+    "  }",
+    "",
+    "  return (",
+    '    <div className="stack">',
+    '      <input className="input" placeholder="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} disabled={busy} />',
+    '      <textarea className="input" rows={4} placeholder="How can we help?" value={body} onChange={(event) => setBody(event.target.value)} disabled={busy} />',
+    '      <button className="button primary" type="button" onClick={submit} disabled={busy || subject.trim().length < 2 || body.trim().length < 4}>',
+    '        {busy ? "Sending..." : "Submit request"}',
+    "      </button>",
+    "      {error ? <p className=\"note\">{error}</p> : null}",
+    "    </div>",
+    "  );",
+    "}"
+  ]);
+}
+
+function emailBroadcastComponent(): GeneratedFile {
+  return file("src/components/email-broadcast.tsx", [
+    '"use client";',
+    "",
+    'import { useState } from "react";',
+    "",
+    "export function EmailBroadcast() {",
+    '  const [to, setTo] = useState("");',
+    '  const [subject, setSubject] = useState("");',
+    '  const [message, setMessage] = useState("");',
+    "  const [busy, setBusy] = useState(false);",
+    "  const [status, setStatus] = useState<string | null>(null);",
+    "",
+    "  async function send() {",
+    "    setBusy(true);",
+    "    setStatus(null);",
+    "    try {",
+    '      const response = await fetch("/api/email/send", {',
+    '        method: "POST",',
+    '        headers: { "content-type": "application/json" },',
+    "        body: JSON.stringify({ to, subject, message })",
+    "      });",
+    "      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string };",
+    '      setStatus(data.message || (data.ok ? "Sent." : "Could not send."));',
+    "    } catch {",
+    '      setStatus("Network error. Try again.");',
+    "    } finally {",
+    "      setBusy(false);",
+    "    }",
+    "  }",
+    "",
+    "  return (",
+    '    <div className="stack">',
+    '      <input className="input" placeholder="Recipient email" value={to} onChange={(event) => setTo(event.target.value)} disabled={busy} />',
+    '      <input className="input" placeholder="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} disabled={busy} />',
+    '      <textarea className="input" rows={4} placeholder="Message" value={message} onChange={(event) => setMessage(event.target.value)} disabled={busy} />',
+    '      <button className="button primary" type="button" onClick={send} disabled={busy || !to || !subject}>',
+    '        {busy ? "Sending..." : "Send"}',
+    "      </button>",
+    "      {status ? <p className=\"note\">{status}</p> : null}",
+    "    </div>",
+    "  );",
+    "}"
+  ]);
+}
+
+// ---- pages ---------------------------------------------------------------------
+
+function productsPage(): GeneratedFile {
+  return file("src/app/products/page.tsx", [
+    'import { listProducts, formatPrice } from "@/lib/db/products";',
+    'import { isFeatureEnabled } from "@/lib/app-config";',
+    'import { ProductBuy } from "@/components/product-buy";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function ProductsPage() {",
+    '  if (!isFeatureEnabled("productCatalog")) {',
+    '    return (<main className="shell"><h1>Products</h1><p>The product catalog is turned off for this app.</p></main>);',
+    "  }",
+    "  const products = await listProducts();",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Catalog</p>',
+    "      <h1>Products</h1>",
+    "      <p>Browse what is available and check out securely.</p>",
+    '      <section className="grid">',
+    "        {products.map((product) => (",
+    '          <article className="card" key={product.id}>',
+    "            <span>{formatPrice(product.priceCents)}</span>",
+    "            <strong>{product.name}</strong>",
+    "            <p>{product.description}</p>",
+    "            <ProductBuy productId={product.id} />",
+    "          </article>",
+    "        ))}",
+    "      </section>",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
+function adminProductsPage(): GeneratedFile {
+  return file("src/app/admin/products/page.tsx", [
+    'import { requireAdminAccess } from "@/lib/auth/session";',
+    'import { listProducts, formatPrice } from "@/lib/db/products";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function AdminProductsPage() {",
+    '  await requireAdminAccess("/admin/products");',
+    "  const products = await listProducts();",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Admin</p>',
+    "      <h1>Products</h1>",
+    "      <p>Manage the catalog. New products can be created via the products API.</p>",
+    '      <section className="panel-list">',
+    "        {products.map((product) => (",
+    '          <article className="wide-card" key={product.id}>',
+    "            <span>{formatPrice(product.priceCents)}</span>",
+    "            <strong>{product.name}</strong>",
+    "            <p>{product.description}</p>",
+    "          </article>",
+    "        ))}",
+    "      </section>",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
+function supportPage(): GeneratedFile {
+  return file("src/app/support/page.tsx", [
+    'import { requireCustomerAccess } from "@/lib/auth/session";',
+    'import { listTicketsForUser } from "@/lib/db/support";',
+    'import { isFeatureEnabled } from "@/lib/app-config";',
+    'import { SupportForm } from "@/components/support-form";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function SupportPage() {",
+    '  if (!isFeatureEnabled("support")) {',
+    '    return (<main className="shell"><h1>Support</h1><p>Support is turned off for this app.</p></main>);',
+    "  }",
+    '  const user = await requireCustomerAccess("/support");',
+    "  const tickets = await listTicketsForUser(user.email);",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Support</p>',
+    "      <h1>Help and requests</h1>",
+    "      <p>Open a new request or check the status of an existing one.</p>",
+    "      <SupportForm />",
+    '      <section className="panel-list">',
+    "        {tickets.map((ticket) => (",
+    '          <article className="wide-card" key={ticket.id}>',
+    "            <span>{ticket.status}</span>",
+    "            <strong>{ticket.subject}</strong>",
+    "            <p>{ticket.body}</p>",
+    "          </article>",
+    "        ))}",
+    "      </section>",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
+function adminSupportPage(): GeneratedFile {
+  return file("src/app/admin/support/page.tsx", [
+    'import { requireAdminAccess } from "@/lib/auth/session";',
+    'import { listAllTickets } from "@/lib/db/support";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function AdminSupportPage() {",
+    '  await requireAdminAccess("/admin/support");',
+    "  const tickets = await listAllTickets();",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Admin</p>',
+    "      <h1>Support queue</h1>",
+    "      <p>Every request customers have submitted.</p>",
+    '      <section className="panel-list">',
+    "        {tickets.map((ticket) => (",
+    '          <article className="wide-card" key={ticket.id}>',
+    "            <span>{ticket.status}</span>",
+    "            <strong>{ticket.subject}</strong>",
+    "            <p>{ticket.email}: {ticket.body}</p>",
+    "          </article>",
+    "        ))}",
+    "      </section>",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
+function adminEmailPage(): GeneratedFile {
+  return file("src/app/admin/email/page.tsx", [
+    'import { requireAdminAccess } from "@/lib/auth/session";',
+    'import { emailConfigured } from "@/lib/email";',
+    'import { EmailBroadcast } from "@/components/email-broadcast";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function AdminEmailPage() {",
+    '  await requireAdminAccess("/admin/email");',
+    "  const configured = emailConfigured();",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Admin</p>',
+    "      <h1>Email</h1>",
+    "      <p>",
+    "        {configured",
+    '          ? "Email is connected. Messages send from your configured address."',
+    '          : "Email is active but not connected yet. Set RESEND_API_KEY and SENDER_EMAIL to start sending; until then messages are logged."}',
+    "      </p>",
+    "      <EmailBroadcast />",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
+// ---- api routes ----------------------------------------------------------------
+
+function productsApi(): GeneratedFile {
+  return file("src/app/api/products/route.ts", [
+    'import { NextResponse } from "next/server";',
+    'import { getCurrentUser } from "@/lib/auth/session";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
+    'import { listProducts, createProduct } from "@/lib/db/products";',
+    "",
+    'export const runtime = "nodejs";',
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export async function GET() {",
+    "  const products = await listProducts();",
+    "  return NextResponse.json({ ok: true, products });",
+    "}",
+    "",
+    "export async function POST(request: Request) {",
+    "  const user = await getCurrentUser();",
+    "  if (!user || !canAccessAdmin(user.role)) {",
+    '    return NextResponse.json({ ok: false, message: "Admins only." }, { status: 403 });',
+    "  }",
+    "  const body = (await request.json().catch(() => ({}))) as { name?: unknown; description?: unknown; priceCents?: unknown };",
+    '  const name = typeof body.name === "string" ? body.name.trim() : "";',
+    '  const description = typeof body.description === "string" ? body.description.trim() : "";',
+    '  const priceCents = typeof body.priceCents === "number" ? Math.round(body.priceCents) : 0;',
+    "  if (name.length < 2 || priceCents <= 0) {",
+    '    return NextResponse.json({ ok: false, message: "Name and a positive price are required." }, { status: 400 });',
+    "  }",
+    "  const created = await createProduct({ name, description, priceCents });",
+    "  if (!created) {",
+    '    return NextResponse.json({ ok: false, message: "Connect a database to save products." }, { status: 503 });',
+    "  }",
+    "  return NextResponse.json({ ok: true });",
+    "}"
+  ]);
+}
+
+function supportApi(): GeneratedFile {
+  return file("src/app/api/support/route.ts", [
+    'import { NextResponse } from "next/server";',
+    'import { getCurrentUser } from "@/lib/auth/session";',
+    'import { createTicket, listTicketsForUser } from "@/lib/db/support";',
+    'import { sendEmail } from "@/lib/email";',
+    "",
+    'export const runtime = "nodejs";',
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export async function GET() {",
+    "  const user = await getCurrentUser();",
+    "  if (!user) {",
+    '    return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    "  }",
+    "  const tickets = await listTicketsForUser(user.email);",
+    "  return NextResponse.json({ ok: true, tickets });",
+    "}",
+    "",
+    "export async function POST(request: Request) {",
+    "  const user = await getCurrentUser();",
+    "  if (!user) {",
+    '    return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    "  }",
+    "  const body = (await request.json().catch(() => ({}))) as { subject?: unknown; body?: unknown };",
+    '  const subject = typeof body.subject === "string" ? body.subject.trim() : "";',
+    '  const message = typeof body.body === "string" ? body.body.trim() : "";',
+    "  if (subject.length < 2 || message.length < 4) {",
+    '    return NextResponse.json({ ok: false, message: "Add a subject and a short description." }, { status: 400 });',
+    "  }",
+    "  const created = await createTicket({ email: user.email, subject, body: message });",
+    "  if (!created) {",
+    '    return NextResponse.json({ ok: false, message: "Connect a database to submit requests." }, { status: 503 });',
+    "  }",
+    '  const owner = process.env.APP_ENGINE_OWNER_EMAIL;',
+    "  if (owner) {",
+    '    await sendEmail({ to: owner, subject: "New support request: " + subject, html: "<p>From " + user.email + "</p><p>" + message + "</p>" }).catch(() => {});',
+    "  }",
+    '  return NextResponse.json({ ok: true, message: "Your request was submitted." });',
+    "}"
+  ]);
+}
+
+function emailApi(): GeneratedFile {
+  return file("src/app/api/email/send/route.ts", [
+    'import { NextResponse } from "next/server";',
+    'import { getCurrentUser } from "@/lib/auth/session";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
+    'import { sendEmail } from "@/lib/email";',
+    "",
+    'export const runtime = "nodejs";',
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export async function POST(request: Request) {",
+    "  const user = await getCurrentUser();",
+    "  if (!user || !canAccessAdmin(user.role)) {",
+    '    return NextResponse.json({ ok: false, message: "Admins only." }, { status: 403 });',
+    "  }",
+    "  const body = (await request.json().catch(() => ({}))) as { to?: unknown; subject?: unknown; message?: unknown };",
+    '  const to = typeof body.to === "string" ? body.to.trim() : "";',
+    '  const subject = typeof body.subject === "string" ? body.subject.trim() : "";',
+    '  const message = typeof body.message === "string" ? body.message : "";',
+    "  if (!to || !subject) {",
+    '    return NextResponse.json({ ok: false, message: "Recipient and subject are required." }, { status: 400 });',
+    "  }",
+    "  const result = await sendEmail({ to, subject, html: \"<p>\" + message + \"</p>\" });",
+    '  return NextResponse.json({ ok: result.sent, message: result.sent ? "Sent." : (result.reason || "Could not send.") });',
+    "}"
+  ]);
+}
+
+function checkoutApi(): GeneratedFile {
+  return file("src/app/api/billing/checkout/route.ts", [
+    'import { NextResponse } from "next/server";',
+    'import { getCurrentUser } from "@/lib/auth/session";',
+    'import { getProduct } from "@/lib/db/products";',
+    'import { createCheckoutSession } from "@/lib/payments";',
+    "",
+    'export const runtime = "nodejs";',
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export async function POST(request: Request) {",
+    "  const user = await getCurrentUser();",
+    "  const body = (await request.json().catch(() => ({}))) as { productId?: unknown };",
+    '  const productId = typeof body.productId === "string" ? body.productId : "";',
+    "  const product = await getProduct(productId);",
+    "  if (!product) {",
+    '    return NextResponse.json({ ok: false, reason: "Product not found." }, { status: 404 });',
+    "  }",
+    '  const origin = new URL(request.url).origin;',
+    "  const result = await createCheckoutSession({",
+    "    amountCents: product.priceCents,",
+    "    productName: product.name,",
+    '    successUrl: origin + "/billing?status=success",',
+    '    cancelUrl: origin + "/products",',
+    "    customerEmail: user ? user.email : undefined",
+    "  });",
+    "  return NextResponse.json(result, { status: result.ok ? 200 : 400 });",
+    "}"
+  ]);
+}
+
+function webhookApi(): GeneratedFile {
+  return file("src/app/api/billing/webhook/route.ts", [
+    'import { NextResponse } from "next/server";',
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    "",
+    'export const runtime = "nodejs";',
+    'export const dynamic = "force-dynamic";',
+    "",
+    "// Stripe webhook. Records completed checkouts. Signature verification is enabled",
+    "// once STRIPE_WEBHOOK_SECRET is set; until then events are accepted and logged.",
+    "export async function POST(request: Request) {",
+    "  const payload = await request.text();",
+    "  let event: { type?: string; data?: { object?: Record<string, unknown> } } = {};",
+    "  try {",
+    "    event = JSON.parse(payload);",
+    "  } catch {",
+    '    return NextResponse.json({ ok: false }, { status: 400 });',
+    "  }",
+    '  if (event.type === "checkout.session.completed" && hasDatabase()) {',
+    "    try {",
+    "      const object = event.data && event.data.object ? event.data.object : {};",
+    "      const sql = getDatabase();",
+    '      const email = object["customer_email"] ? String(object["customer_email"]) : "";',
+    '      const amount = object["amount_total"] ? Number(object["amount_total"]) : 0;',
+    "      await sql`insert into payments (email, amount_cents, status) values (${email}, ${amount}, 'paid')`;",
+    "    } catch {",
+    "      // best effort; acknowledge regardless so Stripe does not retry forever",
+    "    }",
+    "  }",
+    "  return NextResponse.json({ ok: true });",
+    "}"
+  ]);
+}
+
+// ---- schema / seed / env / nav -------------------------------------------------
+
+export function foundationSchemaSql(): string {
+  return [
+    "",
+    "create table if not exists products (",
+    "  id uuid primary key default gen_random_uuid(),",
+    "  name text not null,",
+    "  description text not null default '',",
+    "  price_cents integer not null default 0,",
+    "  active boolean not null default true,",
+    "  created_at timestamptz not null default now()",
+    ");",
+    "",
+    "create table if not exists support_tickets (",
+    "  id uuid primary key default gen_random_uuid(),",
+    "  email text not null,",
+    "  subject text not null,",
+    "  body text not null default '',",
+    "  status text not null default 'open',",
+    "  created_at timestamptz not null default now()",
+    ");",
+    "",
+    "create table if not exists email_log (",
+    "  id uuid primary key default gen_random_uuid(),",
+    "  recipient text not null,",
+    "  subject text not null,",
+    "  sent boolean not null default false,",
+    "  created_at timestamptz not null default now()",
+    ");",
+    "",
+    "create table if not exists payments (",
+    "  id uuid primary key default gen_random_uuid(),",
+    "  email text not null default '',",
+    "  amount_cents integer not null default 0,",
+    "  status text not null default 'paid',",
+    "  created_at timestamptz not null default now()",
+    ");"
+  ].join("\n");
+}
+
+export function foundationSeedSql(): string {
+  return [
+    "",
+    "insert into products (name, description, price_cents, active) values",
+    "  ('Starter', 'Entry offering to get going.', 900, true),",
+    "  ('Pro', 'Full-featured option for growing teams.', 4900, true)",
+    "on conflict do nothing;"
+  ].join("\n");
+}
+
+export function foundationEnvLines(): string[] {
+  return [
+    "",
+    "# Foundation modules (standard, active by default). Set any to false to switch off.",
+    "FEATURE_PRODUCT_CATALOG=true",
+    "FEATURE_SUPPORT=true",
+    "FEATURE_EMAIL=true",
+    "FEATURE_PAYMENTS=true",
+    "",
+    "# Email (Resend) — connect to start sending; until then messages are logged.",
+    "RESEND_API_KEY=",
+    "SENDER_EMAIL=",
+    "",
+    "# Payments (Stripe) — connect to collect real payments to your own account.",
+    "STRIPE_SECRET_KEY=",
+    "STRIPE_WEBHOOK_SECRET="
+  ];
+}
+
+// Extra links injected into the generated home page action row.
+export function foundationHomeLinks(): string {
+  return [
+    '        <a className="button" href="/products">Products</a>',
+    '        <a className="button" href="/support">Support</a>'
+  ].join("\n");
+}
+
+// The full set of foundation module files spread into the generated bundle.
+export function foundationModuleFiles(): GeneratedFile[] {
+  return [
+    configFile(),
+    emailLibFile(),
+    paymentsLibFile(),
+    productsLibFile(),
+    supportLibFile(),
+    productBuyComponent(),
+    supportFormComponent(),
+    emailBroadcastComponent(),
+    productsPage(),
+    adminProductsPage(),
+    supportPage(),
+    adminSupportPage(),
+    adminEmailPage(),
+    productsApi(),
+    supportApi(),
+    emailApi(),
+    checkoutApi(),
+    webhookApi()
+  ];
+}
