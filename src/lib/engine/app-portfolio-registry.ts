@@ -1,4 +1,5 @@
 import { getAppEngineStateAdapter } from "@/lib/engine/durable-state-adapter";
+import { listOwnerRegisteredApps } from "./portfolio-registrations";
 import { listRegisteredAppProjects, type RegisteredAppProject } from "@/lib/engine/app-portfolio-registry-store";
 import { listBuildExecutionRequests } from "@/lib/engine/build-execution-request";
 import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
@@ -189,6 +190,11 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
   ]);
   const sparkCapability = getStoryIntakeCapability();
 
+  // Owner-registered apps (the "Add an app" button) override imported seeds
+  // with the same slug — the owner's own record wins.
+  const ownerRegistered = await listOwnerRegisteredApps();
+  const importedSlugTaken = new Set(ownerRegistered.map((app) => app.slug));
+
   const registry = buildAppPortfolioRegistry([
     deriveAppEngineCoreEntry(seedEntries[0], projectMemory, orchestratorActionQueue, buildExecutionRequests),
     deriveOpportunityEntry(seedEntries[1], {
@@ -210,7 +216,8 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
     ),
     deriveSparkEntry(seedEntries[3], sparkCapability),
     deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates }),
-    ...getImportedEcosystemPortfolioEntries()
+    ...(await getOwnerRegisteredEntries(importedSlugTaken)),
+    ...getImportedEcosystemPortfolioEntries().filter((entry) => !importedSlugTaken.has(entry.slug))
   ]);
 
   // Canonical durable registrations + completed-loop evidence are merged on top
@@ -567,6 +574,42 @@ function deriveFutureEcosystemEntry(
   };
 }
 
+async function getOwnerRegisteredEntries(_taken: Set<string>): Promise<AppPortfolioEntry[]> {
+  const registered = await listOwnerRegisteredApps();
+  return registered.map((app) => ({
+    name: app.name,
+    slug: app.slug,
+    type: "ecosystem_core",
+    status:
+      app.appStatus === "live"
+        ? `live${app.builtWith ? ` — built with ${app.builtWith}` : ""}${app.notes ? ` — ${app.notes}` : ""}`
+        : app.appStatus === "idea"
+          ? `idea${app.notes ? ` — ${app.notes}` : ""}`
+          : `in progress${app.builtWith ? ` — built with ${app.builtWith}` : ""}${app.notes ? ` — ${app.notes}` : ""}`,
+    reviewUrl: app.liveUrl || app.repoUrl || "unknown",
+    productionUrl: app.liveUrl || "approval-gated",
+    currentVersion: "owner-registered",
+    deploymentState: app.appStatus === "live" ? "production_live" : "production_blocked",
+    buildState: app.appStatus === "live" ? "ready_for_vnext" : app.appStatus === "idea" ? "planned" : "ready_for_build",
+    nextSafeAction:
+      app.appStatus === "live" ? "create_vnext_packet" : app.appStatus === "idea" ? "create_planning_issue" : "create_implementation_issue",
+    sourceOfTruthFiles: [],
+    linkedIssues: [],
+    linkedPRs: [],
+    blockers: [],
+    evidenceLinks: [
+      ...(app.liveUrl ? [{ label: "Live site", url: app.liveUrl }] : []),
+      ...(app.repoUrl ? [{ label: "Repository", url: app.repoUrl }] : [])
+    ],
+    stateSource: "derived_state",
+    sourceArtifact: {
+      kind: "owner_registration",
+      summary: "Registered by the owner from the portfolio dashboard (Add an app)."
+    },
+    lastUpdated: app.createdAt || generatedAt
+  }));
+}
+
 // The owner's EXISTING ecosystem apps, imported into the portfolio so the one
 // dashboard shows everything — apps built elsewhere (Emergent, other builders)
 // included. Data source: the 2026-06-27 full-repo audit
@@ -617,16 +660,6 @@ const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     buildState: "planned",
     nextSafeAction: "create_planning_issue",
     blockers: ["App-local Launch Pack missing; build not rerun in the audit pass."]
-  },
-  {
-    name: "Spark of Hope",
-    slug: "spark-of-hope",
-    status: "intake slice live inside AppEngine; standalone app planned",
-    productionUrl: "approval-gated",
-    deploymentState: "production_blocked",
-    buildState: "planned",
-    nextSafeAction: "create_planning_issue",
-    blockers: []
   },
   {
     name: "Best Life",
@@ -707,6 +740,46 @@ const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     buildState: "planned",
     nextSafeAction: "create_planning_issue",
     blockers: ["Prisma-vs-Supabase decision before deploy."]
+  },
+  {
+    name: "Association",
+    slug: "association",
+    status: "decision: fold association-tier features into ChurchConnect (not a separate app)",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Queue verdict: merge unique association features into ChurchConnect rather than deploy separately."]
+  },
+  {
+    name: "JeepFix",
+    slug: "jeepfix",
+    status: "decision: becomes a config of the shared troubleshooting engine",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Convert to config after the shared knowledge/troubleshooting engine exists."]
+  },
+  {
+    name: "RacketPro",
+    slug: "racketpro",
+    status: "decision: becomes a sports config of the shared connection/growth engine",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Convert to config after the shared connection/growth engines are ready."]
+  },
+  {
+    name: "Honestly",
+    slug: "honestly",
+    status: "decision: ChurchConnect module or standalone care/media app",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Standalone boundary unclear — decide module-vs-app before any build."]
   },
   {
     name: "Ideas / Idea Capture",
