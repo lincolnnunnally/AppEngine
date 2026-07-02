@@ -141,7 +141,11 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
       appEnv = { ...vaultEnv, ...(appEnv || {}) };
     }
 
-    const deploy = await deployGeneratedAppToVercel((name || idea).slice(0, 40), files, appEnv);
+    // Preview-first (owner decision, 2026-07-02): the app publishes as a testable
+    // PREVIEW the customer can open and try; their explicit "make it official"
+    // approval promotes that exact deployment to the app's main link. Applies to
+    // first builds and improved versions alike.
+    const deploy = await deployGeneratedAppToVercel((name || idea).slice(0, 40), files, appEnv, { target: "preview" });
     if (!deploy.ok) {
       await updateBuildJob(jobId, { status: "failed", error: deploy.message || "Deploy didn't start." });
       return;

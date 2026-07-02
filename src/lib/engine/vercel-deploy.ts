@@ -53,7 +53,8 @@ async function vercel(path: string, init?: RequestInit) {
 export async function deployGeneratedAppToVercel(
   slug: string,
   files: DeployFile[],
-  env?: Record<string, string>
+  env?: Record<string, string>,
+  options: { target?: "production" | "preview" } = {}
 ): Promise<DeployResult> {
   if (!vercelDeployConfigured()) {
     return { ok: false, message: "Vercel deploy isn't configured (VERCEL_TOKEN)." };
@@ -78,7 +79,7 @@ export async function deployGeneratedAppToVercel(
         await vercel(`/v10/projects/${encodeURIComponent(projectName)}/env?upsert=true`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ key, value, type: "encrypted", target: ["production"] })
+          body: JSON.stringify({ key, value, type: "encrypted", target: ["production", "preview"] })
         }).catch(() => {});
       }
     }
@@ -100,6 +101,10 @@ export async function deployGeneratedAppToVercel(
     }
 
     // 2. Create the deployment (this also creates the project, named by `name`).
+    //    A PREVIEW deployment is made by OMITTING `target` (the API only accepts
+    //    "production"/"staging" as explicit targets); production points the
+    //    project's canonical domain at the deployment.
+    const target = options.target ?? "production";
     const dep = await vercel("/v13/deployments", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -107,7 +112,7 @@ export async function deployGeneratedAppToVercel(
         name: projectName,
         files: refs,
         projectSettings: { framework: "nextjs" },
-        target: "production"
+        ...(target === "production" ? { target: "production" } : {})
       })
     });
     const depData = (await dep.json().catch(() => ({}))) as {
@@ -137,6 +142,31 @@ export async function deployGeneratedAppToVercel(
     };
   } catch (error) {
     return { ok: false, projectName, message: error instanceof Error ? error.message : "Deploy error." };
+  }
+}
+
+// The approve step: points the project's production domain at an existing
+// (already tested) deployment — no rebuild, no new files needed. This is what a
+// customer's "Make it official" button and the owner's engine approval both call.
+export async function promoteDeploymentToProduction(
+  projectName: string,
+  deploymentId: string
+): Promise<{ ok: boolean; message: string; productionUrl?: string }> {
+  if (!vercelDeployConfigured()) {
+    return { ok: false, message: "Hosting isn't configured (VERCEL_TOKEN)." };
+  }
+  try {
+    const response = await vercel(
+      `/v10/projects/${encodeURIComponent(projectName)}/promote/${encodeURIComponent(deploymentId)}`,
+      { method: "POST" }
+    );
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+      return { ok: false, message: data.error?.message || `Couldn't make it official (${response.status}).` };
+    }
+    return { ok: true, message: "This version is now official.", productionUrl: `https://${projectName}.vercel.app` };
+  } catch {
+    return { ok: false, message: "Couldn't reach the hosting API." };
   }
 }
 

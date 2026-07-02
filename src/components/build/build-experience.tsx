@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { DomainStep } from "@/components/build/domain-step";
 import { ThemePicker } from "@/components/build/theme-picker";
 import { BrandStep } from "@/components/build/brand-step";
+import { ApproveApp } from "@/components/account/approve-app";
 
 type Phase = "idle" | "building" | "deploying" | "live" | "failed";
 
@@ -23,6 +24,7 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -63,6 +65,7 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
     setError(null);
     setUrl(null);
     setProject(null);
+    setJobId(null);
     setPhase("building");
     try {
       const response = await fetch("/api/build/start", {
@@ -80,6 +83,7 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
         setError(data.message || "Couldn't start the build.");
         return;
       }
+      setJobId(data.jobId);
       poll(data.jobId);
     } catch {
       setPhase("failed");
@@ -120,10 +124,17 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
           <p className={phase === "live" ? "build-status-live" : undefined}>{LABEL[phase]}</p>
           {url ? (
             <p>
+              {phase === "live" ? <span className="note">Try it here: </span> : null}
               <a href={url} target="_blank" rel="noreferrer">
                 {url}
               </a>
             </p>
+          ) : null}
+          {phase === "live" && jobId ? (
+            <>
+              <p className="note">Open the link and try your app. Happy with it? Make it official — that exact version becomes your app's main link.</p>
+              <ApproveApp jobId={jobId} onApproved={(officialUrl) => setUrl(officialUrl)} />
+            </>
           ) : null}
           {error ? <p className="integration-notice integration-notice--error">{error}</p> : null}
         </div>
