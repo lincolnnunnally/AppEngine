@@ -724,12 +724,15 @@ const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
   {
     name: "Laser Engrave Market",
     slug: "laser-engrave-market",
-    status: "source mined (marketplace + proof approval); ready to build",
+    status: "preview live — build proof passed, Launch Pack + proof contract filled (2026-07-02)",
     productionUrl: "approval-gated",
-    deploymentState: "production_blocked",
-    buildState: "ready_for_build",
-    nextSafeAction: "create_implementation_issue",
-    blockers: ["Launch Pack and proof artifact contract missing."]
+    deploymentState: "review_ready",
+    buildState: "preview_verified",
+    nextSafeAction: "await_owner_review",
+    blockers: [
+      "Backend API placement (VITE_BACKEND_URL) before data actions work.",
+      "Supabase placement decision for the 50-migration schema."
+    ]
   },
   {
     name: "Iconium",
@@ -799,7 +802,12 @@ function getImportedEcosystemPortfolioEntries(): AppPortfolioEntry[] {
     slug: app.slug,
     type: "ecosystem_core",
     status: app.status,
-    reviewUrl: app.productionUrl.startsWith("https://") ? app.productionUrl : "unknown",
+    reviewUrl:
+      app.slug === "laser-engrave-market"
+        ? "https://laser-engrave-market-d8jordzqx-lincolnnunnallys-projects.vercel.app"
+        : app.productionUrl.startsWith("https://")
+          ? app.productionUrl
+          : "unknown",
     productionUrl: app.productionUrl,
     currentVersion: "imported-2026-07-02",
     deploymentState: app.deploymentState,
