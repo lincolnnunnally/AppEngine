@@ -141,6 +141,13 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
       appEnv = { ...vaultEnv, ...(appEnv || {}) };
     }
 
+    // Built-in admin (owner standard): the builder is ALWAYS the owner of their
+    // app, and the platform admin (when configured) gets owner access on every
+    // app — role by signed-in email, no shared passwords anywhere.
+    const platformAdmin = (process.env.APP_ENGINE_PLATFORM_ADMIN_EMAIL || "").trim();
+    const ownerEmails = [userKey, platformAdmin].filter(Boolean).join(",");
+    appEnv = { ...(appEnv || {}), APP_ENGINE_OWNER_EMAIL: ownerEmails };
+
     // Preview-first (owner decision, 2026-07-02): the app publishes as a testable
     // PREVIEW the customer can open and try; their explicit "make it official"
     // approval promotes that exact deployment to the app's main link. Applies to
