@@ -6,6 +6,7 @@ import { listBuildJobsForUser, type BuildJob, type BuildJobStatus } from "@/lib/
 import { listChangeRequestsForUser } from "@/lib/engine/change-requests";
 import { BuyCredits } from "@/components/billing/buy-credits";
 import { RequestChange } from "@/components/account/request-change";
+import { EnvVault } from "@/components/account/env-vault";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +119,20 @@ export default async function AccountPage() {
             })}
           </div>
         )}
+      </section>
+
+      <section className="panel">
+        <p className="eyebrow">Your keys</p>
+        <h2>Connect your services once</h2>
+        <p>
+          Add an API key here one time and every app you build can use it — email, payments, AI, and more.
+          Need a key for just one app? Scope it to that app. We tell you exactly where to find each key.
+        </p>
+        <EnvVault
+          apps={apps
+            .filter((app) => app.vercelProject)
+            .map((app) => ({ label: appTitle(app.idea), slug: String(app.vercelProject) }))}
+        />
       </section>
 
       {billingOn ? (
