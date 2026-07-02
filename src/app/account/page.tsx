@@ -7,6 +7,7 @@ import { listChangeRequestsForUser } from "@/lib/engine/change-requests";
 import { BuyCredits } from "@/components/billing/buy-credits";
 import { RequestChange } from "@/components/account/request-change";
 import { EnvVault } from "@/components/account/env-vault";
+import { ApproveApp } from "@/components/account/approve-app";
 
 export const dynamic = "force-dynamic";
 
@@ -99,9 +100,17 @@ export default async function AccountPage() {
                   </div>
 
                   {app.status === "live" && app.url ? (
-                    <p>
-                      <a href={app.url} target="_blank" rel="noreferrer">{app.url}</a>
-                    </p>
+                    <>
+                      <p>
+                        {app.vercelProject && app.url !== `https://${app.vercelProject}.vercel.app` ? (
+                          <span className="account-app-meta">Test link: </span>
+                        ) : null}
+                        <a href={app.url} target="_blank" rel="noreferrer">{app.url}</a>
+                      </p>
+                      {app.vercelProject && app.deploymentId && app.url !== `https://${app.vercelProject}.vercel.app` ? (
+                        <ApproveApp jobId={app.id} />
+                      ) : null}
+                    </>
                   ) : null}
 
                   {app.status === "failed" && app.error ? (

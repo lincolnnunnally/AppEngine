@@ -124,6 +124,21 @@ and must not expose secrets, real private user data, production writes, or paid
 provider actions (existing preview policy). Production deployments remain manual:
 owner review, design review, compatibility sign-off, and release gate clearance first.
 
+## The approve step (owner decision, 2026-07-02)
+
+Production happens through an explicit APPROVE action on a tested preview — the
+approval promotes the EXACT deployment that was tested (Vercel promote API; no
+rebuild in between):
+
+- **Customer apps**: builds now publish PREVIEW-FIRST. The customer opens the test
+  link, tries the app, and clicks "Approve — make it official" (in the build flow or
+  `/account`), which points the app's main link at that version. Applies to first
+  builds and improved versions alike. `POST /api/account/approve-app` (owner-of-app
+  gated).
+- **Engine pipeline**: `POST /api/engine/projects/:projectId/deployments/promote`
+  (owner/admin gated) promotes the latest auto-deployed preview; the click IS the
+  production approval the release gate requires.
+
 ## Safety Boundaries (Preserved — Do Not Modify)
 
 - Cost Governance: `pause_for_budget` blocks new phases until owner approval

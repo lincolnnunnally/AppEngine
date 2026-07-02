@@ -77,7 +77,7 @@ export async function executePreviewAutoDeploy(projectId: string): Promise<AutoD
     setTimeout(() => resolve({ ok: false, message: `Deploy timed out after ${timeoutSeconds()}s.` }), budgetMs)
   );
 
-  const result = await Promise.race([deployGeneratedAppToVercel(slug, files), timer]);
+  const result = await Promise.race([deployGeneratedAppToVercel(slug, files, undefined, { target: "preview" }), timer]);
   await recordOutcome(projectId, result);
 
   return {
