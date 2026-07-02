@@ -4876,3 +4876,127 @@ a:focus-visible {
 .rail-signout:hover {
   color: var(--ink);
 }
+
+/* ---- Functional portfolio dashboard (2026-07-02): filters, stages, add-app. ---- */
+
+.portfolio-heading-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  align-content: start;
+  max-width: 320px;
+}
+
+.portfolio-registry-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.portfolio-filter {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+}
+
+.portfolio-filter:hover {
+  border-color: var(--teal);
+}
+
+.portfolio-filter--active {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal);
+}
+
+.portfolio-stage-meter {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.portfolio-stage {
+  flex: 1 1 0;
+  min-width: 56px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  border-top: 3px solid var(--line);
+  padding-top: 5px;
+}
+
+.portfolio-stage.done {
+  border-top-color: var(--teal);
+  color: var(--ink);
+}
+
+.portfolio-stage.current {
+  border-top-color: var(--teal);
+  color: var(--teal);
+}
+
+.portfolio-next-step {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.portfolio-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.portfolio-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.portfolio-secondary-action:hover {
+  border-color: var(--teal);
+}
+
+.portfolio-add-form {
+  border: 1px dashed var(--teal);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.portfolio-add-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.portfolio-add-row .convo-input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.portfolio-start-card {
+  border-style: dashed;
+}
+
+.portfolio-empty-note {
+  color: var(--muted);
+  margin: 8px 0;
+}
