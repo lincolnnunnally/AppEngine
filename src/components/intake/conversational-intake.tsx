@@ -92,7 +92,7 @@ export function ConversationalIntake() {
           type: "success",
           title: "Got it — this is in.",
           message:
-            "We'll clarify the next step, check what already exists, then move it toward the right build. The first version will be a real, live starter you can try and improve — not the finished product yet."
+            "You'll get a real, live starter app you can open and try — not the finished product yet. We review every idea, build the first working version, then improve it with you."
         });
       }
     } catch {

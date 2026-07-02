@@ -92,36 +92,42 @@ export default async function AccountPage() {
             {apps.map((app) => {
               const created = formatDate(app.createdAt);
               const changes = changeCountByJob.get(app.id) ?? 0;
+              const isLive = app.status === "live" && Boolean(app.url);
+              const isTestLink = Boolean(app.vercelProject) && app.url !== `https://${app.vercelProject}.vercel.app`;
+              const meta = (
+                <p className="account-app-meta">
+                  {created ? `Started ${created}` : "Recently started"}
+                  {changes > 0 ? ` · ${changes} change request${changes === 1 ? "" : "s"} on file` : ""}
+                </p>
+              );
+              const head = (
+                <div className="account-app-head">
+                  <h3>{appTitle(app.idea)}</h3>
+                  <span className={`status-badge status-badge--${app.status}`}>{STATUS_LABEL[app.status]}</span>
+                </div>
+              );
               return (
                 <article className="account-app" key={app.id}>
-                  <div className="account-app-head">
-                    <h3>{appTitle(app.idea)}</h3>
-                    <span className={`status-badge status-badge--${app.status}`}>{STATUS_LABEL[app.status]}</span>
-                  </div>
-
-                  {app.status === "live" && app.url ? (
-                    <>
+                  {/* Live cards are clickable end to end — the whole card opens the app.
+                      Actions (approve, request a change) stay OUTSIDE the link. */}
+                  {isLive ? (
+                    <a className="account-app-link" href={app.url as string} target="_blank" rel="noreferrer">
+                      {head}
                       <p>
-                        {app.vercelProject && app.url !== `https://${app.vercelProject}.vercel.app` ? (
-                          <span className="account-app-meta">Test link: </span>
-                        ) : null}
-                        <a href={app.url} target="_blank" rel="noreferrer">{app.url}</a>
+                        {isTestLink ? <span className="account-app-meta">Test link: </span> : null}
+                        <span className="account-app-url">{app.url}</span>
                       </p>
-                      {app.vercelProject && app.deploymentId && app.url !== `https://${app.vercelProject}.vercel.app` ? (
-                        <ApproveApp jobId={app.id} />
-                      ) : null}
+                      {meta}
+                    </a>
+                  ) : (
+                    <>
+                      {head}
+                      {app.status === "failed" && app.error ? <p className="account-app-error">{app.error}</p> : null}
+                      {meta}
                     </>
-                  ) : null}
+                  )}
 
-                  {app.status === "failed" && app.error ? (
-                    <p className="account-app-error">{app.error}</p>
-                  ) : null}
-
-                  <p className="account-app-meta">
-                    {created ? `Started ${created}` : "Recently started"}
-                    {changes > 0 ? ` · ${changes} change request${changes === 1 ? "" : "s"} on file` : ""}
-                  </p>
-
+                  {isLive && isTestLink && app.deploymentId ? <ApproveApp jobId={app.id} /> : null}
                   <RequestChange jobId={app.id} />
                 </article>
               );

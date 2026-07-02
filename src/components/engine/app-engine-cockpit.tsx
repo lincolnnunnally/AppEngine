@@ -264,6 +264,15 @@ type AgentRole = {
 
 export function AppEngineCockpit() {
   const [idea, setIdea] = useState("");
+  // Click-to-expand state for spec cards (agent roles, setup phases).
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const toggleCard = (id: string) =>
+    setExpandedCards((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [targetCustomer, setTargetCustomer] = useState("");
   const [problem, setProblem] = useState("");
   const [revenueModel, setRevenueModel] = useState("Not sure yet");
@@ -946,19 +955,33 @@ export function AppEngineCockpit() {
             </div>
           </div>
           <div className="agent-bench-grid">
-            {agentRoles.map((role) => (
-              <article className="agent-role-card" key={role.slug}>
-                <span>{role.phase}</span>
-                <strong>{role.name}</strong>
-                <p>{role.purpose}</p>
-                <div>
-                  {role.deliverables.slice(0, 3).map((deliverable) => (
-                    <small key={deliverable}>{deliverable}</small>
-                  ))}
-                </div>
-                <em>{role.handoffTo.length ? `Hands off to ${role.handoffTo.join(", ")}` : "Final release gate"}</em>
-              </article>
-            ))}
+            {agentRoles.map((role) => {
+              const expanded = expandedCards.has(role.slug);
+              const shown = expanded ? role.deliverables : role.deliverables.slice(0, 3);
+              return (
+                <article className="agent-role-card" key={role.slug}>
+                  <span>{role.phase}</span>
+                  <strong>{role.name}</strong>
+                  <p>{role.purpose}</p>
+                  <div>
+                    {shown.map((deliverable) => (
+                      <small key={deliverable}>{deliverable}</small>
+                    ))}
+                  </div>
+                  {role.deliverables.length > 3 ? (
+                    <button
+                      type="button"
+                      className="card-expand-toggle"
+                      aria-expanded={expanded}
+                      onClick={() => toggleCard(role.slug)}
+                    >
+                      {expanded ? "Show fewer" : `Show all ${role.deliverables.length} deliverables`}
+                    </button>
+                  ) : null}
+                  <em>{role.handoffTo.length ? `Hands off to ${role.handoffTo.join(", ")}` : "Final release gate"}</em>
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -981,22 +1004,43 @@ export function AppEngineCockpit() {
             </div>
           </div>
           <div className="setup-phase-list">
-            {setupPhases.map((phase) => (
-              <article className={`setup-phase ${phase.status}`} key={phase.id}>
-                <div>
-                  <span>{formatStatus(phase.status)}</span>
-                  <strong>{phase.title}</strong>
-                </div>
-                <p>{phase.details}</p>
-                <div className="setup-variable-list">
-                  {phase.variables.map((variable) => (
-                    <span className={variable.present ? "present" : ""} key={variable.name} title={variable.label}>
-                      {variable.name}
-                    </span>
-                  ))}
-                </div>
-              </article>
-            ))}
+            {setupPhases.map((phase) => {
+              const expanded = expandedCards.has(phase.id);
+              return (
+                <article className={`setup-phase ${phase.status}`} key={phase.id}>
+                  <div>
+                    <span>{formatStatus(phase.status)}</span>
+                    <strong>{phase.title}</strong>
+                  </div>
+                  <p>{phase.details}</p>
+                  <div className="setup-variable-list">
+                    {phase.variables.map((variable) => (
+                      <span className={variable.present ? "present" : ""} key={variable.name} title={variable.label}>
+                        {variable.name}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="card-expand-toggle"
+                    aria-expanded={expanded}
+                    onClick={() => toggleCard(phase.id)}
+                  >
+                    {expanded ? "Hide details" : "What are these?"}
+                  </button>
+                  {expanded ? (
+                    <ul className="setup-variable-details">
+                      {phase.variables.map((variable) => (
+                        <li key={variable.name}>
+                          <code>{variable.name}</code> — {variable.label}
+                          {variable.present ? " (set)" : " (missing)"}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -1309,11 +1353,12 @@ export function AppEngineCockpit() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  // Clickable: every run metric opens the detailed status dashboard.
   return (
-    <article className="metric-card">
+    <a className="metric-card metric-card--link" href="/canonical-status">
       <span>{label}</span>
       <strong>{value}</strong>
-    </article>
+    </a>
   );
 }
 

@@ -46,7 +46,13 @@ const SETTINGS_GROUP: RailGroup = {
 // problem-vs-build fork, and no operator jargon (orchestrator, builder, admin,
 // catalog) ever reaches a customer.
 const CONSUMER_GROUPS: RailGroup[] = [
-  { label: "Home", items: [{ label: "Start an app", href: "/" }] }
+  {
+    label: "Home",
+    items: [
+      { label: "Start an app", href: "/" },
+      { label: "Your apps", href: "/account" }
+    ]
+  }
 ];
 
 const OPERATOR_BRAND = "App Engine";
