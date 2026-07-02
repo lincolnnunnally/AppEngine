@@ -22,8 +22,33 @@ pipeline pass; prior-work gate verdict: **extend_existing**
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
-| `VITE_BACKEND_URL` | frontend build | Points the UI at the backend API. Unset = same-origin `/api` (renders, data actions 404). |
-| Supabase URL + service key | backend service | The backend owns all Supabase access (RLS per migrations). |
+| `VITE_BACKEND_URL` | frontend build | Points the UI at the FastAPI backend (Render). Unset = same-origin `/api` (renders, data actions 404). |
+| `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` | frontend build | Direct supabase-js use in canvas/template/share components (RLS-protected). |
+| Supabase URL + service key | backend (Render) | Backend data access after the Mongo→Supabase pivot completes. |
+| `JWT_SECRET` etc. | backend (Render) | Per backend/.env contract (see backend/server.py). |
+
+## Decisions (owner + technical, 2026-07-02)
+
+- **Database (owner ruling):** ALL of Lincoln's ecosystem apps live on the
+  consolidated shared Supabase ("Life Produces Life",
+  `uqhqulrqcygsmmzdzemx`). Only customer-created AppEngine apps get their own
+  database (auto-Neon, already implemented). **Collision audit passed:** Laser's
+  52 migration tables (maker_*, product_*, design_*, machine_*, …) have ZERO
+  name overlaps with the 41 existing shared tables (lpl_*, person, testimony,
+  growth_*). Safe to apply as-is.
+- **Backend placement (technical call, standing standard):** NEW/generated apps
+  are full-stack on Vercel (one project, API routes — already the AppEngine
+  pattern). EXISTING FastAPI backends (ChurchConnect, LaserEngraving) deploy to
+  Render with the frontend on Vercel — the proven ecosystem pattern; we do not
+  rebuild working Python. Render free tier note: services sleep when idle
+  (first request after idle is slow) — acceptable for review, revisit for
+  production traffic.
+- **Discovered architecture reality:** LaserEngraving is MID-PIVOT between two
+  data stories. `backend/` is FastAPI + **MongoDB** + JWT (Emergent-era);
+  the 52 Supabase migrations + direct supabase-js use in the canvas/template
+  components are the NEWER direction. Completion = finish that pivot:
+  the backend's auth/data moves to the shared Supabase (destination schema
+  already exists as migrations); MongoDB is retired for this app.
 
 ## Remaining before production
 
