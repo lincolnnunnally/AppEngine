@@ -22,6 +22,7 @@ import { updateBuildJob } from "@/lib/engine/build-jobs";
 import { provisionGeneratedAppDatabaseUrl, setupGeneratedAppDatabase } from "@/lib/engine/database-setup";
 import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
+import type { Brand } from "@/lib/engine/themes";
 import { isLocalMode } from "@/lib/engine/local-mode";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 import { createPlannedProject } from "@/lib/engine/persistence";
@@ -60,7 +61,8 @@ export async function startCustomerBuild(
   userKey: string,
   idea: string,
   name?: string,
-  themeId?: string
+  themeId?: string,
+  brand?: Brand
 ): Promise<BilledBuildResult & { projectId: string }> {
   const at = new Date().toISOString();
   const input = { idea, name, revenueModel: "Not sure yet", appType: "Auto detect" };
@@ -71,7 +73,7 @@ export async function startCustomerBuild(
     : await createPlannedProject(input, ownership);
 
   const projectId = String((created as { project: { id: string } }).project.id);
-  const result = await runBilledBuild(projectId, userKey, themeId);
+  const result = await runBilledBuild(projectId, userKey, themeId, brand);
   return { projectId, ...result };
 }
 
@@ -104,9 +106,9 @@ async function readGeneratedBundle(projectId: string): Promise<DeployFile[]> {
 
 // The async build worker (run after the response): generate the real app, deploy
 // it live to its own Vercel project, and advance the job through its states.
-export async function runCustomerBuildJob(jobId: string, userKey: string, idea: string, name?: string, themeId?: string): Promise<void> {
+export async function runCustomerBuildJob(jobId: string, userKey: string, idea: string, name?: string, themeId?: string, brand?: Brand): Promise<void> {
   try {
-    const built = await startCustomerBuild(userKey, idea, name, themeId);
+    const built = await startCustomerBuild(userKey, idea, name, themeId, brand);
     await updateBuildJob(jobId, { projectId: built.projectId, status: "deploying" });
 
     const files = await readGeneratedBundle(built.projectId);
@@ -159,7 +161,7 @@ export type BilledBuildResult = {
 // customer for it. `customerKey` is the buyer's email; pass it to bill, omit to
 // run unbilled (e.g. owner/dev). The cost is the metering delta across the build
 // (the build runs in one request, so its own usage records are the delta).
-export async function runBilledBuild(projectId: string, customerKey?: string, themeId?: string): Promise<BilledBuildResult> {
+export async function runBilledBuild(projectId: string, customerKey?: string, themeId?: string, brand?: Brand): Promise<BilledBuildResult> {
   const billed = isBillingEnabled() && Boolean(customerKey);
 
   if (billed && customerKey) {
@@ -173,7 +175,7 @@ export async function runBilledBuild(projectId: string, customerKey?: string, th
 
   // The existing, real pipeline. Each step re-checks the build gate itself.
   const run = await runProjectAgents(projectId);
-  const generated = await generateProjectApp(projectId, { themeId });
+  const generated = await generateProjectApp(projectId, { themeId, brand });
   const deployment = await prepareProjectDeployment(projectId);
 
   let charge: BilledBuildResult["charge"] = null;

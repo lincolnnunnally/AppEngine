@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { DomainStep } from "@/components/build/domain-step";
 import { ThemePicker } from "@/components/build/theme-picker";
+import { BrandStep } from "@/components/build/brand-step";
 
 type Phase = "idle" | "building" | "deploying" | "live" | "failed";
 
@@ -17,6 +18,8 @@ const LABEL: Record<Phase, string> = {
 export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: boolean }) {
   const [idea, setIdea] = useState("");
   const [themeId, setThemeId] = useState("auto");
+  const [accentColor, setAccentColor] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [url, setUrl] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
@@ -65,7 +68,11 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
       const response = await fetch("/api/build/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ idea, themeId })
+        body: JSON.stringify({
+          idea,
+          themeId,
+          brand: { accentColor: accentColor || undefined, logoUrl: logoUrl.trim() || undefined }
+        })
       });
       const data = (await response.json().catch(() => ({}))) as { ok?: boolean; jobId?: string; message?: string };
       if (!data.ok || !data.jobId) {
@@ -96,7 +103,12 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
         disabled={busy}
         aria-label="Describe the app you want"
       />
-      {!busy && phase === "idle" ? <ThemePicker value={themeId} onChange={setThemeId} /> : null}
+      {!busy && phase === "idle" ? (
+        <>
+          <ThemePicker value={themeId} onChange={setThemeId} />
+          <BrandStep accentColor={accentColor} logoUrl={logoUrl} onAccent={setAccentColor} onLogo={setLogoUrl} />
+        </>
+      ) : null}
       <div style={{ marginTop: 12 }}>
         <button className="soft-launch-action" type="button" onClick={start} disabled={busy || idea.trim().length < 8}>
           {busy ? "Building…" : "Build it"}

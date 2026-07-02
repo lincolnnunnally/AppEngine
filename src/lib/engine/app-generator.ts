@@ -14,7 +14,7 @@ import {
   foundationSchemaSql,
   foundationSeedSql
 } from "./foundation-modules";
-import { buildThemedCss, resolveTheme } from "./themes";
+import { applyBrand, buildThemedCss, monogramFor, resolveTheme, type Brand } from "./themes";
 
 type GeneratorProject = {
   id: string;
@@ -61,7 +61,7 @@ export async function listGeneratedAppExports(projectId: string) {
   };
 }
 
-export async function generateProjectApp(projectId: string, options: { themeId?: string } = {}) {
+export async function generateProjectApp(projectId: string, options: { themeId?: string; brand?: Brand } = {}) {
   await assertProjectBuildAllowed(projectId, "generate_project_app");
   if (isLocalMode()) {
     const project = await getLocalProject(projectId);
@@ -70,7 +70,7 @@ export async function generateProjectApp(projectId: string, options: { themeId?:
       throw new Error("Project not found");
     }
 
-    const exportResult = await writeGeneratedBundle(project, await getLatestAgentOutputs(projectId), options.themeId);
+    const exportResult = await writeGeneratedBundle(project, await getLatestAgentOutputs(projectId), options.themeId, options.brand);
     const generatedExport = await createLocalExport(projectId, exportResult);
 
     return {
@@ -91,7 +91,7 @@ export async function generateProjectApp(projectId: string, options: { themeId?:
     throw new Error("Project not found");
   }
 
-  const exportResult = await writeGeneratedBundle(project as GeneratorProject, await getLatestAgentOutputs(projectId), options.themeId);
+  const exportResult = await writeGeneratedBundle(project as GeneratorProject, await getLatestAgentOutputs(projectId), options.themeId, options.brand);
   const [artifact] = await sql`
     insert into artifacts (project_id, artifact_type, title, uri, metadata, content)
     values (
@@ -124,7 +124,7 @@ export async function generateProjectApp(projectId: string, options: { themeId?:
   };
 }
 
-async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: GeneratorAgentOutput[] = [], themeId?: string) {
+async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: GeneratorAgentOutput[] = [], themeId?: string, brand?: Brand) {
   const plan =
     project.plan ||
     analyzeIdea({
@@ -137,7 +137,7 @@ async function writeGeneratedBundle(project: GeneratorProject, agentOutputs: Gen
   const handoff = buildGeneratedAppHandoff(plan, agentOutputs);
   const safeSlug = slugify(project.name || plan.title || project.id);
   const outputDir = join(process.cwd(), ".app-engine", "generated-apps", `${project.id}-${safeSlug}`);
-  const files = buildGeneratedFiles(project, plan, handoff, themeId);
+  const files = buildGeneratedFiles(project, plan, handoff, themeId, brand);
 
   for (const file of files) {
     const fullPath = join(outputDir, file.path);
@@ -208,9 +208,12 @@ function extractAgentOutputs(source: unknown): GeneratorAgentOutput[] {
     }));
 }
 
-function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff, themeId?: string): GeneratedFile[] {
-  const theme = resolveTheme(themeId, `${project.idea} ${plan.appType} ${plan.customer}`);
-  const projectName = escapeText(project.name || plan.title || "Generated App");
+function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff, themeId?: string, brand?: Brand): GeneratedFile[] {
+  const theme = applyBrand(resolveTheme(themeId, `${project.idea} ${plan.appType} ${plan.customer}`), brand);
+  const rawName = project.name || plan.title || "Generated App";
+  const projectName = escapeText(rawName);
+  const monogram = monogramFor(rawName);
+  const logoUrl = brand && typeof brand.logoUrl === "string" && /^https?:\/\//.test(brand.logoUrl.trim()) ? brand.logoUrl.trim() : "";
   const customer = escapeText(plan.customer);
   const problem = escapeText(plan.problem);
   const roleMatrix = normalizeRoleMatrix(handoff, plan.auth.roles);
@@ -387,7 +390,23 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/layout.tsx",
-      content: `import "./styles.css";\n\nexport const viewport = {\n  width: "device-width",\n  initialScale: 1,\n  themeColor: "${theme.paper}",\n  colorScheme: "${theme.mode}"\n};\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n`
+      content: `import "./styles.css";\nimport { AppShell } from "@/components/app-shell";\nimport { appBrand } from "@/lib/app-brand";\n\nexport const viewport = {\n  width: "device-width",\n  initialScale: 1,\n  themeColor: "${theme.paper}",\n  colorScheme: "${theme.mode}"\n};\n\nexport const metadata = {\n  title: { default: appBrand.name, template: "%s — " + appBrand.name },\n  description: appBrand.tagline,\n  icons: { icon: "/favicon.svg" },\n  openGraph: { title: appBrand.name, description: appBrand.tagline, type: "website" },\n  twitter: { card: "summary_large_image", title: appBrand.name, description: appBrand.tagline }\n};\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>\n        <AppShell>{children}</AppShell>\n      </body>\n    </html>\n  );\n}\n`
+    },
+    {
+      path: "src/lib/app-brand.ts",
+      content: `export const appBrand = ${JSON.stringify({ name: rawName, monogram, logoUrl, accent: theme.accent, accentInk: theme.accentInk, tagline: plan.valueProposition || plan.problem || "" }, null, 2)} as const;\n`
+    },
+    {
+      path: "src/components/app-shell.tsx",
+      content: `import { appBrand } from "@/lib/app-brand";\n\nconst NAV = [\n  { href: "/app", label: "App" },\n  { href: "/products", label: "Products" },\n  { href: "/support", label: "Support" },\n  { href: "/billing", label: "Billing" },\n  { href: "/account", label: "Account" },\n  { href: "/admin", label: "Admin" }\n];\n\nexport function AppShell({ children }: { children: React.ReactNode }) {\n  return (\n    <>\n      <header className="app-header">\n        <div className="app-header-inner">\n          <a className="app-brand" href="/">\n            {appBrand.logoUrl ? (\n              <img className="app-logo" src={appBrand.logoUrl} alt={appBrand.name} />\n            ) : (\n              <span className="app-logo-mark">{appBrand.monogram}</span>\n            )}\n            <span>{appBrand.name}</span>\n          </a>\n          <nav className="app-nav">\n            {NAV.map((item) => (\n              <a key={item.href} href={item.href}>{item.label}</a>\n            ))}\n            <a className="app-nav-cta" href="/sign-in">Sign in</a>\n          </nav>\n        </div>\n      </header>\n      {children}\n    </>\n  );\n}\n`
+    },
+    {
+      path: "public/favicon.svg",
+      content: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${theme.accent}"/><text x="50%" y="50%" dy=".08em" text-anchor="middle" dominant-baseline="middle" font-family="Inter, system-ui, sans-serif" font-size="30" font-weight="700" fill="${theme.accentInk}">${monogram}</text></svg>\n`
+    },
+    {
+      path: "src/app/opengraph-image.tsx",
+      content: `import { ImageResponse } from "next/og";\nimport { appBrand } from "@/lib/app-brand";\n\nexport const runtime = "edge";\nexport const size = { width: 1200, height: 630 };\nexport const contentType = "image/png";\n\nexport default function OgImage() {\n  return new ImageResponse(\n    (\n      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px", background: "${theme.paper}", color: "${theme.ink}", fontFamily: "sans-serif" }}>\n        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "96px", height: "96px", borderRadius: "20px", background: "${theme.accent}", color: "${theme.accentInk}", fontSize: "44px", fontWeight: 700 }}>{appBrand.monogram}</div>\n        <div style={{ fontSize: "64px", fontWeight: 700, marginTop: "40px" }}>{appBrand.name}</div>\n        <div style={{ fontSize: "30px", opacity: 0.8, marginTop: "16px" }}>{appBrand.tagline}</div>\n      </div>\n    ),\n    size\n  );\n}\n`
     },
     {
       path: "src/auth.ts",
@@ -415,7 +434,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Open App</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
+      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Get started</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/sign-in/page.tsx",
