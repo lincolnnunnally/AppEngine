@@ -62,6 +62,7 @@ shared_context_files:
   - source-of-truth/problem-portfolio-routing-standard.md
   - source-of-truth/prior-work-check-gate.md
   - source-of-truth/autonomous-build-activation.md
+  - source-of-truth/user-env-vault.md
   - source-of-truth/solution-candidate-review-gate.md
   - source-of-truth/candidate-to-packet-bridge.md
   - source-of-truth/packet-draft-approval-gate.md

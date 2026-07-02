@@ -8,7 +8,8 @@ const repoRoot = process.cwd();
 runStep("orchestrates the real pipeline in order and bills around it", () => {
   const text = read("src/lib/engine/customer-build.ts");
   const runIdx = text.indexOf("runProjectAgents(projectId)");
-  const genIdx = text.indexOf("generateProjectApp(projectId)");
+  // No closing paren: the call gained options ({ themeId, brand }) after this smoke was written.
+  const genIdx = text.indexOf("generateProjectApp(projectId");
   const depIdx = text.indexOf("prepareProjectDeployment(projectId)");
   if (!(runIdx > -1 && genIdx > runIdx && depIdx > genIdx)) {
     throw new Error("expected agents -> generate -> prepare-deploy in order");
@@ -51,11 +52,16 @@ runStep("DB mode self-applies columns + reads gate clearance", () => {
   assertIncludes(gate, "select gate_clearance from app_projects", "gate reads clearance from DB");
 });
 
-runStep("build route is sign-in gated and maps errors to friendly statuses", () => {
-  const text = read("src/app/api/build/start/route.ts");
-  assertIncludes(text, "canAccessEngineConsumerSurface", "requires sign-in");
-  assertIncludes(text, "BuildAffordabilityError", "402 on insufficient credits");
-  assertIncludes(text, "CustomerBuildUnavailableError", "503 when not enabled on prod");
+runStep("build route is sign-in gated; guards surface via the async job", () => {
+  // Since async orchestration (#221) the route answers immediately and the
+  // affordability/availability guards throw inside the background job, which
+  // maps any failure to a friendly job status the UI polls.
+  const route = read("src/app/api/build/start/route.ts");
+  assertIncludes(route, "canAccessEngineConsumerSurface", "requires sign-in");
+  const build = read("src/lib/engine/customer-build.ts");
+  assertIncludes(build, "BuildAffordabilityError", "credits guard exists in the build spine");
+  assertIncludes(build, "CustomerBuildUnavailableError", "prod availability guard exists");
+  assertIncludes(build, 'status: "failed", error:', "job surfaces friendly failure text");
 });
 
 runStep("a reviewable prod migration exists and is additive/backward-compatible", () => {

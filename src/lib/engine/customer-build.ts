@@ -26,7 +26,8 @@ import type { Brand } from "@/lib/engine/themes";
 import { isLocalMode } from "@/lib/engine/local-mode";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 import { createPlannedProject } from "@/lib/engine/persistence";
-import { deployGeneratedAppToVercel, type DeployFile } from "@/lib/engine/vercel-deploy";
+import { deployGeneratedAppToVercel, projectNameFromSlug, type DeployFile } from "@/lib/engine/vercel-deploy";
+import { resolveEnvForApp } from "@/lib/engine/env-vault";
 
 export class BuildAffordabilityError extends Error {
   code = "INSUFFICIENT_CREDITS";
@@ -129,6 +130,15 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
       }
     } catch {
       // Provisioning is best-effort; a build still deploys (DB features need it though).
+    }
+
+    // Merge the user's key vault (shared values + this app's overrides) into the
+    // deployed app's env, so email/payments/AI just work once keys are stored.
+    // Engine-provisioned keys (DATABASE_URL, AUTH_SECRET) always win the merge.
+    const appSlug = projectNameFromSlug((name || idea).slice(0, 40));
+    const vaultEnv = await resolveEnvForApp(userKey, appSlug).catch(() => ({} as Record<string, string>));
+    if (Object.keys(vaultEnv).length) {
+      appEnv = { ...vaultEnv, ...(appEnv || {}) };
     }
 
     const deploy = await deployGeneratedAppToVercel((name || idea).slice(0, 40), files, appEnv);

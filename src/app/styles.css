@@ -4453,6 +4453,75 @@ label {
   font-size: 1.4rem;
 }
 
+/* Account env vault: the user's keys, applied to their apps at deploy. */
+.env-vault {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.env-vault-form {
+  display: grid;
+  gap: 10px;
+  max-width: 640px;
+}
+
+.env-vault-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.env-vault-row .convo-input {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.env-vault-select {
+  max-width: 100%;
+}
+
+.env-vault-help,
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.env-vault-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.env-vault-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--panel, #fff);
+}
+
+.env-vault-item code {
+  font-weight: 700;
+}
+
+.env-vault-scope {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.env-vault-secret {
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-left: auto;
+}
+
 /* Build-flow brand step: optional custom color + logo. */
 .brand-step {
   margin-top: 18px;
