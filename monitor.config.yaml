@@ -14,9 +14,32 @@ actions:
   comment_on_stale_issue: true
   create_follow_up_issues: false
   label_stale_items: false
+dispatch:
+  enabled: true
+  rules:
+    - trigger: stalled_build
+      action: re_trigger_workflow
+      max_retries: 3
+    - trigger: failed_workflow
+      action: re_trigger_once_then_report
+      max_retries: 1
+    - trigger: incomplete_phase
+      action: create_recovery_issue
+      max_retries: 1
+  safety:
+    respect_cost_governance: true
+    respect_release_gate: true
+    respect_owner_approval_threshold: true
+    skip_workflow_name_patterns:
+      - release
+      - production
+      - deploy
+    rerun_workflow_name_patterns:
+      - ai prompt factory
 guardrails:
   - Never expose secrets.
   - Never deploy to production.
   - Use marker comments to prevent duplicate monitor comments.
   - Prefer reports and follow-up issues over automatic destructive changes.
   - Keep scheduled watchdog behavior narrow until webhooks or a GitHub App are added.
+  - Dispatch actions respect max_retries via persistent marker comments and are always logged in the report.

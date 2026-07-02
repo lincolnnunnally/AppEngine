@@ -490,6 +490,28 @@ monitor.config.yaml
 
 The monitor starts as a scheduled GitHub Actions watchdog. It reports open AI issues, stale issues/PRs, failed workflow runs, recently merged PRs, and source-of-truth changes without deploying or touching production.
 
+## Autonomous Build Pipeline
+
+Spec: `source-of-truth/autonomous-build-activation.md`. Three switches turn the
+manual phase-to-phase pipeline autonomous while keeping every gate:
+
+1. **Follow-up issues** — repository variable `APPENGINE_FOLLOW_UP_MODE=create`
+   makes a completed phase open the next `ai:*` issue automatically (caps:
+   `APPENGINE_MAX_FOLLOW_UP_ISSUES`, `APPENGINE_MAX_FOLLOW_UP_WORKFLOW_DISPATCHES`).
+2. **Monitor dispatch** — the Orchestration Monitor (6-hour cron) re-triggers
+   fresh stalls, re-runs a failed pipeline workflow once, and opens recovery
+   issues, per the `dispatch:` rules in `monitor.config.yaml`. Retry caps persist
+   via marker comments; release/production workflows are never auto-rerun; every
+   action is logged in the monitor report artifact.
+3. **Preview auto-deploy** — when a prepared deployment is `deployment_ready`
+   AND `APP_ENGINE_AUTO_DEPLOY_PREVIEW=true`, the deployments API executes the
+   preview deploy through the proven API-based deploy module. Production never
+   auto-deploys.
+
+Safety preserved: cost governance can pause the chain, the release gate blocks
+production, QA readiness must stay >= 90%, and production always requires owner
+approval. Smoke: `npm run smoke:autonomous-loop`.
+
 ## Deployment Workflow
 
 The cockpit records deployment attempts through:

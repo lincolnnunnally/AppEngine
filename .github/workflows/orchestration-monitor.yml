@@ -21,6 +21,14 @@ on:
         options:
           - "false"
           - "true"
+      dispatch:
+        description: "Act on dispatch rules (re-trigger stalled/failed work per monitor.config.yaml)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 jobs:
   monitor:
@@ -28,6 +36,8 @@ jobs:
     permissions:
       contents: read
       issues: write
+      # actions:write lets the dispatch pass re-run failed pipeline workflows (gh run rerun).
+      actions: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -49,6 +59,10 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           MONITOR_COMMENT: ${{ github.event_name == 'schedule' && 'true' || inputs.comment }}
           MONITOR_DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
+          MONITOR_DISPATCH: ${{ github.event_name == 'schedule' && 'true' || inputs.dispatch }}
+          # Owner kill switch: set this repository variable to "true" to suppress all
+          # dispatch actions while a budget pause / approval is pending.
+          APPENGINE_COST_GOVERNANCE_PAUSED: ${{ vars.APPENGINE_COST_GOVERNANCE_PAUSED }}
           MONITOR_OUTPUT: ${{ runner.temp }}/agent-run/orchestration-monitor-report.json
         run: node scripts/monitor-ai-issues.js
 

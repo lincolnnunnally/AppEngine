@@ -58,6 +58,7 @@
     "smoke:integrations-config": "node scripts/smoke-integrations-config.js",
     "smoke:billing": "node scripts/smoke-billing.js",
     "smoke:customer-build": "node scripts/smoke-customer-build.js",
+    "smoke:autonomous-loop": "node scripts/smoke-autonomous-loop.js",
     "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
     "smoke:async-build": "node scripts/smoke-async-build.js",
     "smoke:domains": "node scripts/smoke-domains.js",
