@@ -30,6 +30,15 @@ const OPERATOR_GROUPS: RailGroup[] = [
       { label: "Module catalog", href: "/module-catalog" },
       { label: "Life Core", href: "/life-core" }
     ]
+  },
+  {
+    // The customer-facing side, reachable from the cockpit: build an app the way
+    // a customer does and watch your own apps' progress.
+    label: "Customer view",
+    items: [
+      { label: "Build an app", href: "/build" },
+      { label: "Your apps", href: "/account" }
+    ]
   }
 ];
 
@@ -135,9 +144,19 @@ export default function AppShell({ children, isOperator = true }: { children: Re
                 <p className="rail-group-label">{settingsGroup.label}</p>
                 {settingsGroup.items.map((item) => renderItem(item, "rail-item-sm"))}
               </div>
-              <p className="rail-identity">Owner</p>
+              <div className="rail-identity-row">
+                <p className="rail-identity">Owner view</p>
+                <a className="rail-signout" href="/api/auth/signout">Sign out</a>
+              </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="rail-foot">
+              <div className="rail-identity-row">
+                <p className="rail-identity">Signed in</p>
+                <a className="rail-signout" href="/api/auth/signout">Sign out</a>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 
