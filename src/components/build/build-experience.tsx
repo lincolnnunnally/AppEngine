@@ -10,9 +10,9 @@ type Phase = "idle" | "building" | "deploying" | "live" | "failed";
 
 const LABEL: Record<Phase, string> = {
   idle: "",
-  building: "Building your app…",
-  deploying: "Publishing it live…",
-  live: "Live — open your app:",
+  building: "Building your app… (writing the code)",
+  deploying: "Publishing it… (putting it on the web)",
+  live: "Ready — your app is up:",
   failed: "Something went wrong."
 };
 
@@ -26,7 +26,9 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
   const [project, setProject] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectionLost, setConnectionLost] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failStreak = useRef(0);
 
   function poll(jobId: string) {
     const tick = async () => {
@@ -40,6 +42,8 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
           error?: string;
           message?: string;
         };
+        failStreak.current = 0;
+        setConnectionLost(false);
         if (!data.ok) {
           setPhase("failed");
           setError(data.message || "Lost track of the build.");
@@ -55,6 +59,13 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
         }
         timer.current = setTimeout(tick, 4000);
       } catch {
+        // The build keeps running server-side — this is only OUR connection.
+        // After a few misses, stop polling and let the user retry explicitly.
+        failStreak.current += 1;
+        if (failStreak.current >= 5) {
+          setConnectionLost(true);
+          return;
+        }
         timer.current = setTimeout(tick, 5000);
       }
     };
@@ -122,6 +133,25 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
       {phase !== "idle" ? (
         <div className="build-status" style={{ marginTop: 18 }}>
           <p className={phase === "live" ? "build-status-live" : undefined}>{LABEL[phase]}</p>
+          {phase === "building" || phase === "deploying" ? (
+            <p className="note">Usually takes a few minutes — you can keep this page open.</p>
+          ) : null}
+          {connectionLost ? (
+            <div>
+              <p className="note">We lost the connection while checking on your build — the build itself is still running.</p>
+              <button
+                type="button"
+                className="soft-launch-action"
+                onClick={() => {
+                  failStreak.current = 0;
+                  setConnectionLost(false);
+                  if (jobId) poll(jobId);
+                }}
+              >
+                Check again
+              </button>
+            </div>
+          ) : null}
           {url ? (
             <p>
               {phase === "live" ? <span className="note">Try it here: </span> : null}
@@ -141,6 +171,11 @@ export function BuildExperience({ domainsEnabled = false }: { domainsEnabled?: b
       ) : null}
 
       {phase === "live" ? <DomainStep projectName={project} domainsEnabled={domainsEnabled} /> : null}
+      {phase === "live" ? (
+        <p style={{ marginTop: 16 }}>
+          <a href="/account">View all your apps →</a>
+        </p>
+      ) : null}
     </section>
   );
 }

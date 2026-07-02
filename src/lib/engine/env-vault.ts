@@ -135,6 +135,120 @@ export async function deleteVaultVar(userEmail: string, key: string, appScope = 
   `;
 }
 
+// Bulk import: parses pasted or uploaded key lists so nobody has to add keys one
+// at a time. Accepts .env-style lines (KEY=VALUE, `export` prefix ok) and CSV rows
+// (KEY,VALUE[,app-scope]) — which is what Excel and Numbers produce via File →
+// Export → CSV. Comments (#) and blank lines are skipped; a `key,value` header row
+// is skipped; quoted values are unwrapped; later duplicates win.
+export type BulkParseResult = {
+  entries: Array<{ key: string; value: string; appScope: string }>;
+  skipped: Array<{ line: number; reason: string }>;
+};
+
+function unquote(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+// Splits one CSV line respecting double-quoted fields (enough for exported sheets).
+function splitCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      fields.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  fields.push(current);
+  return fields;
+}
+
+export function parseBulkEnvContent(content: string): BulkParseResult {
+  const entries = new Map<string, { key: string; value: string; appScope: string }>();
+  const skipped: Array<{ line: number; reason: string }> = [];
+  const lines = content.replace(/^﻿/, "").split(/\r?\n/);
+
+  lines.forEach((rawLine, index) => {
+    const lineNumber = index + 1;
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) return;
+
+    let key = "";
+    let value = "";
+    let appScope = "";
+
+    const equalsIndex = line.indexOf("=");
+    const commaFirst = line.includes(",") && (equalsIndex === -1 || line.indexOf(",") < equalsIndex);
+
+    if (commaFirst) {
+      // CSV row: KEY,VALUE[,scope]
+      const fields = splitCsvLine(line);
+      key = unquote(fields[0] || "").replace(/^export\s+/i, "");
+      value = unquote(fields[1] || "");
+      appScope = unquote(fields[2] || "");
+      // Skip a header row like "key,value" / "Name,Value".
+      if (/^(key|name|variable)$/i.test(key) && /^value$/i.test(value)) return;
+    } else if (equalsIndex > 0) {
+      // .env line: KEY=VALUE (split on the FIRST = so values may contain =).
+      key = line.slice(0, equalsIndex).trim().replace(/^export\s+/i, "");
+      value = unquote(line.slice(equalsIndex + 1));
+    } else {
+      skipped.push({ line: lineNumber, reason: "Not a KEY=VALUE or KEY,VALUE line." });
+      return;
+    }
+
+    key = key.trim().toUpperCase();
+    const check = isValidVaultKey(key);
+    if (!check.ok) {
+      skipped.push({ line: lineNumber, reason: `${key || "empty key"}: ${check.message}` });
+      return;
+    }
+    if (!value.trim()) {
+      skipped.push({ line: lineNumber, reason: `${key}: empty value.` });
+      return;
+    }
+    entries.set(`${key}::${appScope.toLowerCase()}`, { key, value: value.trim(), appScope: appScope.toLowerCase() });
+  });
+
+  return { entries: [...entries.values()], skipped };
+}
+
+// Stores every parsed entry; returns per-import counts for the UI.
+export async function importVaultEntries(
+  userEmail: string,
+  content: string
+): Promise<{ ok: boolean; saved: number; skipped: Array<{ line: number; reason: string }>; message?: string }> {
+  if (!hasDatabase()) return { ok: false, saved: 0, skipped: [], message: "Key storage isn't available yet." };
+  const { entries, skipped } = parseBulkEnvContent(content);
+  if (!entries.length) {
+    return { ok: false, saved: 0, skipped, message: "No usable keys found — expected KEY=VALUE lines or KEY,VALUE rows." };
+  }
+  let saved = 0;
+  for (const entry of entries) {
+    const result = await setVaultVar(userEmail, entry.key, entry.value, entry.appScope);
+    if (result.ok) saved += 1;
+  }
+  return { ok: true, saved, skipped };
+}
+
 // The deploy-time merge: shared values first, then this app's overrides on top.
 // Reserved keys are filtered even if they somehow got stored. Callers spread the
 // engine-provisioned env AFTER this, so engine keys always win.

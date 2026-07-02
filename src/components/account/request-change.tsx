@@ -48,7 +48,7 @@ export function RequestChange({ jobId }: { jobId: string }) {
 
   if (!open) {
     return (
-      <button type="button" className="account-link-button" onClick={() => setOpen(true)}>
+      <button type="button" className="account-change-trigger" onClick={() => setOpen(true)}>
         Request a change
       </button>
     );

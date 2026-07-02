@@ -4522,6 +4522,30 @@ label {
   margin-left: auto;
 }
 
+.env-vault-bulk {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.env-vault-bulk summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.env-vault-upload {
+  cursor: pointer;
+}
+
+.env-vault-skips {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 /* Build-flow brand step: optional custom color + logo. */
 .brand-step {
   margin-top: 18px;
@@ -4675,4 +4699,112 @@ label {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* ---- UX affordance pass (2026-07-02): everything interactive looks interactive. ---- */
+
+/* Clickable account app cards. */
+.account-app-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.account-app-url {
+  color: var(--teal);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.account-app:hover {
+  border-color: var(--teal);
+}
+
+/* Run metric cards link to the status dashboard. */
+a.metric-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.metric-card:hover {
+  border-color: var(--teal);
+}
+
+/* Spec-card expanders. */
+.card-expand-toggle {
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--teal);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.setup-variable-details {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: grid;
+  gap: 4px;
+}
+
+/* Request-a-change trigger reads as a real button, not hidden text. */
+.account-change-trigger {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--green-soft);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-change-trigger:hover {
+  border-color: var(--teal);
+}
+
+/* Hover states for interactive rows that lacked them. */
+.saved-project:hover,
+.queue-item:hover,
+.choice-button:hover {
+  border-color: var(--teal);
+}
+
+/* Keyboard focus is visible everywhere. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Shared, subtle motion for interactive surfaces. */
+.button,
+.rail-item,
+.saved-project,
+.queue-item,
+.choice-button,
+.account-app,
+.metric-card,
+.agent-role-card,
+.setup-phase,
+.template-item,
+.build-loop-step-card,
+.theme-card,
+.brand-swatch,
+.account-change-trigger,
+.env-vault-item {
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
