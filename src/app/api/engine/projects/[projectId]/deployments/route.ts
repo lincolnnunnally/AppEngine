@@ -3,6 +3,7 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { isBuildGateError } from "@/lib/engine/build-gate";
 import { getEngineHealth, listProjectDeployments, prepareProjectDeployment } from "@/lib/engine/execution";
 import { isLocalMode } from "@/lib/engine/local-mode";
+import { autoDeployPreviewEnabled, executePreviewAutoDeploy } from "@/lib/engine/preview-auto-deploy";
 
 type RouteContext = {
   params: Promise<{
@@ -43,7 +44,18 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   try {
-    return NextResponse.json(await prepareProjectDeployment(projectId), { status: 201 });
+    const prepared = await prepareProjectDeployment(projectId);
+
+    // Autonomous preview execution (spec: autonomous-build-activation.md, Change 3).
+    // Runs ONLY when prepare cleared every blocker AND the flag is on. Preview only —
+    // production deployments always stay manual and owner-approved.
+    const deploymentStatus = (prepared.deployment as { status?: string } | undefined)?.status;
+    if (deploymentStatus === "deployment_ready" && autoDeployPreviewEnabled()) {
+      const autoDeploy = await executePreviewAutoDeploy(projectId);
+      return NextResponse.json({ ...prepared, autoDeploy }, { status: 201 });
+    }
+
+    return NextResponse.json(prepared, { status: 201 });
   } catch (caught) {
     if (isBuildGateError(caught)) {
       return NextResponse.json({ error: caught.message, code: caught.code, reroute: "problem_intake_gate" }, { status: 403 });
