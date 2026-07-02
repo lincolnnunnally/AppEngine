@@ -26,9 +26,9 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "We couldn't find your account email." }, 400);
   }
 
-  let body: { idea?: unknown; name?: unknown; themeId?: unknown };
+  let body: { idea?: unknown; name?: unknown; themeId?: unknown; brand?: unknown };
   try {
-    body = (await request.json()) as { idea?: unknown; name?: unknown; themeId?: unknown };
+    body = (await request.json()) as { idea?: unknown; name?: unknown; themeId?: unknown; brand?: unknown };
   } catch {
     return json({ ok: false, message: "Invalid request." }, 400);
   }
@@ -36,13 +36,18 @@ export async function POST(request: Request) {
   const idea = typeof body.idea === "string" ? body.idea.trim() : "";
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
   const themeId = typeof body.themeId === "string" ? body.themeId.trim() : undefined;
+  const rawBrand = body.brand && typeof body.brand === "object" ? (body.brand as Record<string, unknown>) : {};
+  const brand = {
+    accentColor: typeof rawBrand.accentColor === "string" ? rawBrand.accentColor : undefined,
+    logoUrl: typeof rawBrand.logoUrl === "string" ? rawBrand.logoUrl : undefined
+  };
   if (idea.length < 8) {
     return json({ ok: false, message: "Describe what you want built (a sentence or two)." }, 400);
   }
 
   const job = await createBuildJob(userKey, idea);
   after(async () => {
-    await runCustomerBuildJob(job.id, userKey, idea, name, themeId);
+    await runCustomerBuildJob(job.id, userKey, idea, name, themeId, brand);
   });
 
   return json({ ok: true, jobId: job.id, status: "building" });

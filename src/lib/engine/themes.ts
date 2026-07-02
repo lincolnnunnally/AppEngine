@@ -158,6 +158,53 @@ export function resolveTheme(themeId: string | null | undefined, idea: string): 
   return pickThemeForIdea(idea);
 }
 
+// Per-app brand: a custom accent color and/or a logo, layered onto the theme.
+export type Brand = { accentColor?: string; logoUrl?: string };
+
+function parseHex(hex: string): [number, number, number] | null {
+  const match = /^#?([0-9a-fA-F]{6})$/.exec((hex || "").trim());
+  if (!match) return null;
+  const value = parseInt(match[1], 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+export function isHexColor(hex: string): boolean {
+  return parseHex(hex) !== null;
+}
+
+export function normalizeHex(hex: string): string {
+  const clean = (hex || "").trim().replace(/^#/, "");
+  return `#${clean.toLowerCase()}`;
+}
+
+// Choose readable text (near-white or near-black) for a background color using
+// WCAG relative luminance — so a custom brand color never yields unreadable buttons.
+export function readableInkFor(hex: string): string {
+  const rgb = parseHex(hex);
+  if (!rgb) return "#ffffff";
+  const channels = rgb.map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  return luminance > 0.42 ? "#14151a" : "#ffffff";
+}
+
+// Layer a brand's accent color onto a theme (with an auto readable foreground).
+export function applyBrand(theme: Theme, brand?: Brand | null): Theme {
+  if (!brand || !brand.accentColor || !isHexColor(brand.accentColor)) return theme;
+  const accent = normalizeHex(brand.accentColor);
+  return { ...theme, accent, accentInk: readableInkFor(accent) };
+}
+
+// A 1-2 letter monogram from the app name, for the auto logo, favicon, and OG card.
+// Stripped to alphanumerics so the name can never break the emitted SVG/markup.
+export function monogramFor(name: string): string {
+  const words = (name || "App").replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return ((words[0] || "A").slice(0, 2) || "A").toUpperCase();
+}
+
 // Lightweight data for the build-flow picker (no CSS) — safe to import client-side.
 export const THEME_OPTIONS = THEMES.map((theme) => ({
   id: theme.id,
@@ -207,6 +254,15 @@ p, small { color: var(--ink); line-height: 1.6; }
 .input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font: inherit; background: var(--panel); color: var(--ink); }
 textarea.input { min-height: 96px; resize: vertical; }
 .note { color: var(--muted); font-size: .9rem; margin: 6px 0 0; }
+.app-header { position: sticky; top: 0; z-index: 20; background: var(--panel); border-bottom: 1px solid var(--line); }
+.app-header-inner { width: min(1120px, 100%); margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.app-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--ink); text-decoration: none; }
+.app-logo { height: 26px; width: auto; border-radius: 4px; }
+.app-logo-mark { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-size: .8rem; font-weight: 800; }
+.app-nav { display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; margin-left: auto; }
+.app-nav a { color: var(--ink); text-decoration: none; font-size: .9rem; font-weight: 600; padding: 6px 10px; border-radius: var(--radius); }
+.app-nav a:hover { background: var(--paper); }
+.app-nav a.app-nav-cta { background: var(--accent); color: var(--accent-ink); }
 @media (min-width: 640px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
