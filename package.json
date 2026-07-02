@@ -12,6 +12,7 @@
     "prompt:make": "node scripts/make-codex-prompt.js",
     "orchestration:plan": "node scripts/make-orchestration-plan.js",
     "orchestration:followups": "node scripts/create-follow-up-issues.js",
+    "smoke:planner-loop": "node scripts/smoke-planner-loop.js",
     "monitor:issues": "node scripts/monitor-ai-issues.js",
     "source:check": "node scripts/check-source-of-truth.js"
   },
