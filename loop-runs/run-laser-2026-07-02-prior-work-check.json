@@ -1,0 +1,218 @@
+{
+  "kind": "prior_work_check",
+  "schemaVersion": 1,
+  "blocking": true,
+  "passed": true,
+  "sourceRequest": {
+    "runId": "run-laser-2026-07-02-marketplace-v1-cycle-1",
+    "title": "Laser Engrave Market v1",
+    "goal": "Product marketplace with catalog, checkout, support, and the proof-approval flow (customer approves the engraving proof before production, immutable approval record)."
+  },
+  "targetRepo": {
+    "name": "LaserEngraving",
+    "resolvedPath": "../../LaserEngraving",
+    "visible": true,
+    "triedPaths": [
+      "../../LaserEngraving",
+      "../LaserEngraving",
+      "/Users/lincolnnunnally/Documents/Project_Code/LaserEngraving"
+    ],
+    "evidenceSources": [
+      {
+        "kind": "repo",
+        "path": "../../LaserEngraving"
+      }
+    ]
+  },
+  "verdict": "extend_existing",
+  "matchStrength": "exact",
+  "capabilities": [
+    {
+      "id": "product-marketplace",
+      "description": "Product listings, orders, checkout for engraved goods",
+      "priorWorkFound": true,
+      "evidence": [
+        {
+          "kind": "component",
+          "path": "supabase/migrations/20251129224507_create_maker_marketplace_system.sql",
+          "match": "Marketplace",
+          "readsTables": [
+            "orders"
+          ]
+        },
+        {
+          "kind": "component",
+          "path": "supabase/migrations/20260511000002_orders_reminder_sent_at.sql",
+          "match": "Orders",
+          "readsTables": [
+            "orders"
+          ]
+        },
+        {
+          "kind": "component",
+          "path": "src/components/CheckoutForm.tsx",
+          "match": "Checkout",
+          "readsTables": [
+            "orders"
+          ]
+        },
+        {
+          "kind": "table",
+          "path": "../../LaserEngraving/test_reports/seed_customer_order.py",
+          "line": 53,
+          "match": "products",
+          "inLiveSchema": false
+        },
+        {
+          "kind": "table",
+          "path": "../../LaserEngraving/backend_test.py",
+          "line": 200,
+          "match": "orders",
+          "inLiveSchema": false
+        }
+      ]
+    },
+    {
+      "id": "proof-approval-artifact",
+      "description": "Customer approves the design proof before production; immutable approval proof",
+      "priorWorkFound": true,
+      "evidence": [
+        {
+          "kind": "component",
+          "path": "supabase/migrations/20251228002319_create_product_mockups.sql",
+          "match": "Mockup",
+          "readsTables": []
+        }
+      ]
+    },
+    {
+      "id": "design-studio",
+      "description": "Canvas design upload and mockups",
+      "priorWorkFound": true,
+      "evidence": [
+        {
+          "kind": "component",
+          "path": "src/components/CanvasToolbar.tsx",
+          "match": "Canvas",
+          "readsTables": []
+        },
+        {
+          "kind": "component",
+          "path": "ASSET_UPLOAD_GUIDE.md",
+          "match": "Upload",
+          "readsTables": []
+        },
+        {
+          "kind": "table",
+          "path": "../../LaserEngraving/supabase/migrations/20251129215632_add_phase1_phase2_tables.sql",
+          "line": 43,
+          "match": "designs",
+          "inLiveSchema": false
+        }
+      ]
+    }
+  ],
+  "extensionTargets": [
+    {
+      "capabilityId": "product-marketplace",
+      "kind": "component",
+      "path": "supabase/migrations/20251129224507_create_maker_marketplace_system.sql",
+      "readsTables": [
+        "orders"
+      ],
+      "action": "extend_component",
+      "note": "Extend supabase/migrations/20251129224507_create_maker_marketplace_system.sql for \"Product listings, orders, checkout for engraved goods\"; do not create a parallel component."
+    },
+    {
+      "capabilityId": "product-marketplace",
+      "kind": "component",
+      "path": "supabase/migrations/20260511000002_orders_reminder_sent_at.sql",
+      "readsTables": [
+        "orders"
+      ],
+      "action": "extend_component",
+      "note": "Extend supabase/migrations/20260511000002_orders_reminder_sent_at.sql for \"Product listings, orders, checkout for engraved goods\"; do not create a parallel component."
+    },
+    {
+      "capabilityId": "product-marketplace",
+      "kind": "component",
+      "path": "src/components/CheckoutForm.tsx",
+      "readsTables": [
+        "orders"
+      ],
+      "action": "extend_component",
+      "note": "Extend src/components/CheckoutForm.tsx for \"Product listings, orders, checkout for engraved goods\"; do not create a parallel component."
+    },
+    {
+      "capabilityId": "proof-approval-artifact",
+      "kind": "component",
+      "path": "supabase/migrations/20251228002319_create_product_mockups.sql",
+      "readsTables": [],
+      "action": "extend_component",
+      "note": "Extend supabase/migrations/20251228002319_create_product_mockups.sql for \"Customer approves the design proof before production; immutable approval proof\"; do not create a parallel component."
+    },
+    {
+      "capabilityId": "design-studio",
+      "kind": "component",
+      "path": "src/components/CanvasToolbar.tsx",
+      "readsTables": [],
+      "action": "extend_component",
+      "note": "Extend src/components/CanvasToolbar.tsx for \"Canvas design upload and mockups\"; do not create a parallel component."
+    },
+    {
+      "capabilityId": "design-studio",
+      "kind": "component",
+      "path": "ASSET_UPLOAD_GUIDE.md",
+      "readsTables": [],
+      "action": "extend_component",
+      "note": "Extend ASSET_UPLOAD_GUIDE.md for \"Canvas design upload and mockups\"; do not create a parallel component."
+    }
+  ],
+  "sideDoorViolations": [],
+  "findings": [],
+  "registrySearch": {
+    "available": true,
+    "lookupErrors": [],
+    "stateRoot": ".app-engine/state",
+    "registeredMatches": [],
+    "completedLoopMatches": [],
+    "loopRecordMatches": []
+  },
+  "forbiddenSideDoors": [
+    "new CRM or member-management app",
+    "new visitor route or table that duplicates an existing capture surface",
+    "duplicate admin list parallel to the existing inbox",
+    "member portal",
+    "multi-church tenancy layer",
+    "analytics/automation/duplicate-detection scope not requested by the run"
+  ],
+  "decision": {
+    "verdict": "extend_existing",
+    "proceed": true,
+    "authorizesPacket": "vnext_packet",
+    "nextSafeAction": "route_to_vnext_packet_extending_existing_surfaces",
+    "ownerApprovalRequired": true,
+    "reason": "Prior work exists in the target repo; extend the existing surfaces with a vNext/repair packet instead of building parallel ones."
+  },
+  "ownerReadableReport": "Prior-Work Check\n\nRun: Laser Engrave Market v1 (run-laser-2026-07-02-marketplace-v1-cycle-1)\nTarget repo: LaserEngraving -> ../../LaserEngraving\nVerdict: extend_existing\nAuthorizes: vnext_packet\nProceed: yes\nWhy: Prior work exists in the target repo; extend the existing surfaces with a vNext/repair packet instead of building parallel ones.\n\nExtend these existing surfaces (do not rebuild):\n- product-marketplace: component supabase/migrations/20251129224507_create_maker_marketplace_system.sql [reads orders]\n- product-marketplace: component supabase/migrations/20260511000002_orders_reminder_sent_at.sql [reads orders]\n- product-marketplace: component src/components/CheckoutForm.tsx [reads orders]\n- proof-approval-artifact: component supabase/migrations/20251228002319_create_product_mockups.sql\n- design-studio: component src/components/CanvasToolbar.tsx\n- design-studio: component ASSET_UPLOAD_GUIDE.md\n\nGuardrails: read-only, no migrations executed, no deploy, no paid resources.",
+  "followUpTasks": [
+    {
+      "title": "[run-laser-2026-07-02-marketplace-v1-cycle-1] Extend existing LaserEngraving surfaces",
+      "recommendedLabel": "ai:plan",
+      "body": "Prior-Work Check verdict: extend_existing for Laser Engrave Market v1.\nAuthorizes a vNext/repair packet only (not a new App Build Packet).\n\n## Extend (do not rebuild)\n- product-marketplace: component supabase/migrations/20251129224507_create_maker_marketplace_system.sql - Extend supabase/migrations/20251129224507_create_maker_marketplace_system.sql for \"Product listings, orders, checkout for engraved goods\"; do not create a parallel component.\n- product-marketplace: component supabase/migrations/20260511000002_orders_reminder_sent_at.sql - Extend supabase/migrations/20260511000002_orders_reminder_sent_at.sql for \"Product listings, orders, checkout for engraved goods\"; do not create a parallel component.\n- product-marketplace: component src/components/CheckoutForm.tsx - Extend src/components/CheckoutForm.tsx for \"Product listings, orders, checkout for engraved goods\"; do not create a parallel component.\n- proof-approval-artifact: component supabase/migrations/20251228002319_create_product_mockups.sql - Extend supabase/migrations/20251228002319_create_product_mockups.sql for \"Customer approves the design proof before production; immutable approval proof\"; do not create a parallel component.\n- design-studio: component src/components/CanvasToolbar.tsx - Extend src/components/CanvasToolbar.tsx for \"Canvas design upload and mockups\"; do not create a parallel component.\n- design-studio: component ASSET_UPLOAD_GUIDE.md - Extend ASSET_UPLOAD_GUIDE.md for \"Canvas design upload and mockups\"; do not create a parallel component.\n\n## Findings\n- none\n\n## Forbidden side doors\n- new CRM or member-management app\n- new visitor route or table that duplicates an existing capture surface\n- duplicate admin list parallel to the existing inbox\n- member portal\n- multi-church tenancy layer\n- analytics/automation/duplicate-detection scope not requested by the run"
+    }
+  ],
+  "guardrails": {
+    "blockingGate": true,
+    "readOnly": true,
+    "cannotSeeRepoBlocks": true,
+    "sideDoorForbidden": true,
+    "evidenceRequired": true,
+    "crossRepo": true,
+    "noTargetRepoWrites": true,
+    "noMigrationsExecuted": true,
+    "noProductionDeploy": true,
+    "noPaidResources": true,
+    "noSecretsOrEnvChanges": true
+  }
+}

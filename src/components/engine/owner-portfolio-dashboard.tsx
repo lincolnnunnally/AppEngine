@@ -258,7 +258,7 @@ function PortfolioEntryCard({ app, expanded, onToggle }: { app: AppPortfolioEntr
           {app.evidenceLinks.length ? (
             <div className="portfolio-action-row">
               {app.evidenceLinks.map((link) => (
-                <a className="portfolio-secondary-action" key={link.url} href={link.url} target="_blank" rel="noreferrer">
+                <a className="portfolio-secondary-action" key={`${link.label}::${link.url}`} href={link.url} target="_blank" rel="noreferrer">
                   {link.label}
                 </a>
               ))}
