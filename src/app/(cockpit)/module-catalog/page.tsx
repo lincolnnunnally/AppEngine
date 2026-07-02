@@ -19,7 +19,7 @@ export default async function ModuleCatalogPage() {
   const categories = Array.from(new Set(catalog.modules.map((module) => module.category)));
 
   return (
-    <main className="shell wide-shell" data-testid="module-catalog-page">
+    <main className="shell wide-shell module-catalog-page" data-testid="module-catalog-page">
       <section className="card">
         <p className="eyebrow">Lego System</p>
         <h1>Module catalog</h1>
