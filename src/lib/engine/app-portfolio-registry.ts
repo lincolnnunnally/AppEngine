@@ -209,7 +209,8 @@ export async function loadOwnerPortfolioRegistry(): Promise<AppPortfolioRegistry
       buildExecutionRequests
     ),
     deriveSparkEntry(seedEntries[3], sparkCapability),
-    deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates })
+    deriveFutureEcosystemEntry(seedEntries[4], { problemIntakes, opportunityCandidates }),
+    ...getImportedEcosystemPortfolioEntries()
   ]);
 
   // Canonical durable registrations + completed-loop evidence are merged on top
@@ -564,6 +565,187 @@ function deriveFutureEcosystemEntry(
       : { kind: "problem_intake", id: latestProblem?.id, summary: latestProblem?.title || "Problem intake state" },
     lastUpdated: latestCandidate?.updatedAt || latestProblem?.updatedAt || generatedAt
   };
+}
+
+// The owner's EXISTING ecosystem apps, imported into the portfolio so the one
+// dashboard shows everything — apps built elsewhere (Emergent, other builders)
+// included. Data source: the 2026-06-27 full-repo audit
+// (.app-engine/state/app_portfolio_registry/ecosystem-portfolio-registry.json +
+// source-of-truth/ecosystem-deployment-queue.md), with live URLs refreshed
+// 2026-07-02 for the two apps that are already serving traffic. These are
+// seeded imports; completing any of them runs through the normal intake ->
+// prior-work-check (extend_existing) -> build loop, and its entry then picks up
+// live state.
+type ImportedAppRecord = {
+  name: string;
+  slug: string;
+  status: string;
+  productionUrl: string;
+  deploymentState: AppPortfolioDeploymentState;
+  buildState: AppPortfolioBuildState;
+  nextSafeAction: AppPortfolioNextSafeAction;
+  blockers: string[];
+};
+
+const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
+  {
+    name: "ChurchConnect",
+    slug: "churchconnect",
+    status: "live — migration off Emergent finishing (compute on Vercel + Render; data move pending)",
+    productionUrl: "https://www.churchconnect.cloud",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: ["Data still on Emergent-managed Atlas; finish the gated migration before deep changes."]
+  },
+  {
+    name: "Easy Peasy Website (EasyPeazy)",
+    slug: "easy-peasy-website",
+    status: "live — Codex building Spaceship domain search/buy/manage",
+    productionUrl: "https://easypeazy.site",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: ["Provider credentials and provisioning safety per Launch Pack before backend changes."]
+  },
+  {
+    name: "Kindred Connections",
+    slug: "kindred-connections",
+    status: "mined as canonical Connection Engine source; app not relaunched",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["App-local Launch Pack missing; build not rerun in the audit pass."]
+  },
+  {
+    name: "Spark of Hope",
+    slug: "spark-of-hope",
+    status: "intake slice live inside AppEngine; standalone app planned",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: []
+  },
+  {
+    name: "Best Life",
+    slug: "best-life",
+    status: "planned; growth-dashboard template identified (Kindred-derived)",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: []
+  },
+  {
+    name: "Live On Mission",
+    slug: "live-on-mission",
+    status: "planned; connection + events templates identified",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: []
+  },
+  {
+    name: "Kids Need Dads",
+    slug: "kids-need-dads",
+    status: "planned; mutual-aid + community templates identified",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: []
+  },
+  {
+    name: "ChildFirst Solutions",
+    slug: "childfirst-solutions",
+    status: "source mined (case management + mediated communication); ready to build",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "ready_for_build",
+    nextSafeAction: "create_implementation_issue",
+    blockers: []
+  },
+  {
+    name: "Snip.Show",
+    slug: "snip-show",
+    status: "canonical-source decision pending (Snip.Show vs emergent repo)",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Choose the canonical repo before any deploy."]
+  },
+  {
+    name: "Toner Management",
+    slug: "toner-management",
+    status: "canonical-source decision pending across toner repos",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Canonical source not chosen across toner repos."]
+  },
+  {
+    name: "Laser Engrave Market",
+    slug: "laser-engrave-market",
+    status: "source mined (marketplace + proof approval); ready to build",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "ready_for_build",
+    nextSafeAction: "create_implementation_issue",
+    blockers: ["Launch Pack and proof artifact contract missing."]
+  },
+  {
+    name: "Iconium",
+    slug: "iconium",
+    status: "brand-kit generator source; database placement decision pending",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Prisma-vs-Supabase decision before deploy."]
+  },
+  {
+    name: "Ideas / Idea Capture",
+    slug: "ideas-idea-capture",
+    status: "idea capture + content forge source mined",
+    productionUrl: "approval-gated",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: []
+  }
+];
+
+function getImportedEcosystemPortfolioEntries(): AppPortfolioEntry[] {
+  return IMPORTED_ECOSYSTEM_APPS.map((app) => ({
+    name: app.name,
+    slug: app.slug,
+    type: "ecosystem_core",
+    status: app.status,
+    reviewUrl: app.productionUrl.startsWith("https://") ? app.productionUrl : "unknown",
+    productionUrl: app.productionUrl,
+    currentVersion: "imported-2026-07-02",
+    deploymentState: app.deploymentState,
+    buildState: app.buildState,
+    nextSafeAction: app.nextSafeAction,
+    sourceOfTruthFiles: ["source-of-truth/ecosystem-deployment-queue.md", "source-of-truth/module-catalog.md"],
+    linkedIssues: [],
+    linkedPRs: [],
+    blockers: app.blockers,
+    evidenceLinks: app.productionUrl.startsWith("https://")
+      ? [{ label: "Live site", url: app.productionUrl }]
+      : [],
+    stateSource: "seeded_fallback",
+    sourceArtifact: {
+      kind: "ecosystem_portfolio_import",
+      summary: "Imported from the 2026-06-27 ecosystem portfolio audit so every existing app is managed in one place."
+    },
+    lastUpdated: generatedAt
+  }));
 }
 
 function getSeedPortfolioEntries(): AppPortfolioEntry[] {
