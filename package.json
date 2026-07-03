@@ -109,6 +109,7 @@
     "smoke:live-portfolio-state": "node scripts/smoke-live-portfolio-state.js",
     "smoke:owner-portfolio-dashboard": "node scripts/smoke-owner-portfolio-dashboard.js",
     "smoke:ops-stats": "node scripts/smoke-ops-stats.js",
+    "smoke:portfolio-url-status": "node scripts/smoke-portfolio-url-status.js",
     "smoke:problem-portfolio-routing": "node scripts/smoke-problem-portfolio-routing.js",
     "smoke:prior-work-check": "node scripts/smoke-prior-work-check.js",
     "smoke:solution-candidate-review": "node scripts/smoke-solution-candidate-review.js",

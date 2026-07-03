@@ -57,7 +57,7 @@ runStep("owner control center loads and displays portfolio registry", () => {
     "OwnerPortfolioDashboard",
     "loadOwnerPortfolioRegistry",
     "portfolioRegistry",
-    "<OwnerPortfolioDashboard registry={portfolioRegistry} />"
+    "<OwnerPortfolioDashboard registry={portfolioRegistry} urlBoard={getPortfolioUrlStatusBoard()} />"
   ]);
 });
 
