@@ -50,14 +50,72 @@ pipeline pass; prior-work gate verdict: **extend_existing**
   the backend's auth/data moves to the shared Supabase (destination schema
   already exists as migrations); MongoDB is retired for this app.
 
+## Pivot completed 2026-07-03 (Claude Code run)
+
+**Database (done).** All 50 repo migrations applied to the shared LPL Supabase
+(`uqhqulrqcygsmmzdzemx`) via the Management API, each recorded in
+`supabase_migrations.schema_migrations`. Two reconstructed baseline migrations
+were applied first (`20251129000000_baseline_core_tables`,
+`20251129000001_baseline_core_functions`) — products/orders/customers/
+customizations + `generate_order_number`/`update_updated_at_column` predate the
+snapshot set and no migration created them. Per-file safety modifications on
+the shared DB (originals preserved in the repo; ledger notes the shims):
+
+- `20251201151633`: auth.users trigger NOT installed (would fire for every
+  ecosystem app's signups; laser roles are granted explicitly instead).
+- `20260112001456` (pg_cron email job) + `20260307000012` (dead storage.policies
+  API) + `20260307000019/20` (failed historical attempts superseded by `…21`):
+  recorded as no-ops.
+- `20260307000002/3/4`: hardcoded SMTP password **blanked** before insert
+  (set real SMTP creds via the admin email-config UI or backend env).
+- `20260307000001`: shimmed to `orders.priority` only — it collided with the
+  pre-existing messages table exactly as it did historically; `…0003` recreates
+  everything else.
+
+Post-migration repairs (new migrations on the shared DB):
+`laser_shared_db_rls_hardening` (dropped 16 permissive `USING (true)` policies —
+coupons/design_assets/platform_settings/conversations/payment_transactions/
+email_queue were writable by ANY authenticated user of ANY app on the shared
+project, payment_transactions even by anon), `laser_fix_runtime_broken_triggers`
++ `laser_drop_remaining_email_notification_triggers` (six email triggers
+referenced nonexistent `customer_products.product_name/order_id` or
+unreadable `auth.users` — they aborted order inserts, status updates, and
+review inserts at runtime; backend owns email delivery),
+`laser_rest_contract_additive_columns`, `laser_get_user_id_by_email_fn`.
+Zero changes to lpl_*/person/testimony/growth_* (verified before/after).
+
+**Backend (done, deploy pending).** Ported from MongoDB/JWT to the shared
+Supabase on branch `laser/supabase-pivot-complete`
+(lincolnnunnally/LaserEngraving PR #1): supabase-py service-role data access,
+credentials in Supabase Auth + `user_roles`, files on Supabase Storage, official
+`stripe` lib, new `/api/mockups` proof surface, `MakerMockupGenerator` ported
+off the supabase-js stub, requirements 141→10 deps, `render.yaml` blueprint.
+The JWT/cookie REST surface is byte-compatible — zero frontend auth changes.
+
+**E2E verified 2026-07-03** (local backend + real shared Supabase + browser UI):
+sign-up, sign-in, products list with the real Hobby Lobby catalog, customize →
+checkout → order with proof data (preview image + regenerable customizations
+jsonb), file upload/download roundtrip, maker onboarding + mockup
+create/set-primary (public storage URL), admin assign → maker ship → customer
+review (duplicate blocked, maker aggregates update), admin stats/whitelabel.
+Admin `lincoln@unitedundergod.org` seeded (password in run summary, never
+committed; seed never resets an existing shared-auth user's password).
+
 ## Remaining before production
 
-1. **Backend placement decision (owner):** stand up/point the backend API the
-   frontend expects, then rebuild with `VITE_BACKEND_URL` set.
-2. **Database placement decision (owner):** which Supabase project hosts the
-   50-migration schema (per ecosystem DB placement rules).
-3. Proof acceptance tests (contract below) wired as smoke checks.
-4. Owner approval promotes the tested preview (standard approve step).
+1. **RENDER_API_KEY (owner):** not present anywhere on this machine (checked
+   ChurchConnect setup and `~/Documents/Codex/private-env`). With it, create the
+   free `laser-engrave-api` web service from `render.yaml` and set the secret
+   env slots. The redeployed Vercel preview already points at
+   `https://laser-engrave-api.onrender.com`, so no frontend rebuild is needed
+   if that service name is available.
+2. **STRIPE_API_KEY (owner):** live checkout; payments endpoints 503 cleanly
+   until set.
+3. Re-run the E2E flows against the deployed preview once Render is up
+   (Lincoln's preview standard), then owner approval promotes it.
+
+Preview (UI live now; data actions activate with the Render service):
+https://laser-engrave-market-mlqzie6f9-lincolnnunnallys-projects.vercel.app
 
 ## Proof artifact contract (the `proof-approval-artifact` block)
 
