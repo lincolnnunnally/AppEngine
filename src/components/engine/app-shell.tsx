@@ -47,6 +47,7 @@ const SETTINGS_GROUP: RailGroup = {
   label: "Settings",
   items: [
     { label: "Integrations", href: "/integrations" },
+    { label: "App credentials", href: "/credentials" },
     { label: "Admin", href: "/admin" }
   ]
 };
