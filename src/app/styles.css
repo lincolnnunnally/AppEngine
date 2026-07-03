@@ -4930,6 +4930,16 @@ label {
   color: var(--soft-muted);
 }
 
+.signin-error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  font-size: 0.92rem;
+}
+
 /* Owner Integrations page */
 .integration-grid {
   display: grid;

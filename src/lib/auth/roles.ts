@@ -139,11 +139,18 @@ export function normalizeRole(value: unknown): Role | undefined {
   return (roles as readonly string[]).includes(normalized) ? (normalized as Role) : undefined;
 }
 
+// APP_ENGINE_OWNER_EMAIL accepts one address or a comma/space-separated list, so
+// all of the owner's identities (GitHub-primary gmail, the ecosystem admin
+// address) resolve to owner without an env edit per provider. The generated-app
+// template already parses a list; this brings the factory itself to parity.
 function isOwnerEmail(email?: string | null, env: RuntimeEnv = process.env) {
   const normalizedEmail = email?.trim().toLowerCase();
-  const ownerEmail = env.APP_ENGINE_OWNER_EMAIL?.trim().toLowerCase();
 
-  return Boolean(normalizedEmail && ownerEmail && normalizedEmail === ownerEmail);
+  if (!normalizedEmail) {
+    return false;
+  }
+
+  return parseCustomerAllowlist(env.APP_ENGINE_OWNER_EMAIL).includes(normalizedEmail);
 }
 
 async function readDatabaseProfileRole(
