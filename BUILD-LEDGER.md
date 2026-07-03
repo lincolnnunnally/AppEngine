@@ -99,6 +99,9 @@ Lincoln directed that every ecosystem build transfers to Claude Code and the ful
 - ✅ **T4 · life-produces-life CODE monorepo cloned** → `Project_Code/life-produces-life-monorepo` (apps + packages confirmed). Reminder: the local `life-produces-life` folder is the source-of-truth repo, a DIFFERENT repo. Stranded ChurchConnect DB drafts preserved on its `churchconnect-slice-event-fanout` branch (272b289).
 - ⛔ **T5 · ChurchConnect finish (first app through the transfer)** — waiting on Lincoln: (a) staff-login Connection Inbox walkthrough, (b) approval to apply the `churchconnect` schema to the shared Supabase (gated DB change), (c) approval to merge ChurchConnect PRs #5/#7/#11/#12 (merges auto-deploy churchconnect.cloud). Prep may proceed; the gates may not be crossed without him.
 
+### POST-LAUNCH — run the business of the apps (Lincoln-directed, 2026-07-03)
+- 🔵 **Ops layer: per-app users / open tickets / recent orders on the owner dashboard** — IN REVIEW (**#245**, branch `feat/ops-app-stats`; Claude Code, 2026-07-03). Generated apps now ship a token-gated `GET /api/admin/stats` (foundation module); deploys inject a per-app `APP_ENGINE_STATS_TOKEN` and keep it on the build job; an ops collector polls reporting apps and caches readings (self-creating `app_ops_stats_cache`, re-poll on read after 10 min — no cron); every portfolio card carries an Ops strip with real counts or an honest "Not reporting yet". AppEngine itself exposes the same endpoint; `APP_ENGINE_OPS_TARGETS` (env JSON) lets any app that adopts the endpoint report with no code change. Standard: `source-of-truth/app-ops-reporting-standard.md`. Free tier only; counts only, no PII; tokens never in git.
+
 ---
 
 ## ACTIVATION — without this, the board is just a doc nobody honors

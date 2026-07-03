@@ -376,6 +376,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
         'AUTH_SECRET="replace-with-a-long-random-secret"',
         'AUTH_URL="http://localhost:3000"',
         'APP_ENGINE_OWNER_EMAIL="you@example.com"',
+        'APP_ENGINE_STATS_TOKEN=""',
         'AUTH_GITHUB_ID=""',
         'AUTH_GITHUB_SECRET=""',
         'AUTH_GOOGLE_ID=""',
@@ -861,7 +862,8 @@ function normalizeApiRoutes(handoff: GeneratedAppHandoff): ApiRouteContract[] {
         { method: "GET", path: "/api/health", purpose: "public health check", auth: "public" },
         { method: "GET", path: "/api/customer/requests", purpose: "list customer requests", auth: "customer" },
         { method: "GET", path: "/api/admin/customers", purpose: "list admin customers", auth: "admin" },
-        { method: "GET", path: "/api/admin/projects", purpose: "list admin projects", auth: "admin" }
+        { method: "GET", path: "/api/admin/projects", purpose: "list admin projects", auth: "admin" },
+        { method: "GET", path: "/api/admin/stats", purpose: "ops stats for the AppEngine owner dashboard", auth: "stats token" }
       ]
   ).map((route) => ({
     method: text(route.method, "GET").toUpperCase(),

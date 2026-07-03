@@ -704,6 +704,59 @@ function webhookApi(): GeneratedFile {
   ]);
 }
 
+function adminStatsApi(): GeneratedFile {
+  return file("src/app/api/admin/stats/route.ts", [
+    "// Ops stats for the AppEngine owner dashboard (machine-readable, token-gated).",
+    "// AppEngine injects APP_ENGINE_STATS_TOKEN when it deploys this app and presents",
+    "// the same token as a bearer token when it polls. Counts come from this app's",
+    "// own tables — numbers only, no personal data ever leaves the app.",
+    'import crypto from "node:crypto";',
+    'import { NextResponse } from "next/server";',
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    "",
+    'export const runtime = "nodejs";',
+    'export const dynamic = "force-dynamic";',
+    "",
+    "function tokenMatches(request: Request): boolean {",
+    '  const expected = (process.env.APP_ENGINE_STATS_TOKEN || "").trim();',
+    "  if (!expected) return false;",
+    '  const header = request.headers.get("authorization") || "";',
+    '  const presented = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";',
+    "  if (!presented) return false;",
+    "  const a = Buffer.from(presented);",
+    "  const b = Buffer.from(expected);",
+    "  return a.length === b.length && crypto.timingSafeEqual(a, b);",
+    "}",
+    "",
+    "export async function GET(request: Request) {",
+    "  if (!tokenMatches(request)) {",
+    '    return NextResponse.json({ ok: false, message: "A valid stats token is required." }, { status: 401 });',
+    "  }",
+    "  if (!hasDatabase()) {",
+    "    return NextResponse.json({ ok: true, reporting: false, users: null, ticketsOpen: null, ordersRecent: null });",
+    "  }",
+    "  try {",
+    "    const sql = getDatabase();",
+    "    const [users, tickets, orders] = await Promise.all([",
+    "      sql`select count(*)::int as n from users`,",
+    "      sql`select count(*)::int as n from support_tickets where status = 'open'`,",
+    "      sql`select count(*)::int as n from payments where created_at > now() - interval '30 days'`",
+    "    ]);",
+    "    return NextResponse.json({",
+    "      ok: true,",
+    "      reporting: true,",
+    "      users: Number(users[0] ? users[0].n || 0 : 0),",
+    "      ticketsOpen: Number(tickets[0] ? tickets[0].n || 0 : 0),",
+    "      ordersRecent: Number(orders[0] ? orders[0].n || 0 : 0),",
+    "      generatedAt: new Date().toISOString()",
+    "    });",
+    "  } catch {",
+    '    return NextResponse.json({ ok: false, message: "Stats are unavailable right now." }, { status: 500 });',
+    "  }",
+    "}"
+  ]);
+}
+
 // ---- schema / seed / env / nav -------------------------------------------------
 
 export function foundationSchemaSql(): string {
@@ -770,7 +823,12 @@ export function foundationEnvLines(): string[] {
     "",
     "# Payments (Stripe) — connect to collect real payments to your own account.",
     "STRIPE_SECRET_KEY=",
-    "STRIPE_WEBHOOK_SECRET="
+    "STRIPE_WEBHOOK_SECRET=",
+    "",
+    "# Ops reporting — AppEngine's owner dashboard reads this app's live counts",
+    "# (users, open tickets, recent orders) with this token. Deployed apps get one",
+    "# injected automatically; leave blank to keep stats reporting off.",
+    "APP_ENGINE_STATS_TOKEN="
   ];
 }
 
@@ -802,6 +860,7 @@ export function foundationModuleFiles(): GeneratedFile[] {
     supportApi(),
     emailApi(),
     checkoutApi(),
-    webhookApi()
+    webhookApi(),
+    adminStatsApi()
   ];
 }

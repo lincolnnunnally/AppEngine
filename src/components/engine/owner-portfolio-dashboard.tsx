@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AppPortfolioEntry, AppPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
+import type { OpsStatsRecord, OpsStatsSnapshot } from "@/lib/engine/ops-stats";
 
 // The one dashboard for every app the owner manages. Functional, not just
 // informational: the summary tiles FILTER the grid, every card expands to its
 // full detail, each app shows a pipeline stage meter and a plain-language next
 // step, and "Add an app" registers an existing app (built anywhere) on the spot.
+// Each card also carries an Ops strip — live business numbers (users, open
+// tickets, recent orders) for apps that report them, "Not reporting yet" for
+// the rest — loaded after mount from /api/engine/ops/stats.
 
 type Bucket = "all" | "live" | "review" | "build" | "decision" | "planned";
 
@@ -63,6 +67,24 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
   const [filter, setFilter] = useState<Bucket>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
+  const [ops, setOps] = useState<OpsStatsSnapshot | null>(null);
+  const [opsLoaded, setOpsLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/engine/ops/stats")
+      .then((response) => response.json())
+      .then((data: { ok?: boolean; snapshot?: OpsStatsSnapshot }) => {
+        if (!cancelled && data?.ok && data.snapshot) setOps(data.snapshot);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setOpsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const counts = useMemo(() => {
     const tally: Record<Bucket, number> = { all: registry.apps.length, live: 0, review: 0, build: 0, decision: 0, planned: 0 };
@@ -121,7 +143,14 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
           app.slug === "future-ecosystem-apps-services" ? (
             <StartSomethingCard app={app} key={app.slug} />
           ) : (
-            <PortfolioEntryCard app={app} key={app.slug} expanded={expanded.has(app.slug)} onToggle={() => toggleExpanded(app.slug)} />
+            <PortfolioEntryCard
+              app={app}
+              key={app.slug}
+              expanded={expanded.has(app.slug)}
+              onToggle={() => toggleExpanded(app.slug)}
+              opsRecord={opsForApp(ops, app)}
+              opsLoaded={opsLoaded}
+            />
           )
         )}
         {visibleApps.length === 0 ? <p className="portfolio-empty-note">Nothing in this bucket right now.</p> : null}
@@ -175,7 +204,19 @@ function StageMeter({ app }: { app: AppPortfolioEntry }) {
   );
 }
 
-function PortfolioEntryCard({ app, expanded, onToggle }: { app: AppPortfolioEntry; expanded: boolean; onToggle: () => void }) {
+function PortfolioEntryCard({
+  app,
+  expanded,
+  onToggle,
+  opsRecord,
+  opsLoaded
+}: {
+  app: AppPortfolioEntry;
+  expanded: boolean;
+  onToggle: () => void;
+  opsRecord: OpsStatsRecord | null;
+  opsLoaded: boolean;
+}) {
   const latestPr = app.linkedPRs[0] || null;
   const liveUrl = app.productionUrl.startsWith("https://") ? app.productionUrl : null;
   const reviewUrl = app.reviewUrl.startsWith("/") || app.reviewUrl.startsWith("https://") ? app.reviewUrl : null;
@@ -197,6 +238,7 @@ function PortfolioEntryCard({ app, expanded, onToggle }: { app: AppPortfolioEntr
 
       <StageMeter app={app} />
       <p className="portfolio-next-step">→ {nextStep}</p>
+      <OpsStrip app={app} record={opsRecord} loaded={opsLoaded} />
 
       <div className="portfolio-action-row">
         {liveUrl ? (
@@ -402,6 +444,66 @@ function BuildPacketBridgePanel({ app }: { app: AppPortfolioEntry }) {
       </div>
     </section>
   );
+}
+
+// The Ops strip: how each app is DOING, not just how its build is going. Real
+// counts when the app reports them; an honest state line when it doesn't.
+function OpsStrip({ app, record, loaded }: { app: AppPortfolioEntry; record: OpsStatsRecord | null; loaded: boolean }) {
+  const live = app.deploymentState === "production_live";
+
+  if (record?.reporting) {
+    return (
+      <div className="portfolio-ops-strip reporting" aria-label={`${app.name} ops`}>
+        <span className="portfolio-ops-label">Ops</span>
+        <strong>{formatCount(record.stats.users)} users</strong>
+        <strong>{formatCount(record.stats.ticketsOpen)} open tickets</strong>
+        <strong>{formatCount(record.stats.ordersRecent)} orders (30d)</strong>
+        {record.checkedAt ? <small title={record.note || undefined}>as of {shortTime(record.checkedAt)}</small> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="portfolio-ops-strip muted" aria-label={`${app.name} ops`}>
+      <span className="portfolio-ops-label">Ops</span>
+      <small>
+        {!loaded
+          ? "Checking live stats…"
+          : live
+            ? record?.note || "Not reporting yet"
+            : "Not live yet — nothing to report"}
+      </small>
+    </div>
+  );
+}
+
+function formatCount(value: number | null) {
+  return value === null ? "—" : String(value);
+}
+
+function shortTime(iso: string) {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return iso;
+  return new Date(time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function hostOf(value: string): string {
+  try {
+    return /^https?:\/\//.test(value) ? new URL(value).host.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+// Match an ops record to a card: by portfolio slug first, by live-URL host as
+// the fallback (engine-built apps the owner hasn't registered by name yet).
+function opsForApp(snapshot: OpsStatsSnapshot | null, app: AppPortfolioEntry): OpsStatsRecord | null {
+  if (!snapshot) return null;
+  const bySlug = snapshot.apps.find((record) => record.slug && record.slug === app.slug);
+  if (bySlug) return bySlug;
+  const host = hostOf(app.productionUrl);
+  if (!host) return null;
+  return snapshot.apps.find((record) => hostOf(record.url) === host) || null;
 }
 
 function renderUrl(value: string) {
