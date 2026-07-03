@@ -724,14 +724,14 @@ const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
   {
     name: "Laser Engrave Market",
     slug: "laser-engrave-market",
-    status: "preview live — build proof passed, Launch Pack + proof contract filled (2026-07-02)",
+    status: "Mongo→Supabase pivot complete (2026-07-03): schema live on shared LPL Supabase, backend ported + E2E-verified locally, preview redeployed with backend URL baked in; awaiting Render deploy",
     productionUrl: "approval-gated",
     deploymentState: "review_ready",
     buildState: "preview_verified",
     nextSafeAction: "await_owner_review",
     blockers: [
-      "Backend API placement (VITE_BACKEND_URL) before data actions work.",
-      "Supabase placement decision for the 50-migration schema."
+      "RENDER_API_KEY needed to create the free laser-engrave-api web service (render.yaml blueprint ready in repo).",
+      "STRIPE_API_KEY needed for live checkout (payments endpoints 503 cleanly until set)."
     ]
   },
   {
@@ -804,7 +804,7 @@ function getImportedEcosystemPortfolioEntries(): AppPortfolioEntry[] {
     status: app.status,
     reviewUrl:
       app.slug === "laser-engrave-market"
-        ? "https://laser-engrave-market-d8jordzqx-lincolnnunnallys-projects.vercel.app"
+        ? "https://laser-engrave-market-mlqzie6f9-lincolnnunnallys-projects.vercel.app"
         : app.productionUrl.startsWith("https://")
           ? app.productionUrl
           : "unknown",
