@@ -28,10 +28,10 @@
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 5,
+      "live": 6,
       "deployed_awaiting_domain": 0,
       "domain_owned_not_serving": 7,
-      "awaiting_url": 12
+      "awaiting_url": 11
     }
   },
   "apps": [
@@ -47,8 +47,8 @@
       "domain": {
         "intendedDomain": "we-succeed.org",
         "urlStatus": "live",
-        "nextStep": "Nothing needed for the URL — live at www.we-succeed.org. If the name changes, update Vercel and this registry together.",
-        "note": "Lincoln may still change this domain (owner, 2026-07-03) — treat we-succeed.org as current, not final.",
+        "nextStep": "Nothing needed for the URL \u2014 live at www.we-succeed.org. If the name changes, update Vercel and this registry together.",
+        "note": "Lincoln may still change this domain (owner, 2026-07-03) \u2014 treat we-succeed.org as current, not final.",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -72,19 +72,19 @@
         },
         {
           "number": 245,
-          "title": "feat(ops): run-the-business layer — per-app users/tickets/orders on the owner dashboard",
+          "title": "feat(ops): run-the-business layer \u2014 per-app users/tickets/orders on the owner dashboard",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/245",
           "state": "merged"
         },
         {
           "number": 251,
-          "title": "feat(ops): attention queue — what every app needs, sorted, with directed actions",
+          "title": "feat(ops): attention queue \u2014 what every app needs, sorted, with directed actions",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/251",
           "state": "merged"
         },
         {
           "number": 255,
-          "title": "fix(auth): ecosystem login failures — surface errors, multi-owner-email, prod-safe generated apps",
+          "title": "fix(auth): ecosystem login failures \u2014 surface errors, multi-owner-email, prod-safe generated apps",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/255",
           "state": "open"
         },
@@ -116,7 +116,7 @@
       "domain": {
         "intendedDomain": "churchconnect.cloud",
         "urlStatus": "live",
-        "nextStep": "The URL is healthy — the work is fixing production login (ChurchConnect PR #16 + the Vercel env correction), not the domain.",
+        "nextStep": "The URL is healthy \u2014 the work is fixing production login (ChurchConnect PR #16 + the Vercel env correction), not the domain.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -189,13 +189,13 @@
         },
         {
           "number": 16,
-          "title": "fix: ChurchConnect login broken — production build bakes localhost:8000 API base",
+          "title": "fix: ChurchConnect login broken \u2014 production build bakes localhost:8000 API base",
           "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/16",
           "state": "open"
         }
       ],
       "blockers": [
-        "Production login broken: deployed frontend bakes a localhost:8000 API base — fix in ChurchConnect PR #16 plus a Vercel env correction (2026-07-03 auth audit).",
+        "Production login broken: deployed frontend bakes a localhost:8000 API base \u2014 fix in ChurchConnect PR #16 plus a Vercel env correction (2026-07-03 auth audit).",
         "Authenticated staff Connection Inbox walkthrough still needs live proof (board TRANSFER T5a).",
         "Gated on Lincoln: churchconnect schema apply to the shared Supabase (T5b) and merging ChurchConnect PRs #5/#7/#11/#12, which auto-deploy churchconnect.cloud (T5c).",
         "Data still on Emergent-managed Atlas; salvage-only import per the locked clean-rebuild direction."
@@ -220,8 +220,8 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "Choose Kindred's real domain — the Resend email verification (real user email) is blocked on exactly this decision; attach it during the Emergent exodus.",
-        "note": "Reachable today only at aligned-souls.emergent.host — a leftover Emergent subdomain, not a chosen name (owner, 2026-07-03).",
+        "nextStep": "Choose Kindred's real domain \u2014 the Resend email verification (real user email) is blocked on exactly this decision; attach it during the Emergent exodus.",
+        "note": "Reachable today only at aligned-souls.emergent.host \u2014 a leftover Emergent subdomain, not a chosen name (owner, 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -242,16 +242,16 @@
       "linkedPRs": [
         {
           "number": 1,
-          "title": "docs: Emergent exodus — AIPOS doc pack + migration plan",
+          "title": "docs: Emergent exodus \u2014 AIPOS doc pack + migration plan",
           "url": "https://github.com/lincolnnunnally/Kindred-Connection/pull/1",
           "state": "open"
         }
       ],
       "blockers": [
-        "Emergent-hosted: aligned-souls.emergent.host is a leftover Emergent subdomain, not a product decision — the exodus (Kindred-Connection PR #1 migration plan) is gated on Lincoln for DB changes, deploys, and paid resources.",
+        "Emergent-hosted: aligned-souls.emergent.host is a leftover Emergent subdomain, not a product decision \u2014 the exodus (Kindred-Connection PR #1 migration plan) is gated on Lincoln for DB changes, deploys, and paid resources.",
         "AIPOS doc pack + migration plan awaiting merge (Kindred-Connection PR #1).",
         "Resend domain verification (real user email) blocked on the final-domain decision; best-life.us was unlinked 2026-07-03.",
-        "Owner decision 2026-07-03: Kindred stays friendship-first — dating is a separate future app (see kindred-dating entry); do not extend Kindred surfaces toward dating."
+        "Owner decision 2026-07-03: Kindred stays friendship-first \u2014 dating is a separate future app (see kindred-dating entry); do not extend Kindred surfaces toward dating."
       ],
       "evidenceLinks": [
         {
@@ -273,7 +273,7 @@
       "domain": {
         "intendedDomain": "spark-of-hope.com",
         "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Reconcile the four Spark expressions into one canonical app first; the domain is already registered — add DNS and attach it when there is something to serve.",
+        "nextStep": "Reconcile the four Spark expressions into one canonical app first; the domain is already registered \u2014 add DNS and attach it when there is something to serve.",
         "note": "Registered, zero DNS records today (owner, 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
@@ -311,14 +311,14 @@
       "linkedPRs": [
         {
           "number": 258,
-          "title": "docs(ledger): TRANSFER T6 — spark-of-hope Vercel project disconnected from AppEngine repo",
+          "title": "docs(ledger): TRANSFER T6 \u2014 spark-of-hope Vercel project disconnected from AppEngine repo",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/258",
           "state": "open"
         }
       ],
       "blockers": [
         "Needs Launch Pack from the existing life-produces-life package surface before build dispatch.",
-        "Four divergent Spark expressions (LPL package, AppEngine intake-lite, Vercel project, mined sources) need reconciliation — 2026-07-03 audit; the spark-of-hope Vercel project was disconnected from the AppEngine repo (PR #258, TRANSFER T6)."
+        "Four divergent Spark expressions (LPL package, AppEngine intake-lite, Vercel project, mined sources) need reconciliation \u2014 2026-07-03 audit; the spark-of-hope Vercel project was disconnected from the AppEngine repo (PR #258, TRANSFER T6)."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -335,7 +335,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "Decide the boundary first — if Opportunity stays the We Succeed front door it never needs its own domain; only pick one if it becomes a separate app.",
+        "nextStep": "Decide the boundary first \u2014 if Opportunity stays the We Succeed front door it never needs its own domain; only pick one if it becomes a separate app.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -376,7 +376,7 @@
       "domain": {
         "intendedDomain": "best-life.us",
         "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Nothing urgent — the domain can stay parked until the Best Life app exists; confirm best-life.us remains the chosen name when the build starts.",
+        "nextStep": "Nothing urgent \u2014 the domain can stay parked until the Best Life app exists; confirm best-life.us remains the chosen name when the build starts.",
         "note": "Owned, DreamHost-parked (owner-confirmed 2026-07-03); unlinked from Kindred's Resend the same day.",
         "factsFrom": "owner-2026-07-03"
       },
@@ -394,7 +394,7 @@
       "linkedPRs": [],
       "blockers": [
         "Needs app profile, Launch Pack, and first build packet before coding.",
-        "best-life.us is owned and DreamHost-parked (owner-confirmed 2026-07-03; supersedes the earlier 'serves an unrelated WordPress site' reading) — it was unlinked from Kindred's Resend the same day; the domain decision stands before launch."
+        "best-life.us is owned and DreamHost-parked (owner-confirmed 2026-07-03; supersedes the earlier 'serves an unrelated WordPress site' reading) \u2014 it was unlinked from Kindred's Resend the same day; the domain decision stands before launch."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -409,10 +409,10 @@
       "buildState": "planned",
       "nextSafeAction": "create_planning_issue",
       "domain": {
-        "intendedDomain": "live-on-mission.org",
-        "urlStatus": "awaiting_url",
-        "nextStep": "Confirm on DreamHost whether live-on-mission.org is actually registered — the registration is unconfirmed and it has NO DNS records today; register or re-choose before any DNS work.",
-        "note": "The hyphenated live-on-mission.org is the intended name (owner, 2026-07-03) — ownership itself is the open question, so this stays 'awaiting URL', not 'domain owned'.",
+        "intendedDomain": "live-on-mission.com",
+        "urlStatus": "live",
+        "nextStep": "None for the domain itself \u2014 live-on-mission.com (Cloudflare) 301-redirects to churchconnect.cloud/mission, a polished landing already built inside ChurchConnect. Next step is the app boundary decision: standalone Live On Mission app vs continuing as the ChurchConnect /mission surface.",
+        "note": "Corrected by Lincoln 2026-07-03: the real domain is live-on-mission.COM (his earlier .org was a slip; .org is unregistered). Live and looking strong \u2014 warm/modern/trust-building styling is the bar.",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -429,7 +429,7 @@
       "linkedPRs": [],
       "blockers": [
         "Needs app profile, Launch Pack, and shared needs-to-helper matching decision before coding.",
-        "Community Connections is its less-faith-forward sibling — keep the pair designed together (see community-connections entry)."
+        "Community Connections is its less-faith-forward sibling \u2014 keep the pair designed together (see community-connections entry)."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -447,7 +447,7 @@
         "intendedDomain": "kidsneeddad.com",
         "urlStatus": "live",
         "nextStep": "The domain serves, but the wrong face: rebrand the Netlify site to Kids Need Dads (or point the domain at the canonical rebuild once the source decision lands).",
-        "note": "Live on Netlify still showing RebuildingDad branding (owner-confirmed 2026-07-03). Singular kidsneeddad.com — the plural kidsneeddads.com belongs to a third party, never ours.",
+        "note": "Live on Netlify still showing RebuildingDad branding (owner-confirmed 2026-07-03). Singular kidsneeddad.com \u2014 the plural kidsneeddads.com belongs to a third party, never ours.",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -466,7 +466,7 @@
       "linkedPRs": [],
       "blockers": [
         "Choose canonical source between RebuildingDads, KND-google-ai, the dads-recovery protective backup (2026-07-03), and any local Kids Need Dads folders.",
-        "Domain for the record: kidsneeddad.com (singular; eNom/DreamHost, expires 2027-03-01, healthy). The plural kidsneeddads.com belongs to a third party — never ours."
+        "Domain for the record: kidsneeddad.com (singular; eNom/DreamHost, expires 2027-03-01, healthy). The plural kidsneeddads.com belongs to a third party \u2014 never ours."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -483,7 +483,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "Pick and register a domain when ready — childfirstsolutions.com is unregistered and available, but nothing is owned today (registering is an owner/paid action).",
+        "nextStep": "Pick and register a domain when ready \u2014 childfirstsolutions.com is unregistered and available, but nothing is owned today (registering is an owner/paid action).",
         "note": "childfirstsolutions.com checked unregistered (owner, 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
@@ -529,7 +529,7 @@
       "domain": {
         "intendedDomain": "easypeazy.site",
         "urlStatus": "live",
-        "nextStep": "Nothing needed — live at easypeazy.site.",
+        "nextStep": "Nothing needed \u2014 live at easypeazy.site.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -568,7 +568,7 @@
       "domain": {
         "intendedDomain": "snip.show",
         "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Restore the app source (Snip.Show PR #1), deploy it, then attach snip.show — the domain is owned and waiting.",
+        "nextStep": "Restore the app source (Snip.Show PR #1), deploy it, then attach snip.show \u2014 the domain is owned and waiting.",
         "note": "Domain owned; nothing serving (owner, 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
@@ -632,7 +632,7 @@
       "linkedPRs": [],
       "blockers": [
         "Choose canonical repo/local source and merge dashboard/admin variants into one platform.",
-        "Protective work done 2026-07-03: TonerTrackerPro history pushed to its empty origin; toner-platform private backup created (secrets excluded) — canonicalization still open."
+        "Protective work done 2026-07-03: TonerTrackerPro history pushed to its empty origin; toner-platform private backup created (secrets excluded) \u2014 canonicalization still open."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -650,7 +650,7 @@
         "intendedDomain": "laser.engrave.market",
         "urlStatus": "domain_owned_not_serving",
         "nextStep": "After owner review, add laser.engrave.market to the laser-engrave-market Vercel project so the already-set DNS starts serving (backend activation still gated on RENDER_API_KEY).",
-        "note": "engrave.market owned on DreamHost; the laser subdomain's DNS is set but nothing serves it yet — the preview lives on a *.vercel.app address (owner, 2026-07-03).",
+        "note": "engrave.market owned on DreamHost; the laser subdomain's DNS is set but nothing serves it yet \u2014 the preview lives on a *.vercel.app address (owner, 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -668,13 +668,13 @@
       "linkedPRs": [
         {
           "number": 1,
-          "title": "Complete Mongo→Supabase pivot (shared LPL Supabase + mockup proof surface)",
+          "title": "Complete Mongo\u2192Supabase pivot (shared LPL Supabase + mockup proof surface)",
           "url": "https://github.com/lincolnnunnally/LaserEngraving/pull/1",
           "state": "merged"
         },
         {
           "number": 241,
-          "title": "feat(laser-engrave): pipeline pass — gate passed, blockers cleared, preview live",
+          "title": "feat(laser-engrave): pipeline pass \u2014 gate passed, blockers cleared, preview live",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/241",
           "state": "merged"
         },
@@ -686,7 +686,7 @@
         },
         {
           "number": 249,
-          "title": "docs(laser): Mongo→Supabase pivot complete — launch pack + portfolio update",
+          "title": "docs(laser): Mongo\u2192Supabase pivot complete \u2014 launch pack + portfolio update",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/249",
           "state": "merged"
         }
@@ -715,7 +715,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "No domain yet — choose one after the Prisma-vs-Supabase decision settles what Iconium becomes.",
+        "nextStep": "No domain yet \u2014 choose one after the Prisma-vs-Supabase decision settles what Iconium becomes.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -749,7 +749,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "No domain yet — decide its relation to the AppEngine intake first; it may live inside We Succeed rather than on its own URL.",
+        "nextStep": "No domain yet \u2014 decide its relation to the AppEngine intake first; it may live inside We Succeed rather than on its own URL.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -783,7 +783,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "No domain until the doctrine amendment clears — the name (Soulful Dating / Aligned Souls / Soul Connection) and its URL come with that decision.",
+        "nextStep": "No domain until the doctrine amendment clears \u2014 the name (Soulful Dating / Aligned Souls / Soul Connection) and its URL come with that decision.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -795,7 +795,7 @@
       "linkedPRs": [
         {
           "number": 1,
-          "title": "docs: Emergent exodus — AIPOS doc pack + migration plan",
+          "title": "docs: Emergent exodus \u2014 AIPOS doc pack + migration plan",
           "url": "https://github.com/lincolnnunnally/Kindred-Connection/pull/1",
           "state": "open"
         },
@@ -807,7 +807,7 @@
         }
       ],
       "blockers": [
-        "Owner decision 2026-07-03: dating is a SEPARATE app from Kindred (working names Soulful Dating / Aligned Souls / Soul Connection); Kindred stays friendship-first — never blur the two.",
+        "Owner decision 2026-07-03: dating is a SEPARATE app from Kindred (working names Soulful Dating / Aligned Souls / Soul Connection); Kindred stays friendship-first \u2014 never blur the two.",
         "Ecosystem doctrine amendment is the gate: the dating app needs Lincoln's doctrine sign-off before any build.",
         "Prerequisite: Connection-engine extraction (ECO-008) from Kindred; the missing geo capability is the shared Location & Proximity module (ECO-010, AppEngine PR #256)."
       ],
@@ -826,7 +826,7 @@
       "domain": {
         "intendedDomain": "unitedundergod.org",
         "urlStatus": "live",
-        "nextStep": "Nothing needed for the URL — live at unitedundergod.org (WordPress); the open question is the replatform/transfer decision, not the domain.",
+        "nextStep": "Nothing needed for the URL \u2014 live at unitedundergod.org (WordPress); the open question is the replatform/transfer decision, not the domain.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -842,8 +842,8 @@
       ],
       "linkedPRs": [],
       "blockers": [
-        "Live site is WordPress (Paid Memberships Pro) outside the monorepo; the monorepo app is a Sprint-1 stub (README only, no package.json) — replatform/transfer decision needed.",
-        "Planned to read the AppEngine ops collector for the public family-of-apps view — never build a second dashboard (board POST-LAUNCH note)."
+        "Live site is WordPress (Paid Memberships Pro) outside the monorepo; the monorepo app is a Sprint-1 stub (README only, no package.json) \u2014 replatform/transfer decision needed.",
+        "Planned to read the AppEngine ops collector for the public family-of-apps view \u2014 never build a second dashboard (board POST-LAUNCH note)."
       ],
       "evidenceLinks": [
         {
@@ -865,7 +865,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "Concept only — no domain until the app is real; Milstead's milstead.us is expected to be its first implementation's home.",
+        "nextStep": "Concept only \u2014 no domain until the app is real; Milstead's milstead.us is expected to be its first implementation's home.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -876,7 +876,7 @@
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Concept only — no repo or code yet. The less-faith-forward sibling of Live On Mission (community-level mission platform); Milstead is its first implementation (see milstead entry)."
+        "Concept only \u2014 no repo or code yet. The less-faith-forward sibling of Live On Mission (community-level mission platform); Milstead is its first implementation (see milstead entry)."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -893,7 +893,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "No domain — decide module-vs-standalone first (DO_NOT_DEPLOY stands); a ChurchConnect care module would never need its own URL.",
+        "nextStep": "No domain \u2014 decide module-vs-standalone first (DO_NOT_DEPLOY stands); a ChurchConnect care module would never need its own URL.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -905,8 +905,8 @@
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "DO_NOT_DEPLOY — mined as care/benevolence/media source (video recording, participant portal, case detail, counselor notes, analysis).",
-        "Boundary undecided: standalone app vs ChurchConnect care module — owner decision before any build."
+        "DO_NOT_DEPLOY \u2014 mined as care/benevolence/media source (video recording, participant portal, case detail, counselor notes, analysis).",
+        "Boundary undecided: standalone app vs ChurchConnect care module \u2014 owner decision before any build."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -923,8 +923,8 @@
       "domain": {
         "intendedDomain": "milstead.us",
         "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Keep milstead.us parked until the community platform (first Community Connections implementation) is built — and never point it at the church tenant; that's milstead.church's job.",
-        "note": "milstead.us is the COMMUNITY app's domain — a different app from Milstead Baptist Church's milstead.church; both owned (owner-confirmed 2026-07-03).",
+        "nextStep": "Keep milstead.us parked until the community platform (first Community Connections implementation) is built \u2014 and never point it at the church tenant; that's milstead.church's job.",
+        "note": "milstead.us is the COMMUNITY app's domain \u2014 a different app from Milstead Baptist Church's milstead.church; both owned (owner-confirmed 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -934,7 +934,7 @@
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Owner-corrected 2026-07-03: the milstead.us community platform and Milstead Baptist Church (milstead.church, a ChurchConnect tenant) are DIFFERENT apps — see the milstead-church entry; never conflate them.",
+        "Owner-corrected 2026-07-03: the milstead.us community platform and Milstead Baptist Church (milstead.church, a ChurchConnect tenant) are DIFFERENT apps \u2014 see the milstead-church entry; never conflate them.",
         "Concept stage as its own app: planned as the first Community Connections implementation (see community-connections entry)."
       ],
       "evidenceLinks": [],
@@ -952,8 +952,8 @@
       "domain": {
         "intendedDomain": "milstead.church",
         "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Attach milstead.church once the ChurchConnect milstead-church tenant is proven end-to-end (TRANSFER T5) — the domain is already owned.",
-        "note": "Milstead Baptist Church — a DIFFERENT app from the milstead.us community platform; both domains owned (owner-confirmed 2026-07-03).",
+        "nextStep": "Attach milstead.church once the ChurchConnect milstead-church tenant is proven end-to-end (TRANSFER T5) \u2014 the domain is already owned.",
+        "note": "Milstead Baptist Church \u2014 a DIFFERENT app from the milstead.us community platform; both domains owned (owner-confirmed 2026-07-03).",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -963,7 +963,7 @@
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Not a standalone codebase: the ChurchConnect launch-proof tenant milstead-church (Milstead Baptist Church) — gated on the TRANSFER T5 ChurchConnect finish.",
+        "Not a standalone codebase: the ChurchConnect launch-proof tenant milstead-church (Milstead Baptist Church) \u2014 gated on the TRANSFER T5 ChurchConnect finish.",
         "The shared organization table has no Milstead row yet; the tenant resolves through configured fallback (Step 5 evidence)."
       ],
       "evidenceLinks": [],
@@ -981,7 +981,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "No domain — it's the \"mistakes = growth\" content/principle brand today; pick a URL only if a standalone surface is ever decided.",
+        "nextStep": "No domain \u2014 it's the \"mistakes = growth\" content/principle brand today; pick a URL only if a standalone surface is ever decided.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -993,7 +993,7 @@
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Not a standalone app — the \"mistakes = growth\" principle/content brand (ledger verdict SOURCE_TRUTH/CONTENT); feeds Best Life and the content hub. Registered so the portfolio knows the source; no standalone build planned."
+        "Not a standalone app \u2014 the \"mistakes = growth\" principle/content brand (ledger verdict SOURCE_TRUTH/CONTENT); feeds Best Life and the content hub. Registered so the portfolio knows the source; no standalone build planned."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
@@ -1010,7 +1010,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "Protect the local source first (push it to a repo — code-loss risk); a domain comes with the deploy decision, not before.",
+        "nextStep": "Protect the local source first (push it to a repo \u2014 code-loss risk); a domain comes with the deploy decision, not before.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -1021,8 +1021,8 @@
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Real source lives only locally at Project_Code/Printer-Protector (printer-protector-saas: React+Vite frontend, Python SNMP monitoring agent, Supabase) — not a git repo, no remote: code-loss risk; protective push needed.",
-        "GitHub shells PrinterProtectorMonitoringTool / PrinterProtectorCustomer have no default branch (ARCHIVE_REFERENCE) — canonical repo decision needed.",
+        "Real source lives only locally at Project_Code/Printer-Protector (printer-protector-saas: React+Vite frontend, Python SNMP monitoring agent, Supabase) \u2014 not a git repo, no remote: code-loss risk; protective push needed.",
+        "GitHub shells PrinterProtectorMonitoringTool / PrinterProtectorCustomer have no default branch (ARCHIVE_REFERENCE) \u2014 canonical repo decision needed.",
         "Relationship to the Toner Management platform (shared monitoring module?) undecided."
       ],
       "evidenceLinks": [],
@@ -1040,7 +1040,7 @@
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "None — a monorepo integration module may never need a public domain; revisit only if the bridge grows a public surface.",
+        "nextStep": "None \u2014 a monorepo integration module may never need a public domain; revisit only if the bridge grows a public surface.",
         "note": "",
         "factsFrom": "owner-2026-07-03"
       },
@@ -1056,7 +1056,7 @@
       ],
       "linkedPRs": [],
       "blockers": [
-        "Sprint-1 integration placeholder (@life-produces-life/churchconnect-bridge v0.1.0): mapping only — users→lpl_people, churches→lpl_organizations, groups→lpl_life_circles, events→lpl_opportunities, volunteers→lpl_service_actions, paid accounts→lpl_billing_*.",
+        "Sprint-1 integration placeholder (@life-produces-life/churchconnect-bridge v0.1.0): mapping only \u2014 users\u2192lpl_people, churches\u2192lpl_organizations, groups\u2192lpl_life_circles, events\u2192lpl_opportunities, volunteers\u2192lpl_service_actions, paid accounts\u2192lpl_billing_*.",
         "ChurchConnect itself must not be rebuilt here; activation waits on the shared-foundation sprint and the TRANSFER T5 ChurchConnect finish."
       ],
       "evidenceLinks": [],

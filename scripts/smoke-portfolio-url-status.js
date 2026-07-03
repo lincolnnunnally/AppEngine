@@ -28,7 +28,7 @@ const OWNER_DOMAINS = [
   "snip.show",
   "easypeazy.site",
   "spark-of-hope.com",
-  "live-on-mission.org",
+  "live-on-mission.com",
   "best-life.us",
   "unitedundergod.org",
   "toner.management",
