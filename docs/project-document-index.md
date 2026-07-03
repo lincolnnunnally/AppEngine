@@ -13,6 +13,7 @@ These are active project controls. Read them before planning or building.
 - `agent-activation-snippets.md` — activation snippets for keeping agents on the ledger/scope protocol.
 - `appengine-intake-SEED.md` — future AppEngine intake seed material, separated from the current build fence.
 - `Ecosystem-Inventory-Reorganized.md` — ecosystem inventory and module framing.
+- `source-of-truth/app-transfer-ledger-standard.md` — reusable standard for existing-app transfers, recoveries, migrations, and feature-parity ledgers.
 
 ## Mission And Ecosystem Source Documents
 
