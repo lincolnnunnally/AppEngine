@@ -44,6 +44,14 @@ runStep("owner dashboard renders portfolio fields and guardrails", () => {
   ]);
 });
 
+runStep("dashboard cards carry an honest Ops strip", () => {
+  assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
+    "portfolio-ops-strip",
+    "/api/engine/ops/stats",
+    "Not reporting yet"
+  ]);
+});
+
 runStep("owner control center loads and displays portfolio registry", () => {
   assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
     "OwnerPortfolioDashboard",

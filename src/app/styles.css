@@ -2556,6 +2556,43 @@ label {
   font-weight: 900;
 }
 
+.portfolio-ops-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+}
+
+.portfolio-ops-strip.reporting {
+  color: var(--teal);
+  background: var(--green-soft);
+}
+
+.portfolio-ops-strip.muted {
+  color: inherit;
+  background: rgba(127, 127, 127, 0.1);
+  opacity: 0.85;
+}
+
+.portfolio-ops-strip .portfolio-ops-label {
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.portfolio-ops-strip strong {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.portfolio-ops-strip small {
+  opacity: 0.75;
+}
+
 .handoff-center {
   display: grid;
   gap: 16px;

@@ -146,7 +146,13 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
     // app — role by signed-in email, no shared passwords anywhere.
     const platformAdmin = (process.env.APP_ENGINE_PLATFORM_ADMIN_EMAIL || "").trim();
     const ownerEmails = [userKey, platformAdmin].filter(Boolean).join(",");
-    appEnv = { ...(appEnv || {}), APP_ENGINE_OWNER_EMAIL: ownerEmails };
+
+    // Ops reporting (run-the-business standard): every deployed app carries its
+    // own random stats token, so AppEngine's owner dashboard can read the app's
+    // live counts (users, open tickets, recent orders) — numbers only, no PII.
+    // The token is kept on the build job; it never appears in git or client code.
+    const statsToken = crypto.randomBytes(24).toString("hex");
+    appEnv = { ...(appEnv || {}), APP_ENGINE_OWNER_EMAIL: ownerEmails, APP_ENGINE_STATS_TOKEN: statsToken };
 
     // Preview-first (owner decision, 2026-07-02): the app publishes as a testable
     // PREVIEW the customer can open and try; their explicit "make it official"
@@ -164,7 +170,8 @@ export async function runCustomerBuildJob(jobId: string, userKey: string, idea: 
       status: "deploying",
       deploymentId: deploy.deploymentId ?? null,
       url: deploy.url ?? null,
-      vercelProject: deploy.projectName ?? null
+      vercelProject: deploy.projectName ?? null,
+      statsToken
     });
   } catch (error) {
     await updateBuildJob(jobId, { status: "failed", error: error instanceof Error ? error.message : "Build failed." });

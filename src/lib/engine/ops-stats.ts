@@ -1,0 +1,401 @@
+// Ops stats collector — the "run the business" layer. AppEngine doesn't just
+// build apps; it reports how each live app is DOING: user counts, open support
+// tickets, recent orders. Generated apps expose /api/admin/stats (token-gated;
+// the token is injected at deploy and kept on the build job), this collector
+// polls those endpoints, caches the readings (self-creating table, same pattern
+// as build jobs), and serves them to the owner dashboard. Apps that don't share
+// stats yet are reported honestly as "Not reporting yet" — never a fake number.
+// Counts only, never personal data, and tokens never leave the server. SERVER ONLY.
+import { getDatabase } from "@/lib/db/client";
+import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
+import { listDeployedBuildJobs } from "@/lib/engine/build-jobs";
+import { listOwnerRegisteredApps } from "@/lib/engine/portfolio-registrations";
+
+export type AppOpsStats = {
+  users: number | null;
+  ticketsOpen: number | null;
+  ordersRecent: number | null;
+};
+
+export type OpsStatsRecord = {
+  key: string; // stable cache key: "self", "app:<slug>", "job:<id>", "env:<host>"
+  slug: string; // portfolio slug when known ("" when unknown)
+  name: string;
+  url: string; // base URL polled ("" for the in-process self reading)
+  reporting: boolean; // true = the stats below are real, read from the app
+  stats: AppOpsStats;
+  note: string; // honest owner-readable state when not (fully) reporting
+  checkedAt: string | null;
+};
+
+export type OpsStatsSnapshot = {
+  kind: "app_ops_stats";
+  generatedAt: string;
+  totalApps: number;
+  reportingApps: number;
+  apps: OpsStatsRecord[];
+};
+
+// A reading older than this is re-polled on the next dashboard load; no cron
+// needed on the free tier — reads refresh the cache when it goes stale.
+const STALE_AFTER_MS = 10 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 6000;
+
+type OpsTarget = {
+  key: string;
+  slug: string;
+  name: string;
+  url: string;
+  kind: "self" | "remote";
+  token?: string;
+  pollable: boolean;
+  note: string;
+};
+
+function emptyStats(): AppOpsStats {
+  return { users: null, ticketsOpen: null, ordersRecent: null };
+}
+
+function hostOf(value: string): string {
+  try {
+    return /^https?:\/\//.test(value) ? new URL(value).host.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+function asCount(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+
+// Reads one target's /api/admin/stats with its bearer token. Best-effort: a
+// down app or a bad token is a "not reporting" answer, never an exception.
+export async function fetchStatsFromApp(
+  baseUrl: string,
+  token: string
+): Promise<{ ok: boolean; stats?: AppOpsStats; error?: string }> {
+  const statsUrl = `${baseUrl.replace(/\/+$/, "")}/api/admin/stats`;
+  try {
+    const response = await fetch(statsUrl, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      return { ok: false, error: `the stats endpoint answered ${response.status}` };
+    }
+    const data = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      reporting?: boolean;
+      users?: unknown;
+      ticketsOpen?: unknown;
+      ordersRecent?: unknown;
+    } | null;
+    if (!data || data.ok !== true) {
+      return { ok: false, error: "the stats endpoint returned an unexpected payload" };
+    }
+    if (data.reporting === false) {
+      return { ok: false, error: "the app answered but has no database connected yet" };
+    }
+    return {
+      ok: true,
+      stats: {
+        users: asCount(data.users),
+        ticketsOpen: asCount(data.ticketsOpen),
+        ordersRecent: asCount(data.ordersRecent)
+      }
+    };
+  } catch {
+    return { ok: false, error: "the app didn't answer its stats endpoint" };
+  }
+}
+
+async function countOrNull(query: () => Promise<unknown>): Promise<number | null> {
+  try {
+    const rows = (await query()) as Array<Record<string, unknown>>;
+    return rows.length ? Number(rows[0].n || 0) : 0;
+  } catch {
+    return null;
+  }
+}
+
+// AppEngine's own reading, straight from its own tables (no HTTP hop). The
+// factory's "orders" are builds started in the last 30 days; it has no
+// customer ticket queue yet, so that stays honestly null.
+export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: AppOpsStats; note: string }> {
+  if (!getConfiguredDatabaseUrl()) {
+    return { reporting: false, stats: emptyStats(), note: "Not reporting yet — no durable database in this environment." };
+  }
+  const sql = getDatabase();
+  const users = await countOrNull(() => sql`select count(*)::int as n from users`);
+  const buildsRecent = await countOrNull(
+    () => sql`select count(*)::int as n from app_build_jobs where created_at > now() - interval '30 days'`
+  );
+  if (users === null && buildsRecent === null) {
+    return { reporting: false, stats: emptyStats(), note: "Not reporting yet — couldn't read the platform database." };
+  }
+  return { reporting: true, stats: { users, ticketsOpen: null, ordersRecent: buildsRecent }, note: "" };
+}
+
+// Optional, env-configured targets: lets any app that adopted the stats
+// endpoint (e.g. an ecosystem app hosted elsewhere) report without a code
+// change. JSON array: [{ "slug": "churchconnect", "name": "...", "url":
+// "https://...", "token": "..." }]. Secrets stay in the environment, never git.
+type EnvOpsTarget = { name: string; slug: string; url: string; token: string; used?: boolean };
+
+function parseEnvTargets(): EnvOpsTarget[] {
+  const raw = (process.env.APP_ENGINE_OPS_TARGETS || "").trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object")
+      .map((entry) => ({
+        name: typeof entry.name === "string" ? entry.name.trim() : "",
+        slug: typeof entry.slug === "string" ? entry.slug.trim() : "",
+        url: typeof entry.url === "string" ? entry.url.trim() : "",
+        token: typeof entry.token === "string" ? entry.token.trim() : ""
+      }))
+      .filter((entry) => entry.url && entry.token);
+  } catch {
+    return [];
+  }
+}
+
+// Every app the owner could care about, with a token when we have one:
+// AppEngine itself, owner-registered live apps, engine-deployed builds, and
+// env-configured extras — deduped by URL host so one app never shows twice.
+async function collectOpsTargets(): Promise<OpsTarget[]> {
+  const targets: OpsTarget[] = [
+    { key: "self", slug: "appengine-core", name: "AppEngine Core", url: "", kind: "self", pollable: true, note: "" }
+  ];
+
+  const envTargets = parseEnvTargets();
+  const jobs = await listDeployedBuildJobs().catch(() => []);
+
+  const tokenByHost = new Map<string, string>();
+  for (const job of jobs) {
+    if (!job.statsToken) continue;
+    const host = hostOf(job.url || "");
+    if (host) tokenByHost.set(host, job.statsToken);
+    if (job.vercelProject) tokenByHost.set(`${job.vercelProject}.vercel.app`.toLowerCase(), job.statsToken);
+  }
+
+  const seenHosts = new Set<string>();
+  const registered = await listOwnerRegisteredApps().catch(() => []);
+  for (const app of registered) {
+    if (app.appStatus !== "live") continue;
+    const host = hostOf(app.liveUrl);
+    const envMatch = envTargets.find((entry) => (app.slug && entry.slug === app.slug) || (host && hostOf(entry.url) === host));
+    if (envMatch) envMatch.used = true;
+    const url = app.liveUrl || envMatch?.url || "";
+    const token = envMatch?.token || (host ? tokenByHost.get(host) : undefined);
+    if (host) seenHosts.add(host);
+    targets.push({
+      key: `app:${app.slug}`,
+      slug: app.slug,
+      name: app.name,
+      url,
+      kind: "remote",
+      token,
+      pollable: Boolean(token && url),
+      note: token && url ? "" : "Not reporting yet — this app doesn't share ops stats with AppEngine."
+    });
+  }
+
+  for (const job of jobs) {
+    const host = hostOf(job.url || "");
+    if (!host || seenHosts.has(host)) continue;
+    seenHosts.add(host);
+    targets.push({
+      key: `job:${job.id}`,
+      slug: "",
+      name: job.vercelProject || job.idea.slice(0, 60) || job.id,
+      url: job.url || "",
+      kind: "remote",
+      token: job.statsToken || undefined,
+      pollable: Boolean(job.statsToken && job.url),
+      note: job.statsToken ? "" : "Not reporting yet — this app was deployed before ops reporting shipped."
+    });
+  }
+
+  for (const entry of envTargets) {
+    if (entry.used) continue;
+    const host = hostOf(entry.url);
+    if (!host || seenHosts.has(host)) continue;
+    seenHosts.add(host);
+    targets.push({
+      key: `env:${host}`,
+      slug: entry.slug,
+      name: entry.name || host,
+      url: entry.url,
+      kind: "remote",
+      token: entry.token,
+      pollable: true,
+      note: ""
+    });
+  }
+
+  return targets;
+}
+
+// ---- cache (self-creating table on prod, in-memory map without a DB) ----------
+
+const memoryCache = new Map<string, OpsStatsRecord>();
+
+let cacheTableReady: Promise<void> | null = null;
+async function ensureCacheTable(sql: ReturnType<typeof getDatabase>): Promise<void> {
+  if (!cacheTableReady) {
+    cacheTableReady = (async () => {
+      await sql`
+        CREATE TABLE IF NOT EXISTS app_ops_stats_cache (
+          app_key text PRIMARY KEY,
+          slug text NOT NULL DEFAULT '',
+          name text NOT NULL DEFAULT '',
+          url text NOT NULL DEFAULT '',
+          reporting boolean NOT NULL DEFAULT false,
+          users integer,
+          tickets_open integer,
+          orders_recent integer,
+          note text NOT NULL DEFAULT '',
+          checked_at timestamptz
+        )
+      `;
+    })().catch((error) => {
+      cacheTableReady = null;
+      throw error;
+    });
+  }
+  return cacheTableReady;
+}
+
+function toIso(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
+  return {
+    key: String(row.app_key),
+    slug: String(row.slug || ""),
+    name: String(row.name || ""),
+    url: String(row.url || ""),
+    reporting: Boolean(row.reporting),
+    stats: {
+      users: asCount(row.users === null ? undefined : Number(row.users)),
+      ticketsOpen: asCount(row.tickets_open === null ? undefined : Number(row.tickets_open)),
+      ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent))
+    },
+    note: String(row.note || ""),
+    checkedAt: toIso(row.checked_at)
+  };
+}
+
+async function readCache(): Promise<Map<string, OpsStatsRecord>> {
+  if (!getConfiguredDatabaseUrl()) return new Map(memoryCache);
+  try {
+    const sql = getDatabase();
+    await ensureCacheTable(sql);
+    const rows = (await sql`select * from app_ops_stats_cache limit 200`) as Array<Record<string, unknown>>;
+    return new Map(rows.map((row) => [String(row.app_key), rowToRecord(row)]));
+  } catch {
+    return new Map(memoryCache);
+  }
+}
+
+async function writeCache(records: OpsStatsRecord[]): Promise<void> {
+  for (const record of records) memoryCache.set(record.key, record);
+  if (!getConfiguredDatabaseUrl() || !records.length) return;
+  try {
+    const sql = getDatabase();
+    await ensureCacheTable(sql);
+    for (const record of records) {
+      await sql`
+        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent, note, checked_at)
+        values (${record.key}, ${record.slug}, ${record.name}, ${record.url}, ${record.reporting},
+                ${record.stats.users}, ${record.stats.ticketsOpen}, ${record.stats.ordersRecent},
+                ${record.note}, ${record.checkedAt})
+        on conflict (app_key) do update set
+          slug = excluded.slug,
+          name = excluded.name,
+          url = excluded.url,
+          reporting = excluded.reporting,
+          users = excluded.users,
+          tickets_open = excluded.tickets_open,
+          orders_recent = excluded.orders_recent,
+          note = excluded.note,
+          checked_at = excluded.checked_at
+      `;
+    }
+  } catch {
+    // The cache is best-effort; a failed write just means a re-poll next time.
+  }
+}
+
+// ---- the snapshot the dashboard reads -----------------------------------------
+
+async function pollTarget(target: OpsTarget, cached: OpsStatsRecord | null): Promise<OpsStatsRecord> {
+  const checkedAt = new Date().toISOString();
+  const base = { key: target.key, slug: target.slug, name: target.name, url: target.url };
+
+  if (target.kind === "self") {
+    const self = await getSelfOpsStats();
+    return { ...base, reporting: self.reporting, stats: self.stats, note: self.note, checkedAt };
+  }
+
+  const result = await fetchStatsFromApp(target.url, target.token || "");
+  if (result.ok && result.stats) {
+    return { ...base, reporting: true, stats: result.stats, note: "", checkedAt };
+  }
+  if (cached && cached.reporting) {
+    // Keep the last good reading rather than blanking the card on one bad poll.
+    return { ...cached, ...base, note: `Couldn't reach it just now (${result.error || "no answer"}) — showing the last good reading.` };
+  }
+  return { ...base, reporting: false, stats: emptyStats(), note: `Not reporting yet — ${result.error || "the app didn't answer"}.`, checkedAt };
+}
+
+export async function getOpsSnapshot(options: { refresh?: boolean } = {}): Promise<OpsStatsSnapshot> {
+  const targets = await collectOpsTargets();
+  const cache = await readCache();
+  const now = Date.now();
+  const polled: OpsStatsRecord[] = [];
+
+  const records = await Promise.all(
+    targets.map(async (target) => {
+      if (!target.pollable) {
+        return {
+          key: target.key,
+          slug: target.slug,
+          name: target.name,
+          url: target.url,
+          reporting: false,
+          stats: emptyStats(),
+          note: target.note,
+          checkedAt: null
+        } satisfies OpsStatsRecord;
+      }
+      const cached = cache.get(target.key) || null;
+      const freshEnough = Boolean(
+        cached && cached.checkedAt && now - Date.parse(cached.checkedAt) < STALE_AFTER_MS
+      );
+      if (cached && freshEnough && !options.refresh) {
+        return { ...cached, slug: target.slug, name: target.name, url: target.url };
+      }
+      const record = await pollTarget(target, cached);
+      polled.push(record);
+      return record;
+    })
+  );
+
+  await writeCache(polled);
+
+  return {
+    kind: "app_ops_stats",
+    generatedAt: new Date().toISOString(),
+    totalApps: records.length,
+    reportingApps: records.filter((record) => record.reporting).length,
+    apps: records
+  };
+}

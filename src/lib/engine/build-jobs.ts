@@ -19,6 +19,9 @@ export type BuildJob = {
   url: string | null;
   error: string | null;
   vercelProject: string | null;
+  // Per-app ops token: injected into the deployed app as APP_ENGINE_STATS_TOKEN
+  // and presented as a bearer token when the ops collector polls its stats.
+  statsToken: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -50,6 +53,7 @@ async function ensureTable(sql: ReturnType<typeof getDatabase>): Promise<void> {
       // Self-applying column add for tables created before the domain step shipped
       // (Vercel won't expose the prod connection string, so migrations run at runtime).
       await sql`ALTER TABLE app_build_jobs ADD COLUMN IF NOT EXISTS vercel_project text`;
+      await sql`ALTER TABLE app_build_jobs ADD COLUMN IF NOT EXISTS stats_token text`;
     })().catch((error) => {
       tableReady = null;
       throw error;
@@ -73,6 +77,7 @@ function rowToJob(row: Record<string, unknown>): BuildJob {
     url: (row.url as string) ?? null,
     error: (row.error as string) ?? null,
     vercelProject: (row.vercel_project as string) ?? null,
+    statsToken: (row.stats_token as string) ?? null,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at)
   };
@@ -96,6 +101,7 @@ export async function createBuildJob(userEmail: string, idea: string): Promise<B
     url: null,
     error: null,
     vercelProject: null,
+    statsToken: null,
     createdAt: now,
     updatedAt: now
   };
@@ -135,6 +141,22 @@ export async function listBuildJobsForUser(userEmail: string): Promise<BuildJob[
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
+// Deployed jobs (they have a URL) — the ops collector polls these apps' stats.
+export async function listDeployedBuildJobs(limit = 100): Promise<BuildJob[]> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      select * from app_build_jobs where url is not null order by updated_at desc limit ${limit}
+    `) as Array<Record<string, unknown>>;
+    return rows.map(rowToJob);
+  }
+  return [...memory.values()]
+    .filter((job) => Boolean(job.url))
+    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))
+    .slice(0, limit);
+}
+
 export async function updateBuildJob(id: string, patch: Partial<BuildJob>): Promise<void> {
   if (useDb()) {
     const sql = getDatabase();
@@ -146,6 +168,7 @@ export async function updateBuildJob(id: string, patch: Partial<BuildJob>): Prom
         deployment_id = coalesce(${patch.deploymentId ?? null}, deployment_id),
         url = coalesce(${patch.url ?? null}, url),
         vercel_project = coalesce(${patch.vercelProject ?? null}, vercel_project),
+        stats_token = coalesce(${patch.statsToken ?? null}, stats_token),
         error = ${patch.error ?? null},
         updated_at = now()
       where id = ${id}
