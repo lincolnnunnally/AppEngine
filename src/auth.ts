@@ -6,6 +6,7 @@ import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
 import { getAuthSecret } from "@/lib/auth/config";
 import { resolveRoleForSessionUser } from "@/lib/auth/roles";
+import { toClientSession } from "@/lib/auth/session";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 
 // Providers are built from configured credentials, so each one is dormant until
@@ -53,7 +54,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
             role: user?.role
           });
         }
-        return session;
+        // Return a whitelisted shape, never the raw `session` object. With the
+        // database-session strategy that object is the AdapterSession row and
+        // carries the sessionToken/userId, which must not reach the JSON body of
+        // GET /api/auth/session (see src/lib/auth/session.ts).
+        return toClientSession(session, user);
       }
     }
   };
