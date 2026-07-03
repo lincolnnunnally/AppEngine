@@ -95,7 +95,8 @@ Lincoln directed that every ecosystem build transfers to Claude Code and the ful
 
 - ✅ **T1 · CURRENT_SCOPE v12 — ecosystem-transfer scope (Lincoln-approved)** — merged (**#246**, verify ✅).
 - ✅ **T2 · App Transfer Ledger Standard landed on main** — clean cherry-pick of the two stranded commits, merged (**#247**, verify ✅); PR #206 closed as superseded.
-- 🟢 **T3 · Regenerate ecosystem-portfolio-registry.json** (stale 2026-06-27, pre-#238–#245; all 14 non-appengine entries have empty issue/PR links; publish the queued followups as issues)
+- 🟡 **T3 · Regenerate ecosystem-portfolio-registry.json** (stale 2026-06-27, pre-#238–#245; all 14 non-appengine entries have empty issue/PR links; publish the queued followups as issues)
+  claim: Claude Code · 2026-07-03 · branch `claude/t3-portfolio-registry-refresh`
 - ✅ **T4 · life-produces-life CODE monorepo cloned** → `Project_Code/life-produces-life-monorepo` (apps + packages confirmed). Reminder: the local `life-produces-life` folder is the source-of-truth repo, a DIFFERENT repo. Stranded ChurchConnect DB drafts preserved on its `churchconnect-slice-event-fanout` branch (272b289).
 - ⛔ **T5 · ChurchConnect finish (first app through the transfer)** — waiting on Lincoln: (a) staff-login Connection Inbox walkthrough, (b) approval to apply the `churchconnect` schema to the shared Supabase (gated DB change), (c) approval to merge ChurchConnect PRs #5/#7/#11/#12 (merges auto-deploy churchconnect.cloud). Prep may proceed; the gates may not be crossed without him.
 
