@@ -54,6 +54,8 @@ Agents should not use protected Vercel bypass/share links as proof of preview re
 
 Agents must define variable names, scopes, and owners. Agents must not write secret values into prompts, issues, docs, registry entries, generated artifacts, or pull requests.
 
+Common ecosystem variables should come from the shared private env source described in `source-of-truth/shared-environment-source-standard.md`. App repos should store only app profiles/placeholders; generated `.env` files are local/provider artifacts, not source truth.
+
 Each variable must state:
 
 - Name
