@@ -15,7 +15,7 @@ export type OpsAttentionItem = {
   slug: string;
   appName: string;
   severity: OpsAttentionSeverity;
-  kind: "unreachable" | "missing_env" | "features_unconfigured" | "needs_domain" | "not_reporting";
+  kind: "unreachable" | "missing_env" | "features_unconfigured" | "needs_domain" | "not_reporting" | "deploy_failing" | "deploy_check_failed";
   finding: string; // what was observed
   action: string; // the directed next step, in plain language
   link?: string; // where to go act, when there is one
@@ -214,6 +214,107 @@ export async function collectAttentionForApp(subject: AttentionSubject, previous
     );
   }
 
+  return items;
+}
+
+// ---- account-wide deploy health -------------------------------------------------
+// The per-app checks above only see apps something registered. This sweep walks
+// EVERY Vercel project on the account, because the wiring itself can be the error:
+// on 2026-07-03 a project git-linked to the wrong repo (its root directory didn't
+// exist there) failed a production build on every merge for two weeks — deploy
+// quota burned, an always-red PR check — and no per-app check could have seen it.
+// Best-effort like everything here, but a failed sweep is REPORTED (watch), never
+// a silent all-clear.
+
+// Only failures newer than this are attention: an old failed deploy on a project
+// nothing pushes to anymore is history, not a queue item that nags forever.
+const DEPLOY_FAILURE_RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+
+type VercelProjectHealth = {
+  name: string;
+  linked: boolean; // has a git integration (auto-deploys on push)
+  prodStates: string[]; // readyState of recent production deploys, newest first
+  newestProdAt: number | null; // createdAt of the newest production deploy
+};
+
+export async function listVercelProjectHealth(): Promise<VercelProjectHealth[] | null> {
+  const token = process.env.VERCEL_TOKEN?.trim();
+  if (!token) return null;
+  try {
+    const response = await fetch(`${vercelApiBase()}/v9/projects?limit=100`, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const data = (await response.json().catch(() => null)) as {
+      projects?: Array<{
+        name?: string;
+        link?: unknown;
+        latestDeployments?: Array<{ target?: string | null; readyState?: string; createdAt?: number }>;
+      }>;
+    } | null;
+    if (!data || !Array.isArray(data.projects)) return null;
+    return data.projects
+      .map((project) => {
+        const prod = (project.latestDeployments || []).filter((deployment) => deployment.target === "production");
+        return {
+          name: typeof project.name === "string" ? project.name : "",
+          linked: Boolean(project.link),
+          prodStates: prod.map((deployment) => (typeof deployment.readyState === "string" ? deployment.readyState : "")),
+          newestProdAt: typeof prod[0]?.createdAt === "number" ? prod[0].createdAt : null
+        };
+      })
+      .filter((project) => project.name);
+  } catch {
+    return null;
+  }
+}
+
+export async function collectVercelDeployAttention(): Promise<OpsAttentionItem[]> {
+  if (!vercelEnvAuditConfigured()) return [];
+  const projects = await listVercelProjectHealth();
+  if (!projects) {
+    // The check was possible but didn't run — say so. Silence here would read as
+    // "deploys healthy" while a project could be failing on every merge.
+    return [
+      {
+        id: "vercel-account:deploy_check_failed",
+        appKey: "vercel-account",
+        slug: "vercel-account",
+        appName: "Vercel deploy health",
+        severity: "watch",
+        kind: "deploy_check_failed",
+        finding: "Couldn't list Vercel projects this cycle, so deploy health wasn't checked.",
+        action: "Reload to retry; if this keeps happening, check VERCEL_TOKEN.",
+        link: "https://vercel.com/lincolnnunnallys-projects"
+      }
+    ];
+  }
+  const items: OpsAttentionItem[] = [];
+  for (const project of projects) {
+    // Newest production deploy decides: READY/BUILDING/none = not attention.
+    if (project.prodStates[0] !== "ERROR") continue;
+    if (!project.newestProdAt || Date.now() - project.newestProdAt > DEPLOY_FAILURE_RECENT_MS) continue;
+    const everReady = project.prodStates.includes("READY");
+    items.push({
+      id: `vercel-project:${project.name}:deploy_failing`,
+      appKey: `vercel-project:${project.name}`,
+      slug: project.name,
+      appName: project.name,
+      severity: "action_needed",
+      kind: "deploy_failing",
+      finding: everReady
+        ? `The latest production deploy of Vercel project "${project.name}" failed (visitors still get the last good deploy).`
+        : `Every recent production deploy of Vercel project "${project.name}" failed — nothing from it has ever gone live.`,
+      action: everReady
+        ? `Open the failed build's logs on ${project.name}, fix the error, and redeploy — or roll back to the last good deploy.`
+        : project.linked
+          ? `Open ${project.name}'s build logs. If it's building the wrong repo or a folder that isn't in it (root directory), fix that in the project's Settings → Git — or disconnect the git integration so it stops burning deploy quota on builds that can never succeed.`
+          : `Open ${project.name}'s build logs and fix its build settings — every production deploy is failing.`,
+      link: `https://vercel.com/lincolnnunnallys-projects/${encodeURIComponent(project.name)}`
+    });
+  }
   return items;
 }
 

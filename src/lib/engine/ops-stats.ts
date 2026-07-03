@@ -10,7 +10,7 @@ import { getDatabase } from "@/lib/db/client";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { listDeployedBuildJobs } from "@/lib/engine/build-jobs";
 import { listOwnerRegisteredApps } from "@/lib/engine/portfolio-registrations";
-import { collectAttentionForApp, sortAttentionItems, type OpsAttentionItem } from "@/lib/engine/ops-attention";
+import { collectAttentionForApp, collectVercelDeployAttention, sortAttentionItems, type OpsAttentionItem } from "@/lib/engine/ops-attention";
 
 export type AppOpsStats = {
   users: number | null;
@@ -439,26 +439,42 @@ async function pollTarget(target: OpsTarget, cached: OpsStatsRecord | null): Pro
   return { ...base, reporting, stats, note, needs, checkedAt };
 }
 
+// Account-wide deploy sweep, memory-cached on the same staleness window as the
+// app cache — one cheap Vercel call, but no need to repeat it on every read.
+// (collectVercelDeployAttention never throws; a failed sweep comes back as an
+// honest watch item, and caching that failure for the window is fine.)
+let deploySweepCache: { items: OpsAttentionItem[]; at: number } | null = null;
+
+async function getDeploySweep(refresh: boolean): Promise<OpsAttentionItem[]> {
+  if (!refresh && deploySweepCache && Date.now() - deploySweepCache.at < STALE_AFTER_MS) return deploySweepCache.items;
+  const items = await collectVercelDeployAttention().catch(() => [] as OpsAttentionItem[]);
+  deploySweepCache = { items, at: Date.now() };
+  return items;
+}
+
 export async function getOpsSnapshot(options: { refresh?: boolean } = {}): Promise<OpsStatsSnapshot> {
   const targets = await collectOpsTargets();
   const cache = await readCache();
   const now = Date.now();
   const polled: OpsStatsRecord[] = [];
 
-  const records = await Promise.all(
-    targets.map(async (target) => {
-      const cached = cache.get(target.key) || null;
-      const freshEnough = Boolean(
-        cached && cached.checkedAt && now - Date.parse(cached.checkedAt) < STALE_AFTER_MS
-      );
-      if (cached && freshEnough && !options.refresh) {
-        return { ...cached, slug: target.slug, name: target.name, url: target.url };
-      }
-      const record = await pollTarget(target, cached);
-      polled.push(record);
-      return record;
-    })
-  );
+  const [records, deployAttention] = await Promise.all([
+    Promise.all(
+      targets.map(async (target) => {
+        const cached = cache.get(target.key) || null;
+        const freshEnough = Boolean(
+          cached && cached.checkedAt && now - Date.parse(cached.checkedAt) < STALE_AFTER_MS
+        );
+        if (cached && freshEnough && !options.refresh) {
+          return { ...cached, slug: target.slug, name: target.name, url: target.url };
+        }
+        const record = await pollTarget(target, cached);
+        polled.push(record);
+        return record;
+      })
+    ),
+    getDeploySweep(Boolean(options.refresh))
+  ]);
 
   await writeCache(polled);
 
@@ -468,6 +484,6 @@ export async function getOpsSnapshot(options: { refresh?: boolean } = {}): Promi
     totalApps: records.length,
     reportingApps: records.filter((record) => record.reporting).length,
     apps: records,
-    attention: sortAttentionItems(records.flatMap((record) => record.needs))
+    attention: sortAttentionItems([...records.flatMap((record) => record.needs), ...deployAttention])
   };
 }
