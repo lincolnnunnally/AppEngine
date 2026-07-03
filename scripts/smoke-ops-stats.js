@@ -50,6 +50,39 @@ runStep("the ops collector polls, caches, and stays honest", () => {
   ]);
 });
 
+runStep("attention checks find what needs the owner, with directed actions", () => {
+  assertFileIncludes("src/lib/engine/ops-attention.ts", [
+    "collectAttentionForApp",
+    "sortAttentionItems",
+    "checkUrlReachable",
+    "listVercelEnvNames",
+    "isTemporaryVercelHost",
+    "action_needed",
+    "needs_domain",
+    "missing_env",
+    "not_reporting",
+    "APP_ENGINE_STATS_TOKEN"
+  ]);
+  assertFileIncludes("src/lib/engine/ops-stats.ts", [
+    "collectAttentionForApp",
+    "sortAttentionItems",
+    "needs: OpsAttentionItem[]",
+    "attention: sortAttentionItems"
+  ]);
+});
+
+runStep("the dashboard surfaces the attention queue", () => {
+  assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
+    "OpsAttentionPanel",
+    "Needs your attention",
+    "All clear",
+    "Couldn't load the app checks",
+    "needs attention",
+    "portfolio-attention-panel"
+  ]);
+  assertFileIncludes("src/app/styles.css", [".portfolio-attention-panel", ".portfolio-needs-flag"]);
+});
+
 runStep("the owner API route is admin-gated", () => {
   assertFileIncludes("src/app/api/engine/ops/stats/route.ts", [
     "canAccessEngineAdmin",

@@ -2593,6 +2593,104 @@ label {
   opacity: 0.75;
 }
 
+.portfolio-attention-panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-attention-panel.checking p,
+.portfolio-attention-panel.all-clear p {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.portfolio-attention-panel.all-clear {
+  color: var(--teal);
+  background: var(--green-soft);
+  border-color: transparent;
+}
+
+.portfolio-attention-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.portfolio-attention-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.portfolio-attention-heading span {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.portfolio-attention-panel ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portfolio-attention-panel li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.portfolio-attention-panel li.action_needed {
+  background: rgba(230, 169, 58, 0.14);
+}
+
+.portfolio-attention-badge {
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(127, 127, 127, 0.16);
+  white-space: nowrap;
+}
+
+.portfolio-attention-panel li.action_needed .portfolio-attention-badge {
+  background: rgba(230, 169, 58, 0.32);
+}
+
+.portfolio-attention-body {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+}
+
+.portfolio-attention-body p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.portfolio-attention-body small {
+  opacity: 0.7;
+}
+
+.portfolio-needs-flag {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  background: rgba(230, 169, 58, 0.25);
+  white-space: nowrap;
+}
+
 .handoff-center {
   display: grid;
   gap: 16px;

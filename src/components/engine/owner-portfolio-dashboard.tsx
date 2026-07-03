@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AppPortfolioEntry, AppPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import type { OpsStatsRecord, OpsStatsSnapshot } from "@/lib/engine/ops-stats";
+import type { OpsAttentionItem } from "@/lib/engine/ops-attention";
 
 // The one dashboard for every app the owner manages. Functional, not just
 // informational: the summary tiles FILTER the grid, every card expands to its
@@ -77,7 +78,10 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
       .then((data: { ok?: boolean; snapshot?: OpsStatsSnapshot }) => {
         if (!cancelled && data?.ok && data.snapshot) setOps(data.snapshot);
       })
-      .catch(() => {})
+      .catch(() => {
+        // ops stays null — the attention panel reports "couldn't check",
+        // never a false "all clear".
+      })
       .finally(() => {
         if (!cancelled) setOpsLoaded(true);
       });
@@ -122,6 +126,8 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
       </div>
 
       {addOpen ? <AddAppForm onDone={() => { setAddOpen(false); router.refresh(); }} /> : null}
+
+      <OpsAttentionPanel snapshot={ops} loaded={opsLoaded} />
 
       <div className="portfolio-summary-grid" aria-label="Portfolio summary — click to filter">
         {(Object.keys(BUCKET_LABEL) as Bucket[]).map((bucket) => (
@@ -233,6 +239,9 @@ function PortfolioEntryCard({
         <div className="portfolio-state-stack">
           <strong className={`portfolio-state ${app.deploymentState}`}>{formatToken(app.deploymentState)}</strong>
           <small className={`portfolio-source ${app.stateSource}`}>{formatToken(app.stateSource)}</small>
+          {opsRecord?.needs.some((need) => need.severity === "action_needed") ? (
+            <small className="portfolio-needs-flag">needs attention</small>
+          ) : null}
         </div>
       </div>
 
@@ -308,6 +317,17 @@ function PortfolioEntryCard({
           ) : null}
 
           {app.buildPacketBridgeVisibility ? <BuildPacketBridgePanel app={app} /> : null}
+
+          {opsRecord?.needs.length ? (
+            <section className="portfolio-blocker-list portfolio-needs-list">
+              <h3>Needs</h3>
+              <ul>
+                {opsRecord.needs.map((need: OpsAttentionItem) => (
+                  <li key={need.id}>{need.action}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <section className="portfolio-blocker-list">
             <h3>Blockers</h3>
@@ -442,6 +462,67 @@ function BuildPacketBridgePanel({ app }: { app: AppPortfolioEntry }) {
           <p>No missing information recorded.</p>
         )}
       </div>
+    </section>
+  );
+}
+
+// The one queue that ends "digging for what needs me": every app's needs,
+// sorted act-on-this first, each with a directed action — or "All clear".
+function OpsAttentionPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | null; loaded: boolean }) {
+  if (!loaded) {
+    return (
+      <div className="portfolio-attention-panel checking" aria-label="Needs your attention">
+        <p>Checking app health, env, and domains…</p>
+      </div>
+    );
+  }
+
+  // No snapshot ≠ nothing found: the checks never ran (fetch failed, session
+  // expired, server error). Saying "all clear" here would be a false positive.
+  if (!snapshot) {
+    return (
+      <div className="portfolio-attention-panel checking" aria-label="Needs your attention">
+        <p>Couldn't load the app checks just now — reload the page to try again.</p>
+      </div>
+    );
+  }
+
+  const items = snapshot.attention || [];
+  if (!items.length) {
+    return (
+      <div className="portfolio-attention-panel all-clear" aria-label="Needs your attention">
+        <strong>All clear</strong>
+        <p>Nothing needs your attention right now — every check passed.</p>
+      </div>
+    );
+  }
+
+  const actionCount = items.filter((item) => item.severity === "action_needed").length;
+  return (
+    <section className="portfolio-attention-panel" aria-label="Needs your attention">
+      <div className="portfolio-attention-heading">
+        <h2>Needs your attention</h2>
+        <span>
+          {actionCount} to act on · {items.length - actionCount} to watch
+        </span>
+      </div>
+      <ul>
+        {items.map((item) => (
+          <li key={item.id} className={item.severity}>
+            <span className="portfolio-attention-badge">{item.severity === "action_needed" ? "Act" : "Watch"}</span>
+            <div className="portfolio-attention-body">
+              <strong>{item.appName}</strong>
+              <p>{item.action}</p>
+              <small>{item.finding}</small>
+            </div>
+            {item.link ? (
+              <a className="portfolio-secondary-action" href={item.link} target="_blank" rel="noreferrer">
+                Open
+              </a>
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

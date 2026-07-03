@@ -36,6 +36,26 @@ Every generated app ships `GET /api/admin/stats` (a foundation module):
   An app with no token/endpoint is reported "Not reporting yet" — never a fake
   number, never a silent blank.
 
+## The attention queue (what needs Lincoln)
+
+Alongside stats, the collector runs attention checks per app and rolls every
+finding into one sorted queue on the owner dashboard — act-on-this first, each
+item a plain directed action, never a bare fact:
+
+- **Reachability** — does the live URL answer (2xx/3xx)? Down → action needed.
+- **Missing env NAMES** — for engine-deployed apps (or any target that declares
+  `vercelProject`), the Vercel API lists which env var NAMES are set — values
+  are never read. Missing core vars (`DATABASE_URL`, `AUTH_SECRET`,
+  `APP_ENGINE_OWNER_EMAIL`, `APP_ENGINE_STATS_TOKEN`) → action needed; missing
+  money/mail keys (`STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `SENDER_EMAIL`) →
+  watch ("not connected yet").
+- **Needs a domain** — live URL still on `*.vercel.app` → watch.
+- **Not reporting** — live but no ops stats → watch, with the exact wiring step.
+
+Findings are cached with the stats readings (`needs` column, self-applying) and
+refresh on the same 10-minute read cycle. `APP_ENGINE_OPS_TARGETS` entries may
+carry `vercelProject` to opt external apps into the env audit.
+
 ## The owner view
 
 - `GET /api/engine/ops/stats` (owner/admin only; `POST` forces a fresh poll)
