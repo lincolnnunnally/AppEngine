@@ -166,6 +166,7 @@
     "smoke:appengine-loop-system": "node scripts/smoke-appengine-loop-system.js",
     "smoke:prompt-dedupe": "node scripts/smoke-prompt-factory-dedupe.js",
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
+    "smoke:auth-session-sanitized": "node scripts/smoke-auth-session-sanitized.js",
     "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
     "smoke:storage-provider-plan": "node scripts/smoke-storage-provider-plan.js",
     "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",
