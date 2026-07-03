@@ -482,7 +482,7 @@ function OpsAttentionPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | 
   if (!loaded) {
     return (
       <div className="portfolio-attention-panel checking" aria-label="Needs your attention">
-        <p>Checking app health, env, and domains…</p>
+        <p>Checking app health, deploys, env, and domains…</p>
       </div>
     );
   }

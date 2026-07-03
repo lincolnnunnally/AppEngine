@@ -111,6 +111,23 @@ runStep("the dashboard shows an honest Ops strip per app", () => {
   assertFileIncludes("src/app/styles.css", [".portfolio-ops-strip"]);
 });
 
+runStep("the account-wide deploy sweep flags failing Vercel projects with a directed fix", () => {
+  assertFileIncludes("src/lib/engine/ops-attention.ts", [
+    "collectVercelDeployAttention",
+    "listVercelProjectHealth",
+    "deploy_failing",
+    "deploy_check_failed",
+    "DEPLOY_FAILURE_RECENT_MS",
+    "disconnect the git integration",
+    "deploy health wasn't checked"
+  ]);
+  assertFileIncludes("src/lib/engine/ops-stats.ts", [
+    "collectVercelDeployAttention",
+    "deploySweepCache",
+    "deployAttention"
+  ]);
+});
+
 runStep("package exposes smoke script", () => {
   assertFileIncludes("package.json", ["\"smoke:ops-stats\""]);
 });
