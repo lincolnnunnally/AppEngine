@@ -89,6 +89,9 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
 ### STEP 7 — confirm it holds  🟢 substantially met — finish line reached; ongoing watch
 - 🟢 **7 · Spend holds by construction; app is public & usable at we-succeed.org.** Spend can't run away: Vercel is Hobby/**free** (no spend to cap), generated-app resources stay free-tier, and the release gate (#186/#187) is fail-closed so a public user's submission can't provision paid resources. **`Done =` condition met: a public, usable app is live at www.we-succeed.org.** Remaining is *operational watch*, not build: (a) Lincoln's signed-in customer walkthrough (#5); (b) keep an eye on the release gate / free-tier limits as real traffic arrives; (c) optional hardening — strict CSP (nonces), rate-limiting/abuse protection on public sign-in, and the Hobby ToS commercial-use consideration if monetizing.
 
+### POST-LAUNCH — run the business of the apps (Lincoln-directed, 2026-07-03)
+- 🔵 **Ops layer: per-app users / open tickets / recent orders on the owner dashboard** — IN REVIEW (**#245**, branch `feat/ops-app-stats`; Claude Code, 2026-07-03). Generated apps now ship a token-gated `GET /api/admin/stats` (foundation module); deploys inject a per-app `APP_ENGINE_STATS_TOKEN` and keep it on the build job; an ops collector polls reporting apps and caches readings (self-creating `app_ops_stats_cache`, re-poll on read after 10 min — no cron); every portfolio card carries an Ops strip with real counts or an honest "Not reporting yet". AppEngine itself exposes the same endpoint; `APP_ENGINE_OPS_TARGETS` (env JSON) lets any app that adopts the endpoint report with no code change. Standard: `source-of-truth/app-ops-reporting-standard.md`. Free tier only; counts only, no PII; tokens never in git.
+
 ---
 
 ## ACTIVATION — without this, the board is just a doc nobody honors
