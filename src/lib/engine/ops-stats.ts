@@ -10,6 +10,7 @@ import { getDatabase } from "@/lib/db/client";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { listDeployedBuildJobs } from "@/lib/engine/build-jobs";
 import { listOwnerRegisteredApps } from "@/lib/engine/portfolio-registrations";
+import { collectAttentionForApp, sortAttentionItems, type OpsAttentionItem } from "@/lib/engine/ops-attention";
 
 export type AppOpsStats = {
   users: number | null;
@@ -25,6 +26,7 @@ export type OpsStatsRecord = {
   reporting: boolean; // true = the stats below are real, read from the app
   stats: AppOpsStats;
   note: string; // honest owner-readable state when not (fully) reporting
+  needs: OpsAttentionItem[]; // what this app needs from the owner (attention checks)
   checkedAt: string | null;
 };
 
@@ -34,6 +36,8 @@ export type OpsStatsSnapshot = {
   totalApps: number;
   reportingApps: number;
   apps: OpsStatsRecord[];
+  // Every app's needs rolled into one sorted queue: act-on-this first.
+  attention: OpsAttentionItem[];
 };
 
 // A reading older than this is re-polled on the next dashboard load; no cron
@@ -50,6 +54,9 @@ type OpsTarget = {
   token?: string;
   pollable: boolean;
   note: string;
+  vercelProject?: string; // engine-deployed apps: enables the env-name audit
+  generatedApp: boolean; // true = we know its required env contract
+  live: boolean;
 };
 
 function emptyStats(): AppOpsStats {
@@ -141,7 +148,7 @@ export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: Ap
 // endpoint (e.g. an ecosystem app hosted elsewhere) report without a code
 // change. JSON array: [{ "slug": "churchconnect", "name": "...", "url":
 // "https://...", "token": "..." }]. Secrets stay in the environment, never git.
-type EnvOpsTarget = { name: string; slug: string; url: string; token: string; used?: boolean };
+type EnvOpsTarget = { name: string; slug: string; url: string; token: string; vercelProject: string; used?: boolean };
 
 function parseEnvTargets(): EnvOpsTarget[] {
   const raw = (process.env.APP_ENGINE_OPS_TARGETS || "").trim();
@@ -155,7 +162,8 @@ function parseEnvTargets(): EnvOpsTarget[] {
         name: typeof entry.name === "string" ? entry.name.trim() : "",
         slug: typeof entry.slug === "string" ? entry.slug.trim() : "",
         url: typeof entry.url === "string" ? entry.url.trim() : "",
-        token: typeof entry.token === "string" ? entry.token.trim() : ""
+        token: typeof entry.token === "string" ? entry.token.trim() : "",
+        vercelProject: typeof entry.vercelProject === "string" ? entry.vercelProject.trim() : ""
       }))
       .filter((entry) => entry.url && entry.token);
   } catch {
@@ -168,18 +176,18 @@ function parseEnvTargets(): EnvOpsTarget[] {
 // env-configured extras — deduped by URL host so one app never shows twice.
 async function collectOpsTargets(): Promise<OpsTarget[]> {
   const targets: OpsTarget[] = [
-    { key: "self", slug: "appengine-core", name: "AppEngine Core", url: "", kind: "self", pollable: true, note: "" }
+    { key: "self", slug: "appengine-core", name: "AppEngine Core", url: "", kind: "self", pollable: true, note: "", generatedApp: false, live: true }
   ];
 
   const envTargets = parseEnvTargets();
   const jobs = await listDeployedBuildJobs().catch(() => []);
 
-  const tokenByHost = new Map<string, string>();
+  const jobByHost = new Map<string, { token: string | null; vercelProject: string | null }>();
   for (const job of jobs) {
-    if (!job.statsToken) continue;
+    const info = { token: job.statsToken, vercelProject: job.vercelProject };
     const host = hostOf(job.url || "");
-    if (host) tokenByHost.set(host, job.statsToken);
-    if (job.vercelProject) tokenByHost.set(`${job.vercelProject}.vercel.app`.toLowerCase(), job.statsToken);
+    if (host) jobByHost.set(host, info);
+    if (job.vercelProject) jobByHost.set(`${job.vercelProject}.vercel.app`.toLowerCase(), info);
   }
 
   const seenHosts = new Set<string>();
@@ -189,8 +197,9 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
     const host = hostOf(app.liveUrl);
     const envMatch = envTargets.find((entry) => (app.slug && entry.slug === app.slug) || (host && hostOf(entry.url) === host));
     if (envMatch) envMatch.used = true;
+    const jobInfo = host ? jobByHost.get(host) : undefined;
     const url = app.liveUrl || envMatch?.url || "";
-    const token = envMatch?.token || (host ? tokenByHost.get(host) : undefined);
+    const token = envMatch?.token || jobInfo?.token || undefined;
     if (host) seenHosts.add(host);
     targets.push({
       key: `app:${app.slug}`,
@@ -200,7 +209,10 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
       kind: "remote",
       token,
       pollable: Boolean(token && url),
-      note: token && url ? "" : "Not reporting yet — this app doesn't share ops stats with AppEngine."
+      note: token && url ? "" : "Not reporting yet — this app doesn't share ops stats with AppEngine.",
+      vercelProject: envMatch?.vercelProject || jobInfo?.vercelProject || undefined,
+      generatedApp: Boolean(jobInfo),
+      live: true
     });
   }
 
@@ -216,7 +228,10 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
       kind: "remote",
       token: job.statsToken || undefined,
       pollable: Boolean(job.statsToken && job.url),
-      note: job.statsToken ? "" : "Not reporting yet — this app was deployed before ops reporting shipped."
+      note: job.statsToken ? "" : "Not reporting yet — this app was deployed before ops reporting shipped.",
+      vercelProject: job.vercelProject || undefined,
+      generatedApp: true,
+      live: job.status === "live" || job.status === "deploying"
     });
   }
 
@@ -233,7 +248,10 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
       kind: "remote",
       token: entry.token,
       pollable: true,
-      note: ""
+      note: "",
+      vercelProject: entry.vercelProject || undefined,
+      generatedApp: false,
+      live: true
     });
   }
 
@@ -262,6 +280,8 @@ async function ensureCacheTable(sql: ReturnType<typeof getDatabase>): Promise<vo
           checked_at timestamptz
         )
       `;
+      // Self-applying column add for caches created before the attention checks shipped.
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS needs jsonb`;
     })().catch((error) => {
       cacheTableReady = null;
       throw error;
@@ -289,6 +309,7 @@ function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
       ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent))
     },
     note: String(row.note || ""),
+    needs: Array.isArray(row.needs) ? (row.needs as OpsAttentionItem[]) : [],
     checkedAt: toIso(row.checked_at)
   };
 }
@@ -313,10 +334,10 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
     await ensureCacheTable(sql);
     for (const record of records) {
       await sql`
-        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent, note, checked_at)
+        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent, note, needs, checked_at)
         values (${record.key}, ${record.slug}, ${record.name}, ${record.url}, ${record.reporting},
                 ${record.stats.users}, ${record.stats.ticketsOpen}, ${record.stats.ordersRecent},
-                ${record.note}, ${record.checkedAt})
+                ${record.note}, ${JSON.stringify(record.needs)}::jsonb, ${record.checkedAt})
         on conflict (app_key) do update set
           slug = excluded.slug,
           name = excluded.name,
@@ -326,6 +347,7 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
           tickets_open = excluded.tickets_open,
           orders_recent = excluded.orders_recent,
           note = excluded.note,
+          needs = excluded.needs,
           checked_at = excluded.checked_at
       `;
     }
@@ -340,20 +362,46 @@ async function pollTarget(target: OpsTarget, cached: OpsStatsRecord | null): Pro
   const checkedAt = new Date().toISOString();
   const base = { key: target.key, slug: target.slug, name: target.name, url: target.url };
 
+  let reporting = false;
+  let stats = emptyStats();
+  let note = target.note;
+
   if (target.kind === "self") {
     const self = await getSelfOpsStats();
-    return { ...base, reporting: self.reporting, stats: self.stats, note: self.note, checkedAt };
+    reporting = self.reporting;
+    stats = self.stats;
+    note = self.note;
+  } else if (target.pollable) {
+    const result = await fetchStatsFromApp(target.url, target.token || "");
+    if (result.ok && result.stats) {
+      reporting = true;
+      stats = result.stats;
+      note = "";
+    } else if (cached && cached.reporting) {
+      // Keep the last good reading rather than blanking the card on one bad poll.
+      reporting = true;
+      stats = cached.stats;
+      note = `Couldn't reach it just now (${result.error || "no answer"}) — showing the last good reading.`;
+    } else {
+      note = `Not reporting yet — ${result.error || "the app didn't answer"}.`;
+    }
   }
 
-  const result = await fetchStatsFromApp(target.url, target.token || "");
-  if (result.ok && result.stats) {
-    return { ...base, reporting: true, stats: result.stats, note: "", checkedAt };
-  }
-  if (cached && cached.reporting) {
-    // Keep the last good reading rather than blanking the card on one bad poll.
-    return { ...cached, ...base, note: `Couldn't reach it just now (${result.error || "no answer"}) — showing the last good reading.` };
-  }
-  return { ...base, reporting: false, stats: emptyStats(), note: `Not reporting yet — ${result.error || "the app didn't answer"}.`, checkedAt };
+  // Attention checks run for EVERY app with something to check — pollable or
+  // not, an unreachable live URL or a missing env var is exactly what Lincoln
+  // must not have to dig for.
+  const needs = await collectAttentionForApp({
+    appKey: target.key,
+    slug: target.slug,
+    appName: target.name,
+    url: target.url,
+    vercelProject: target.vercelProject,
+    generatedApp: target.generatedApp,
+    live: target.live,
+    reporting
+  }).catch(() => [] as OpsAttentionItem[]);
+
+  return { ...base, reporting, stats, note, needs, checkedAt };
 }
 
 export async function getOpsSnapshot(options: { refresh?: boolean } = {}): Promise<OpsStatsSnapshot> {
@@ -364,18 +412,6 @@ export async function getOpsSnapshot(options: { refresh?: boolean } = {}): Promi
 
   const records = await Promise.all(
     targets.map(async (target) => {
-      if (!target.pollable) {
-        return {
-          key: target.key,
-          slug: target.slug,
-          name: target.name,
-          url: target.url,
-          reporting: false,
-          stats: emptyStats(),
-          note: target.note,
-          checkedAt: null
-        } satisfies OpsStatsRecord;
-      }
       const cached = cache.get(target.key) || null;
       const freshEnough = Boolean(
         cached && cached.checkedAt && now - Date.parse(cached.checkedAt) < STALE_AFTER_MS
@@ -396,6 +432,7 @@ export async function getOpsSnapshot(options: { refresh?: boolean } = {}): Promi
     generatedAt: new Date().toISOString(),
     totalApps: records.length,
     reportingApps: records.filter((record) => record.reporting).length,
-    apps: records
+    apps: records,
+    attention: sortAttentionItems(records.flatMap((record) => record.needs))
   };
 }
