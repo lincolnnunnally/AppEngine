@@ -37,15 +37,19 @@ export function vercelEnvAuditConfigured(): boolean {
   return Boolean(process.env.VERCEL_TOKEN?.trim());
 }
 
-// Does the live URL answer at all? Follows the verifyDeployedApp convention:
-// any 2xx/3xx counts as alive (auth walls and redirects are still "up").
-export async function checkUrlReachable(url: string): Promise<boolean | null> {
+// Does the live URL answer? Follows the verifyDeployedApp convention: any
+// 2xx/3xx counts as ok (auth walls and redirects are still "up"). An HTTP
+// error status is reported distinctly from a dead connection so the finding
+// can say what actually happened.
+export type UrlCheck = { ok: boolean; status: number | null };
+
+export async function checkUrlReachable(url: string): Promise<UrlCheck | null> {
   if (!/^https?:\/\//.test(url)) return null;
   try {
     const response = await fetch(url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), cache: "no-store" });
-    return response.status >= 200 && response.status < 400;
+    return { ok: response.status >= 200 && response.status < 400, status: response.status };
   } catch {
-    return false;
+    return { ok: false, status: null };
   }
 }
 
@@ -108,17 +112,33 @@ export async function collectAttentionForApp(subject: AttentionSubject): Promise
     subject.vercelProject ? listVercelEnvNames(subject.vercelProject) : Promise.resolve(null)
   ]);
 
-  if (reachable === false) {
-    items.push(
-      item(
-        subject,
-        "unreachable",
-        "action_needed",
-        `${subject.url} didn't answer.`,
-        `Open the app's Vercel deployments and redeploy or roll back ${subject.appName}.`,
-        subject.vercelProject ? `https://vercel.com/lincolnnunnallys-projects/${subject.vercelProject}` : subject.url
-      )
-    );
+  if (reachable && !reachable.ok) {
+    // A successful stats poll proves the app itself is alive — then a failing
+    // homepage is a page problem (watch), not an outage (act now). Never cry
+    // "down" about an app that just answered us.
+    if (subject.reporting) {
+      items.push(
+        item(
+          subject,
+          "unreachable",
+          "watch",
+          `The app answers its stats endpoint, but its homepage ${reachable.status ? `returned ${reachable.status}` : "didn't answer"}.`,
+          `Open ${subject.url} and check what visitors see on ${subject.appName}'s front page.`,
+          subject.url
+        )
+      );
+    } else {
+      items.push(
+        item(
+          subject,
+          "unreachable",
+          "action_needed",
+          `${subject.url} ${reachable.status ? `returned ${reachable.status}` : "didn't answer"}.`,
+          `Open the app's Vercel deployments and redeploy or roll back ${subject.appName}.`,
+          subject.vercelProject ? `https://vercel.com/lincolnnunnallys-projects/${subject.vercelProject}` : subject.url
+        )
+      );
+    }
   }
 
   if (envNames) {
