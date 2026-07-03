@@ -2691,6 +2691,101 @@ label {
   white-space: nowrap;
 }
 
+.portfolio-url-board {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.portfolio-url-board.empty p {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.portfolio-url-group {
+  display: grid;
+  gap: 8px;
+}
+
+.portfolio-url-group-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.portfolio-url-group-title small {
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.portfolio-url-group ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portfolio-url-group li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.portfolio-url-group li.domain_owned_not_serving,
+.portfolio-url-group li.deployed_awaiting_domain {
+  background: rgba(230, 169, 58, 0.14);
+}
+
+.portfolio-url-group li.unknown {
+  background: rgba(214, 84, 84, 0.14);
+}
+
+.portfolio-url-group li.live {
+  background: var(--green-soft);
+}
+
+.portfolio-url-body {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+}
+
+.portfolio-url-body strong {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.portfolio-url-body code {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.portfolio-url-body code.none {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.portfolio-url-body p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.portfolio-url-body small {
+  opacity: 0.7;
+}
+
 .handoff-center {
   display: grid;
   gap: 16px;

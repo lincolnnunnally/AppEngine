@@ -13,6 +13,7 @@ import { OwnerOpportunityQueue } from "@/components/opportunity-intake/owner-opp
 import { OwnerControlCenter as ProblemIntakeOwnerControlCenter } from "@/components/problem-intake-lite/owner-control-center";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadOwnerPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
+import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { loadAuditTrailOwnerVisibilityReport } from "@/lib/engine/audit-trail-owner-visibility";
 import { loadBuildLoopControlledUseReadiness } from "@/lib/engine/build-loop-controlled-use-readiness";
 import {
@@ -113,7 +114,7 @@ export default async function OwnerControlCenterPage() {
 
   return (
     <main className="shell wide-shell owner-control-page">
-      <OwnerPortfolioDashboard registry={portfolioRegistry} />
+      <OwnerPortfolioDashboard registry={portfolioRegistry} urlBoard={getPortfolioUrlStatusBoard()} />
       <HandoffRelayControlCenter
         initialHandoffs={handoffs}
         initialProjectMemory={projectMemory}

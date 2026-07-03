@@ -162,6 +162,47 @@ Allowed `nextSafeAction` values should match the Build Completion Orchestrator w
 - `create_vnext_packet`
 - `unknown`
 
+## URL / Domain Facts (optional `domain` block)
+
+Every app entry should carry a `domain` block recording where the app stands on its own
+web address, so the owner dashboard can show the whole portfolio's URL situation without
+anyone re-deriving it from registrar dashboards:
+
+```json
+"domain": {
+  "intendedDomain": "laser.engrave.market",
+  "urlStatus": "domain_owned_not_serving",
+  "nextStep": "Add laser.engrave.market to the Vercel project so the already-set DNS starts serving.",
+  "note": "engrave.market owned on DreamHost; subdomain DNS set but nothing serves it yet.",
+  "factsFrom": "owner-2026-07-03"
+}
+```
+
+Field rules:
+
+- `intendedDomain` — the domain this app is meant to live at; `""` when no domain has been
+  chosen yet. A domain must appear on at most ONE app (milstead.us and milstead.church are
+  different apps — the drift this rule exists to prevent).
+- `urlStatus` — exactly one of:
+  - `live` — the intended domain is serving the app (or a predecessor site) today.
+  - `deployed_awaiting_domain` — the app answers only on a temporary host
+    (`*.vercel.app`, `*.emergent.host`, …) and needs a real domain attached.
+  - `domain_owned_not_serving` — the domain is owned/registered but nothing serves it
+    (parked, zero DNS, or DNS set with no service bound).
+  - `awaiting_url` — no domain is owned yet (an intended-but-unconfirmed name may still be
+    recorded in `intendedDomain`).
+- `nextStep` — the concrete owner action for this URL, a plain-language sentence. Required.
+- `note` — caveats that change what the owner should do (`""` when none).
+- `factsFrom` — provenance of the facts (e.g. `owner-2026-07-03`); update it when the facts
+  are re-confirmed.
+
+`summary.byUrlStatus` may roll these up; when present it must match the actual per-app
+counts (enforced by `npm run smoke:portfolio-url-status`). The `domain` block records
+*facts about the address*, independent of `deploymentState` (kidsneeddad.com is `live`
+while the app build is still `production_blocked` — the domain serves an old brand; both
+facts are true and both are shown). Live health checking stays with the ops attention
+queue — this block is the owner's recorded intent, not a probe result.
+
 ## Owner View
 
 The portfolio registry should support a concise owner-facing view:

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import type { AppPortfolioEntry, AppPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import type { OpsStatsRecord, OpsStatsSnapshot } from "@/lib/engine/ops-stats";
 import type { OpsAttentionItem } from "@/lib/engine/ops-attention";
+import type { PortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
+import { UrlStatusBoardPanel } from "@/components/engine/portfolio-url-status-board";
 
 // The one dashboard for every app the owner manages. Functional, not just
 // informational: the summary tiles FILTER the grid, every card expands to its
@@ -63,7 +65,13 @@ const NEXT_STEP_LABEL: Record<string, string> = {
   unknown: "Next step not recorded yet"
 };
 
-export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRegistry }) {
+export function OwnerPortfolioDashboard({
+  registry,
+  urlBoard
+}: {
+  registry: AppPortfolioRegistry;
+  urlBoard?: PortfolioUrlStatusBoard;
+}) {
   const router = useRouter();
   const [filter, setFilter] = useState<Bucket>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -128,6 +136,8 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
       {addOpen ? <AddAppForm onDone={() => { setAddOpen(false); router.refresh(); }} /> : null}
 
       <OpsAttentionPanel snapshot={ops} loaded={opsLoaded} />
+
+      {urlBoard ? <UrlStatusBoardPanel board={urlBoard} /> : null}
 
       <div className="portfolio-summary-grid" aria-label="Portfolio summary — click to filter">
         {(Object.keys(BUCKET_LABEL) as Bucket[]).map((bucket) => (
