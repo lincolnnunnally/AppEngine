@@ -1,29 +1,31 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-06-27T20:10:00.000Z",
+  "generatedAt": "2026-07-03T21:45:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 15,
-    "reviewReadyApps": 0,
-    "productionLiveApps": 1,
-    "blockedApps": 15,
+    "totalApps": 23,
+    "reviewReadyApps": 1,
+    "productionLiveApps": 5,
+    "blockedApps": 22,
     "byDeploymentState": {
-      "production_live": 1,
-      "review_blocked": 1,
-      "production_blocked": 13
+      "production_live": 5,
+      "production_blocked": 17,
+      "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 1,
+      "ready_for_vnext": 2,
       "review_blocked": 1,
-      "ready_for_build": 3,
-      "planned": 10
+      "ready_for_build": 2,
+      "planned": 17,
+      "preview_verified": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 1,
-      "create_fix_issue": 1,
+      "create_vnext_packet": 2,
+      "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
-      "create_planning_issue": 12
+      "create_planning_issue": 17,
+      "await_owner_review": 1
     }
   },
   "apps": [
@@ -32,7 +34,7 @@
       "slug": "appengine",
       "reviewUrl": "https://www.we-succeed.org",
       "productionUrl": "https://www.we-succeed.org",
-      "currentVersion": "2026-06-27-public",
+      "currentVersion": "2026-07-03-ops-attention-queue",
       "deploymentState": "production_live",
       "buildState": "ready_for_vnext",
       "nextSafeAction": "create_vnext_packet",
@@ -48,43 +50,151 @@
           "title": "Conversational intake",
           "url": "https://github.com/lincolnnunnally/AppEngine/pull/205",
           "state": "merged"
+        },
+        {
+          "number": 244,
+          "title": "feat(env): shared environment source standard + composer",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/244",
+          "state": "merged"
+        },
+        {
+          "number": 245,
+          "title": "feat(ops): run-the-business layer — per-app users/tickets/orders on the owner dashboard",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/245",
+          "state": "merged"
+        },
+        {
+          "number": 251,
+          "title": "feat(ops): attention queue — what every app needs, sorted, with directed actions",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/251",
+          "state": "merged"
+        },
+        {
+          "number": 255,
+          "title": "fix(auth): ecosystem login failures — surface errors, multi-owner-email, prod-safe generated apps",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/255",
+          "state": "open"
+        },
+        {
+          "number": 256,
+          "title": "feat(modules): shared Location & Proximity module (ECO-010)",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/256",
+          "state": "open"
         }
       ],
-      "blockers": [
-        "Portfolio registry should import the ecosystem ledger before new app dispatch starts."
+      "blockers": [],
+      "evidenceLinks": [
+        {
+          "label": "Live app",
+          "url": "https://www.we-succeed.org"
+        }
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "ChurchConnect",
       "slug": "churchconnect",
-      "reviewUrl": "unknown",
-      "productionUrl": "approval-gated",
-      "currentVersion": "shared-supabase-recovery",
-      "deploymentState": "review_blocked",
+      "reviewUrl": "https://www.churchconnect.cloud",
+      "productionUrl": "https://www.churchconnect.cloud",
+      "currentVersion": "emergent-exodus-in-progress",
+      "deploymentState": "production_live",
       "buildState": "review_blocked",
-      "nextSafeAction": "create_fix_issue",
+      "nextSafeAction": "stop_for_owner_approval",
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
+        "source-of-truth/app-transfer-ledger-standard.md",
         "loop-runs/2026-06-25-churchconnect-visitor-step5-appengine-handoff.md"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
-      "blockers": [
-        "Authenticated staff follow-up walkthrough still needs live proof.",
-        "AIPOS restart audit and Launch Pack need to be installed in the canonical repo."
+      "linkedIssues": [
+        {
+          "number": 259,
+          "title": "[churchconnect] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/259"
+        }
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "linkedPRs": [
+        {
+          "number": 5,
+          "title": "Launch sweep: Mongo app import and deploy readiness",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/5",
+          "state": "open"
+        },
+        {
+          "number": 7,
+          "title": "Verify Event to Website, Email, and Bulletin fan-out",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/7",
+          "state": "open"
+        },
+        {
+          "number": 9,
+          "title": "[codex] Route visitor follow-up through Supabase",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/9",
+          "state": "merged"
+        },
+        {
+          "number": 10,
+          "title": "[codex] Declare Supabase env for Render backend",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/10",
+          "state": "merged"
+        },
+        {
+          "number": 11,
+          "title": "[codex] Document ChurchConnect transfer ledger",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/11",
+          "state": "open"
+        },
+        {
+          "number": 12,
+          "title": "Add ChurchConnect AIPOS launch pack",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/12",
+          "state": "open"
+        },
+        {
+          "number": 13,
+          "title": "Fix church registration: user_type contract, response mismatch, one-shot data repair",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/13",
+          "state": "open"
+        },
+        {
+          "number": 14,
+          "title": "Add gated super-admin password force-reset (SUPER_ADMIN_FORCE_RESET)",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/14",
+          "state": "open"
+        },
+        {
+          "number": 15,
+          "title": "Remove all user-visible AI branding",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/15",
+          "state": "open"
+        },
+        {
+          "number": 16,
+          "title": "fix: ChurchConnect login broken — production build bakes localhost:8000 API base",
+          "url": "https://github.com/lincolnnunnally/ChurchConnect/pull/16",
+          "state": "open"
+        }
+      ],
+      "blockers": [
+        "Production login broken: deployed frontend bakes a localhost:8000 API base — fix in ChurchConnect PR #16 plus a Vercel env correction (2026-07-03 auth audit).",
+        "Authenticated staff Connection Inbox walkthrough still needs live proof (board TRANSFER T5a).",
+        "Gated on Lincoln: churchconnect schema apply to the shared Supabase (T5b) and merging ChurchConnect PRs #5/#7/#11/#12, which auto-deploy churchconnect.cloud (T5c).",
+        "Data still on Emergent-managed Atlas; salvage-only import per the locked clean-rebuild direction."
+      ],
+      "evidenceLinks": [
+        {
+          "label": "Live app",
+          "url": "https://www.churchconnect.cloud"
+        }
+      ],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Kindred Connections",
       "slug": "kindred-connections",
-      "reviewUrl": "unknown",
-      "productionUrl": "approval-gated",
-      "currentVersion": "kindred-mined-2026-06-27",
-      "deploymentState": "production_blocked",
+      "reviewUrl": "https://aligned-souls.emergent.host",
+      "productionUrl": "https://aligned-souls.emergent.host",
+      "currentVersion": "main-b116c0a-emergent-hosted",
+      "deploymentState": "production_live",
       "buildState": "ready_for_build",
       "nextSafeAction": "create_implementation_issue",
       "sourceOfTruthFiles": [
@@ -92,17 +202,37 @@
         "source-of-truth/ecosystem-github-audit-summary.md",
         "source-of-truth/kindred-connection-mining-audit.md",
         "source-of-truth/rebrandable-template-catalog.md",
-        "source-of-truth/template-credential-contract.md"
+        "source-of-truth/template-credential-contract.md",
+        "Kindred-Connection/AIPOS/SOURCE_OF_TRUTH.md (PR #1)"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
+      "linkedIssues": [
+        {
+          "number": 260,
+          "title": "[kindred-connections] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/260"
+        }
+      ],
+      "linkedPRs": [
+        {
+          "number": 1,
+          "title": "docs: Emergent exodus — AIPOS doc pack + migration plan",
+          "url": "https://github.com/lincolnnunnally/Kindred-Connection/pull/1",
+          "state": "open"
+        }
+      ],
       "blockers": [
-        "AIPOS + Launch Pack docs still need to be installed or filled inside the Kindred repo.",
-        "Runtime database/provider decision needs to be reconciled with the consolidated Supabase ecosystem rule before production release.",
-        "Live owner review URL and production launch path are not verified."
+        "Emergent-hosted: aligned-souls.emergent.host is a leftover Emergent subdomain, not a product decision — the exodus (Kindred-Connection PR #1 migration plan) is gated on Lincoln for DB changes, deploys, and paid resources.",
+        "AIPOS doc pack + migration plan awaiting merge (Kindred-Connection PR #1).",
+        "Resend domain verification (real user email) blocked on the final-domain decision; best-life.us was unlinked 2026-07-03.",
+        "Owner decision 2026-07-03: Kindred stays friendship-first — dating is a separate future app (see kindred-dating entry); do not extend Kindred surfaces toward dating."
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "evidenceLinks": [
+        {
+          "label": "Live app (Emergent-hosted)",
+          "url": "https://aligned-souls.emergent.host"
+        }
+      ],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Spark of Hope",
@@ -117,13 +247,47 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "life-produces-life/apps/spark-of-hope"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
+      "linkedIssues": [
+        {
+          "number": 32,
+          "title": "[AppEngine Intake] New app: Spark of Hope Intake Lite",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/32"
+        },
+        {
+          "number": 58,
+          "title": "[spark-of-hope-intake-lite] Fix preview access and verify Spark route",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/58"
+        },
+        {
+          "number": 59,
+          "title": "[spark-of-hope-intake-lite] Recover Issue #58 fix and run real preview verification",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/59"
+        },
+        {
+          "number": 60,
+          "title": "Fix Spark of Hope preview authentication for public review",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/60"
+        },
+        {
+          "number": 261,
+          "title": "[spark-of-hope] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/261"
+        }
+      ],
+      "linkedPRs": [
+        {
+          "number": 258,
+          "title": "docs(ledger): TRANSFER T6 — spark-of-hope Vercel project disconnected from AppEngine repo",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/258",
+          "state": "open"
+        }
+      ],
       "blockers": [
-        "Needs Launch Pack from the existing life-produces-life package surface before build dispatch."
+        "Needs Launch Pack from the existing life-produces-life package surface before build dispatch.",
+        "Four divergent Spark expressions (LPL package, AppEngine intake-lite, Vercel project, mined sources) need reconciliation — 2026-07-03 audit; the spark-of-hope Vercel project was disconnected from the AppEngine repo (PR #258, TRANSFER T6)."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Opportunity",
@@ -138,13 +302,26 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "CURRENT_SCOPE.md"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
+      "linkedIssues": [
+        {
+          "number": 262,
+          "title": "[opportunity] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/262"
+        }
+      ],
+      "linkedPRs": [
+        {
+          "number": 178,
+          "title": "Reset Opportunity/AppEngine scope fence",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/178",
+          "state": "merged"
+        }
+      ],
       "blockers": [
-        "Decide whether Opportunity remains the We Succeed/AppEngine front door or becomes its own app package."
+        "Decide whether Opportunity remains the We Succeed/AppEngine front door or becomes its own app package (the conversational intake #205 currently carries the front-door role)."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Best Life",
@@ -159,13 +336,20 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "life-produces-life/apps/best-life"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 263,
+          "title": "[best-life] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/263"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
-        "Needs app profile, Launch Pack, and first build packet before coding."
+        "Needs app profile, Launch Pack, and first build packet before coding.",
+        "best-life.us was unlinked 2026-07-03 and currently serves an unrelated WordPress site — domain decision needed before launch."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Live On Mission",
@@ -180,13 +364,20 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "life-produces-life/apps/live-on-mission"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 264,
+          "title": "[live-on-mission] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/264"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
-        "Needs app profile, Launch Pack, and shared needs-to-helper matching decision before coding."
+        "Needs app profile, Launch Pack, and shared needs-to-helper matching decision before coding.",
+        "Community Connections is its less-faith-forward sibling — keep the pair designed together (see community-connections entry)."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Kids Need Dads",
@@ -200,15 +391,23 @@
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
         "RebuildingDads",
-        "KND-google-ai"
+        "KND-google-ai",
+        "dads-recovery"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 265,
+          "title": "[kids-need-dads] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/265"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
-        "Choose canonical source between RebuildingDads, KND-google-ai, and any local Kids Need Dads folders."
+        "Choose canonical source between RebuildingDads, KND-google-ai, the dads-recovery protective backup (2026-07-03), and any local Kids Need Dads folders.",
+        "Domain for the record: kidsneeddad.com (singular; eNom/DreamHost, expires 2027-03-01, healthy). The plural kidsneeddads.com belongs to a third party — never ours."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "ChildFirst Solutions",
@@ -223,34 +422,63 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "childfirst-solutions"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
+      "linkedIssues": [
+        {
+          "number": 1,
+          "title": "Build pilot-ready MVP",
+          "url": "https://github.com/lincolnnunnally/childfirst-solutions/issues/1"
+        },
+        {
+          "number": 266,
+          "title": "[childfirst-solutions] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/266"
+        }
+      ],
+      "linkedPRs": [
+        {
+          "number": 2,
+          "title": "[codex] Build child-first routed app and resolution workflows",
+          "url": "https://github.com/lincolnnunnally/childfirst-solutions/pull/2",
+          "state": "open"
+        }
+      ],
       "blockers": [
-        "Install AIPOS + Launch Pack and verify current deploy path."
+        "Install AIPOS + Launch Pack and verify current deploy path (CURRENT_SCOPE v12 Wave 1 names the ChildFirst launch pack after the ChurchConnect finish)."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
-      "name": "Easy Peasy Website",
+      "name": "Easy Peasy Website (EasyPeazy)",
       "slug": "easy-peasy-website",
-      "reviewUrl": "unknown",
-      "productionUrl": "approval-gated",
-      "currentVersion": "website-friends-source",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "reviewUrl": "https://easypeazy.site",
+      "productionUrl": "https://easypeazy.site",
+      "currentVersion": "live-easypeazy-site",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
         "Website-friends"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 267,
+          "title": "[easy-peasy-website] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/267"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
-        "Confirm rename/alias and mine Website Builder module before launch work."
+        "Provider credentials and provisioning safety per Launch Pack before backend changes (Codex track: Spaceship domain search/buy/manage)."
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "evidenceLinks": [
+        {
+          "label": "Live app",
+          "url": "https://easypeazy.site"
+        }
+      ],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Snip.Show",
@@ -266,13 +494,26 @@
         "Snip.Show",
         "emergent"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
+      "linkedIssues": [
+        {
+          "number": 268,
+          "title": "[snip-show] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/268"
+        }
+      ],
+      "linkedPRs": [
+        {
+          "number": 1,
+          "title": "Restore snip.show app source",
+          "url": "https://github.com/lincolnnunnally/Snip.Show/pull/1",
+          "state": "open"
+        }
+      ],
       "blockers": [
-        "Decide canonical repo and merge direction; likely preserve Snip.Show name and mine emergent source."
+        "Decide canonical repo and merge direction; likely preserve Snip.Show name and mine emergent source (restore PR Snip.Show#1 is open)."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Toner Management",
@@ -287,36 +528,83 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "TotalTonerManagement",
         "TM-UserDash",
-        "TM-Admin-portal"
+        "TM-Admin-portal",
+        "TonerTracker",
+        "toner-platform"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 269,
+          "title": "[toner-management] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/269"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
-        "Choose canonical repo/local source and merge dashboard/admin variants into one platform."
+        "Choose canonical repo/local source and merge dashboard/admin variants into one platform.",
+        "Protective work done 2026-07-03: TonerTrackerPro history pushed to its empty origin; toner-platform private backup created (secrets excluded) — canonicalization still open."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Laser Engrave Market",
       "slug": "laser-engrave-market",
-      "reviewUrl": "unknown",
+      "reviewUrl": "https://laser-engrave-market-mlqzie6f9-lincolnnunnallys-projects.vercel.app",
       "productionUrl": "approval-gated",
-      "currentVersion": "existing-supabase-app",
-      "deploymentState": "production_blocked",
-      "buildState": "ready_for_build",
-      "nextSafeAction": "create_planning_issue",
+      "currentVersion": "supabase-pivot-2026-07-03",
+      "deploymentState": "review_ready",
+      "buildState": "preview_verified",
+      "nextSafeAction": "await_owner_review",
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
+        "source-of-truth/laser-engrave-launch-pack.md",
         "LaserEngraving"
       ],
-      "linkedIssues": [],
-      "linkedPRs": [],
-      "blockers": [
-        "Install AIPOS + Launch Pack and preserve proof/approval workflow before build work."
+      "linkedIssues": [
+        {
+          "number": 270,
+          "title": "[laser-engrave-market] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/270"
+        }
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "linkedPRs": [
+        {
+          "number": 1,
+          "title": "Complete Mongo→Supabase pivot (shared LPL Supabase + mockup proof surface)",
+          "url": "https://github.com/lincolnnunnally/LaserEngraving/pull/1",
+          "state": "merged"
+        },
+        {
+          "number": 241,
+          "title": "feat(laser-engrave): pipeline pass — gate passed, blockers cleared, preview live",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/241",
+          "state": "merged"
+        },
+        {
+          "number": 243,
+          "title": "docs(laser-engrave): placement decisions + discovered architecture",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/243",
+          "state": "merged"
+        },
+        {
+          "number": 249,
+          "title": "docs(laser): Mongo→Supabase pivot complete — launch pack + portfolio update",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/249",
+          "state": "merged"
+        }
+      ],
+      "blockers": [
+        "RENDER_API_KEY (owner) needed to create the free laser-engrave-api web service from render.yaml; preview data actions activate once it exists.",
+        "STRIPE_API_KEY (owner) needed for live checkout; payments endpoints 503 cleanly until set."
+      ],
+      "evidenceLinks": [
+        {
+          "label": "Preview (UI live; data actions activate with the Render service)",
+          "url": "https://laser-engrave-market-mlqzie6f9-lincolnnunnallys-projects.vercel.app"
+        }
+      ],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Iconium",
@@ -331,13 +619,19 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "Iconium"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 271,
+          "title": "[iconium] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/271"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
         "Decide whether Prisma stays or moves to Supabase ecosystem tree before launch."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     },
     {
       "name": "Ideas / Idea Capture",
@@ -352,13 +646,225 @@
         "source-of-truth/ecosystem-build-ledger.md",
         "ideas"
       ],
-      "linkedIssues": [],
+      "linkedIssues": [
+        {
+          "number": 272,
+          "title": "[ideas] Portfolio registry: Link app issues and pull requests",
+          "url": "https://github.com/lincolnnunnally/AppEngine/issues/272"
+        }
+      ],
       "linkedPRs": [],
       "blockers": [
         "Decide relation to Opportunity/AppEngine intake before launch work."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-06-27T20:10:00.000Z"
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "Kindred Dating (future separate app)",
+      "slug": "kindred-dating",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "owner-decision-2026-07-03",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "stop_for_owner_approval",
+      "sourceOfTruthFiles": [
+        "Kindred-Connection/AIPOS/SOURCE_OF_TRUTH.md (PR #1)",
+        "source-of-truth/kindred-connection-mining-audit.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 1,
+          "title": "docs: Emergent exodus — AIPOS doc pack + migration plan",
+          "url": "https://github.com/lincolnnunnally/Kindred-Connection/pull/1",
+          "state": "open"
+        },
+        {
+          "number": 256,
+          "title": "feat(modules): shared Location & Proximity module (ECO-010)",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/256",
+          "state": "open"
+        }
+      ],
+      "blockers": [
+        "Owner decision 2026-07-03: dating is a SEPARATE app from Kindred (working names Soulful Dating / Aligned Souls / Soul Connection); Kindred stays friendship-first — never blur the two.",
+        "Ecosystem doctrine amendment is the gate: the dating app needs Lincoln's doctrine sign-off before any build.",
+        "Prerequisite: Connection-engine extraction (ECO-008) from Kindred; the missing geo capability is the shared Location & Proximity module (ECO-010, AppEngine PR #256)."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "United Under God (site)",
+      "slug": "united-under-god",
+      "reviewUrl": "https://www.unitedundergod.org",
+      "productionUrl": "https://www.unitedundergod.org",
+      "currentVersion": "wordpress-live",
+      "deploymentState": "production_live",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "life-produces-life-monorepo/apps/united-under-god/README.md"
+      ],
+      "linkedIssues": [
+        {
+          "number": 1,
+          "title": "Sprint 1: Build Life Produces Life Cycle foundation",
+          "url": "https://github.com/lincolnnunnally/life-produces-life/issues/1"
+        }
+      ],
+      "linkedPRs": [],
+      "blockers": [
+        "Live site is WordPress (Paid Memberships Pro) outside the monorepo; the monorepo app is a Sprint-1 stub (README only, no package.json) — replatform/transfer decision needed.",
+        "Planned to read the AppEngine ops collector for the public family-of-apps view — never build a second dashboard (board POST-LAUNCH note)."
+      ],
+      "evidenceLinks": [
+        {
+          "label": "Live site (verified 2026-07-03, HTTP 200)",
+          "url": "https://www.unitedundergod.org"
+        }
+      ],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "Community Connections",
+      "slug": "community-connections",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "concept",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "life-produces-life/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (Community Connections)",
+        "Ecosystem-Inventory-Reorganized.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Concept only — no repo or code yet. The less-faith-forward sibling of Live On Mission (community-level mission platform); Milstead is its first implementation (see milstead entry)."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "Honestly",
+      "slug": "honestly",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "mined-source",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-repo-mining-audit.md",
+        "source-of-truth/ecosystem-deployment-queue.md",
+        "honestly"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "DO_NOT_DEPLOY — mined as care/benevolence/media source (video recording, participant portal, case detail, counselor notes, analysis).",
+        "Boundary undecided: standalone app vs ChurchConnect care module — owner decision before any build."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "Milstead Community Platform",
+      "slug": "milstead",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "churchconnect-tenant-config",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "Ecosystem-Inventory-Reorganized.md",
+        "source-of-truth/ecosystem-build-ledger.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Not a separate app: ChurchConnect launch-proof tenant milstead-church (Milstead Baptist Church) — an instance of Community modules / first Community Connections implementation.",
+        "The shared organization table has no Milstead row yet; the tenant resolves through configured fallback (Step 5 evidence)."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "Million Mistakes",
+      "slug": "million-mistakes",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "content-source",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "Ecosystem-Inventory-Reorganized.md",
+        "source-of-truth/ecosystem-build-ledger.md",
+        "Million-Mistakes"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Not a standalone app — the \"mistakes = growth\" principle/content brand (ledger verdict SOURCE_TRUTH/CONTENT); feeds Best Life and the content hub. Registered so the portfolio knows the source; no standalone build planned."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "Printer Protector (monitoring)",
+      "slug": "printer-protector-monitoring",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "local-source-unversioned",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md",
+        "Project_Code/Printer-Protector (local, not in git)"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Real source lives only locally at Project_Code/Printer-Protector (printer-protector-saas: React+Vite frontend, Python SNMP monitoring agent, Supabase) — not a git repo, no remote: code-loss risk; protective push needed.",
+        "GitHub shells PrinterProtectorMonitoringTool / PrinterProtectorCustomer have no default branch (ARCHIVE_REFERENCE) — canonical repo decision needed.",
+        "Relationship to the Toner Management platform (shared monitoring module?) undecided."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
+    },
+    {
+      "name": "ChurchConnect Bridge (monorepo module)",
+      "slug": "churchconnect-bridge",
+      "reviewUrl": "unknown",
+      "productionUrl": "approval-gated",
+      "currentVersion": "0.1.0-sprint1-placeholder",
+      "deploymentState": "production_blocked",
+      "buildState": "planned",
+      "nextSafeAction": "create_planning_issue",
+      "sourceOfTruthFiles": [
+        "life-produces-life-monorepo/apps/churchconnect-bridge/README.md"
+      ],
+      "linkedIssues": [
+        {
+          "number": 1,
+          "title": "Sprint 1: Build Life Produces Life Cycle foundation",
+          "url": "https://github.com/lincolnnunnally/life-produces-life/issues/1"
+        }
+      ],
+      "linkedPRs": [],
+      "blockers": [
+        "Sprint-1 integration placeholder (@life-produces-life/churchconnect-bridge v0.1.0): mapping only — users→lpl_people, churches→lpl_organizations, groups→lpl_life_circles, events→lpl_opportunities, volunteers→lpl_service_actions, paid accounts→lpl_billing_*.",
+        "ChurchConnect itself must not be rebuilt here; activation waits on the shared-foundation sprint and the TRANSFER T5 ChurchConnect finish."
+      ],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-03T21:45:00.000Z"
     }
   ],
   "guardrails": {
