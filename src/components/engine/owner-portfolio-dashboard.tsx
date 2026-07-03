@@ -78,7 +78,10 @@ export function OwnerPortfolioDashboard({ registry }: { registry: AppPortfolioRe
       .then((data: { ok?: boolean; snapshot?: OpsStatsSnapshot }) => {
         if (!cancelled && data?.ok && data.snapshot) setOps(data.snapshot);
       })
-      .catch(() => {})
+      .catch(() => {
+        // ops stays null — the attention panel reports "couldn't check",
+        // never a false "all clear".
+      })
       .finally(() => {
         if (!cancelled) setOpsLoaded(true);
       });
@@ -474,7 +477,17 @@ function OpsAttentionPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | 
     );
   }
 
-  const items = snapshot?.attention || [];
+  // No snapshot ≠ nothing found: the checks never ran (fetch failed, session
+  // expired, server error). Saying "all clear" here would be a false positive.
+  if (!snapshot) {
+    return (
+      <div className="portfolio-attention-panel checking" aria-label="Needs your attention">
+        <p>Couldn't load the app checks just now — reload the page to try again.</p>
+      </div>
+    );
+  }
+
+  const items = snapshot.attention || [];
   if (!items.length) {
     return (
       <div className="portfolio-attention-panel all-clear" aria-label="Needs your attention">

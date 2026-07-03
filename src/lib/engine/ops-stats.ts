@@ -43,6 +43,10 @@ export type OpsStatsSnapshot = {
 // A reading older than this is re-polled on the next dashboard load; no cron
 // needed on the free tier — reads refresh the cache when it goes stale.
 const STALE_AFTER_MS = 10 * 60 * 1000;
+// How long a last-good reading may stand in for a failing app before the
+// display degrades to "not reporting" — smoothing one bad poll must never
+// hide a real outage indefinitely.
+const LAST_GOOD_MAX_AGE_MS = 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 6000;
 
 type OpsTarget = {
@@ -165,7 +169,9 @@ function parseEnvTargets(): EnvOpsTarget[] {
         token: typeof entry.token === "string" ? entry.token.trim() : "",
         vercelProject: typeof entry.vercelProject === "string" ? entry.vercelProject.trim() : ""
       }))
-      .filter((entry) => entry.url && entry.token);
+      // A token makes the app pollable; a vercelProject alone still opts it
+      // into the env-name audit — either is a valid reason to keep the entry.
+      .filter((entry) => entry.url && (entry.token || entry.vercelProject));
   } catch {
     return [];
   }
@@ -191,6 +197,9 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
   }
 
   const seenHosts = new Set<string>();
+  // One app must never appear twice: a registered app on a custom domain and
+  // its engine build job share no host, but they do share a Vercel project.
+  const seenProjects = new Set<string>();
   const registered = await listOwnerRegisteredApps().catch(() => []);
   for (const app of registered) {
     if (app.appStatus !== "live") continue;
@@ -200,7 +209,9 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
     const jobInfo = host ? jobByHost.get(host) : undefined;
     const url = app.liveUrl || envMatch?.url || "";
     const token = envMatch?.token || jobInfo?.token || undefined;
+    const vercelProject = envMatch?.vercelProject || jobInfo?.vercelProject || undefined;
     if (host) seenHosts.add(host);
+    if (vercelProject) seenProjects.add(vercelProject);
     targets.push({
       key: `app:${app.slug}`,
       slug: app.slug,
@@ -210,8 +221,29 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
       token,
       pollable: Boolean(token && url),
       note: token && url ? "" : "Not reporting yet — this app doesn't share ops stats with AppEngine.",
-      vercelProject: envMatch?.vercelProject || jobInfo?.vercelProject || undefined,
+      vercelProject,
       generatedApp: Boolean(jobInfo),
+      live: true
+    });
+  }
+
+  for (const entry of envTargets) {
+    if (entry.used) continue;
+    const host = hostOf(entry.url);
+    if (!host || seenHosts.has(host)) continue;
+    seenHosts.add(host);
+    if (entry.vercelProject) seenProjects.add(entry.vercelProject);
+    targets.push({
+      key: `env:${host}`,
+      slug: entry.slug,
+      name: entry.name || host,
+      url: entry.url,
+      kind: "remote",
+      token: entry.token || undefined,
+      pollable: Boolean(entry.token),
+      note: entry.token ? "" : "Not reporting yet — this app doesn't share ops stats with AppEngine.",
+      vercelProject: entry.vercelProject || undefined,
+      generatedApp: false,
       live: true
     });
   }
@@ -219,6 +251,7 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
   for (const job of jobs) {
     const host = hostOf(job.url || "");
     if (!host || seenHosts.has(host)) continue;
+    if (job.vercelProject && seenProjects.has(job.vercelProject)) continue;
     seenHosts.add(host);
     targets.push({
       key: `job:${job.id}`,
@@ -231,27 +264,8 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
       note: job.statsToken ? "" : "Not reporting yet — this app was deployed before ops reporting shipped.",
       vercelProject: job.vercelProject || undefined,
       generatedApp: true,
-      live: job.status === "live" || job.status === "deploying"
-    });
-  }
-
-  for (const entry of envTargets) {
-    if (entry.used) continue;
-    const host = hostOf(entry.url);
-    if (!host || seenHosts.has(host)) continue;
-    seenHosts.add(host);
-    targets.push({
-      key: `env:${host}`,
-      slug: entry.slug,
-      name: entry.name || host,
-      url: entry.url,
-      kind: "remote",
-      token: entry.token,
-      pollable: true,
-      note: "",
-      vercelProject: entry.vercelProject || undefined,
-      generatedApp: false,
-      live: true
+      // A job mid-deploy or failed being unreachable is normal, not attention.
+      live: job.status === "live"
     });
   }
 
@@ -297,6 +311,10 @@ function toIso(value: unknown): string | null {
 }
 
 function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
+  // A row written before the attention checks shipped has needs = NULL — that
+  // is "never checked", NOT "checked and all clear". Marking it stale (no
+  // checkedAt) forces a real check on the next load instead of a false blank.
+  const needsMissing = !Array.isArray(row.needs);
   return {
     key: String(row.app_key),
     slug: String(row.slug || ""),
@@ -309,8 +327,8 @@ function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
       ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent))
     },
     note: String(row.note || ""),
-    needs: Array.isArray(row.needs) ? (row.needs as OpsAttentionItem[]) : [],
-    checkedAt: toIso(row.checked_at)
+    needs: needsMissing ? [] : (row.needs as OpsAttentionItem[]),
+    checkedAt: needsMissing ? null : toIso(row.checked_at)
   };
 }
 
@@ -359,29 +377,42 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
 // ---- the snapshot the dashboard reads -----------------------------------------
 
 async function pollTarget(target: OpsTarget, cached: OpsStatsRecord | null): Promise<OpsStatsRecord> {
-  const checkedAt = new Date().toISOString();
   const base = { key: target.key, slug: target.slug, name: target.name, url: target.url };
 
   let reporting = false;
   let stats = emptyStats();
   let note = target.note;
+  // What actually happened THIS cycle — the attention checks get this truth,
+  // never the display flag (a cached last-good reading must not convince the
+  // unreachable check that a dead app is alive).
+  let answeredThisCycle = false;
+  let checkedAt = new Date().toISOString();
 
   if (target.kind === "self") {
     const self = await getSelfOpsStats();
     reporting = self.reporting;
+    answeredThisCycle = self.reporting;
     stats = self.stats;
     note = self.note;
   } else if (target.pollable) {
     const result = await fetchStatsFromApp(target.url, target.token || "");
+    const lastGoodAgeMs = cached?.reporting && cached.checkedAt ? Date.now() - Date.parse(cached.checkedAt) : Number.POSITIVE_INFINITY;
     if (result.ok && result.stats) {
       reporting = true;
+      answeredThisCycle = true;
       stats = result.stats;
       note = "";
-    } else if (cached && cached.reporting) {
-      // Keep the last good reading rather than blanking the card on one bad poll.
+    } else if (cached && cached.reporting && lastGoodAgeMs < LAST_GOOD_MAX_AGE_MS) {
+      // Keep the last good reading rather than blanking the card on one bad
+      // poll — but keep ITS timestamp (the "as of" stays honest) so the cache
+      // row stays stale and the next load re-polls immediately.
       reporting = true;
       stats = cached.stats;
       note = `Couldn't reach it just now (${result.error || "no answer"}) — showing the last good reading.`;
+      checkedAt = cached.checkedAt || checkedAt;
+    } else if (cached && cached.reporting) {
+      // It has now been failing for over an hour: stop presenting old numbers.
+      note = `Not reporting — it stopped answering (last good reading ${cached.checkedAt || "unknown"}).`;
     } else {
       note = `Not reporting yet — ${result.error || "the app didn't answer"}.`;
     }
@@ -390,16 +421,20 @@ async function pollTarget(target: OpsTarget, cached: OpsStatsRecord | null): Pro
   // Attention checks run for EVERY app with something to check — pollable or
   // not, an unreachable live URL or a missing env var is exactly what Lincoln
   // must not have to dig for.
-  const needs = await collectAttentionForApp({
-    appKey: target.key,
-    slug: target.slug,
-    appName: target.name,
-    url: target.url,
-    vercelProject: target.vercelProject,
-    generatedApp: target.generatedApp,
-    live: target.live,
-    reporting
-  }).catch(() => [] as OpsAttentionItem[]);
+  const needs = await collectAttentionForApp(
+    {
+      appKey: target.key,
+      slug: target.slug,
+      appName: target.name,
+      url: target.url,
+      vercelProject: target.vercelProject,
+      generatedApp: target.generatedApp,
+      live: target.live,
+      reporting: answeredThisCycle,
+      everReporting: answeredThisCycle || Boolean(cached?.reporting)
+    },
+    cached?.needs || []
+  ).catch(() => [] as OpsAttentionItem[]);
 
   return { ...base, reporting, stats, note, needs, checkedAt };
 }

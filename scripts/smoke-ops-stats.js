@@ -76,6 +76,7 @@ runStep("the dashboard surfaces the attention queue", () => {
     "OpsAttentionPanel",
     "Needs your attention",
     "All clear",
+    "Couldn't load the app checks",
     "needs attention",
     "portfolio-attention-panel"
   ]);

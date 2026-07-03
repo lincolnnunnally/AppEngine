@@ -89,7 +89,13 @@ type AttentionSubject = {
   vercelProject?: string; // set for engine-deployed apps (enables the env audit)
   generatedApp: boolean; // true = we know its required env contract
   live: boolean;
-  reporting: boolean; // from the stats poll
+  // TRUE only when the stats endpoint answered on THIS cycle — never a cached
+  // flag. The unreachable check's act-vs-watch call depends on it being honest.
+  reporting: boolean;
+  // TRUE if it answered this cycle OR recently (last-good cache). An app that
+  // WAS reporting and is now down is an outage (covered by unreachable), not a
+  // "needs wiring" case — the wiring advice would be false.
+  everReporting: boolean;
 };
 
 function item(
@@ -104,11 +110,15 @@ function item(
 }
 
 // All checks for one app, in parallel where they involve the network.
-export async function collectAttentionForApp(subject: AttentionSubject): Promise<OpsAttentionItem[]> {
+// `previousNeeds` (the last cached findings) lets a transient audit failure
+// carry known env findings forward instead of silently dropping them.
+export async function collectAttentionForApp(subject: AttentionSubject, previousNeeds: OpsAttentionItem[] = []): Promise<OpsAttentionItem[]> {
   const items: OpsAttentionItem[] = [];
 
+  // Only a LIVE app's URL is expected to answer — a build mid-deploy or a
+  // failed job being down is normal, not something for the attention queue.
   const [reachable, envNames] = await Promise.all([
-    subject.url ? checkUrlReachable(subject.url) : Promise.resolve(null),
+    subject.url && subject.live ? checkUrlReachable(subject.url) : Promise.resolve(null),
     subject.vercelProject ? listVercelEnvNames(subject.vercelProject) : Promise.resolve(null)
   ]);
 
@@ -139,6 +149,12 @@ export async function collectAttentionForApp(subject: AttentionSubject): Promise
         )
       );
     }
+  }
+
+  // The audit was possible but the Vercel API didn't answer this cycle: keep
+  // the previously known env findings rather than letting them silently vanish.
+  if (!envNames && subject.vercelProject && vercelEnvAuditConfigured()) {
+    items.push(...previousNeeds.filter((need) => need.kind === "missing_env" || need.kind === "features_unconfigured"));
   }
 
   if (envNames) {
@@ -183,7 +199,7 @@ export async function collectAttentionForApp(subject: AttentionSubject): Promise
     );
   }
 
-  if (subject.live && !subject.reporting && subject.url) {
+  if (subject.live && !subject.everReporting && subject.url) {
     items.push(
       item(
         subject,
