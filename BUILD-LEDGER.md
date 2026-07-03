@@ -90,6 +90,15 @@ Acceptance: no route renders bare; no screen ships a competing theme; every door
 ### STEP 7 — confirm it holds  🟢 substantially met — finish line reached; ongoing watch
 - 🟢 **7 · Spend holds by construction; app is public & usable at we-succeed.org.** Spend can't run away: Vercel is Hobby/**free** (no spend to cap), generated-app resources stay free-tier, and the release gate (#186/#187) is fail-closed so a public user's submission can't provision paid resources. **`Done =` condition met: a public, usable app is live at www.we-succeed.org.** Remaining is *operational watch*, not build: (a) Lincoln's signed-in customer walkthrough (#5); (b) keep an eye on the release gate / free-tier limits as real traffic arrives; (c) optional hardening — strict CSP (nonces), rate-limiting/abuse protection on public sign-in, and the Hobby ToS commercial-use consideration if monetizing.
 
+### TRANSFER — all ecosystem builds move to Claude Code (Lincoln's directive, 2026-07-03)
+Lincoln directed that every ecosystem build transfers to Claude Code and the full ecosystem gets set up. Full-estate audit ran 2026-07-03 (GitHub + Vercel + Supabase + DNS + local repos + registry, cross-checked); plan delivered as ECOSYSTEM_TRANSFER_PLAN (session doc). Lincoln approved: CURRENT_SCOPE v12, ChurchConnect first, protective backup pushes. Protective work already DONE (no rebuild): TonerTrackerPro history pushed to its empty origin; 4 new private backup repos (dads-recovery, toner-platform, emergent-integrations-archive, appengine-workspace) — secrets excluded. Corrected for the record: the Kids Need Dads domain is kidsneeddad.com (singular, eNom/DreamHost, exp 2027-03-01, healthy); the plural kidsneeddads.com is a third party's — never ours.
+
+- ✅ **T1 · CURRENT_SCOPE v12 — ecosystem-transfer scope (Lincoln-approved)** — merged (**#246**, verify ✅).
+- ✅ **T2 · App Transfer Ledger Standard landed on main** — clean cherry-pick of the two stranded commits, merged (**#247**, verify ✅); PR #206 closed as superseded.
+- 🟢 **T3 · Regenerate ecosystem-portfolio-registry.json** (stale 2026-06-27, pre-#238–#245; all 14 non-appengine entries have empty issue/PR links; publish the queued followups as issues)
+- ✅ **T4 · life-produces-life CODE monorepo cloned** → `Project_Code/life-produces-life-monorepo` (apps + packages confirmed). Reminder: the local `life-produces-life` folder is the source-of-truth repo, a DIFFERENT repo. Stranded ChurchConnect DB drafts preserved on its `churchconnect-slice-event-fanout` branch (272b289).
+- ⛔ **T5 · ChurchConnect finish (first app through the transfer)** — waiting on Lincoln: (a) staff-login Connection Inbox walkthrough, (b) approval to apply the `churchconnect` schema to the shared Supabase (gated DB change), (c) approval to merge ChurchConnect PRs #5/#7/#11/#12 (merges auto-deploy churchconnect.cloud). Prep may proceed; the gates may not be crossed without him.
+
 ---
 
 ## ACTIVATION — without this, the board is just a doc nobody honors
