@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BuildLoopCompletionDashboardPanel } from "@/components/engine/build-loop-completion-dashboard-panel";
 import { BuildLoopControlledUseReadinessPanel } from "@/components/engine/build-loop-controlled-use-readiness-panel";
 import { BuildExecutionRequestPanel } from "@/components/engine/build-execution-request-panel";
+import { CredentialAttentionStrip } from "@/components/engine/credential-attention-strip";
 import { FirstRealBuildLoopRunPanel } from "@/components/engine/first-real-build-loop-run-panel";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
@@ -21,6 +22,7 @@ import {
   listBuildExecutionRequests,
   loadBuildLoopCompletionDashboard
 } from "@/lib/engine/build-execution-request";
+import { getCredentialAttentionItems } from "@/lib/engine/ecosystem-credential-registry";
 import { listFirstEcosystemBuildPacketDrafts } from "@/lib/engine/first-ecosystem-build-packet-draft";
 import {
   firstRealEcosystemBuildRequestSeed,
@@ -80,7 +82,8 @@ export default async function OwnerControlCenterPage() {
     realOpportunityExamples,
     realOpportunityResultReviews,
     problemIntakeRecords,
-    portfolioRegistry
+    portfolioRegistry,
+    credentialAttention
   ] = await Promise.all([
     listHandoffRelaySummaries(),
     loadProjectMemory(),
@@ -109,11 +112,13 @@ export default async function OwnerControlCenterPage() {
     listRealOpportunityExamples(),
     listRealOpportunityResultReviews(),
     listProblemIntakeRecords(),
-    loadOwnerPortfolioRegistry()
+    loadOwnerPortfolioRegistry(),
+    getCredentialAttentionItems()
   ]);
 
   return (
     <main className="shell wide-shell owner-control-page">
+      <CredentialAttentionStrip items={credentialAttention} />
       <OwnerPortfolioDashboard registry={portfolioRegistry} urlBoard={getPortfolioUrlStatusBoard()} />
       <HandoffRelayControlCenter
         initialHandoffs={handoffs}
