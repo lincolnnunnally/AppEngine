@@ -45,7 +45,11 @@ The romantic engine keeps that shape and adds what romance actually needs.
 
 **Stage 0 — Hard filters (never scored, never softened):** dealbreakers, orientation/
 gender preference, marriage/children intent conflicts, radius (ECO-010 — bands only
-between people), safety exclusions, blocked sets.
+between people), safety exclusions, blocked sets, and the faith-centrality band gate:
+the four bands (center / important-growing / background / exploring) match within ±1
+band; a >1-band gap excludes (admin-tunable — proposed default, owner may loosen).
+Users whose band shrinks their pool (e.g. "exploring" in a faith-centered base) get
+honest copy at their first match screen — a smaller pool is explained, never silent.
 
 **Stage 1 — Alignment (similarity axes, admin-weighted):** faith centrality, core values
 (reuse the overlap logic), mission/purpose, family timeline, lifestyle. "We want the same
@@ -57,6 +61,16 @@ life."
   in practice (observed, not just claimed). Score bidirectionally: A.give→B.receive AND
   B.give→A.receive. One-directional mesh is a coaching flag ("you may need to ask for
   words, not gifts"), not a zero.
+  Mechanics (v1): each person carries full 5-dimension GIVE and RECEIVE vectors,
+  normalized, with reverse-scored negatives floored at 0 before matching;
+  mesh(A→B) = cosine(A.give, B.receive), where the GIVE vector up-weights the
+  tired-season ("sustainable give") item ×1.25 until journal data validates it. A
+  repair-context give that matches the partner's receive language earns a 1.5× bonus on
+  this axis — repair moments are where languages matter most. Users confirm the displayed
+  top-2 labels per vector before the profile affects matching; a rejection triggers one
+  adaptive re-ask, never silent truncation of the stored vector. (This deliberately
+  extends the ledger's confirm-before-matching rule from inferred traits to
+  scenario-derived profiles.)
 - **Inferred expression language.** Which love language a person MESSAGES with — words of
   affirmation show up literally in text; quality-time planning, acts-of-service offers,
   and gift language partially. Inferred from messages/journals/Knowing answers, opt-in,
@@ -97,9 +111,10 @@ the small final set — the Soul Match Sunday cost pattern.
    low-confidence. Value before labor.
 2. **Progressive profiling, never walls.** One micro-question at natural moments (after
    viewing a match, after a reflection, new day) — always skippable, capped daily.
-   Love-language assessment = 6–8 forced-choice scenarios (rank "which would make you
-   feel most loved"), not a 40-item Likert battery; give-side items separate and equally
-   short.
+   Love-language assessment = 6–8 single-pick scenario items ("which would land
+   deepest"), not a 40-item Likert battery — single-pick over ranking keeps every item
+   one tap; give-side items separate and equally short. The same items may drip through
+   this micro-question channel instead of running as a block.
 3. **Every question visibly pays.** Each answer moves the user's own Match Readiness /
    confidence meter immediately and names the axis it improved ("this sharpens how we
    read what makes you feel loved").
