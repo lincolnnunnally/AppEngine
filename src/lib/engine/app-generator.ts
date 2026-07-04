@@ -1150,6 +1150,16 @@ create index if not exists users_email_idx on users(email);
 create index if not exists accounts_user_idx on accounts("userId");
 create index if not exists accounts_provider_account_idx on accounts(provider, "providerAccountId");
 create index if not exists sessions_user_idx on sessions("userId");
+
+-- Ops reporting: a join timestamp so the owner dashboard can show new-user growth
+-- (who joined this week vs last). Added by ALTER, not in the CREATE, so it applies
+-- uniformly to apps built before this shipped. Existing rows stay NULL (join date
+-- unknown) instead of backfilling to now() — that would fake a "everyone joined
+-- this week" spike. New sign-ups get now() via the default. NextAuth's pg-adapter
+-- never sets this column, so the default always fills it.
+alter table users add column if not exists created_at timestamptz;
+alter table users alter column created_at set default now();
+create index if not exists users_created_at_idx on users(created_at);
 create index if not exists app_user_profiles_role_idx on app_user_profiles(role);
 create index if not exists organizations_owner_idx on organizations(owner_user_id);
 create index if not exists organization_memberships_user_idx on organization_memberships(user_id);

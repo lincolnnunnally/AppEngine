@@ -10,9 +10,33 @@ Every generated app ships `GET /api/admin/stats` (a foundation module):
 
 - Gated by a bearer token compared against the app's `APP_ENGINE_STATS_TOKEN`
   env var (timing-safe). No token configured → the endpoint stays closed (401).
-- Returns `{ ok, reporting, users, ticketsOpen, ordersRecent, generatedAt }`,
-  counted from the app's OWN tables (`users`, `support_tickets`, `payments`).
+- Returns `{ ok, reporting, users, ticketsOpen, ordersRecent, activeUsers30d,
+  newUsers7d, newUsersPrev7d, generatedAt }`, counted from the app's OWN tables
+  (`users`, `sessions`, `support_tickets`, `payments`).
 - Numbers only. No names, no emails, no personal data — ever.
+
+## The impact signal (is it HELPING people, and growing?)
+
+Revenue is silent for the free/ministry apps, so a payment count alone makes a
+thriving free app read as "0 orders." The contract also reports how the app is
+actually being USED:
+
+- `activeUsers30d` — distinct users with a live session
+  (`count(distinct "userId") from sessions where expires > now()`). NextAuth
+  sessions last ~30 days, so this is "signed in within the last ~30 days" with
+  zero new instrumentation — a real engagement signal that works for free apps.
+- `newUsers7d` / `newUsersPrev7d` — sign-ups this week vs the week before, so the
+  dashboard can say growing / steady / slowing. The APP computes both windows
+  (the honest free-tier path: no AppEngine-side history, no cron). Needs a join
+  timestamp: `users.created_at`, added by ALTER (not in the CREATE) so it applies
+  to apps built before it. Existing rows stay NULL (join date unknown) instead of
+  backfilling to `now()` — that would fake an "everyone joined this week" spike;
+  new sign-ups get `now()` via the column default.
+- All three are additive and nullable. Each is independently guarded in the
+  endpoint, so an app that hasn't re-run `db:setup` yet still reports its core
+  counts while the growth fields read null. The dashboard never claims a trend it
+  cannot compute (no comparison when `newUsersPrev7d` is null; no percentage drama
+  on tiny numbers).
 
 ## The token
 
