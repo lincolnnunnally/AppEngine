@@ -2,7 +2,8 @@
 
 AppEngine helps Lincoln RUN THE BUSINESS of his apps, not just build them. Every
 managed app shows, on the owner dashboard, how it is DOING — users, open support
-tickets, recent orders — or an honest "Not reporting yet."
+tickets, recent orders, revenue, and an activity trend — or an honest "Not
+reporting yet."
 
 ## The contract every generated app carries
 
@@ -10,9 +11,19 @@ Every generated app ships `GET /api/admin/stats` (a foundation module):
 
 - Gated by a bearer token compared against the app's `APP_ENGINE_STATS_TOKEN`
   env var (timing-safe). No token configured → the endpoint stays closed (401).
-- Returns `{ ok, reporting, users, ticketsOpen, ordersRecent, generatedAt }`,
-  counted from the app's OWN tables (`users`, `support_tickets`, `payments`).
-- Numbers only. No names, no emails, no personal data — ever.
+- Returns `{ ok, reporting, users, ticketsOpen, ordersRecent,
+  revenueCentsRecent, revenueCurrency, activity, generatedAt }`, counted from
+  the app's OWN tables (`users`, `support_tickets`, `payments`).
+- Deep-dive fields (added 2026-07-04, additive — apps that omit them still
+  report the original three):
+  - `revenueCentsRecent` — SUM of paid payments over the last 30 days, in minor
+    units (cents). Always paired with `revenueCurrency` (ISO code, e.g.
+    `"usd"`); a sum without its currency is rejected by the collector. One
+    currency per app; the dashboard totals per currency and never converts.
+  - `activity` — `[{ date: "YYYY-MM-DD", count }]`, customer events per day
+    (payments + support tickets for generated apps) over the trailing 14 days.
+- Numbers only: counts and aggregate sums. No names, no emails, no line items,
+  no per-user data — ever. Revenue crosses the app boundary ONLY as a total.
 
 ## The token
 
@@ -24,7 +35,9 @@ Every generated app ships `GET /api/admin/stats` (a foundation module):
 ## The collector (`src/lib/engine/ops-stats.ts`)
 
 - Assembles targets: AppEngine itself (read in-process — the factory's "orders"
-  are builds started in the last 30 days), owner-registered live apps,
+  are builds started in the last 30 days, its activity trend counts builds per
+  day, and its revenue reads the platform's own `payments` table — honestly
+  null until billing rows exist), owner-registered live apps,
   engine-deployed builds, and optional env-configured extras in
   `APP_ENGINE_OPS_TARGETS` (JSON: `[{ slug, name, url, token }]`) so any app
   that adopts the endpoint can report without a code change.
@@ -35,6 +48,10 @@ Every generated app ships `GET /api/admin/stats` (a foundation module):
 - An app that can't be reached keeps its last good reading, labeled as such.
   An app with no token/endpoint is reported "Not reporting yet" — never a fake
   number, never a silent blank.
+- The deep-dive fields obey the same honesty rule per metric: an app reporting
+  the original three but not revenue/activity shows "Not reported" for exactly
+  those — a null is never rendered as zero, and cache rows written before the
+  fields shipped read back as null, not 0.
 
 ## The attention queue (what needs Lincoln)
 
@@ -60,9 +77,16 @@ carry `vercelProject` to opt external apps into the env audit.
 
 - `GET /api/engine/ops/stats` (owner/admin only; `POST` forces a fresh poll)
   serves the snapshot to the owner dashboard.
-- Every portfolio card carries an Ops strip: real counts for reporting apps,
-  "Not reporting yet" for live apps that don't report, "Not live yet" for the
-  rest.
+- Every portfolio card carries an Ops strip: real counts (plus revenue when
+  reported) for reporting apps, "Not reporting yet" for live apps that don't
+  report, "Not live yet" for the rest.
+- An expanded card shows the deep-dive ("How it's doing"): users, revenue as
+  money, open tickets, orders, and a per-day activity trend — each metric
+  individually honest ("Not reported" when absent).
+- A rollup strip ("Across your apps") totals users, revenue per currency
+  (never converted or merged across currencies), and 14-day events across
+  reporting apps — with coverage stated plainly ("from N of M apps reporting"),
+  so a partial total can't masquerade as the whole business.
 - AppEngine practices the standard it ships: it exposes the same token-gated
   `/api/admin/stats` for its own counts.
 
@@ -70,6 +94,7 @@ carry `vercelProject` to opt external apps into the env audit.
 
 - Free tier only; no new paid resources.
 - Secrets live in env vars and the build-jobs table, never in git.
-- Counts only — no private user data crosses app boundaries.
+- Counts and aggregate revenue sums only — no private user data, per-user
+  detail, or payment line items cross app boundaries.
 - Smoke: `npm run smoke:ops-stats` (wiring), `npm run smoke:owner-portfolio-dashboard`
   (dashboard strings).

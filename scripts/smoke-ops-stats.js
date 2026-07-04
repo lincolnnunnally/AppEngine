@@ -15,7 +15,13 @@ runStep("generated apps ship a token-gated stats endpoint", () => {
     "select count(*)::int as n from users",
     "from support_tickets where status = 'open'",
     "from payments where created_at > now() - interval '30 days'",
-    "adminStatsApi()"
+    "adminStatsApi()",
+    // Deep-dive fields: revenue is a SUM of paid rows, activity is events/day.
+    "coalesce(sum(amount_cents), 0)",
+    "where status = 'paid'",
+    "revenueCentsRecent",
+    "revenueCurrency",
+    "activity"
   ]);
 });
 
@@ -47,6 +53,20 @@ runStep("the ops collector polls, caches, and stays honest", () => {
     "/api/admin/stats",
     "Not reporting yet",
     "APP_ENGINE_OPS_TARGETS"
+  ]);
+});
+
+runStep("the collector carries the deep-dive fields, null-honest end to end", () => {
+  assertFileIncludes("src/lib/engine/ops-stats.ts", [
+    "revenueCentsRecent",
+    "revenueCurrency",
+    "OpsActivityDay",
+    // Cache columns self-apply; pre-existing rows read back null, never zero.
+    "ADD COLUMN IF NOT EXISTS revenue_cents_recent",
+    "ADD COLUMN IF NOT EXISTS revenue_currency",
+    "ADD COLUMN IF NOT EXISTS activity",
+    // A revenue sum without its currency is rejected: both or neither.
+    "revenueReported"
   ]);
 });
 
@@ -106,9 +126,37 @@ runStep("the dashboard shows an honest Ops strip per app", () => {
     "Not reporting yet",
     "Not live yet — nothing to report",
     "open tickets",
-    "orders (30d)"
+    "orders (30d)",
+    "revenue (30d)"
   ]);
   assertFileIncludes("src/app/styles.css", [".portfolio-ops-strip"]);
+});
+
+runStep("expanded cards deep-dive into users, revenue, and activity — honestly", () => {
+  assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
+    "OpsDeepDive",
+    "How it&apos;s doing",
+    "Not reported",
+    "ActivityTrend",
+    "Activity trend not reported yet",
+    "formatMoney"
+  ]);
+  assertFileIncludes("src/app/styles.css", [
+    ".portfolio-deep-dive",
+    ".portfolio-activity-bars",
+    ".portfolio-activity-bar"
+  ]);
+});
+
+runStep("the rollup states its coverage — a partial total never poses as the whole", () => {
+  assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
+    "OpsRollupPanel",
+    "Across your apps",
+    "apps reporting",
+    // Revenue totals stay per currency; nothing converts or merges them.
+    "revenueByCurrency"
+  ]);
+  assertFileIncludes("src/app/styles.css", [".portfolio-ops-rollup"]);
 });
 
 runStep("the account-wide deploy sweep flags failing Vercel projects with a directed fix", () => {

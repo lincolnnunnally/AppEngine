@@ -31,6 +31,9 @@ export async function GET(request: Request) {
     users: self.stats.users,
     ticketsOpen: self.stats.ticketsOpen,
     ordersRecent: self.stats.ordersRecent,
+    revenueCentsRecent: self.stats.revenueCentsRecent,
+    revenueCurrency: self.stats.revenueCurrency,
+    activity: self.stats.activity,
     generatedAt: new Date().toISOString()
   });
 }

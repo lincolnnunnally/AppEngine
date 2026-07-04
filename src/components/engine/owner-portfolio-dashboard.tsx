@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AppPortfolioEntry, AppPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
-import type { OpsStatsRecord, OpsStatsSnapshot } from "@/lib/engine/ops-stats";
+import type { OpsActivityDay, OpsStatsRecord, OpsStatsSnapshot } from "@/lib/engine/ops-stats";
 import type { OpsAttentionItem } from "@/lib/engine/ops-attention";
 import type { PortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { UrlStatusBoardPanel } from "@/components/engine/portfolio-url-status-board";
@@ -136,6 +136,8 @@ export function OwnerPortfolioDashboard({
       {addOpen ? <AddAppForm onDone={() => { setAddOpen(false); router.refresh(); }} /> : null}
 
       <OpsAttentionPanel snapshot={ops} loaded={opsLoaded} />
+
+      <OpsRollupPanel snapshot={ops} loaded={opsLoaded} />
 
       {urlBoard ? <UrlStatusBoardPanel board={urlBoard} /> : null}
 
@@ -327,6 +329,8 @@ function PortfolioEntryCard({
           ) : null}
 
           {app.buildPacketBridgeVisibility ? <BuildPacketBridgePanel app={app} /> : null}
+
+          <OpsDeepDive app={app} record={opsRecord} loaded={opsLoaded} />
 
           {opsRecord?.needs.length ? (
             <section className="portfolio-blocker-list portfolio-needs-list">
@@ -537,6 +541,52 @@ function OpsAttentionPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | 
   );
 }
 
+// One line for the whole business: totals across every app that reports, with
+// the coverage stated honestly — "3 of 9 apps reporting" is a fact, a grand
+// total silently missing six apps would be a lie.
+function OpsRollupPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | null; loaded: boolean }) {
+  if (!loaded || !snapshot) return null; // the attention panel already narrates loading/failure
+
+  const reporting = snapshot.apps.filter((record) => record.reporting);
+  if (!reporting.length) return null; // nothing reporting yet — the per-card strips say so
+
+  const usersReported = reporting.filter((record) => record.stats.users !== null);
+  const totalUsers = usersReported.reduce((sum, record) => sum + (record.stats.users || 0), 0);
+
+  // Revenue never crosses currencies: one total per currency, each labeled.
+  const revenueReported = reporting.filter((record) => record.stats.revenueCentsRecent !== null && record.stats.revenueCurrency);
+  const revenueByCurrency = new Map<string, number>();
+  for (const record of revenueReported) {
+    const currency = record.stats.revenueCurrency as string;
+    revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + (record.stats.revenueCentsRecent || 0));
+  }
+
+  const activityReported = reporting.filter((record) => Array.isArray(record.stats.activity));
+  const totalEvents14d = activityReported.reduce(
+    (sum, record) => sum + (record.stats.activity || []).reduce((daySum, day) => daySum + day.count, 0),
+    0
+  );
+
+  return (
+    <section className="portfolio-ops-rollup" aria-label="Business snapshot across reporting apps">
+      <span className="portfolio-ops-label">Across your apps</span>
+      <strong>{totalUsers} users</strong>
+      {revenueByCurrency.size ? (
+        [...revenueByCurrency.entries()].map(([currency, cents]) => (
+          <strong key={currency}>{formatMoney(cents, currency)} revenue (30d)</strong>
+        ))
+      ) : (
+        <strong>revenue not reported</strong>
+      )}
+      <strong>{totalEvents14d} events (14d)</strong>
+      <small>
+        from {reporting.length} of {snapshot.totalApps} apps reporting
+        {revenueReported.length !== reporting.length ? ` · revenue from ${revenueReported.length}` : ""}
+      </small>
+    </section>
+  );
+}
+
 // The Ops strip: how each app is DOING, not just how its build is going. Real
 // counts when the app reports them; an honest state line when it doesn't.
 function OpsStrip({ app, record, loaded }: { app: AppPortfolioEntry; record: OpsStatsRecord | null; loaded: boolean }) {
@@ -549,6 +599,9 @@ function OpsStrip({ app, record, loaded }: { app: AppPortfolioEntry; record: Ops
         <strong>{formatCount(record.stats.users)} users</strong>
         <strong>{formatCount(record.stats.ticketsOpen)} open tickets</strong>
         <strong>{formatCount(record.stats.ordersRecent)} orders (30d)</strong>
+        {record.stats.revenueCentsRecent !== null && record.stats.revenueCurrency ? (
+          <strong>{formatMoney(record.stats.revenueCentsRecent, record.stats.revenueCurrency)} revenue (30d)</strong>
+        ) : null}
         {record.checkedAt ? <small title={record.note || undefined}>as of {shortTime(record.checkedAt)}</small> : null}
       </div>
     );
@@ -568,8 +621,84 @@ function OpsStrip({ app, record, loaded }: { app: AppPortfolioEntry; record: Ops
   );
 }
 
+// The deep-dive inside an expanded card: the business numbers behind the strip
+// — users, revenue as money, and a day-by-day activity trend. Every metric an
+// app doesn't report says "Not reported" — absence is information, zero is a claim.
+function OpsDeepDive({ app, record, loaded }: { app: AppPortfolioEntry; record: OpsStatsRecord | null; loaded: boolean }) {
+  if (!loaded) return null; // the strip already says "Checking live stats…"
+  if (!record?.reporting) return null; // the strip already narrates why there are no numbers
+
+  const revenue =
+    record.stats.revenueCentsRecent !== null && record.stats.revenueCurrency
+      ? formatMoney(record.stats.revenueCentsRecent, record.stats.revenueCurrency)
+      : null;
+
+  return (
+    <section className="portfolio-deep-dive" aria-label={`${app.name} business detail`}>
+      <h3>How it&apos;s doing</h3>
+      <dl className="portfolio-deep-dive-grid">
+        <div>
+          <dt>Users</dt>
+          <dd>{record.stats.users === null ? "Not reported" : record.stats.users}</dd>
+        </div>
+        <div>
+          <dt>Revenue (30d)</dt>
+          <dd>{revenue === null ? "Not reported" : revenue}</dd>
+        </div>
+        <div>
+          <dt>Open tickets</dt>
+          <dd>{record.stats.ticketsOpen === null ? "Not reported" : record.stats.ticketsOpen}</dd>
+        </div>
+        <div>
+          <dt>Orders (30d)</dt>
+          <dd>{record.stats.ordersRecent === null ? "Not reported" : record.stats.ordersRecent}</dd>
+        </div>
+      </dl>
+      <ActivityTrend days={record.stats.activity} />
+      {record.checkedAt ? <small className="portfolio-deep-dive-asof">as of {shortTime(record.checkedAt)}</small> : null}
+    </section>
+  );
+}
+
+// A dependency-free trend: one bar per day, scaled to the busiest day. Quiet
+// days render a floor sliver so the timeline reads as "measured: nothing
+// happened", which is not the same as "not measured" (that renders as text).
+function ActivityTrend({ days }: { days: OpsActivityDay[] | null }) {
+  if (!days || !days.length) {
+    return <p className="portfolio-activity-empty">Activity trend not reported yet.</p>;
+  }
+  const max = Math.max(...days.map((day) => day.count), 1);
+  const total = days.reduce((sum, day) => sum + day.count, 0);
+  return (
+    <div className="portfolio-activity">
+      <div className="portfolio-activity-heading">
+        <span>Activity — last {days.length} day{days.length === 1 ? "" : "s"}</span>
+        <span>{total} event{total === 1 ? "" : "s"}</span>
+      </div>
+      <div className="portfolio-activity-bars" role="img" aria-label={`${total} events across ${days.length} days`}>
+        {days.map((day) => (
+          <span
+            key={day.date}
+            className="portfolio-activity-bar"
+            style={{ height: `${Math.max(6, Math.round((day.count / max) * 100))}%` }}
+            title={`${day.date}: ${day.count} event${day.count === 1 ? "" : "s"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function formatCount(value: number | null) {
   return value === null ? "—" : String(value);
+}
+
+// Money renders as money, always with its currency: "$41.29" for USD, the
+// code spelled out ("41.29 EUR") for everything else. Cents in, never summed
+// across currencies by callers.
+function formatMoney(cents: number, currency: string) {
+  const amount = (cents / 100).toFixed(2);
+  return currency.toLowerCase() === "usd" ? `$${amount}` : `${amount} ${currency.toUpperCase()}`;
 }
 
 function shortTime(iso: string) {

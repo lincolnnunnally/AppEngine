@@ -2593,6 +2593,104 @@ label {
   opacity: 0.75;
 }
 
+.portfolio-ops-rollup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  color: var(--teal);
+  background: var(--green-soft);
+}
+
+.portfolio-ops-rollup .portfolio-ops-label {
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.portfolio-ops-rollup strong {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.portfolio-ops-rollup small {
+  opacity: 0.75;
+}
+
+.portfolio-deep-dive {
+  display: grid;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.portfolio-deep-dive h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.portfolio-deep-dive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.portfolio-deep-dive-grid dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.portfolio-deep-dive-grid dd {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.portfolio-deep-dive-asof {
+  opacity: 0.65;
+}
+
+.portfolio-activity {
+  display: grid;
+  gap: 4px;
+}
+
+.portfolio-activity-heading {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.portfolio-activity-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 44px;
+}
+
+.portfolio-activity-bar {
+  flex: 1;
+  min-width: 4px;
+  border-radius: 3px 3px 0 0;
+  background: var(--teal);
+  opacity: 0.75;
+}
+
+.portfolio-activity-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
 .portfolio-attention-panel {
   border: 1px solid var(--line);
   border-radius: 14px;

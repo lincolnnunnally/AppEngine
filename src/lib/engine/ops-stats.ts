@@ -12,10 +12,20 @@ import { listDeployedBuildJobs } from "@/lib/engine/build-jobs";
 import { listOwnerRegisteredApps } from "@/lib/engine/portfolio-registrations";
 import { collectAttentionForApp, collectVercelDeployAttention, sortAttentionItems, type OpsAttentionItem } from "@/lib/engine/ops-attention";
 
+// One day of app activity: customer events (payments + support tickets for
+// generated apps; builds for AppEngine itself) counted per calendar day.
+export type OpsActivityDay = { date: string; count: number };
+
 export type AppOpsStats = {
   users: number | null;
   ticketsOpen: number | null;
   ordersRecent: number | null;
+  // Deep-dive additions (2026-07-04). All optional-by-null: an app that
+  // reports the original three keeps reporting; null renders as "Not
+  // reported", never as zero — a fake number is worse than a blank.
+  revenueCentsRecent: number | null; // sum of paid payments, last 30 days, minor units
+  revenueCurrency: string | null; // ISO code the sum is in ("usd"); one currency per app
+  activity: OpsActivityDay[] | null; // trailing 14 days of events, oldest first
 };
 
 export type OpsStatsRecord = {
@@ -64,7 +74,7 @@ type OpsTarget = {
 };
 
 function emptyStats(): AppOpsStats {
-  return { users: null, ticketsOpen: null, ordersRecent: null };
+  return { users: null, ticketsOpen: null, ordersRecent: null, revenueCentsRecent: null, revenueCurrency: null, activity: null };
 }
 
 function hostOf(value: string): string {
@@ -77,6 +87,29 @@ function hostOf(value: string): string {
 
 function asCount(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+
+function asCurrency(value: unknown): string | null {
+  return typeof value === "string" && /^[a-zA-Z]{3}$/.test(value.trim()) ? value.trim().toLowerCase() : null;
+}
+
+// Sanitizes a reported activity series: only well-formed {date, count} days
+// survive, capped at 31 entries, oldest first. Anything else is null — a
+// malformed series from a remote app must not reach the dashboard.
+function asActivity(value: unknown): OpsActivityDay[] | null {
+  if (!Array.isArray(value)) return null;
+  const days: OpsActivityDay[] = [];
+  for (const entry of value.slice(0, 31)) {
+    if (!entry || typeof entry !== "object") continue;
+    const date = (entry as Record<string, unknown>).date;
+    const count = asCount((entry as Record<string, unknown>).count);
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) && count !== null) {
+      days.push({ date, count });
+    }
+  }
+  if (!days.length) return null;
+  days.sort((a, b) => (a.date < b.date ? -1 : 1));
+  return days;
 }
 
 // Reads one target's /api/admin/stats with its bearer token. Best-effort: a
@@ -101,6 +134,9 @@ export async function fetchStatsFromApp(
       users?: unknown;
       ticketsOpen?: unknown;
       ordersRecent?: unknown;
+      revenueCentsRecent?: unknown;
+      revenueCurrency?: unknown;
+      activity?: unknown;
     } | null;
     if (!data || data.ok !== true) {
       return { ok: false, error: "the stats endpoint returned an unexpected payload" };
@@ -108,12 +144,21 @@ export async function fetchStatsFromApp(
     if (data.reporting === false) {
       return { ok: false, error: "the app answered but has no database connected yet" };
     }
+    // Apps deployed before the deep-dive fields shipped simply omit them —
+    // that parses to null, which the dashboard shows as "Not reported".
+    // A revenue sum without its currency is not a fact: both or neither.
+    const revenueCents = asCount(data.revenueCentsRecent);
+    const revenueCurrency = asCurrency(data.revenueCurrency);
+    const revenueReported = revenueCents !== null && revenueCurrency !== null;
     return {
       ok: true,
       stats: {
         users: asCount(data.users),
         ticketsOpen: asCount(data.ticketsOpen),
-        ordersRecent: asCount(data.ordersRecent)
+        ordersRecent: asCount(data.ordersRecent),
+        revenueCentsRecent: revenueReported ? revenueCents : null,
+        revenueCurrency: revenueReported ? revenueCurrency : null,
+        activity: asActivity(data.activity)
       }
     };
   } catch {
@@ -130,9 +175,19 @@ async function countOrNull(query: () => Promise<unknown>): Promise<number | null
   }
 }
 
+async function activityOrNull(query: () => Promise<unknown>): Promise<OpsActivityDay[] | null> {
+  try {
+    const rows = (await query()) as Array<Record<string, unknown>>;
+    return asActivity(rows.map((row) => ({ date: String(row.date || ""), count: Number(row.count || 0) })));
+  } catch {
+    return null;
+  }
+}
+
 // AppEngine's own reading, straight from its own tables (no HTTP hop). The
-// factory's "orders" are builds started in the last 30 days; it has no
-// customer ticket queue yet, so that stays honestly null.
+// factory's "orders" are builds started in the last 30 days and its activity
+// trend counts builds per day; it has no customer ticket queue yet, so that
+// stays honestly null — as does revenue until the billing tables carry money.
 export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: AppOpsStats; note: string }> {
   if (!getConfiguredDatabaseUrl()) {
     return { reporting: false, stats: emptyStats(), note: "Not reporting yet — no durable database in this environment." };
@@ -142,10 +197,35 @@ export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: Ap
   const buildsRecent = await countOrNull(
     () => sql`select count(*)::int as n from app_build_jobs where created_at > now() - interval '30 days'`
   );
+  // Absent billing tables answer null (not zero): AppEngine reports revenue
+  // the day real payment rows exist, and says "Not reported" until then.
+  const revenueCents = await countOrNull(
+    () => sql`select coalesce(sum(amount_cents), 0)::int as n from payments where status = 'paid' and created_at > now() - interval '30 days'`
+  );
+  const activity = await activityOrNull(
+    () => sql`
+      select to_char(created_at, 'YYYY-MM-DD') as date, count(*)::int as count
+      from app_build_jobs
+      where created_at > now() - interval '14 days'
+      group by 1
+      order by 1
+    `
+  );
   if (users === null && buildsRecent === null) {
     return { reporting: false, stats: emptyStats(), note: "Not reporting yet — couldn't read the platform database." };
   }
-  return { reporting: true, stats: { users, ticketsOpen: null, ordersRecent: buildsRecent }, note: "" };
+  return {
+    reporting: true,
+    stats: {
+      users,
+      ticketsOpen: null,
+      ordersRecent: buildsRecent,
+      revenueCentsRecent: revenueCents,
+      revenueCurrency: revenueCents === null ? null : "usd",
+      activity
+    },
+    note: ""
+  };
 }
 
 // Optional, env-configured targets: lets any app that adopted the stats
@@ -296,6 +376,11 @@ async function ensureCacheTable(sql: ReturnType<typeof getDatabase>): Promise<vo
       `;
       // Self-applying column add for caches created before the attention checks shipped.
       await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS needs jsonb`;
+      // Self-applying columns for the deep-dive fields (2026-07-04): rows
+      // written before then read back as NULL = "not reported", never zero.
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS revenue_cents_recent integer`;
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS revenue_currency text`;
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS activity jsonb`;
     })().catch((error) => {
       cacheTableReady = null;
       throw error;
@@ -324,7 +409,10 @@ function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
     stats: {
       users: asCount(row.users === null ? undefined : Number(row.users)),
       ticketsOpen: asCount(row.tickets_open === null ? undefined : Number(row.tickets_open)),
-      ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent))
+      ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent)),
+      revenueCentsRecent: asCount(row.revenue_cents_recent === null ? undefined : Number(row.revenue_cents_recent)),
+      revenueCurrency: asCurrency(row.revenue_currency),
+      activity: asActivity(row.activity)
     },
     note: String(row.note || ""),
     needs: needsMissing ? [] : (row.needs as OpsAttentionItem[]),
@@ -352,9 +440,12 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
     await ensureCacheTable(sql);
     for (const record of records) {
       await sql`
-        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent, note, needs, checked_at)
+        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent,
+                                         revenue_cents_recent, revenue_currency, activity, note, needs, checked_at)
         values (${record.key}, ${record.slug}, ${record.name}, ${record.url}, ${record.reporting},
                 ${record.stats.users}, ${record.stats.ticketsOpen}, ${record.stats.ordersRecent},
+                ${record.stats.revenueCentsRecent}, ${record.stats.revenueCurrency},
+                ${record.stats.activity === null ? null : JSON.stringify(record.stats.activity)}::jsonb,
                 ${record.note}, ${JSON.stringify(record.needs)}::jsonb, ${record.checkedAt})
         on conflict (app_key) do update set
           slug = excluded.slug,
@@ -364,6 +455,9 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
           users = excluded.users,
           tickets_open = excluded.tickets_open,
           orders_recent = excluded.orders_recent,
+          revenue_cents_recent = excluded.revenue_cents_recent,
+          revenue_currency = excluded.revenue_currency,
+          activity = excluded.activity,
           note = excluded.note,
           needs = excluded.needs,
           checked_at = excluded.checked_at
