@@ -1,5 +1,6 @@
 # Soul Dating — Quick Path & Love-Language Scenario Bank (v1.1)
 
+> **Name decided 2026-07-04: Aligned Souls.** Files keep the soul-dating working slug; the product name is Aligned Souls (domains available at decision time: alignedsouls.app, aligned-souls.com, alignedsoulsdating.com, alignedsouls.dating).
 Companion to `soul-dating-app-spec.md`. Owner: Lincoln · 2026-07-04 · Status: DRAFT for
 owner review (v1.1 — revised after adversarial review; scoring rules made implementable)
 

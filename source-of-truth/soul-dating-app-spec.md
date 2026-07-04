@@ -1,5 +1,6 @@
 # Soul Dating App — Spec (DRAFT for source-of-truth)
 
+> **Name decided 2026-07-04: Aligned Souls.** Files keep the soul-dating working slug; the product name is Aligned Souls (domains available at decision time: alignedsouls.app, aligned-souls.com, alignedsoulsdating.com, alignedsouls.dating).
 Owner: Lincoln · Drafted 2026-07-03 · Working names: Soulful Dating / Aligned Souls / Soul Connection (final name + domain = Lincoln's call)
 
 > Working title pending Lincoln's name decision; filed under the soul-dating working slug.
