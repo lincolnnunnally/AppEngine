@@ -153,7 +153,53 @@ const SPARK: CredentialAppGroup = {
   ],
 };
 
-export const CREDENTIAL_REGISTRY: CredentialAppGroup[] = [APPENGINE_CORE, CHURCHCONNECT, LASER, SPARK];
+// ─── Kids Need Dads (RebuildingDads) ────────────────────────────────────────
+const KIDS_NEED_DADS: CredentialAppGroup = {
+  slug: "kids-need-dads",
+  name: "Kids Need Dads",
+  summary: "Live on Netlify (kidsneeddad.com) against a standalone Bolt Supabase. Bring-over to our Vercel is in progress (rebuilding-dads project + RebuildingDads PR #1); the DB cutover to the shared LPL Supabase (drop the ~24 dating tables) is owner-gated.",
+  vercelProjectId: "prj_Nk1CYUT05pF3B5x1F4L7O2cbhK3c",
+  keys: [
+    { displayName: "Kids Need Dads — Supabase URL (frontend)", envVar: "VITE_SUPABASE_URL", host: "vercel", location: "Vercel project rebuilding-dads · production", scope: "frontend_public", secret: false, whoProvides: "lincoln", purpose: "Which Supabase the SPA talks to. Points at the standalone Bolt DB today; becomes the shared LPL Supabase after the schema cutover.", statusMode: "vercel_env", loginCritical: true, attention: { when: "missing", priority: "recommended", action: "Store the Supabase URL in Your keys, then push it to the rebuilding-dads Vercel project so the app has it (currently baked into the old Netlify bundle only)." } },
+    { displayName: "Kids Need Dads — Supabase anon key (frontend)", envVar: "VITE_SUPABASE_ANON_KEY", host: "vercel", location: "Vercel project rebuilding-dads · production", scope: "frontend_public", secret: false, whoProvides: "lincoln", purpose: "Publishable key for RLS-protected reads from the SPA.", statusMode: "vercel_env", loginCritical: true },
+    { displayName: "Kids Need Dads — Stripe publishable key (Brotherhood Fund)", envVar: "VITE_STRIPE_PUBLISHABLE_KEY", host: "vercel", location: "Vercel project rebuilding-dads · production", scope: "frontend_public", secret: false, whoProvides: "lincoln", purpose: "Client half of donations/subscriptions checkout.", statusMode: "vercel_env" },
+    { displayName: "Kids Need Dads — Stripe secret key (Brotherhood Fund)", envVar: "STRIPE_SECRET_KEY", host: "supabase", location: "Shared Supabase · edge-function secrets", scope: "provider", secret: true, whoProvides: "lincoln", purpose: "Server half of donations/subscriptions — set on the Supabase edge functions, not pushable from here.", statusMode: "manual" },
+  ],
+};
+
+// ─── Easy Peazy Website ──────────────────────────────────────────────────────
+const EASY_PEAZY: CredentialAppGroup = {
+  slug: "easy-peasy-website",
+  name: "Easy Peazy Website",
+  summary: "Live at easypeazy.site but still serving an Emergent CRA build, NOT the Website-friends repo. Canonical codebase is UNDECIDED — main is a Supabase Vite app, two June-2026 launch branches are a MongoDB build. Keys below can't be finalized until that decision; the Vercel project is registered so it shows up here.",
+  vercelProjectId: "prj_TvIKmnbeYR9ZzqSLysPeDfoCgVbU",
+  keys: [
+    { displayName: "Easy Peazy — frontend backend URL (Mongo launch branch)", envVar: "REACT_APP_BACKEND_URL", host: "vercel", location: "Vercel project website-friends · production", scope: "config", secret: false, whoProvides: "lincoln", purpose: "Where the SPA sends API calls IF the MongoDB launch-branch codebase is chosen (backend on Render). Pending the canonical-codebase decision.", statusMode: "vercel_env", attention: { when: "always", priority: "blocker", action: "Decide the canonical Easy Peazy codebase (Supabase main vs the MongoDB launch branch) and the name before its keys can be finalized — the live site is still the old Emergent build." } },
+    { displayName: "Easy Peazy — Supabase URL (Supabase main branch)", envVar: "VITE_SUPABASE_URL", host: "vercel", location: "Vercel project website-friends · production", scope: "frontend_public", secret: false, whoProvides: "lincoln", purpose: "SPA Supabase target IF the Supabase main codebase is chosen. Pending the canonical-codebase decision.", statusMode: "vercel_env" },
+  ],
+};
+
+// ─── Toner Management ────────────────────────────────────────────────────────
+const TONER_MANAGEMENT: CredentialAppGroup = {
+  slug: "toner-management",
+  name: "Toner Management",
+  summary: "LIVE and public at toner.management on OUR Vercel, backed by Neon. Product family (our-suppliers vs their-suppliers; individual vs enterprise) sharing one core; the admin hub folds into the universal ops dashboard. Neon→shared-Supabase is a later migration, not a go-live blocker.",
+  vercelProjectId: "prj_swWx5bLsLoHR8edzTAc4vd19gFkd",
+  keys: [
+    { displayName: "Toner Management — Neon database URL", envVar: "DATABASE_URL", host: "vercel", location: "Vercel project total-toner-management · production", scope: "database", secret: true, whoProvides: "already-set", purpose: "The live Neon data store the API routes read/write. Migrating to the shared LPL Supabase is a later step.", statusMode: "vercel_env" },
+    { displayName: "Toner Management — platform admin token (ops dashboard)", envVar: "TONER_PLATFORM_ADMIN_TOKEN", host: "vercel", location: "Vercel project total-toner-management · production", scope: "server", secret: true, whoProvides: "lincoln", purpose: "Unlocks /api/platform/overview so the universal ops dashboard can read this app's stats. Returns 503 until set.", statusMode: "vercel_env", attention: { when: "missing", priority: "recommended", action: "Store a TONER_PLATFORM_ADMIN_TOKEN in Your keys and push it to the total-toner-management Vercel project so the ops dashboard can read Toner's users/orders (it 503s today)." } },
+  ],
+};
+
+export const CREDENTIAL_REGISTRY: CredentialAppGroup[] = [
+  APPENGINE_CORE,
+  CHURCHCONNECT,
+  LASER,
+  SPARK,
+  KIDS_NEED_DADS,
+  EASY_PEAZY,
+  TONER_MANAGEMENT,
+];
 
 // ─── Live status resolution (read-only; never returns values) ────────────────
 
