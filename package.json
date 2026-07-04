@@ -183,7 +183,8 @@
     "smoke:planner-loop": "node scripts/smoke-planner-loop.js",
     "monitor:issues": "node scripts/monitor-ai-issues.js",
     "generated-apps:guard": "node scripts/check-generated-app-migration-guard.js",
-    "source:check": "node scripts/check-source-of-truth.js"
+    "source:check": "node scripts/check-source-of-truth.js",
+    "smoke:env-vault": "node scripts/smoke-env-vault.js"
   },
   "dependencies": {
     "@auth/pg-adapter": "1.11.2",

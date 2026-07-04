@@ -4829,6 +4829,35 @@ label {
   margin-left: auto;
 }
 
+.env-vault-scope-choose {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 4px;
+}
+
+.env-vault-scope-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.env-vault-saved {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.env-vault-saved-heading {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
 .env-vault-bulk {
   border: 1px dashed var(--line);
   border-radius: 10px;

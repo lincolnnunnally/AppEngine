@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 // build gets it automatically; scope a key to one app to override just that app.
 // Values are write-only: shown never, replaced any time.
 type Entry = { key: string; appScope: string; updatedAt: string | null };
-type CatalogItem = { key: string; usedFor: string; whereToFind: string };
+type CatalogItem = { key: string; usedFor: string; whereToFind: string; scope?: "universal" | "per_app" };
 type AppOption = { label: string; slug: string };
 
 export function EnvVault({ apps }: { apps: AppOption[] }) {
@@ -47,6 +47,17 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
 
   const activeKey = selectedKey === "custom" ? customKey : selectedKey;
   const help = catalog.find((item) => item.key === selectedKey);
+  const universalCatalog = catalog.filter((item) => item.scope !== "per_app");
+  const perAppCatalog = catalog.filter((item) => item.scope === "per_app");
+
+  // Picking a known key pre-sets where it applies: universal keys default to
+  // "every app"; per-app keys clear the scope so the owner picks the one app.
+  function onSelectKey(key: string) {
+    setSelectedKey(key);
+    const picked = catalog.find((item) => item.key === key);
+    if (picked?.scope === "universal") setAppScope("");
+    else if (picked?.scope === "per_app") setAppScope("");
+  }
 
   async function save() {
     setBusy(true);
@@ -149,21 +160,28 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
           <select
             className="convo-input env-vault-select"
             value={selectedKey}
-            onChange={(event) => setSelectedKey(event.target.value)}
+            onChange={(event) => onSelectKey(event.target.value)}
             disabled={busy}
             aria-label="Which key are you adding?"
           >
             <option value="">Which key are you adding?</option>
-            {catalog.map((item) => (
-              <option key={item.key} value={item.key}>{item.key} — {item.usedFor}</option>
-            ))}
-            <option value="custom">Something else (custom key)</option>
+            <optgroup label="Universal — set once, used by every app">
+              {universalCatalog.map((item) => (
+                <option key={item.key} value={item.key}>{item.key} — {item.usedFor}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Per-app — usually different for each app">
+              {perAppCatalog.map((item) => (
+                <option key={item.key} value={item.key}>{item.key} — {item.usedFor}</option>
+              ))}
+            </optgroup>
+            <option value="custom">Something else — type any key name</option>
           </select>
           {selectedKey === "custom" ? (
             <input
               className="convo-input"
               value={customKey}
-              placeholder="MY_API_KEY"
+              placeholder="e.g. TWILIO_AUTH_TOKEN"
               onChange={(event) => setCustomKey(event.target.value.toUpperCase())}
               disabled={busy}
               aria-label="Custom key name"
@@ -173,6 +191,7 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
 
         {help ? (
           <p className="env-vault-help">
+            <strong>{help.scope === "per_app" ? "Usually per-app." : "Set once for every app."}</strong>{" "}
             <strong>Where to find it:</strong> {help.whereToFind}
           </p>
         ) : null}
@@ -187,21 +206,25 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
             disabled={busy}
             aria-label="Key value"
           />
-          {apps.length > 0 ? (
+        </div>
+
+        {apps.length > 0 ? (
+          <div className="env-vault-scope-choose">
+            <span className="env-vault-scope-label">Where this key applies:</span>
             <select
               className="convo-input env-vault-select"
               value={appScope}
               onChange={(event) => setAppScope(event.target.value)}
               disabled={busy}
-              aria-label="Which apps use this key?"
+              aria-label="Where this key applies"
             >
-              <option value="">All my apps</option>
+              <option value="">Every app (universal — set once)</option>
               {apps.map((app) => (
-                <option key={app.slug} value={app.slug}>Only: {app.label}</option>
+                <option key={app.slug} value={app.slug}>Just this app: {app.label}</option>
               ))}
             </select>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -212,6 +235,10 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
           {busy ? "Saving…" : "Save key"}
         </button>
         {notice ? <p className="note">{notice}</p> : null}
+        <p className="env-vault-help">
+          Not sure which key an app needs, or where it goes? The{" "}
+          <a href="/credentials">Credentials page</a> lists every key each app needs and whether it's set.
+        </p>
       </div>
 
       <details className="env-vault-bulk">
@@ -256,18 +283,30 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
       </details>
 
       {entries.length > 0 ? (
-        <ul className="env-vault-list">
-          {entries.map((entry) => (
-            <li className="env-vault-item" key={`${entry.key}:${entry.appScope}`}>
-              <code>{entry.key}</code>
-              <span className="env-vault-scope">{entry.appScope ? `Only ${appLabel(entry.appScope)}` : "All apps"}</span>
-              <span className="env-vault-secret">••••••••</span>
-              <button type="button" className="account-link-button" onClick={() => remove(entry)} disabled={busy}>
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="env-vault-saved">
+          {[
+            { heading: "Universal — every app", rows: entries.filter((entry) => !entry.appScope) },
+            { heading: "Per-app", rows: entries.filter((entry) => entry.appScope) }
+          ]
+            .filter((group) => group.rows.length > 0)
+            .map((group) => (
+              <div key={group.heading} className="env-vault-saved-group">
+                <p className="env-vault-saved-heading">{group.heading}</p>
+                <ul className="env-vault-list">
+                  {group.rows.map((entry) => (
+                    <li className="env-vault-item" key={`${entry.key}:${entry.appScope}`}>
+                      <code>{entry.key}</code>
+                      <span className="env-vault-scope">{entry.appScope ? `Just ${appLabel(entry.appScope)}` : "Every app"}</span>
+                      <span className="env-vault-secret">••••••••</span>
+                      <button type="button" className="account-link-button" onClick={() => remove(entry)} disabled={busy}>
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
       ) : (
         <p className="account-app-meta">No keys saved yet. Keys you add here are applied to your apps automatically on their next build or update.</p>
       )}
