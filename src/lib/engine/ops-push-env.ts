@@ -71,3 +71,60 @@ export async function pushVaultValueToVercel(ownerEmail: string, slug: string, e
 
   return upsertVercelEnv(group.vercelProjectId, envVar, value);
 }
+
+export type PushAllResult = PushEnvResult & { pushed: number; skipped: number; total: number };
+
+// How many of an app's keys this tool can actually push (Vercel-hosted slots on a
+// registered project). Used to decide whether to offer the "push everything" action.
+export function pushableKeyCount(slug: string): number {
+  const group = CREDENTIAL_REGISTRY.find((entry) => entry.slug === slug);
+  if (!group || !group.vercelProjectId) return 0;
+  return group.keys.filter((key) => key.host === "vercel").length;
+}
+
+// The one-click "each app pulls what it needs" action: for every Vercel-hosted
+// slot on this app, push the value the owner has saved in their vault. Skips slots
+// with no vault value (nothing invented) and reports how many landed. This is what
+// makes the single vault behave as the single source for an existing app — no more
+// one-key-at-a-time.
+export async function pushAllVaultValuesToVercel(ownerEmail: string, slug: string): Promise<PushAllResult> {
+  const group = CREDENTIAL_REGISTRY.find((entry) => entry.slug === slug);
+  if (!group || !group.vercelProjectId) {
+    return { ok: false, message: "That app isn't a Vercel project I can push to. Set it in the provider's dashboard.", pushed: 0, skipped: 0, total: 0 };
+  }
+  const vercelKeys = group.keys.filter((key) => key.host === "vercel");
+  const vaultEnv = await resolveEnvForApp(ownerEmail, slug).catch(() => ({} as Record<string, string>));
+
+  let pushed = 0;
+  let failed = 0;
+  let missing = 0;
+  for (const key of vercelKeys) {
+    const value = vaultEnv[key.envVar];
+    if (!value) { missing += 1; continue; }
+    const result = await upsertVercelEnv(group.vercelProjectId, key.envVar, value);
+    if (result.ok) pushed += 1; else failed += 1;
+  }
+
+  const skipped = missing + failed;
+  if (pushed === 0) {
+    return {
+      ok: false,
+      pushed,
+      skipped,
+      total: vercelKeys.length,
+      message: missing === vercelKeys.length
+        ? `None of ${group.name}'s keys are in Your keys yet — add them there, then push.`
+        : `Couldn't push any of ${group.name}'s keys just now — try again.`,
+    };
+  }
+  const tail = skipped > 0
+    ? ` (${missing} not in your vault${failed ? `, ${failed} failed` : ""})`
+    : "";
+  return {
+    ok: true,
+    pushed,
+    skipped,
+    total: vercelKeys.length,
+    message: `Pushed ${pushed} key${pushed === 1 ? "" : "s"} into ${group.name}'s Vercel project${tail}. Redeploy the app to pick them up.`,
+  };
+}
