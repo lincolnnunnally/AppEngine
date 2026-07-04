@@ -46,8 +46,7 @@ const OPERATOR_GROUPS: RailGroup[] = [
 const SETTINGS_GROUP: RailGroup = {
   label: "Settings",
   items: [
-    { label: "Integrations", href: "/integrations" },
-    { label: "App credentials", href: "/credentials" },
+    { label: "Integrations & secrets", href: "/integrations" },
     { label: "Admin", href: "/admin" }
   ]
 };

@@ -9,6 +9,8 @@
 // returned to the client — only "set / not set" status. The setter accepts only
 // the fixed allowlist below, never arbitrary keys.
 
+import { CREDENTIAL_REGISTRY } from "@/lib/engine/ecosystem-credential-registry";
+
 export type IntegrationField = {
   key: string;
   label: string;
@@ -39,6 +41,17 @@ const VERCEL_API = "https://api.vercel.com";
 
 function projectId() {
   return process.env.VERCEL_PROJECT_ID?.trim();
+}
+
+// The We Succeed (AppEngine) project id, for the page's own-keys section.
+export function appEngineProjectId() {
+  return projectId();
+}
+
+// A plausible environment-variable NAME (not the value). Lets the owner add a
+// custom variable without opening the door to obviously-malformed keys.
+export function isValidEnvKey(key: string): boolean {
+  return /^[A-Z][A-Z0-9_]{1,63}$/i.test(key.trim());
 }
 
 function token() {
@@ -101,37 +114,95 @@ export async function getIntegrationStatuses(): Promise<Record<string, boolean>>
 
 export type IntegrationActionResult = { ok: boolean; message: string };
 
-// Upserts a single allowlisted credential into the project's PRODUCTION env.
-export async function setIntegrationValue(key: string, rawValue: string): Promise<IntegrationActionResult> {
-  const field = INTEGRATION_FIELDS.find((entry) => entry.key === key);
-  if (!field || !isAllowedKey(key)) {
-    return { ok: false, message: "That setting isn't editable here." };
+// The one write path: upsert a single variable into a target Vercel project's
+// PRODUCTION env, encrypted. Every setter below funnels through this so there is
+// ONE mechanism, parameterized by which app's project it targets — instead of a
+// separate mechanism per surface. Requires a VERCEL_TOKEN (the account token can
+// write any project in the account); the target project id is supplied by the
+// caller (the We Succeed project for own-keys, an app's registry project id for
+// per-app keys). Never returns the value; owner-only is enforced at the route.
+export async function setProjectEnvValue(
+  targetProjectId: string,
+  key: string,
+  rawValue: string,
+  opts: { secret: boolean; label?: string }
+): Promise<IntegrationActionResult> {
+  if (!token()) {
+    return { ok: false, message: "Hosting API isn't configured (no VERCEL_TOKEN)." };
   }
-  if (!hasVercelConfigApi()) {
-    return { ok: false, message: "Hosting API isn't configured (VERCEL_TOKEN + VERCEL_PROJECT_ID)." };
+  if (!targetProjectId) {
+    return { ok: false, message: "No target app project — set this in the provider's dashboard." };
   }
   const value = rawValue.trim();
   if (!value) {
     return { ok: false, message: "Enter a value first." };
   }
-
+  const label = opts.label || key;
   try {
-    const response = await vercelFetch(`/v10/projects/${projectId()}/env?upsert=true`, {
+    const response = await vercelFetch(`/v10/projects/${encodeURIComponent(targetProjectId)}/env?upsert=true`, {
       method: "POST",
       body: JSON.stringify({
         key,
         value,
-        type: field.secret ? "encrypted" : "plain",
-        target: ["production"]
+        type: opts.secret ? "encrypted" : "plain",
+        target: ["production", "preview"]
       })
     });
     if (!response.ok) {
-      return { ok: false, message: `Couldn't save (${response.status}). Check the value and try again.` };
+      return { ok: false, message: `Couldn't save ${label} (${response.status}). Check the value and try again.` };
     }
-    return { ok: true, message: `${field.label} saved. Click “Apply changes” to make it live.` };
+    return { ok: true, message: `${label} saved. Redeploy that app to make it live.` };
   } catch {
     return { ok: false, message: "Couldn't reach the hosting API. Try again." };
   }
+}
+
+// We Succeed's own allowlisted fields (direct write to the We Succeed project).
+export async function setIntegrationValue(key: string, rawValue: string): Promise<IntegrationActionResult> {
+  const field = INTEGRATION_FIELDS.find((entry) => entry.key === key);
+  if (!field || !isAllowedKey(key)) {
+    return { ok: false, message: "That setting isn't editable here." };
+  }
+  const target = appEngineProjectId();
+  if (!target) {
+    return { ok: false, message: "Hosting API isn't configured (VERCEL_TOKEN + VERCEL_PROJECT_ID)." };
+  }
+  const result = await setProjectEnvValue(target, key, rawValue, { secret: field.secret, label: field.label });
+  return result.ok
+    ? { ok: true, message: `${field.label} saved. Click “Apply changes” to make it live.` }
+    : result;
+}
+
+// Add ANY variable to We Succeed (the custom-variable row) — the thing that used
+// to only exist on the separate "Your keys" vault. Validates the NAME format;
+// treats it as a secret (encrypted at rest in Vercel).
+export async function setCustomIntegrationValue(key: string, rawValue: string): Promise<IntegrationActionResult> {
+  const name = key.trim().toUpperCase();
+  if (!isValidEnvKey(name)) {
+    return { ok: false, message: "Use a valid variable name (letters, numbers, underscores; e.g. MY_API_KEY)." };
+  }
+  const target = appEngineProjectId();
+  if (!target) {
+    return { ok: false, message: "Hosting API isn't configured (VERCEL_TOKEN + VERCEL_PROJECT_ID)." };
+  }
+  return setProjectEnvValue(target, name, rawValue, { secret: true, label: name });
+}
+
+// Per-app: save a variable straight into a registered app's OWN Vercel project.
+// The app + its pushable Vercel keys come from the credential registry (the same
+// data the old /credentials page used) — so managing an app's secrets lives here
+// on Integrations, not on a separate page. Only a Vercel-hosted key defined for
+// that app is accepted; Render/Supabase keys stay in their dashboards.
+export async function setAppEnvValue(slug: string, key: string, rawValue: string): Promise<IntegrationActionResult> {
+  const group = CREDENTIAL_REGISTRY.find((entry) => entry.slug === slug);
+  if (!group || !group.vercelProjectId) {
+    return { ok: false, message: "That app isn't a Vercel project I can write to. Set it in the provider's dashboard." };
+  }
+  const field = group.keys.find((entry) => entry.envVar === key && entry.host === "vercel");
+  if (!field) {
+    return { ok: false, message: "That variable isn't a Vercel slot for this app." };
+  }
+  return setProjectEnvValue(group.vercelProjectId, key, rawValue, { secret: field.secret, label: `${group.name} · ${field.envVar}` });
 }
 
 // Triggers a fresh production deployment so saved credentials take effect.

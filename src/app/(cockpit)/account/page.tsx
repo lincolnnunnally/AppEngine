@@ -138,10 +138,12 @@ export default async function AccountPage() {
 
       <section className="panel">
         <p className="eyebrow">Your keys</p>
-        <h2>Connect your services once</h2>
+        <h2>Keys for apps you build here</h2>
         <p>
-          Add an API key here one time and every app you build can use it — email, payments, AI, and more.
-          Need a key for just one app? Scope it to that app. We tell you exactly where to find each key.
+          Add an API key once and every <em>new</em> app you generate here starts with it — email, payments, AI,
+          and more. Managing secrets for an app that already exists (We Succeed, or one of your own apps)? Do that
+          on <a className="account-link" href="/integrations">Integrations &amp; secrets</a> — the single home for
+          every live app&apos;s variables.
         </p>
         <EnvVault
           apps={apps
