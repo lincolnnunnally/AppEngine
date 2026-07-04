@@ -1016,14 +1016,14 @@
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
-        "Project_Code/Printer-Protector (local, not in git)"
+        "github: lincolnnunnally/PrinterProtectorMonitoringTool (Project_Code/Printer-Protector, pushed)",
+        "github: lincolnnunnally/toner-platform (newer SNMP agent + printer dashboard)"
       ],
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Real source lives only locally at Project_Code/Printer-Protector (printer-protector-saas: React+Vite frontend, Python SNMP monitoring agent, Supabase) \u2014 not a git repo, no remote: code-loss risk; protective push needed.",
-        "GitHub shells PrinterProtectorMonitoringTool / PrinterProtectorCustomer have no default branch (ARCHIVE_REFERENCE) \u2014 canonical repo decision needed.",
-        "Relationship to the Toner Management platform (shared monitoring module?) undecided."
+        "Source PROTECTED (verified 2026-07-04): Project_Code/Printer-Protector is a git repo pushed to PrinterProtectorMonitoringTool (clean tree); the newer June-2026 SNMP agent + printer dashboard are pushed inside toner-platform. No longer a code-loss risk.",
+        "Canonical repo + Toner-relationship: per the 2026-07-04 owner ruling, Toner/Printer is a product family sharing one core and the admin role folds into the ops dashboard (AppEngine) \u2014 reconcile the standalone vs toner-platform copies via a transfer ledger rather than picking one and archiving."
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
