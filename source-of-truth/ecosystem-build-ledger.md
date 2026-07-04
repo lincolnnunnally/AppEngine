@@ -199,7 +199,7 @@ These are the first safe tasks. They are intentionally documentation/audit tasks
 | ECO-007 | AVAILABLE | Create Opportunity app boundary decision | Opportunity/AppEngine/ideas | Prevents intake/front-door confusion |
 | ECO-008 | AVAILABLE | Create shared Connection module extraction packet | Kindred + configs | Stops rebuilding the same matching engine |
 | ECO-009 | COMPLETED | Create rebrandable template catalog from existing app patterns | AppEngine + Kindred | Lets new apps start by rebranding and plugging credentials instead of starting blank |
-| ECO-010 | IN REVIEW | Build shared Location & Proximity module (PostGIS geo_places + RPCs + clients; owner directive 2026-07-03) | All apps (ChurchConnect finder, Kindred discover, Laser makers, Live On Mission, Milstead.us, dating) | Only fully-missing catalog block; every location feature currently reinvents geo. Schema staged in db/location-proximity-schema.sql; applying it is an owner-gated db-change |
+| ECO-010 | COMPLETED | Build shared Location & Proximity module (PostGIS geo_places + RPCs + clients; owner directive 2026-07-03) | All apps (ChurchConnect finder, Kindred discover, Laser makers, Live On Mission, Milstead.us, dating) | Only fully-missing catalog block; every location feature currently reinvents geo. Schema staged in db/location-proximity-schema.sql; applied to shared LPL Supabase as migration eco010_location_proximity_module (owner-approved 2026-07-04) |
 
 ## Decision Points For Lincoln
 

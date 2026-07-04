@@ -21,7 +21,10 @@
 --    goes through the SECURITY DEFINER RPCs below, which never return the
 --    exact location column.
 
-CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA extensions;
+
+-- Everything below resolves PostGIS symbols via the extensions schema.
+SET search_path = public, extensions;
 
 -- ---------------------------------------------------------------------------
 -- Tables
@@ -76,6 +79,7 @@ CREATE TABLE IF NOT EXISTS geo_zip_centroids (
 CREATE OR REPLACE FUNCTION geo_fuzz_point(p geography, seed uuid, min_m int, max_m int)
 RETURNS geography
 LANGUAGE sql IMMUTABLE
+SET search_path = public, extensions
 AS $$
   SELECT ST_Project(
     p,
@@ -89,6 +93,7 @@ $$;
 CREATE OR REPLACE FUNCTION geo_distance_band(meters float8)
 RETURNS text
 LANGUAGE sql IMMUTABLE
+SET search_path = public, extensions
 AS $$
   SELECT CASE
     WHEN meters IS NULL   THEN NULL
@@ -105,6 +110,7 @@ $$;
 CREATE OR REPLACE FUNCTION geo_places_before_write()
 RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = public, extensions
 AS $$
 BEGIN
   NEW.updated_at := now();
@@ -151,7 +157,7 @@ CREATE OR REPLACE FUNCTION geo_upsert_place(
 )
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_point geography;
@@ -222,7 +228,7 @@ RETURNS TABLE (
   city_label text
 )
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   WITH ctr AS (
     SELECT ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography AS g
@@ -262,7 +268,7 @@ RETURNS TABLE (
   city_label text
 )
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_center geography;
@@ -290,7 +296,7 @@ CREATE OR REPLACE FUNCTION geo_distance_between(
 )
 RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT geo_distance_band(ST_Distance(a.fuzzed_location, b.fuzzed_location))
   FROM geo_places a, geo_places b
@@ -307,7 +313,7 @@ CREATE OR REPLACE FUNCTION geo_clear_place(
 )
 RETURNS void
 LANGUAGE sql SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   UPDATE geo_places SET
     location = NULL,
