@@ -7,11 +7,40 @@ import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth
 // GitHub/infra unless that's the only option available.
 export const dynamic = "force-dynamic";
 
-export default function SignInPage() {
+// Auth.js redirects every failure back here as /signin?error=<code>. Silent
+// failures read as "login is broken", so each code gets a human sentence.
+const ERROR_MESSAGES: Record<string, string> = {
+  OAuthSignin: "We couldn't start the sign-in. Please try again.",
+  OAuthCallback: "The sign-in provider didn't complete. Please try again.",
+  OAuthAccountNotLinked: "This email is already linked to a different sign-in method. Use the option you signed up with.",
+  AccessDenied: "Sign-in was cancelled or not permitted for this account.",
+  Verification: "That sign-in link expired or was already used. Request a fresh one.",
+  MissingCSRF: "Your session expired mid-sign-in. Please try again.",
+  Configuration: "Sign-in isn't configured correctly right now. Please try again shortly.",
+  Default: "Something went wrong signing you in. Please try again."
+};
+
+function errorMessage(code?: string | string[]) {
+  if (!code) {
+    return null;
+  }
+
+  const single = Array.isArray(code) ? code[0] : code;
+
+  return ERROR_MESSAGES[single] || ERROR_MESSAGES.Default;
+}
+
+export default async function SignInPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ error?: string | string[] }>;
+}) {
   const google = hasGoogleProvider();
   const email = hasEmailSignIn();
   const github = hasGithubProvider();
   const consumerOption = google || email;
+  const params = searchParams ? await searchParams : undefined;
+  const error = errorMessage(params?.error);
 
   return (
     <main className="soft-launch">
@@ -19,6 +48,12 @@ export default function SignInPage() {
         <p className="soft-launch-kicker">We Succeed — app builder</p>
         <h1>Sign in to start</h1>
         <p>Describe a problem you want solved or a tool you want to build, and we&apos;ll build you a real, working app. Sign in to begin — no setup needed.</p>
+
+        {error ? (
+          <p className="signin-error" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className="signin-options">
           {google ? (
