@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineOwner } from "@/lib/auth/access";
+import { CredentialPushButton } from "@/components/engine/credential-push-button";
 import {
   CREDENTIAL_REGISTRY,
   getCredentialStatuses,
   hasVercelReadApi,
   type CredentialStatus
 } from "@/lib/engine/ecosystem-credential-registry";
+import { isPushableCredential } from "@/lib/engine/ops-push-env";
 
 // Owner-only, read-only reference: for each ecosystem app, the uniquely-named
 // keys it needs, WHERE each goes (Vercel project / Render service), the exact
@@ -93,6 +95,9 @@ export default async function CredentialsPage() {
                         {key.whoProvides === "lincoln" ? "you provide" : key.whoProvides === "auto" ? "auto-generated" : "already set"}
                         {key.secret ? " · secret" : ""}
                       </span>
+                      {key.whoProvides === "lincoln" && isPushableCredential(group.slug, key.envVar) ? (
+                        <CredentialPushButton slug={group.slug} envVar={key.envVar} appName={group.name} />
+                      ) : null}
                     </div>
                   </div>
                 );
