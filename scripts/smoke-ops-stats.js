@@ -21,7 +21,15 @@ runStep("generated apps ship a token-gated stats endpoint", () => {
     "where status = 'paid'",
     "revenueCentsRecent",
     "revenueCurrency",
-    "activity"
+    "activity",
+    // Revenue must be bigint (no int4 overflow 500), currency-safe (grouped +
+    // single-currency only), and the payments table must carry a currency column.
+    "::bigint",
+    "group by currency",
+    "currency text not null default 'usd'",
+    "add column if not exists currency",
+    // Activity uses whole calendar days, not a partial rolling window.
+    "current_date - interval '13 days'"
   ]);
 });
 
@@ -61,12 +69,20 @@ runStep("the collector carries the deep-dive fields, null-honest end to end", ()
     "revenueCentsRecent",
     "revenueCurrency",
     "OpsActivityDay",
-    // Cache columns self-apply; pre-existing rows read back null, never zero.
-    "ADD COLUMN IF NOT EXISTS revenue_cents_recent",
+    // Cache columns self-apply; revenue is bigint so an out-of-range value
+    // can't fail the insert; pre-existing rows read back null, never zero.
+    "ADD COLUMN IF NOT EXISTS revenue_cents_recent bigint",
     "ADD COLUMN IF NOT EXISTS revenue_currency",
     "ADD COLUMN IF NOT EXISTS activity",
     // A revenue sum without its currency is rejected: both or neither.
-    "revenueReported"
+    "revenueReported",
+    // Negative revenue rejects to null (never a fabricated $0.00).
+    "function asCents",
+    // Measured-empty activity ([]) is preserved distinct from not-reported (null).
+    "keep the newest window; [] when nothing was measured",
+    // A hostile target can't OOM the ops function: body is capped before parse.
+    "readCappedText",
+    "STATS_BODY_CAP_BYTES"
   ]);
 });
 
@@ -139,7 +155,12 @@ runStep("expanded cards deep-dive into users, revenue, and activity — honestly
     "Not reported",
     "ActivityTrend",
     "Activity trend not reported yet",
-    "formatMoney"
+    "formatMoney",
+    // Gaps are gap-filled to real zero days; measured-zero ([]) is distinct
+    // from not-reported (null); the span can't render thousands of bars.
+    "densifyActivity",
+    "No activity in the last 14 days",
+    "ACTIVITY_MAX_SPAN"
   ]);
   assertFileIncludes("src/app/styles.css", [
     ".portfolio-deep-dive",
@@ -154,7 +175,13 @@ runStep("the rollup states its coverage — a partial total never poses as the w
     "Across your apps",
     "apps reporting",
     // Revenue totals stay per currency; nothing converts or merges them.
-    "revenueByCurrency"
+    "revenueByCurrency",
+    // A metric no app reported shows "not reported", never 0; each metric
+    // names its own coverage; events are bounded to the 14-day window.
+    "users not reported",
+    "activity not reported",
+    "coverageNote",
+    "fourteenDayCutoff"
   ]);
   assertFileIncludes("src/app/styles.css", [".portfolio-ops-rollup"]);
 });

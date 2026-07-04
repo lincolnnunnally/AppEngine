@@ -58,6 +58,50 @@ const STALE_AFTER_MS = 10 * 60 * 1000;
 // hide a real outage indefinitely.
 const LAST_GOOD_MAX_AGE_MS = 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 6000;
+// A well-formed stats payload is tiny; 64KB is generous headroom over ~31
+// activity days plus the scalar fields. Anything larger is rejected unparsed.
+const STATS_BODY_CAP_BYTES = 64 * 1024;
+
+// Reads a response body up to `cap` bytes, returning null the moment it would
+// exceed the cap — so an oversized body is never fully buffered or parsed.
+// Falls back to a capped text() slice when the body stream isn't available.
+async function readCappedText(response: Response, cap: number): Promise<string | null> {
+  const stream = response.body;
+  if (!stream) {
+    const text = await response.text().catch(() => "");
+    return text.length > cap ? null : text;
+  }
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        total += value.byteLength;
+        if (total > cap) {
+          await reader.cancel().catch(() => {});
+          return null;
+        }
+        chunks.push(value);
+      }
+    }
+  } catch {
+    return null;
+  }
+  return new TextDecoder().decode(concatChunks(chunks, total));
+}
+
+function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
 
 type OpsTarget = {
   key: string;
@@ -89,27 +133,42 @@ function asCount(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
 }
 
+// Revenue is NOT a count: a negative sum is nonsensical, so it must reject to
+// null rather than clamp to 0 (which would render a fabricated "$0.00"). A
+// genuine 0 — a live app with no paid rows yet — is a real measured value and
+// passes through. No upper clamp: the cache column is bigint.
+function asCents(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+}
+
 function asCurrency(value: unknown): string | null {
   return typeof value === "string" && /^[a-zA-Z]{3}$/.test(value.trim()) ? value.trim().toLowerCase() : null;
 }
 
-// Sanitizes a reported activity series: only well-formed {date, count} days
-// survive, capped at 31 entries, oldest first. Anything else is null — a
-// malformed series from a remote app must not reach the dashboard.
+// Sanitizes a reported activity series. Distinguishes THREE states the
+// dashboard must keep apart:
+//   • not an array        → null  ("not reported": the app omitted the field)
+//   • array, no valid days → []    ("measured: nothing happened in the window")
+//   • array with days      → the cleaned days
+// Same-date entries are merged by summing (a producer that splits a day by
+// source must not double-count or collide React keys downstream); the series
+// is sorted oldest-first and capped to the NEWEST 31 days (an over-long or
+// oldest-first-overflowing payload must not drop the recent window).
 function asActivity(value: unknown): OpsActivityDay[] | null {
   if (!Array.isArray(value)) return null;
-  const days: OpsActivityDay[] = [];
-  for (const entry of value.slice(0, 31)) {
+  const byDate = new Map<string, number>();
+  for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
     const date = (entry as Record<string, unknown>).date;
     const count = asCount((entry as Record<string, unknown>).count);
     if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) && count !== null) {
-      days.push({ date, count });
+      byDate.set(date, (byDate.get(date) || 0) + count);
     }
   }
-  if (!days.length) return null;
-  days.sort((a, b) => (a.date < b.date ? -1 : 1));
-  return days;
+  const days = [...byDate.entries()]
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return days.slice(-31); // keep the newest window; [] when nothing was measured
 }
 
 // Reads one target's /api/admin/stats with its bearer token. Best-effort: a
@@ -128,7 +187,22 @@ export async function fetchStatsFromApp(
     if (!response.ok) {
       return { ok: false, error: `the stats endpoint answered ${response.status}` };
     }
-    const data = (await response.json().catch(() => null)) as {
+    // A stats payload is a handful of numbers plus ~31 activity days — well
+    // under 64KB. Cap the body BEFORE parsing so a compromised or hostile
+    // target (a lapsed domain we still poll) can't OOM the ops function with a
+    // huge JSON body inside the time budget; getOpsSnapshot polls in parallel,
+    // which would amplify it. AbortSignal bounds time, this bounds bytes.
+    const body = await readCappedText(response, STATS_BODY_CAP_BYTES);
+    if (body === null) {
+      return { ok: false, error: "the stats endpoint returned an oversized body" };
+    }
+    const data = (() => {
+      try {
+        return JSON.parse(body) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })() as {
       ok?: boolean;
       reporting?: boolean;
       users?: unknown;
@@ -147,7 +221,7 @@ export async function fetchStatsFromApp(
     // Apps deployed before the deep-dive fields shipped simply omit them —
     // that parses to null, which the dashboard shows as "Not reported".
     // A revenue sum without its currency is not a fact: both or neither.
-    const revenueCents = asCount(data.revenueCentsRecent);
+    const revenueCents = asCents(data.revenueCentsRecent);
     const revenueCurrency = asCurrency(data.revenueCurrency);
     const revenueReported = revenueCents !== null && revenueCurrency !== null;
     return {
@@ -187,7 +261,11 @@ async function activityOrNull(query: () => Promise<unknown>): Promise<OpsActivit
 // AppEngine's own reading, straight from its own tables (no HTTP hop). The
 // factory's "orders" are builds started in the last 30 days and its activity
 // trend counts builds per day; it has no customer ticket queue yet, so that
-// stays honestly null — as does revenue until the billing tables carry money.
+// stays honestly null. Revenue stays null on purpose: AppEngine's money is a
+// credit ledger (app_credit_*, see billing.ts), NOT a `payments` table — there
+// is no such table to sum, so reporting revenue here would only ever query a
+// relation that doesn't exist. Credit-ledger revenue is a separate metric,
+// out of scope for this per-app ops reading.
 export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: AppOpsStats; note: string }> {
   if (!getConfiguredDatabaseUrl()) {
     return { reporting: false, stats: emptyStats(), note: "Not reporting yet — no durable database in this environment." };
@@ -197,16 +275,13 @@ export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: Ap
   const buildsRecent = await countOrNull(
     () => sql`select count(*)::int as n from app_build_jobs where created_at > now() - interval '30 days'`
   );
-  // Absent billing tables answer null (not zero): AppEngine reports revenue
-  // the day real payment rows exist, and says "Not reported" until then.
-  const revenueCents = await countOrNull(
-    () => sql`select coalesce(sum(amount_cents), 0)::int as n from payments where status = 'paid' and created_at > now() - interval '30 days'`
-  );
+  // Whole calendar days only (>= start of 13 days ago): a rolling now()-based
+  // cutoff would clip the oldest day to a partial count and mislabel it.
   const activity = await activityOrNull(
     () => sql`
       select to_char(created_at, 'YYYY-MM-DD') as date, count(*)::int as count
       from app_build_jobs
-      where created_at > now() - interval '14 days'
+      where created_at >= (current_date - interval '13 days')
       group by 1
       order by 1
     `
@@ -220,8 +295,8 @@ export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: Ap
       users,
       ticketsOpen: null,
       ordersRecent: buildsRecent,
-      revenueCentsRecent: revenueCents,
-      revenueCurrency: revenueCents === null ? null : "usd",
+      revenueCentsRecent: null,
+      revenueCurrency: null,
       activity
     },
     note: ""
@@ -378,7 +453,10 @@ async function ensureCacheTable(sql: ReturnType<typeof getDatabase>): Promise<vo
       await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS needs jsonb`;
       // Self-applying columns for the deep-dive fields (2026-07-04): rows
       // written before then read back as NULL = "not reported", never zero.
-      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS revenue_cents_recent integer`;
+      // Revenue is bigint: a real 30-day cents sum can exceed int4's ~$21.47M,
+      // and one out-of-range value must never fail the insert (which would drop
+      // the whole batch's cache row — see writeCache's per-record guard).
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS revenue_cents_recent bigint`;
       await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS revenue_currency text`;
       await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS activity jsonb`;
     })().catch((error) => {
@@ -410,7 +488,7 @@ function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
       users: asCount(row.users === null ? undefined : Number(row.users)),
       ticketsOpen: asCount(row.tickets_open === null ? undefined : Number(row.tickets_open)),
       ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent)),
-      revenueCentsRecent: asCount(row.revenue_cents_recent === null ? undefined : Number(row.revenue_cents_recent)),
+      revenueCentsRecent: asCents(row.revenue_cents_recent === null || row.revenue_cents_recent === undefined ? undefined : Number(row.revenue_cents_recent)),
       revenueCurrency: asCurrency(row.revenue_currency),
       activity: asActivity(row.activity)
     },
@@ -435,10 +513,18 @@ async function readCache(): Promise<Map<string, OpsStatsRecord>> {
 async function writeCache(records: OpsStatsRecord[]): Promise<void> {
   for (const record of records) memoryCache.set(record.key, record);
   if (!getConfiguredDatabaseUrl() || !records.length) return;
+  let sql: ReturnType<typeof getDatabase>;
   try {
-    const sql = getDatabase();
+    sql = getDatabase();
     await ensureCacheTable(sql);
-    for (const record of records) {
+  } catch {
+    return; // no durable cache this cycle; memory cache already updated
+  }
+  // Each record is inserted independently: one app's out-of-range or malformed
+  // value must not abort the batch and silently drop every other app's fresh
+  // reading, last-good timestamp, and needs from the durable cache.
+  for (const record of records) {
+    try {
       await sql`
         insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent,
                                          revenue_cents_recent, revenue_currency, activity, note, needs, checked_at)
@@ -462,9 +548,10 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
           needs = excluded.needs,
           checked_at = excluded.checked_at
       `;
+    } catch {
+      // The cache is best-effort; a failed write for this app just means a
+      // re-poll next time — the others in the batch still persist.
     }
-  } catch {
-    // The cache is best-effort; a failed write just means a re-poll next time.
   }
 }
 

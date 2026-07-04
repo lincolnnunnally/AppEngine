@@ -17,13 +17,25 @@ Every generated app ships `GET /api/admin/stats` (a foundation module):
 - Deep-dive fields (added 2026-07-04, additive — apps that omit them still
   report the original three):
   - `revenueCentsRecent` — SUM of paid payments over the last 30 days, in minor
-    units (cents). Always paired with `revenueCurrency` (ISO code, e.g.
-    `"usd"`); a sum without its currency is rejected by the collector. One
-    currency per app; the dashboard totals per currency and never converts.
+    units (cents, `bigint` — must not overflow int4 and 500 the endpoint).
+    Always paired with `revenueCurrency` (ISO code, e.g. `"usd"`); a sum
+    without its currency, or a negative sum, is rejected by the collector.
+    Currency-safe by construction: the `payments` table carries a `currency`
+    column (from Stripe's `session.currency`), and the query reports a sum ONLY
+    when the window holds a single currency — a mixed-currency table reports
+    `null` (not a merged figure). The dashboard totals per currency and never
+    converts. (AppEngine itself reports `null` revenue: its money is a credit
+    ledger, not a `payments` table.)
   - `activity` — `[{ date: "YYYY-MM-DD", count }]`, customer events per day
-    (payments + support tickets for generated apps) over the trailing 14 days.
+    (payments + support tickets for generated apps) over the trailing 14
+    whole calendar days. Three states are distinct and must stay distinct:
+    the field **absent** = not reported; **`[]`** = measured, zero events;
+    a populated array = the trend. Producers omit zero-event days; the
+    dashboard densifies the gaps so quiet days show as measured zeros.
 - Numbers only: counts and aggregate sums. No names, no emails, no line items,
   no per-user data — ever. Revenue crosses the app boundary ONLY as a total.
+- The collector caps each polled response body (64KB) before parsing, so a
+  compromised or hostile target can't OOM the ops function with a huge payload.
 
 ## The token
 

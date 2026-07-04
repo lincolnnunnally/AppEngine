@@ -542,8 +542,10 @@ function OpsAttentionPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | 
 }
 
 // One line for the whole business: totals across every app that reports, with
-// the coverage stated honestly — "3 of 9 apps reporting" is a fact, a grand
-// total silently missing six apps would be a lie.
+// coverage stated honestly per metric — "users from 2 of 3" is a fact; a total
+// silently missing an app, or a "0" for a metric no app measured, would be a
+// lie. Every metric that no reporting app contributes shows "not reported",
+// never 0.
 function OpsRollupPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | null; loaded: boolean }) {
   if (!loaded || !snapshot) return null; // the attention panel already narrates loading/failure
 
@@ -561,16 +563,24 @@ function OpsRollupPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | nul
     revenueByCurrency.set(currency, (revenueByCurrency.get(currency) || 0) + (record.stats.revenueCentsRecent || 0));
   }
 
+  // A reported series (even []) counts as coverage; only the trailing 14 days
+  // count toward the total, so the "(14d)" label can't overstate the window.
+  const cutoff = fourteenDayCutoff();
   const activityReported = reporting.filter((record) => Array.isArray(record.stats.activity));
   const totalEvents14d = activityReported.reduce(
-    (sum, record) => sum + (record.stats.activity || []).reduce((daySum, day) => daySum + day.count, 0),
+    (sum, record) =>
+      sum + (record.stats.activity || []).reduce((daySum, day) => (day.date >= cutoff ? daySum + day.count : daySum), 0),
     0
   );
+
+  // "from N of M" is only honest if every counted metric came from all N; when
+  // a metric has narrower coverage, name its own count.
+  const coverageNote = (label: string, n: number) => (n === reporting.length ? "" : ` · ${label} from ${n}`);
 
   return (
     <section className="portfolio-ops-rollup" aria-label="Business snapshot across reporting apps">
       <span className="portfolio-ops-label">Across your apps</span>
-      <strong>{totalUsers} users</strong>
+      {usersReported.length ? <strong>{totalUsers} users</strong> : <strong>users not reported</strong>}
       {revenueByCurrency.size ? (
         [...revenueByCurrency.entries()].map(([currency, cents]) => (
           <strong key={currency}>{formatMoney(cents, currency)} revenue (30d)</strong>
@@ -578,10 +588,12 @@ function OpsRollupPanel({ snapshot, loaded }: { snapshot: OpsStatsSnapshot | nul
       ) : (
         <strong>revenue not reported</strong>
       )}
-      <strong>{totalEvents14d} events (14d)</strong>
+      {activityReported.length ? <strong>{totalEvents14d} events (14d)</strong> : <strong>activity not reported</strong>}
       <small>
         from {reporting.length} of {snapshot.totalApps} apps reporting
-        {revenueReported.length !== reporting.length ? ` · revenue from ${revenueReported.length}` : ""}
+        {coverageNote("users", usersReported.length)}
+        {coverageNote("revenue", revenueReported.length)}
+        {coverageNote("activity", activityReported.length)}
       </small>
     </section>
   );
@@ -660,23 +672,32 @@ function OpsDeepDive({ app, record, loaded }: { app: AppPortfolioEntry; record: 
   );
 }
 
-// A dependency-free trend: one bar per day, scaled to the busiest day. Quiet
-// days render a floor sliver so the timeline reads as "measured: nothing
-// happened", which is not the same as "not measured" (that renders as text).
+// A dependency-free trend: one bar per CALENDAR day across the reported span,
+// scaled to the busiest day. The producers group by day and omit quiet days,
+// so the series is densified here — every gap becomes a real zero-count day
+// (floor sliver), and the label is the actual calendar span, not the count of
+// non-empty days. Three states, kept distinct:
+//   • days === null  → "not reported" (the app never sent the field)
+//   • days === []    → "measured: no activity" (the app reported zero events)
+//   • days with data → the gap-filled trend
 function ActivityTrend({ days }: { days: OpsActivityDay[] | null }) {
-  if (!days || !days.length) {
+  if (days === null) {
     return <p className="portfolio-activity-empty">Activity trend not reported yet.</p>;
   }
-  const max = Math.max(...days.map((day) => day.count), 1);
-  const total = days.reduce((sum, day) => sum + day.count, 0);
+  if (days.length === 0) {
+    return <p className="portfolio-activity-empty">No activity in the last 14 days.</p>;
+  }
+  const series = densifyActivity(days);
+  const max = Math.max(...series.map((day) => day.count), 1);
+  const total = series.reduce((sum, day) => sum + day.count, 0);
   return (
     <div className="portfolio-activity">
       <div className="portfolio-activity-heading">
-        <span>Activity — last {days.length} day{days.length === 1 ? "" : "s"}</span>
+        <span>Activity — {series.length} day{series.length === 1 ? "" : "s"} ({series[0].date} to {series[series.length - 1].date})</span>
         <span>{total} event{total === 1 ? "" : "s"}</span>
       </div>
-      <div className="portfolio-activity-bars" role="img" aria-label={`${total} events across ${days.length} days`}>
-        {days.map((day) => (
+      <div className="portfolio-activity-bars" role="img" aria-label={`${total} events across ${series.length} days`}>
+        {series.map((day) => (
           <span
             key={day.date}
             className="portfolio-activity-bar"
@@ -687,6 +708,34 @@ function ActivityTrend({ days }: { days: OpsActivityDay[] | null }) {
       </div>
     </div>
   );
+}
+
+// Fills the calendar gaps between the first and last reported day with real
+// zero-count days, bounded to the most recent ACTIVITY_MAX_SPAN days so a
+// pathological far-apart pair (e.g. dates years apart) can't render thousands
+// of bars. Input is sorted oldest-first.
+const ACTIVITY_MAX_SPAN = 45;
+function densifyActivity(days: OpsActivityDay[]): OpsActivityDay[] {
+  const byDate = new Map(days.map((day) => [day.date, day.count]));
+  const last = new Date(`${days[days.length - 1].date}T00:00:00Z`);
+  const firstReported = new Date(`${days[0].date}T00:00:00Z`);
+  const earliestAllowed = new Date(last);
+  earliestAllowed.setUTCDate(earliestAllowed.getUTCDate() - (ACTIVITY_MAX_SPAN - 1));
+  const start = firstReported > earliestAllowed ? firstReported : earliestAllowed;
+  const out: OpsActivityDay[] = [];
+  for (const cursor = new Date(start); cursor <= last; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    const iso = cursor.toISOString().slice(0, 10);
+    out.push({ date: iso, count: byDate.get(iso) || 0 });
+  }
+  return out;
+}
+
+// The trailing-14-calendar-day cutoff (YYYY-MM-DD), inclusive of today, used to
+// bound the rollup's "(14d)" event total to the window it claims.
+function fourteenDayCutoff(): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 13);
+  return d.toISOString().slice(0, 10);
 }
 
 function formatCount(value: number | null) {
