@@ -236,8 +236,8 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
         </button>
         {notice ? <p className="note">{notice}</p> : null}
         <p className="env-vault-help">
-          Not sure which key an app needs, or where it goes? The{" "}
-          <a href="/credentials">Credentials page</a> lists every key each app needs and whether it's set.
+          Not sure which key an app needs, or where it goes?{" "}
+          <a href="/integrations">Integrations &amp; secrets</a> lists every key each app needs and whether it&apos;s set.
         </p>
       </div>
 

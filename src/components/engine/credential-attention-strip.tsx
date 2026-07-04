@@ -26,8 +26,8 @@ export function CredentialAttentionStrip({ items }: { items: CredentialAttention
           <p className="eyebrow">Attention</p>
           <h1>Keys &amp; credentials needed</h1>
           <p>
-            Owner actions that unblock or improve an app&apos;s login/launch. The full per-app map is on{" "}
-            <a href="/credentials">App credentials</a>.
+            Owner actions that unblock or improve an app&apos;s login/launch. Manage every key on{" "}
+            <a href="/integrations">Integrations &amp; secrets</a>.
           </p>
         </div>
         {blockers.length ? <strong className="cred-attention-count">{blockers.length} blocking</strong> : null}
@@ -47,7 +47,7 @@ export function CredentialAttentionStrip({ items }: { items: CredentialAttention
             <div className="cred-attention-meta">
               <code>{item.envVar}</code>
               <span>{item.location}</span>
-              <a href="/credentials">Open credentials →</a>
+              <a href="/integrations">Open integrations →</a>
             </div>
           </li>
         ))}
