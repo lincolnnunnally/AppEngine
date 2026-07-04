@@ -643,13 +643,29 @@ function OpsStrip({ app, record, loaded }: { app: AppPortfolioEntry; record: Ops
   const live = app.deploymentState === "production_live";
 
   if (record?.reporting) {
+    const impact = impactSignal(record.stats);
     return (
       <div className="portfolio-ops-strip reporting" aria-label={`${app.name} ops`}>
-        <span className="portfolio-ops-label">Ops</span>
-        <strong>{formatCount(record.stats.users)} users</strong>
-        <strong>{formatCount(record.stats.ticketsOpen)} open tickets</strong>
-        <strong>{formatCount(record.stats.ordersRecent)} orders (30d)</strong>
-        {record.checkedAt ? <small title={record.note || undefined}>as of {shortTime(record.checkedAt)}</small> : null}
+        <div className="portfolio-ops-line">
+          <span className="portfolio-ops-label">Ops</span>
+          <strong>{formatCount(record.stats.users)} users</strong>
+          <strong>{formatCount(record.stats.ticketsOpen)} open tickets</strong>
+          <strong>{formatCount(record.stats.ordersRecent)} orders (30d)</strong>
+          {record.checkedAt ? <small title={record.note || undefined}>as of {shortTime(record.checkedAt)}</small> : null}
+        </div>
+        {impact ? (
+          <div className="portfolio-ops-line portfolio-ops-impact">
+            <span className="portfolio-ops-label">Impact</span>
+            {record.stats.activeUsers30d !== null ? (
+              <strong title="Signed in within about the last 30 days">{formatCount(record.stats.activeUsers30d)} active</strong>
+            ) : null}
+            {impact.trend ? (
+              <span className={`portfolio-trend-chip ${impact.trend.direction}`} title={impact.trend.title}>
+                {impact.trend.label}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -670,6 +686,36 @@ function OpsStrip({ app, record, loaded }: { app: AppPortfolioEntry; record: Ops
 
 function formatCount(value: number | null) {
   return value === null ? "—" : String(value);
+}
+
+// The "is it helping people, and growing?" read. Active users answers helping;
+// new-this-week vs last-week answers the direction — honestly (no percentage
+// drama on tiny numbers, no trend claimed when we can't compare). Returns null
+// when there is nothing impact-shaped to show (keeps the strip to one line).
+type ImpactTrend = { direction: "up" | "down" | "steady"; label: string; title: string };
+
+function impactSignal(stats: {
+  activeUsers30d: number | null;
+  newUsers7d: number | null;
+  newUsersPrev7d: number | null;
+}): { trend: ImpactTrend | null } | null {
+  const { activeUsers30d, newUsers7d, newUsersPrev7d } = stats;
+  let trend: ImpactTrend | null = null;
+  if (newUsers7d !== null) {
+    if (newUsersPrev7d === null) {
+      trend = newUsers7d > 0
+        ? { direction: "steady", label: `+${newUsers7d} new this week`, title: "New sign-ups in the last 7 days" }
+        : null;
+    } else {
+      const delta = newUsers7d - newUsersPrev7d;
+      const base = `${newUsers7d} new this week (was ${newUsersPrev7d})`;
+      if (delta > 0) trend = { direction: "up", label: `↑ ${base}`, title: "Growing — more new people than last week" };
+      else if (delta < 0) trend = { direction: "down", label: `↓ ${base}`, title: "Slowing — fewer new people than last week" };
+      else trend = { direction: "steady", label: `${base}`, title: "Steady — same as last week" };
+    }
+  }
+  if (activeUsers30d === null && !trend) return null;
+  return { trend };
 }
 
 function shortTime(iso: string) {

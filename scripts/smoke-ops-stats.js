@@ -19,6 +19,42 @@ runStep("generated apps ship a token-gated stats endpoint", () => {
   ]);
 });
 
+runStep("generated apps report an impact signal (active users + growth trend)", () => {
+  assertFileIncludes("src/lib/engine/foundation-modules.ts", [
+    'count(distinct "userId")::int as n from sessions where expires > now()',
+    "from users where created_at > now() - interval '7 days'",
+    "activeUsers30d",
+    "newUsers7d",
+    "newUsersPrev7d"
+  ]);
+  // The users.created_at migration must NOT backfill existing rows (no false spike).
+  assertFileIncludes("src/lib/engine/app-generator.ts", [
+    "alter table users add column if not exists created_at timestamptz;",
+    "alter table users alter column created_at set default now();"
+  ]);
+});
+
+runStep("the collector carries impact fields through type, parse, cache, and self", () => {
+  assertFileIncludes("src/lib/engine/ops-stats.ts", [
+    "activeUsers30d: number | null",
+    "activeUsers30d: asCount(data.activeUsers30d)",
+    "ADD COLUMN IF NOT EXISTS active_users_30d integer",
+    "active_users_30d = excluded.active_users_30d",
+    'select count(distinct "userId")::int as n from sessions where expires > now()'
+  ]);
+});
+
+runStep("the dashboard shows the impact line honestly", () => {
+  assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
+    "impactSignal",
+    "portfolio-ops-impact",
+    "active",
+    "new this week",
+    "portfolio-trend-chip"
+  ]);
+  assertFileIncludes("src/app/styles.css", [".portfolio-ops-impact", ".portfolio-trend-chip.up"]);
+});
+
 runStep("generated env example and API contract include the stats endpoint", () => {
   assertFileIncludes("src/lib/engine/app-generator.ts", [
     "APP_ENGINE_STATS_TOKEN",

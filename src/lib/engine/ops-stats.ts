@@ -16,6 +16,12 @@ export type AppOpsStats = {
   users: number | null;
   ticketsOpen: number | null;
   ordersRecent: number | null;
+  // Impact signals — how the app is HELPING people, not just how it sells. These
+  // matter most for the free/ministry apps where revenue is silent. All nullable
+  // and additive: an app (or a cache row) from before these shipped reads null.
+  activeUsers30d: number | null; // distinct users with a live session (~30d active)
+  newUsers7d: number | null; // sign-ups in the last 7 days
+  newUsersPrev7d: number | null; // sign-ups in the 7 days before that (for the trend)
 };
 
 export type OpsStatsRecord = {
@@ -64,7 +70,7 @@ type OpsTarget = {
 };
 
 function emptyStats(): AppOpsStats {
-  return { users: null, ticketsOpen: null, ordersRecent: null };
+  return { users: null, ticketsOpen: null, ordersRecent: null, activeUsers30d: null, newUsers7d: null, newUsersPrev7d: null };
 }
 
 function hostOf(value: string): string {
@@ -101,6 +107,9 @@ export async function fetchStatsFromApp(
       users?: unknown;
       ticketsOpen?: unknown;
       ordersRecent?: unknown;
+      activeUsers30d?: unknown;
+      newUsers7d?: unknown;
+      newUsersPrev7d?: unknown;
     } | null;
     if (!data || data.ok !== true) {
       return { ok: false, error: "the stats endpoint returned an unexpected payload" };
@@ -113,7 +122,10 @@ export async function fetchStatsFromApp(
       stats: {
         users: asCount(data.users),
         ticketsOpen: asCount(data.ticketsOpen),
-        ordersRecent: asCount(data.ordersRecent)
+        ordersRecent: asCount(data.ordersRecent),
+        activeUsers30d: asCount(data.activeUsers30d),
+        newUsers7d: asCount(data.newUsers7d),
+        newUsersPrev7d: asCount(data.newUsersPrev7d)
       }
     };
   } catch {
@@ -142,10 +154,26 @@ export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: Ap
   const buildsRecent = await countOrNull(
     () => sql`select count(*)::int as n from app_build_jobs where created_at > now() - interval '30 days'`
   );
+  // AppEngine's own impact: people with a live session on the platform. Its user
+  // table (NextAuth) has no join timestamp, so the new-users trend stays null for
+  // self rather than mislabeling builds as sign-ups — builds already show as the
+  // 30-day "orders" count above.
+  const activeUsers30d = await countOrNull(() => sql`select count(distinct "userId")::int as n from sessions where expires > now()`);
   if (users === null && buildsRecent === null) {
     return { reporting: false, stats: emptyStats(), note: "Not reporting yet — couldn't read the platform database." };
   }
-  return { reporting: true, stats: { users, ticketsOpen: null, ordersRecent: buildsRecent }, note: "" };
+  return {
+    reporting: true,
+    stats: {
+      users,
+      ticketsOpen: null,
+      ordersRecent: buildsRecent,
+      activeUsers30d,
+      newUsers7d: null,
+      newUsersPrev7d: null
+    },
+    note: ""
+  };
 }
 
 // Optional, env-configured targets: lets any app that adopted the stats
@@ -296,6 +324,10 @@ async function ensureCacheTable(sql: ReturnType<typeof getDatabase>): Promise<vo
       `;
       // Self-applying column add for caches created before the attention checks shipped.
       await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS needs jsonb`;
+      // Self-applying columns for the impact signals (active users + growth trend).
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS active_users_30d integer`;
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS new_users_7d integer`;
+      await sql`ALTER TABLE app_ops_stats_cache ADD COLUMN IF NOT EXISTS new_users_prev_7d integer`;
     })().catch((error) => {
       cacheTableReady = null;
       throw error;
@@ -324,7 +356,10 @@ function rowToRecord(row: Record<string, unknown>): OpsStatsRecord {
     stats: {
       users: asCount(row.users === null ? undefined : Number(row.users)),
       ticketsOpen: asCount(row.tickets_open === null ? undefined : Number(row.tickets_open)),
-      ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent))
+      ordersRecent: asCount(row.orders_recent === null ? undefined : Number(row.orders_recent)),
+      activeUsers30d: asCount(row.active_users_30d === null || row.active_users_30d === undefined ? undefined : Number(row.active_users_30d)),
+      newUsers7d: asCount(row.new_users_7d === null || row.new_users_7d === undefined ? undefined : Number(row.new_users_7d)),
+      newUsersPrev7d: asCount(row.new_users_prev_7d === null || row.new_users_prev_7d === undefined ? undefined : Number(row.new_users_prev_7d))
     },
     note: String(row.note || ""),
     needs: needsMissing ? [] : (row.needs as OpsAttentionItem[]),
@@ -352,9 +387,10 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
     await ensureCacheTable(sql);
     for (const record of records) {
       await sql`
-        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent, note, needs, checked_at)
+        insert into app_ops_stats_cache (app_key, slug, name, url, reporting, users, tickets_open, orders_recent, active_users_30d, new_users_7d, new_users_prev_7d, note, needs, checked_at)
         values (${record.key}, ${record.slug}, ${record.name}, ${record.url}, ${record.reporting},
                 ${record.stats.users}, ${record.stats.ticketsOpen}, ${record.stats.ordersRecent},
+                ${record.stats.activeUsers30d}, ${record.stats.newUsers7d}, ${record.stats.newUsersPrev7d},
                 ${record.note}, ${JSON.stringify(record.needs)}::jsonb, ${record.checkedAt})
         on conflict (app_key) do update set
           slug = excluded.slug,
@@ -364,6 +400,9 @@ async function writeCache(records: OpsStatsRecord[]): Promise<void> {
           users = excluded.users,
           tickets_open = excluded.tickets_open,
           orders_recent = excluded.orders_recent,
+          active_users_30d = excluded.active_users_30d,
+          new_users_7d = excluded.new_users_7d,
+          new_users_prev_7d = excluded.new_users_prev_7d,
           note = excluded.note,
           needs = excluded.needs,
           checked_at = excluded.checked_at

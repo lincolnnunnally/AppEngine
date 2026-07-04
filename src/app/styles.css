@@ -2558,13 +2558,44 @@ label {
 
 .portfolio-ops-strip {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 14px;
+  flex-direction: column;
+  gap: 4px;
   border-radius: 12px;
   padding: 8px 12px;
   font-size: 0.8rem;
 }
+
+.portfolio-ops-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
+.portfolio-ops-strip.muted {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.portfolio-ops-impact {
+  padding-top: 4px;
+  border-top: 1px solid rgba(127, 127, 127, 0.18);
+}
+
+.portfolio-trend-chip {
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.portfolio-trend-chip.up { color: var(--teal); background: var(--green-soft); }
+.portfolio-trend-chip.down { color: var(--gold); background: rgba(230, 169, 58, 0.16); }
+.portfolio-trend-chip.steady { color: var(--muted); }
 
 .portfolio-ops-strip.reporting {
   color: var(--teal);
