@@ -5180,6 +5180,26 @@ label {
   font-size: 0.82rem;
 }
 
+.cred-push {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+.cred-push-note {
+  font-size: 0.78rem;
+}
+
+.cred-push-note.ok {
+  color: var(--teal);
+}
+
+.cred-push-note.err {
+  color: var(--gold);
+}
+
 .integration-input-row {
   display: flex;
   gap: 10px;
