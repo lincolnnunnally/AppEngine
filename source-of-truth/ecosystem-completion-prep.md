@@ -73,17 +73,17 @@ Effort: **S** = small · **M** = medium · **L** = large.
 - **First actions:** (docs) fill the ledger with the 2026-07-03 API proof and flip the staff-follow-up + visitor-follow-up rows to transferred_proven — **but hold the ConnectionInbox frontend row at partially_transferred until a signed-in staff UI walkthrough** (API proof ≠ UI proof); (docs) refresh the registry entry **and update the BUILD-LEDGER T5 marker (still shows ⛔)**; (build) execute ledger slices from Member Management using visitor-registration as the proven pattern.
 - **Gated by:** Atlas salvage scope [#12], PR #12 branding merge [#13], the "must-have vs deferred" ledger call.
 
-**Toner Management** (`toner-management`) · **M** · live in production; correct the record + protect WIP
-- **State:** LIVE at toner.management (Vercel, Neon-backed `/api/health` ok) from `toner-management-app`, published as `TotalTonerManagement/clean-toner-management-app` — but the registry still says "nothing serving," and uncommitted self-service signup/claims WIP sits on an iCloud disk (code-loss risk).
-- **Complete means:** D4 canonical recorded, variant repos merged via a transfer ledger, WIP shipped/parked, registry corrected, data-home (Neon vs Supabase) decided.
-- **First actions:** (protective) commit + push the uncommitted signup/claims WIP to a `feat/self-service-signup` branch (pre-approved); (docs) correct the registry to live-at-domain with evidence; (docs) start the transfer-ledger inventory of TM-UserDash / TM-Admin-portal.
-- **Gated by:** D4 canonical [#3], D7 Neon-vs-Supabase [#6], Vercel account confirmation [#8].
+**Toner Management** (`toner-management`) · **M** · live in production; source protected
+- **State:** LIVE at toner.management (Vercel, Neon-backed `/api/health` ok) from `toner-management-app`, published as `TotalTonerManagement/clean-toner-management-app`. **Source PROTECTED (verified 2026-07-04):** `toner-management-app` → `TotalTonerManagement` and `toner-platform` → `toner-platform` are both clean working trees, fully pushed; `TonerTrackerPro` → `TonerTracker` is pushed too (only stray screenshots + a `.local/` dir uncommitted — not source). No uncommitted toner source remains on disk. The six loose non-git folders (`Toner_Management*`, `total*toner*`, `toner_monitoring_project`) are pre-July superseded dupes, not current code. Registry still says "nothing serving" — correct it.
+- **Complete means:** D4 canonical recorded, variant repos merged via a transfer ledger, registry corrected, data-home (per the 2026-07-04 ruling: shared Supabase) applied.
+- **First actions:** (docs) correct the registry to live-at-domain with evidence; (docs) start the transfer-ledger inventory of TM-UserDash / TM-Admin-portal; note D4 is now settled by the owner-rulings doc (Toner = a product family folded into the ops dashboard, not one repo).
+- **Gated by:** D4 canonical [#3] — answered in `ecosystem-owner-rulings.md`; D7 answered (shared Supabase); Vercel account confirmation [#8].
 
-**Printer Protector (monitoring)** (`printer-protector-monitoring`) · **M** · real SaaS, unprotected source
-- **State:** A working React/Vite dashboard + Python SNMP agent + 2 Supabase migrations + built .dmg installers exist ONLY as a local non-git folder — never pushed; both GitHub shells empty. **A newer June-2026 SNMP agent (main.py 46KB) + an integrated printer dashboard live gitignored INSIDE toner-platform** — also at code-loss risk.
-- **Complete means:** source protected in a canonical private repo (secrets excluded); Toner-relationship + D7 decided; transfer ledger; monitoring loop proven E2E.
-- **First actions:** (protective) push a clean copy of the standalone `Printer-Protector` folder to a private backup repo **AND protect the newer toner-platform copies** (main.py 46KB + customer-portal printer views) — note the more-recent work is inside toner-platform, not the Sept-2025 standalone; (docs) create the planning issue; (docs) transfer-ledger inventory reconciling both copies to avoid double-building.
-- **Gated by:** D4-adjacent standalone-vs-module [#3], D7 [#6].
+**Printer Protector (monitoring)** (`printer-protector-monitoring`) · **M** · live SaaS, source protected
+- **State:** **Source PROTECTED (verified 2026-07-04):** the standalone `Printer-Protector` folder is a git repo → `PrinterProtectorMonitoringTool`, clean tree, fully pushed; the newer June-2026 SNMP agent + integrated printer dashboard are pushed inside `toner-platform` → `toner-platform`. (The `Printer-Protector9-22-25Backup` non-git folder is a Sept-2025 backup, superseded.) A working React/Vite dashboard + Python SNMP agent + 2 Supabase migrations + built .dmg installers — no longer at code-loss risk.
+- **Complete means:** Toner-relationship + D7 decided (both now answered); transfer ledger reconciling the standalone vs the toner-platform copy; monitoring loop proven E2E.
+- **First actions:** (docs) create the planning issue; (docs) transfer-ledger inventory reconciling the two protected copies to avoid double-building; fold the admin role into the ops dashboard per the Toner ruling.
+- **Gated by:** standalone-vs-module [#3] — the ruling routes the admin hub into the ops dashboard; D7 answered (shared Supabase).
 
 ### Next — after a small unblock
 
@@ -111,11 +111,11 @@ Effort: **S** = small · **M** = medium · **L** = large.
 - **First actions:** (docs) correct the domain block (serving legacy WP) + create the in-repo transfer ledger; (credential) RENDER_API_KEY + STRIPE_API_KEY; (owner_decision) WordPress cutover call.
 - **Gated by:** RENDER + STRIPE keys + cutover [#16], D7 [#6], Vercel Hobby [#10].
 
-**Iconium** (`iconium`) · **M** · MVP exists only as uncommitted local files
-- **State:** A build-passing AI logo/brand studio MVP (3 API routes, 6 modules, editor, exports, save) lives ONLY as ~32 uncommitted paths on an iCloud disk; GitHub main is a 12-file skeleton. Targets Neon today.
-- **Complete means:** MVP committed+pushed; DB placement ruled + applied; preview deployed and full workflow proven; domain live.
-- **First actions:** (protective) branch + commit + push the 32 paths — the single most urgent fact about this app; (docs) planning issue + transfer ledger; (owner_decision) Prisma+Neon vs shared Supabase.
-- **Gated by:** D7 applied to Iconium [#6], domain [#7], OPENAI_API_KEY.
+**Iconium** (`iconium`) · **M** · MVP protected on a branch; merge to main + apply DB ruling
+- **State:** **Source PROTECTED (verified 2026-07-04):** the build-passing AI logo/brand studio MVP (39 source files — 3 API routes `projects`/`generate`/`export`, `lib/openai`, editor, exports) is committed and PUSHED on the `Iconium` repo branch `feat/logo-studio-mvp` (clean tree, `~/Documents/Iconium`). Only `main` still holds the old 12-file skeleton — a merge-to-main step, NOT a loss risk. Targets Neon today (the 2026-07-04 ruling makes mission apps shared-Supabase).
+- **Complete means:** `feat/logo-studio-mvp` merged to main; DB moved to shared Supabase per the ruling; preview deployed and full workflow proven; domain live.
+- **First actions:** (verify) local build/typecheck the `feat/logo-studio-mvp` branch then merge to main so the repo's default reflects the real MVP; (build) shift Prisma/Neon → shared Supabase per the ruling; (docs) planning issue + transfer ledger.
+- **Gated by:** D7 answered (shared Supabase); domain [#7]; OPENAI_API_KEY.
 
 **Kindred Connections** (`kindred-connections`) · **L** · off-Emergent exodus, owner-gated
 - **State:** Live only at the leftover aligned-souls.emergent.host. Full AIPOS exodus doc pack sits unmerged on PR #1. Owner-confirmed friendship-first (dating is the separate Aligned Souls app).
