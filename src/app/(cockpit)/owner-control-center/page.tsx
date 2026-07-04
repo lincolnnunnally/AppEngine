@@ -5,6 +5,7 @@ import { BuildExecutionRequestPanel } from "@/components/engine/build-execution-
 import { CredentialAttentionStrip } from "@/components/engine/credential-attention-strip";
 import { FirstRealBuildLoopRunPanel } from "@/components/engine/first-real-build-loop-run-panel";
 import { HandoffRelayControlCenter } from "@/components/engine/handoff-relay-control-center";
+import { OwnerControlNav } from "@/components/engine/owner-control-nav";
 import { OwnerPortfolioDashboard } from "@/components/engine/owner-portfolio-dashboard";
 import { FirstEcosystemBuildPacketDraftPanel } from "@/components/opportunity-intake/first-ecosystem-build-packet-draft-panel";
 import { FirstRealEcosystemBuildRequestPanel } from "@/components/opportunity-intake/first-real-ecosystem-build-request-panel";
@@ -118,46 +119,66 @@ export default async function OwnerControlCenterPage() {
 
   return (
     <main className="shell wide-shell owner-control-page">
-      <CredentialAttentionStrip items={credentialAttention} />
-      <OwnerPortfolioDashboard registry={portfolioRegistry} urlBoard={getPortfolioUrlStatusBoard()} />
-      <HandoffRelayControlCenter
-        initialHandoffs={handoffs}
-        initialProjectMemory={projectMemory}
-        initialTrialCandidates={listTrialProjectCandidates()}
-        initialTrialRuns={trialRuns}
-        initialTrialReviews={trialReviews}
-        initialOrchestratorRuns={orchestratorRuns}
-        initialOrchestratorActionQueue={orchestratorActionQueue}
-        initialAuditTrailReport={auditTrailReport}
-        initialInternalControlledUse={internalControlledUse}
-        initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
+      <OwnerControlNav
+        sections={[
+          { id: "sec-apps", label: "Your apps" },
+          { id: "sec-handoffs", label: "Handoffs" },
+          { id: "sec-build", label: "Build loop" },
+          { id: "sec-opportunities", label: "Opportunities" }
+        ]}
       />
-      <BuildExecutionRequestPanel initialSources={buildExecutionSources} initialRequests={buildExecutionRequests} />
-      <BuildLoopCompletionDashboardPanel report={buildLoopCompletionDashboard} />
-      <BuildLoopControlledUseReadinessPanel report={buildLoopControlledUseReadiness} />
-      <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
-      <OpportunityInternalUseCompletionCheckPanel report={opportunityInternalUseCompletionCheck} />
-      <FirstRealEcosystemBuildRequestPanel
-        initialRecords={firstRealEcosystemBuildRequests}
-        seed={firstRealEcosystemBuildRequestSeed}
-      />
-      <FirstEcosystemBuildPacketDraftPanel
-        initialBuildRequests={firstRealEcosystemBuildRequests}
-        initialDrafts={firstEcosystemBuildPacketDrafts}
-      />
-      <FirstRealBuildLoopRunPanel initialRecords={firstRealBuildLoopRuns} />
-      <OwnerOpportunityQueue
-        initialClarifications={opportunityClarifications}
-        initialRecords={opportunityIntakeRecords}
-        initialActionPlans={opportunityActionPlans}
-        initialAppEngineCandidates={opportunityAppEngineCandidates}
-        initialBuildPacketBridges={opportunityBuildPacketBridges}
-        initialSolutionPaths={opportunitySolutionPaths}
-        initialFullLoopTrials={opportunityFullLoopTrials}
-        initialRealOpportunityExamples={realOpportunityExamples}
-        initialRealOpportunityResultReviews={realOpportunityResultReviews}
-      />
-      <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
+
+      <section id="sec-apps" className="owner-control-section" aria-label="Your apps">
+        <CredentialAttentionStrip items={credentialAttention} />
+        <OwnerPortfolioDashboard registry={portfolioRegistry} urlBoard={getPortfolioUrlStatusBoard()} />
+      </section>
+
+      <section id="sec-handoffs" className="owner-control-section" aria-label="Handoffs">
+        <HandoffRelayControlCenter
+          initialHandoffs={handoffs}
+          initialProjectMemory={projectMemory}
+          initialTrialCandidates={listTrialProjectCandidates()}
+          initialTrialRuns={trialRuns}
+          initialTrialReviews={trialReviews}
+          initialOrchestratorRuns={orchestratorRuns}
+          initialOrchestratorActionQueue={orchestratorActionQueue}
+          initialAuditTrailReport={auditTrailReport}
+          initialInternalControlledUse={internalControlledUse}
+          initialStorage={process.env.VERCEL === "1" ? "mock-memory" : "local"}
+        />
+      </section>
+
+      <section id="sec-build" className="owner-control-section" aria-label="Build loop">
+        <BuildExecutionRequestPanel initialSources={buildExecutionSources} initialRequests={buildExecutionRequests} />
+        <BuildLoopCompletionDashboardPanel report={buildLoopCompletionDashboard} />
+        <BuildLoopControlledUseReadinessPanel report={buildLoopControlledUseReadiness} />
+        <FirstRealEcosystemBuildRequestPanel
+          initialRecords={firstRealEcosystemBuildRequests}
+          seed={firstRealEcosystemBuildRequestSeed}
+        />
+        <FirstEcosystemBuildPacketDraftPanel
+          initialBuildRequests={firstRealEcosystemBuildRequests}
+          initialDrafts={firstEcosystemBuildPacketDrafts}
+        />
+        <FirstRealBuildLoopRunPanel initialRecords={firstRealBuildLoopRuns} />
+      </section>
+
+      <section id="sec-opportunities" className="owner-control-section" aria-label="Opportunities">
+        <OpportunityControlledUseReadinessPanel report={opportunityControlledUseReadiness} />
+        <OpportunityInternalUseCompletionCheckPanel report={opportunityInternalUseCompletionCheck} />
+        <OwnerOpportunityQueue
+          initialClarifications={opportunityClarifications}
+          initialRecords={opportunityIntakeRecords}
+          initialActionPlans={opportunityActionPlans}
+          initialAppEngineCandidates={opportunityAppEngineCandidates}
+          initialBuildPacketBridges={opportunityBuildPacketBridges}
+          initialSolutionPaths={opportunitySolutionPaths}
+          initialFullLoopTrials={opportunityFullLoopTrials}
+          initialRealOpportunityExamples={realOpportunityExamples}
+          initialRealOpportunityResultReviews={realOpportunityResultReviews}
+        />
+        <ProblemIntakeOwnerControlCenter initialRecords={problemIntakeRecords} />
+      </section>
     </main>
   );
 }

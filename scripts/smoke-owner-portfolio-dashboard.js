@@ -77,6 +77,19 @@ runStep("owner control center loads and displays portfolio registry", () => {
   ]);
 });
 
+runStep("the long control center has a sticky jump-nav over titled sections", () => {
+  assertFileIncludes("src/app/(cockpit)/owner-control-center/page.tsx", [
+    "OwnerControlNav",
+    "sec-apps",
+    "sec-handoffs",
+    "sec-build",
+    "sec-opportunities",
+    "owner-control-section"
+  ]);
+  assertFileIncludes("src/components/engine/owner-control-nav.tsx", ["IntersectionObserver", "owner-control-nav-link"]);
+  assertFileIncludes("src/app/styles.css", [".owner-control-nav", ".owner-control-section"]);
+});
+
 runStep("dashboard styles are present and mobile-aware", () => {
   assertFileIncludes("src/app/styles.css", [
     ".owner-portfolio-dashboard",

@@ -2273,6 +2273,49 @@ label {
   padding-bottom: 48px;
 }
 
+/* Sticky jump-menu so the long owner control center isn't one endless scroll. */
+.owner-control-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 4px;
+  margin-bottom: 8px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+
+.owner-control-nav-link {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+
+.owner-control-nav-link:hover {
+  color: var(--ink);
+  background: rgba(127, 127, 127, 0.12);
+}
+
+.owner-control-nav-link.active {
+  color: var(--teal);
+  background: var(--green-soft);
+  border-color: color-mix(in srgb, var(--teal) 40%, transparent);
+}
+
+.owner-control-section {
+  display: grid;
+  gap: 16px;
+  /* Anchored jumps land below the sticky nav, not under it. */
+  scroll-margin-top: 64px;
+}
+
 .owner-portfolio-dashboard {
   display: grid;
   gap: 16px;
