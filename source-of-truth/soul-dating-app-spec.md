@@ -13,11 +13,29 @@ Owner: Lincoln · Drafted 2026-07-03 · Working names: Soulful Dating / Aligned 
 4. **Core pillars:** deep-knowing (right questions/inputs, journaling, imported life context — all opt-in) and **personal growth** — including learning that a hard conversation can be an act of love ("the first time anyone has ever loved them enough to actually have a difficult conversation with them"). Growth is not a feature; it is the retention loop.
 5. **Bull's-eye, not swipe:** small sets of high-confidence matches with "why this person" explanations, challenge areas, concerns, and first-conversation suggestions.
 
-## Name + domain state (checked 2026-07-03)
+## Name + hosting decision (updated 2026-07-04)
 
-Available: soulfuldating.app $9.99 · alignedsouls.app $9.99 · aligned-souls.com $11.25 · alignedsoulsdating.com $11.25 · soulconnectiondating.com $11.25 · soulconnection.dating / soulconnect.dating / alignedsouls.dating $23.99.
-Taken: soulfuldating.com, soulful.dating, soul.dating, souldating.com/.app, soulfulconnection.com, alignedsouls.com.
-Note: "Aligned Souls" was Kindred's original Emergent project name (aligned-souls preview/production hosts) — the most historically grounded candidate, but it collides with Kindred's current production URL until Kindred is re-hosted; sequence accordingly.
+**Launch target = `alignedsouls.unitedundergod.org`** (owner decision 2026-07-04): host on a
+subdomain of the org domain Lincoln already owns; buy a dedicated domain later. Free, no
+purchase needed.
+
+Setup sequence (the subdomain is the LAST step — it can't point at anything until the app
+is deployed):
+1. Build + deploy the Aligned Souls app to Vercel (forked from migrated Kindred code — see
+   the Emergent exodus / Kindred migration pack). This is the real work; the app does not
+   run yet.
+2. Add `alignedsouls.unitedundergod.org` in the Vercel project's Domains settings.
+3. Add one DNS record at **DreamHost** (where unitedundergod.org DNS is managed —
+   ns1/ns2/ns3.dreamhost.com; root is a WordPress/PMPro site on 67.205.20.0): a CNAME
+   `alignedsouls` → the Vercel target Vercel provides. Owner action (DreamHost login), or
+   Claude supplies the exact record to paste.
+
+Dedicated-domain candidates for later (availability checked 2026-07-03, prices/yr):
+alignedsouls.app $9.99 · aligned-souls.com $11.25 · alignedsoulsdating.com $11.25 ·
+alignedsouls.dating $23.99. Taken: alignedsouls.com.
+Note: "Aligned Souls" was Kindred's original Emergent project name (aligned-souls.* hosts);
+Kindred still lives at aligned-souls.emergent.host until it is re-hosted, so keep the
+subdomain (unitedundergod.org) distinct from Kindred's hosting until that migration lands.
 
 ## Composition — build almost nothing from scratch (THE ONE RULE)
 
