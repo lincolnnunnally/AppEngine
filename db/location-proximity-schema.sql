@@ -348,4 +348,14 @@ REVOKE ALL ON FUNCTION geo_clear_place(text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION geo_search(text, text[], float8, float8, float8, int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION geo_fuzz_point(geography, uuid, int, int) FROM PUBLIC;
 REVOKE ALL ON FUNCTION geo_places_before_write() FROM PUBLIC;
+-- Supabase gotcha (found by the security advisor on first apply): default
+-- privileges grant EXECUTE on new functions DIRECTLY to anon/authenticated, and
+-- REVOKE FROM PUBLIC does not remove direct grants. Revoke them explicitly.
+REVOKE EXECUTE ON FUNCTION geo_upsert_place(text, text, text, float8, float8, text, text, text, text, text, text, text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION geo_search(text, text[], float8, float8, float8, int) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION geo_near_me(text, text, text, text[], float8, int) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION geo_distance_between(text, text, text, text, text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION geo_clear_place(text, text, text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION geo_fuzz_point(geography, uuid, int, int) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION geo_places_before_write() FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION geo_distance_band(float8) TO anon, authenticated;
