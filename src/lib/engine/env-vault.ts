@@ -21,16 +21,29 @@ function hasDatabase(): boolean {
 const RESERVED_KEYS = new Set(["DATABASE_URL", "AUTH_SECRET"]);
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]{1,63}$/;
 
-// The catalog shown to users: what each standard key does and WHERE to find it.
-// Custom keys are allowed too — this list is guidance, not a restriction.
-export const KNOWN_KEYS = [
-  { key: "RESEND_API_KEY", usedFor: "Sending email from your app", whereToFind: "resend.com → API Keys → Create API Key" },
-  { key: "SENDER_EMAIL", usedFor: "The address your app's email comes from", whereToFind: "A sender you verified in Resend (Domains)" },
-  { key: "STRIPE_SECRET_KEY", usedFor: "Taking payments in your app (money goes to YOUR Stripe)", whereToFind: "dashboard.stripe.com → Developers → API keys → Secret key" },
-  { key: "STRIPE_WEBHOOK_SECRET", usedFor: "Confirming Stripe payments securely", whereToFind: "dashboard.stripe.com → Developers → Webhooks → Signing secret" },
-  { key: "OPENAI_API_KEY", usedFor: "AI features inside your app", whereToFind: "platform.openai.com → API keys" },
-  { key: "ANTHROPIC_API_KEY", usedFor: "AI features inside your app (Claude)", whereToFind: "console.anthropic.com → API Keys" }
-] as const;
+// The catalog shown to users: what each standard key does, WHERE to find it, and
+// whether it is usually UNIVERSAL (one value shared by every app — set it once) or
+// PER-APP (each app has its own). `scope` is guidance for the UI, not a rule — any
+// key can be saved shared or scoped to one app. Custom keys are allowed too.
+export type KnownKeyScope = "universal" | "per_app";
+export type KnownKey = { key: string; usedFor: string; whereToFind: string; scope: KnownKeyScope };
+
+export const KNOWN_KEYS: readonly KnownKey[] = [
+  // ── Universal — the same value across your apps, so set it once ──────────────
+  { key: "ANTHROPIC_API_KEY", scope: "universal", usedFor: "AI features (Claude) in your apps", whereToFind: "console.anthropic.com → API Keys" },
+  { key: "OPENAI_API_KEY", scope: "universal", usedFor: "AI features (OpenAI) in your apps", whereToFind: "platform.openai.com → API keys" },
+  { key: "RESEND_API_KEY", scope: "universal", usedFor: "Sending email from your apps", whereToFind: "resend.com → API Keys → Create API Key" },
+  { key: "SENDER_EMAIL", scope: "universal", usedFor: "The address your apps' email comes from", whereToFind: "A sender you verified in Resend (Domains)" },
+  { key: "RENDER_API_KEY", scope: "universal", usedFor: "Programmatic control of your Render services (ONE key per Render account covers every service in it)", whereToFind: "dashboard.render.com → Account Settings → API Keys → Create API Key" },
+  { key: "NEXT_PUBLIC_SUPABASE_URL", scope: "universal", usedFor: "Your Supabase project's URL (safe in the browser)", whereToFind: "supabase.com → your project → Project Settings → API → Project URL" },
+  { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", scope: "universal", usedFor: "Supabase public (anon) key for the browser", whereToFind: "Same page → Project API keys → anon public" },
+  { key: "SUPABASE_SERVICE_ROLE_KEY", scope: "universal", usedFor: "Supabase server key — full access, keep secret", whereToFind: "Same page → Project API keys → service_role (secret)" },
+  { key: "VITE_SUPABASE_URL", scope: "universal", usedFor: "Supabase project URL for Vite apps (same value, Vite's variable name)", whereToFind: "Same Supabase Project URL as above" },
+  { key: "VITE_SUPABASE_ANON_KEY", scope: "universal", usedFor: "Supabase anon key for Vite apps (same value, Vite's variable name)", whereToFind: "Same anon public key as above" },
+  // ── Per-app — usually different for each app ─────────────────────────────────
+  { key: "STRIPE_SECRET_KEY", scope: "per_app", usedFor: "Taking payments (money goes to YOUR Stripe)", whereToFind: "dashboard.stripe.com → Developers → API keys → Secret key" },
+  { key: "STRIPE_WEBHOOK_SECRET", scope: "per_app", usedFor: "Confirming Stripe payments securely (one per app's webhook)", whereToFind: "dashboard.stripe.com → Developers → Webhooks → Signing secret" }
+];
 
 export type VaultEntry = { key: string; appScope: string; updatedAt: string | null };
 
