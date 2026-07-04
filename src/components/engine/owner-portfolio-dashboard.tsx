@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { AppPortfolioEntry, AppPortfolioRegistry } from "@/lib/engine/app-portfolio-registry";
 import type { OpsActivityDay, OpsStatsRecord, OpsStatsSnapshot } from "@/lib/engine/ops-stats";
@@ -8,13 +8,15 @@ import type { OpsAttentionItem } from "@/lib/engine/ops-attention";
 import type { PortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { UrlStatusBoardPanel } from "@/components/engine/portfolio-url-status-board";
 
-// The one dashboard for every app the owner manages. Functional, not just
-// informational: the summary tiles FILTER the grid, every card expands to its
-// full detail, each app shows a pipeline stage meter and a plain-language next
-// step, and "Add an app" registers an existing app (built anywhere) on the spot.
-// Each card also carries an Ops strip — live business numbers (users, open
-// tickets, recent orders) for apps that report them, "Not reporting yet" for
-// the rest — loaded after mount from /api/engine/ops/stats.
+// The one dashboard for every app the owner manages. Built around what Lincoln
+// DOES, not what we can display (his 2026-07-03 feedback: "informative but not
+// functional"): every card is a door — press it and the app opens in a new tab
+// (or the details unfold when there's nothing to open); states carry color
+// (teal live / gold review / coral needs-decision / blue ready-to-build) so the
+// grid scans instead of blurring; the next step is a button whenever it has a
+// real destination; reference detail stays behind "Details". Each card also
+// carries an Ops strip — live business numbers for apps that report them —
+// loaded after mount from /api/engine/ops/stats.
 
 type Bucket = "all" | "live" | "review" | "build" | "decision" | "planned";
 
@@ -43,6 +45,24 @@ function stageIndexFor(app: AppPortfolioEntry): number {
   if (app.buildState === "preview_verified" || app.buildState === "preview_pending" || app.deploymentState === "build_preview") return 2;
   if (app.buildState === "ready_for_build" || app.buildState === "draft_pr_open" || app.buildState === "ready_for_vnext") return 1;
   return 0;
+}
+
+// Where the next step can actually be TAKEN, the card offers it as a button —
+// review-type steps go to the review URL, PR steps to the PR. Steps with no
+// destination stay as a plain line instead of a dead control.
+function nextStepTarget(app: AppPortfolioEntry): string | null {
+  const review = app.reviewUrl.startsWith("/") || app.reviewUrl.startsWith("https://") ? app.reviewUrl : null;
+  switch (app.nextSafeAction) {
+    case "await_owner_review":
+    case "verify_review_url":
+    case "verify_preview":
+    case "run_review_gates":
+      return review;
+    case "create_draft_pr":
+      return app.linkedPRs[0]?.url || null;
+    default:
+      return null;
+  }
 }
 
 const NEXT_STEP_LABEL: Record<string, string> = {
@@ -146,7 +166,7 @@ export function OwnerPortfolioDashboard({
           <button
             type="button"
             key={bucket}
-            className={`portfolio-summary-item portfolio-filter${filter === bucket ? " portfolio-filter--active" : ""}`}
+            className={`portfolio-summary-item portfolio-filter bucket-${bucket}${filter === bucket ? " portfolio-filter--active" : ""}`}
             onClick={() => setFilter(bucket)}
             aria-pressed={filter === bucket}
           >
@@ -188,8 +208,15 @@ export function OwnerPortfolioDashboard({
 // The weak "Future Ecosystem Apps and Services" entry, reframed as the action it
 // really is: the door to starting something new.
 function StartSomethingCard({ app }: { app: AppPortfolioEntry }) {
+  // Same door rule as every other card: pressing the plain card area goes to
+  // its primary action, so the pointer cursor never promises a dead click.
+  function onCardClick(event: MouseEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest("a, button")) return;
+    window.location.href = "/opportunity-intake";
+  }
+
   return (
-    <article className="portfolio-entry-card portfolio-start-card">
+    <article className="portfolio-entry-card portfolio-start-card" onClick={onCardClick}>
       <div className="portfolio-entry-heading">
         <div>
           <span>next</span>
@@ -238,40 +265,105 @@ function PortfolioEntryCard({
   const latestPr = app.linkedPRs[0] || null;
   const liveUrl = app.productionUrl.startsWith("https://") ? app.productionUrl : null;
   const reviewUrl = app.reviewUrl.startsWith("/") || app.reviewUrl.startsWith("https://") ? app.reviewUrl : null;
+  // The door this card opens: the live site first, an externally-hosted review
+  // second. Internal review paths stay on the buttons (same-tab is right there).
+  const openUrl = liveUrl || (reviewUrl && reviewUrl.startsWith("https://") ? reviewUrl : null);
+  const bucket = bucketFor(app);
   const nextStep = NEXT_STEP_LABEL[app.nextSafeAction] || formatToken(app.nextSafeAction);
+  const nextTarget = nextStepTarget(app);
+  const needsAct = Boolean(opsRecord?.needs.some((need) => need.severity === "action_needed"));
+
+  // Press anywhere plain on the COLLAPSED card and the app opens in a new tab —
+  // or the details unfold when there's nothing to open yet. Links and buttons
+  // keep their own behavior; an EXPANDED card is reading mode, never a door
+  // (close it with "Hide details"). Copying text must never count as a press:
+  // a click that dismisses a selection is ignored (selection snapshot at
+  // mousedown), and the door is deferred a beat so a double-click-to-select
+  // cancels it instead of opening a surprise tab.
+  const doorTimer = useRef<number | null>(null);
+  const hadSelectionAtMouseDown = useRef(false);
+  useEffect(() => {
+    return () => {
+      if (doorTimer.current) window.clearTimeout(doorTimer.current);
+    };
+  }, []);
+
+  function onCardMouseDown() {
+    hadSelectionAtMouseDown.current = Boolean(window.getSelection()?.toString());
+  }
+
+  function onCardClick(event: MouseEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest("a, button")) return;
+    if (expanded) return;
+    if (event.detail > 1 || hadSelectionAtMouseDown.current || window.getSelection()?.toString()) {
+      if (doorTimer.current) {
+        window.clearTimeout(doorTimer.current);
+        doorTimer.current = null;
+      }
+      return;
+    }
+    if (doorTimer.current) window.clearTimeout(doorTimer.current);
+    doorTimer.current = window.setTimeout(() => {
+      doorTimer.current = null;
+      if (openUrl) window.open(openUrl, "_blank", "noopener");
+      else onToggle();
+    }, 250);
+  }
 
   return (
-    <article className={`portfolio-entry-card${expanded ? " expanded" : ""}`}>
+    <article
+      className={`portfolio-entry-card bucket-${bucket}${expanded ? " expanded" : ""}`}
+      onClick={onCardClick}
+      onMouseDown={onCardMouseDown}
+    >
       <div className="portfolio-entry-heading">
         <div>
           <span>{formatToken(app.type)}</span>
-          <h2>{app.name}</h2>
+          <h2>
+            {openUrl ? (
+              <a href={openUrl} target="_blank" rel="noreferrer" title={`Open ${app.name} in a new tab`}>
+                {app.name} <span className="portfolio-open-glyph" aria-hidden>↗</span>
+              </a>
+            ) : (
+              app.name
+            )}
+          </h2>
           <p>{app.status}</p>
         </div>
         <div className="portfolio-state-stack">
-          <strong className={`portfolio-state ${app.deploymentState}`}>{formatToken(app.deploymentState)}</strong>
-          <small className={`portfolio-source ${app.stateSource}`}>{formatToken(app.stateSource)}</small>
-          {opsRecord?.needs.some((need) => need.severity === "action_needed") ? (
-            <small className="portfolio-needs-flag">needs attention</small>
-          ) : null}
+          <strong className={`portfolio-state-chip bucket-${bucket}`}>{BUCKET_LABEL[bucket]}</strong>
+          {needsAct ? <small className="portfolio-needs-flag">needs attention</small> : null}
         </div>
       </div>
 
       <StageMeter app={app} />
-      <p className="portfolio-next-step">→ {nextStep}</p>
       <OpsStrip app={app} record={opsRecord} loaded={opsLoaded} />
 
       <div className="portfolio-action-row">
-        {liveUrl ? (
-          <a className="soft-launch-action" href={liveUrl} target="_blank" rel="noreferrer">Open live site</a>
+        {openUrl ? (
+          <a className="soft-launch-action" href={openUrl} target="_blank" rel="noreferrer">
+            Open app <span className="portfolio-open-glyph" aria-hidden>↗</span>
+          </a>
         ) : null}
-        {!liveUrl && reviewUrl ? (
+        {!openUrl && reviewUrl ? (
           <a className="soft-launch-action" href={reviewUrl}>Open review</a>
+        ) : null}
+        {nextTarget && nextTarget !== openUrl && nextTarget !== reviewUrl ? (
+          <a
+            className="portfolio-next-action"
+            href={nextTarget}
+            {...(nextTarget.startsWith("https://") ? { target: "_blank", rel: "noreferrer" } : {})}
+          >
+            {nextStep}
+          </a>
         ) : null}
         <button type="button" className="portfolio-secondary-action" aria-expanded={expanded} onClick={onToggle}>
           {expanded ? "Hide details" : "Details"}
         </button>
       </div>
+      {!nextTarget || nextTarget === openUrl || nextTarget === reviewUrl ? (
+        <p className="portfolio-next-step">→ {nextStep}</p>
+      ) : null}
 
       {expanded ? (
         <>
@@ -291,6 +383,14 @@ function PortfolioEntryCard({
             <div>
               <dt>Build state</dt>
               <dd>{formatToken(app.buildState)}</dd>
+            </div>
+            <div>
+              <dt>Deployment</dt>
+              <dd>{formatToken(app.deploymentState)}</dd>
+            </div>
+            <div>
+              <dt>State source</dt>
+              <dd className={`portfolio-source ${app.stateSource}`}>{formatToken(app.stateSource)}</dd>
             </div>
             <div>
               <dt>Latest PR/branch</dt>

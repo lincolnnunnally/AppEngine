@@ -31,6 +31,22 @@ runStep("portfolio entries include required managed app and ecosystem slices", (
   ]);
 });
 
+runStep("cards are doors: press to open the app, states carry color", () => {
+  assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
+    "onCardClick",
+    "Open app",
+    "portfolio-open-glyph",
+    "portfolio-state-chip",
+    "nextStepTarget",
+    "bucket-${bucket}"
+  ]);
+  assertFileIncludes("src/app/styles.css", [
+    ".portfolio-entry-card.bucket-live",
+    ".portfolio-state-chip",
+    ".portfolio-next-action"
+  ]);
+});
+
 runStep("owner dashboard renders portfolio fields and guardrails", () => {
   assertFileIncludes("src/components/engine/owner-portfolio-dashboard.tsx", [
     "data-testid=\"owner-portfolio-dashboard\"",
