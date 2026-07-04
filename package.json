@@ -57,6 +57,7 @@
     "smoke:consumer-access": "node scripts/smoke-consumer-access.js",
     "smoke:llm-usage": "node scripts/smoke-llm-usage.js",
     "smoke:integrations-config": "node scripts/smoke-integrations-config.js",
+    "smoke:location-proximity": "node scripts/smoke-location-proximity.js",
     "smoke:env-compose": "node scripts/smoke-env-composer.js",
     "smoke:billing": "node scripts/smoke-billing.js",
     "smoke:customer-build": "node scripts/smoke-customer-build.js",

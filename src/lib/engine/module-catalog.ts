@@ -555,6 +555,17 @@ const MODULES: ModuleCatalogEntry[] = [
     usedByApps: ["iconium", "easy-peasy-website"],
     primarySource: "Iconium src/components/BrandPrompt.tsx + ConceptCards.tsx + LogoPreview.tsx + src/lib/logo-generator.ts + svg-engine.ts",
     status: "extractable"
+  },
+  {
+    slug: "location-proximity",
+    name: "Location & Proximity",
+    category: "foundation",
+    purpose:
+      "One shared place/geo layer: geocode once, store once, and answer \"what is near me\" for every app — churches, serving opportunities, community happenings, meetups, makers, and distance-based matching — with privacy tiers and write-time fuzzing baked in (bands only between people).",
+    capabilities: ["geocoding cache", "device geolocation opt-in + clear", "radius search", "distance sort", "distance bands", "privacy tiers", "location fuzzing", "zip-centroid fallback"],
+    usedByApps: ["churchconnect", "kindred-connections", "live-on-mission", "laser-engrave-market", "kids-need-dads"],
+    primarySource: "AppEngine db/location-proximity-schema.sql + src/lib/geo/location-proximity.ts (PostGIS geo_places + RPCs); mined from ChurchConnect backend/utils/geo.py geocode-on-save + Kindred Connections frontend/src/pages/Settings.js device opt-in",
+    status: "extractable"
   }
 ];
 
