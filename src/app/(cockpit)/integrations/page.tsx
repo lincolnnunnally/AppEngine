@@ -72,6 +72,23 @@ async function saveAppKeyAction(formData: FormData) {
   back(result.message, result.ok);
 }
 
+// One-click "Apply": the system already knows this value (a non-secret publicValue
+// in the registry — a backend URL, a shared Supabase URL, a publishable key), so the
+// owner shouldn't have to copy-paste it. This writes the known value straight to the
+// app's Vercel project. Manager, not data-entry clerk.
+async function applyKnownValueAction(formData: FormData) {
+  "use server";
+  if (!(await canAccessEngineOwner())) redirect("/");
+  const slug = String(formData.get("slug") || "");
+  const key = String(formData.get("key") || "");
+  const group = CREDENTIAL_REGISTRY.find((g) => g.slug === slug);
+  const entry = group?.keys.find((k) => k.envVar === key);
+  const value = entry?.publicValue;
+  if (!value) back(`No known value on file for ${key}.`, false);
+  const result = await setAppEnvValue(slug, key, value);
+  back(result.ok ? `Applied ${key} to ${group?.name || slug}. Redeploy that app to pick it up.` : result.message, result.ok);
+}
+
 async function applyAction() {
   "use server";
   if (!(await canAccessEngineOwner())) redirect("/");
@@ -198,14 +215,30 @@ export default async function IntegrationsPage({
                     </span>
                   </div>
                   <p className="cred-purpose">{key.purpose}</p>
-                  {key.publicValue ? <p className="cred-value">value: {key.publicValue}</p> : null}
+                  {key.publicValue && !(pushable && status === "missing") ? <p className="cred-value">value: {key.publicValue}</p> : null}
                   {pushable ? (
                     <div className="integration-input-row">
+                      {key.publicValue && status === "missing" ? (
+                        <button
+                          className="soft-launch-action"
+                          formAction={applyKnownValueAction}
+                          disabled={!apiReady}
+                          title={`Apply ${key.publicValue}`}
+                        >
+                          Apply → {key.publicValue.length > 44 ? `${key.publicValue.slice(0, 44)}…` : key.publicValue}
+                        </button>
+                      ) : null}
                       <input
                         className="convo-input integration-input"
                         name="value"
                         type={key.secret ? "password" : "text"}
-                        placeholder={key.secret && status === "set" ? "•••••• (set — enter to replace)" : "value"}
+                        placeholder={
+                          key.publicValue && status === "missing"
+                            ? "or enter a different value"
+                            : key.secret && status === "set"
+                              ? "•••••• (set — enter to replace)"
+                              : "value"
+                        }
                         autoComplete="off"
                       />
                       <button className="soft-launch-action" type="submit" disabled={!apiReady}>Save</button>
