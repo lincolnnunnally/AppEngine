@@ -17,7 +17,7 @@ type DeployResponse = {
   missingSecrets?: string[];
 };
 
-type OwnerSecret = { key: string; label: string; hint: string; universal: boolean };
+type OwnerSecret = { key: string; label: string; hint: string; universal: boolean; alreadySet: boolean };
 
 export function RenderDeployPanel({
   slug,
@@ -38,7 +38,9 @@ export function RenderDeployPanel({
   const [result, setResult] = useState<DeployResponse | null>(null);
   const [health, setHealth] = useState<"idle" | "checking" | "live" | "waiting">("idle");
 
-  const secretsFilled = ownerSecrets.every((s) => (secrets[s.key] || "").trim());
+  // Only secrets NOT already on file (env/vault) must be pasted; on-file ones can be
+  // left blank (used as-is) or re-pasted to replace.
+  const secretsFilled = ownerSecrets.filter((s) => !s.alreadySet).every((s) => (secrets[s.key] || "").trim());
   const canDeploy = (renderKeyStored || apiKey.trim().length > 0) && secretsFilled;
 
   async function pollHealth(url: string) {
@@ -114,6 +116,7 @@ export function RenderDeployPanel({
           <span className="render-deploy__label">
             {s.label}
             {s.universal ? <em className="render-deploy__universal"> · set once, used by every app</em> : null}
+            {s.alreadySet ? <em className="render-deploy__onfile"> · on file</em> : null}
           </span>
           {s.hint ? <span className="render-deploy__fieldhint">{s.hint}</span> : null}
           <input
@@ -121,7 +124,7 @@ export function RenderDeployPanel({
             type="password"
             value={secrets[s.key] || ""}
             onChange={(e) => setSecrets((prev) => ({ ...prev, [s.key]: e.target.value }))}
-            placeholder="paste value"
+            placeholder={s.alreadySet ? "•••••• on file — leave blank, or paste to replace" : "paste value"}
             autoComplete="off"
           />
         </label>

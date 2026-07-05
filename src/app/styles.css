@@ -5150,6 +5150,13 @@ label {
   color: var(--muted);
 }
 
+.render-deploy__onfile {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: #3fb950;
+}
+
 .render-deploy__links {
   display: flex;
   gap: 16px;

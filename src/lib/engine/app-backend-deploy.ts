@@ -99,18 +99,23 @@ export function hasBackendDeployProfile(slug: string): boolean {
   return PROFILES.some((p) => p.slug === slug);
 }
 
-export type OwnerInputSecret = { key: string; label: string; hint: string; universal: boolean };
+export type OwnerInputSecret = { key: string; label: string; hint: string; universal: boolean; alreadySet: boolean };
 
 // The required, owner-supplied secrets a backend deploy needs pasted in the Deploy
 // panel (static/generated values are handled automatically). `universal` ones are
 // the same for every ecosystem app (shared LPL Supabase) — set once, reused.
+// `alreadySet` = the value is already available server-side (env/vault), so the
+// panel can show it "on file" and not force a re-paste (server-side only check).
 export function ownerInputSecrets(slug: string): OwnerInputSecret[] {
   const profile = backendDeployProfileFor(slug);
   if (!profile) return [];
   const out: OwnerInputSecret[] = [];
   for (const [key, spec] of Object.entries(profile.env)) {
     if (spec.source === "secret" && spec.required) {
-      out.push({ key, label: spec.label || key, hint: spec.hint || "", universal: Boolean(spec.universal) });
+      const alreadySet = Boolean(
+        (spec.envFallback && process.env[spec.envFallback]?.trim()) || process.env[key]?.trim()
+      );
+      out.push({ key, label: spec.label || key, hint: spec.hint || "", universal: Boolean(spec.universal), alreadySet });
     }
   }
   return out;
