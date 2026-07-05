@@ -37,6 +37,16 @@ import { caseManagementModule } from "./case-management";
 import { mediatedCommModule } from "./mediated-communication";
 import { ratingsReviewsModule } from "./ratings-reviews";
 import { brandKitModule } from "./brand-kit-generator";
+import { checkinModule } from "./checkin";
+import { scriptureSermonModule } from "./scripture-sermon-tools";
+import { liveServiceModule } from "./live-service-streaming";
+import { growthTrackingModule } from "./growth-tracking";
+import { marketplaceOrdersModule } from "./marketplace-orders";
+import { proofApprovalModule } from "./proof-approval-artifact";
+import { financeAccountingModule } from "./finance-accounting";
+import { multiOrgModule } from "./multi-org-association";
+import { mediaRecordingModule } from "./media-recording";
+import { creatorAnalyticsModule } from "./creator-analytics-coaching";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -70,7 +80,17 @@ const MODULES: AppModule[] = [
   caseManagementModule,
   mediatedCommModule,
   ratingsReviewsModule,
-  brandKitModule
+  brandKitModule,
+  checkinModule,
+  scriptureSermonModule,
+  liveServiceModule,
+  growthTrackingModule,
+  marketplaceOrdersModule,
+  proofApprovalModule,
+  financeAccountingModule,
+  multiOrgModule,
+  mediaRecordingModule,
+  creatorAnalyticsModule
 ];
 
 export function allModules(): AppModule[] {
