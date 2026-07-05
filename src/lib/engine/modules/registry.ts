@@ -24,6 +24,19 @@ import { careCounselingModule } from "./care-counseling";
 import { crmFollowUpModule } from "./crm-follow-up";
 import { analyticsHopeModule } from "./analytics-hope-index";
 import { eventsSchedulingModule } from "./events-scheduling";
+import { locationProximityModule } from "./location-proximity";
+import { websiteBuilderModule } from "./website-builder";
+import { mutualAidModule } from "./mutual-aid-benevolence";
+import { achievementsModule } from "./achievements-gamification";
+import { volunteerSafetyModule } from "./volunteer-safety";
+import { brandingDesignModule } from "./branding-design";
+import { aiAssistModule } from "./ai-assist";
+import { ideaCaptureModule } from "./idea-capture-forge";
+import { designStudioModule } from "./design-studio";
+import { caseManagementModule } from "./case-management";
+import { mediatedCommModule } from "./mediated-communication";
+import { ratingsReviewsModule } from "./ratings-reviews";
+import { brandKitModule } from "./brand-kit-generator";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -44,7 +57,20 @@ const MODULES: AppModule[] = [
   careCounselingModule,
   crmFollowUpModule,
   analyticsHopeModule,
-  eventsSchedulingModule
+  eventsSchedulingModule,
+  locationProximityModule,
+  websiteBuilderModule,
+  mutualAidModule,
+  achievementsModule,
+  volunteerSafetyModule,
+  brandingDesignModule,
+  aiAssistModule,
+  ideaCaptureModule,
+  designStudioModule,
+  caseManagementModule,
+  mediatedCommModule,
+  ratingsReviewsModule,
+  brandKitModule
 ];
 
 export function allModules(): AppModule[] {
