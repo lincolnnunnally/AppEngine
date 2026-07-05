@@ -14,6 +14,16 @@ import { publicInviteModule } from "./public-invite-loop";
 import { publicProfileModule } from "./public-profile-og-sharing";
 import { adminOpsModule } from "./admin-ops-moderation";
 import { communicationModule } from "./communication";
+import { relationshipRepairModule } from "./relationship-repair";
+import { eventCurationModule } from "./event-curation-service-loop";
+import { discipleshipContentModule } from "./discipleship-content";
+import { mentorshipCoachingModule } from "./mentorship-coaching";
+import { testimonyEngineModule } from "./testimony-engine";
+import { needsHelperMatchingModule } from "./needs-helper-matching";
+import { careCounselingModule } from "./care-counseling";
+import { crmFollowUpModule } from "./crm-follow-up";
+import { analyticsHopeModule } from "./analytics-hope-index";
+import { eventsSchedulingModule } from "./events-scheduling";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -24,7 +34,17 @@ const MODULES: AppModule[] = [
   publicInviteModule,
   publicProfileModule,
   adminOpsModule,
-  communicationModule
+  communicationModule,
+  relationshipRepairModule,
+  eventCurationModule,
+  discipleshipContentModule,
+  mentorshipCoachingModule,
+  testimonyEngineModule,
+  needsHelperMatchingModule,
+  careCounselingModule,
+  crmFollowUpModule,
+  analyticsHopeModule,
+  eventsSchedulingModule
 ];
 
 export function allModules(): AppModule[] {
