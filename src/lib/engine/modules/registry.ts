@@ -47,6 +47,11 @@ import { financeAccountingModule } from "./finance-accounting";
 import { multiOrgModule } from "./multi-org-association";
 import { mediaRecordingModule } from "./media-recording";
 import { creatorAnalyticsModule } from "./creator-analytics-coaching";
+import { knowledgeBaseModule } from "./knowledge-base";
+import { fleetMonitoringModule } from "./fleet-monitoring-agent";
+import { supplierAutomationModule } from "./supplier-order-automation";
+import { contentSchedulerModule } from "./content-publishing-scheduler";
+import { businessFormationModule } from "./business-formation-provisioning";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -90,7 +95,12 @@ const MODULES: AppModule[] = [
   financeAccountingModule,
   multiOrgModule,
   mediaRecordingModule,
-  creatorAnalyticsModule
+  creatorAnalyticsModule,
+  knowledgeBaseModule,
+  fleetMonitoringModule,
+  supplierAutomationModule,
+  contentSchedulerModule,
+  businessFormationModule
 ];
 
 export function allModules(): AppModule[] {
