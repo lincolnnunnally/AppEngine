@@ -14,7 +14,7 @@ import {
   getCredentialStatuses,
   type CredentialStatus
 } from "@/lib/engine/ecosystem-credential-registry";
-import { hasBackendDeployProfile } from "@/lib/engine/app-backend-deploy";
+import { hasBackendDeployProfile, ownerInputSecrets } from "@/lib/engine/app-backend-deploy";
 import { pushableKeyCount } from "@/lib/engine/ops-push-env";
 import { RenderDeployPanel } from "@/components/engine/render-deploy-panel";
 import { CredentialPushAllButton } from "@/components/engine/credential-push-all-button";
@@ -180,6 +180,7 @@ export default async function IntegrationsPage({
               serviceName={app.renderService}
               expectedBackendUrl={backendUrl}
               renderKeyStored={renderKeyStored}
+              ownerSecrets={ownerInputSecrets(app.slug)}
             />
           ) : null}
           <div className="integration-grid">
