@@ -1,10 +1,10 @@
 "use client";
 
 // The in-product "stand up this app's backend" control. Replaces the old dead-end
-// ("go set this in the Render dashboard") for an app whose backend lives on Render.
-// Paste the Render key (or use the one on file), click Deploy — AppEngine creates
-// the service, sets its env, and builds it, then this polls the health path until
-// the backend actually answers. No terminal, no Render dashboard.
+// ("go set this in the Render dashboard"). Paste the Render key + the app's backend
+// secrets — they go straight to Render (never stored here; only the Render key is
+// remembered) — click Deploy, and this polls the health path until the backend
+// actually answers. No terminal, no Render dashboard.
 import { useState } from "react";
 
 type DeployResponse = {
@@ -17,21 +17,29 @@ type DeployResponse = {
   missingSecrets?: string[];
 };
 
+type OwnerSecret = { key: string; label: string; hint: string; universal: boolean };
+
 export function RenderDeployPanel({
   slug,
   serviceName,
   expectedBackendUrl,
   renderKeyStored,
+  ownerSecrets,
 }: {
   slug: string;
   serviceName: string;
   expectedBackendUrl: string;
   renderKeyStored: boolean;
+  ownerSecrets: OwnerSecret[];
 }) {
   const [apiKey, setApiKey] = useState("");
+  const [secrets, setSecrets] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<DeployResponse | null>(null);
   const [health, setHealth] = useState<"idle" | "checking" | "live" | "waiting">("idle");
+
+  const secretsFilled = ownerSecrets.every((s) => (secrets[s.key] || "").trim());
+  const canDeploy = (renderKeyStored || apiKey.trim().length > 0) && secretsFilled;
 
   async function pollHealth(url: string) {
     setHealth("checking");
@@ -60,12 +68,13 @@ export function RenderDeployPanel({
       const res = await fetch("/api/engine/ops/deploy-render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug, apiKey: apiKey.trim() || undefined }),
+        body: JSON.stringify({ slug, apiKey: apiKey.trim() || undefined, secrets }),
       });
       const data = (await res.json()) as DeployResponse;
       setResult(data);
       if (data.ok) {
         setApiKey("");
+        setSecrets({});
         void pollHealth(data.serviceUrl || expectedBackendUrl);
       }
     } catch {
@@ -82,25 +91,43 @@ export function RenderDeployPanel({
         <span className="cred-tag">Render: {serviceName}</span>
       </div>
       <p className="integration-hint">
-        Stand up this app&apos;s backend on Render straight from here. {renderKeyStored
-          ? "Your Render key is on file — just click Deploy."
-          : "Paste your Render API key once; it's saved for next time."}
+        Stand up this app&apos;s backend on Render from here. These go straight to Render and aren&apos;t stored (your Render key is saved for next time).
       </p>
 
       {!renderKeyStored ? (
-        <div className="integration-input-row">
+        <label className="render-deploy__field">
+          <span className="render-deploy__label">Render API key</span>
+          <span className="render-deploy__fieldhint">dashboard.render.com → Account Settings → API Keys → Create</span>
           <input
             className="convo-input integration-input"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="RENDER_API_KEY (dashboard.render.com → Account → API Keys)"
+            placeholder="rnd_…"
             autoComplete="off"
           />
-        </div>
+        </label>
       ) : null}
 
-      <button className="soft-launch-action" type="button" onClick={deploy} disabled={busy || (!renderKeyStored && !apiKey.trim())}>
+      {ownerSecrets.map((s) => (
+        <label className="render-deploy__field" key={s.key}>
+          <span className="render-deploy__label">
+            {s.label}
+            {s.universal ? <em className="render-deploy__universal"> · set once, used by every app</em> : null}
+          </span>
+          {s.hint ? <span className="render-deploy__fieldhint">{s.hint}</span> : null}
+          <input
+            className="convo-input integration-input"
+            type="password"
+            value={secrets[s.key] || ""}
+            onChange={(e) => setSecrets((prev) => ({ ...prev, [s.key]: e.target.value }))}
+            placeholder="paste value"
+            autoComplete="off"
+          />
+        </label>
+      ))}
+
+      <button className="soft-launch-action" type="button" onClick={deploy} disabled={busy || !canDeploy}>
         {busy ? "Deploying…" : "Deploy backend"}
       </button>
 

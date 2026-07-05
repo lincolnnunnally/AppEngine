@@ -21,7 +21,10 @@ import {
 type EnvSource =
   | { source: "static"; value: string } // a known, non-secret value
   | { source: "generate" } // Render generates it (JWT_SECRET, CRON_TOKEN)
-  | { source: "secret"; required: boolean; envFallback?: string }; // owner-supplied
+  // owner-supplied secret. `label`/`hint` drive the Deploy panel field; `universal`
+  // marks a value that is the SAME across every ecosystem app (the shared LPL
+  // Supabase keys) — set once, reused everywhere (that's what the vault is for).
+  | { source: "secret"; required: boolean; envFallback?: string; label?: string; hint?: string; universal?: boolean };
 
 export type BackendDeployProfile = {
   slug: string; // matches the credential registry / portfolio slug
@@ -39,6 +42,9 @@ export type BackendDeployProfile = {
 };
 
 const SHARED_SUPABASE_URL = "https://uqhqulrqcygsmmzdzemx.supabase.co";
+// Publishable (anon) key for the shared LPL Supabase — safe in clients/source, same
+// value every ecosystem app uses (also in ecosystem-credential-registry for Spark).
+const SHARED_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_7XktmGTAP0Ka52rhchT5mQ_xYXPs7e-";
 
 // ── Laser Engrave Market backend — transcribed from LaserEngraving/render.yaml ──
 const LASER: BackendDeployProfile = {
@@ -56,11 +62,25 @@ const LASER: BackendDeployProfile = {
   env: {
     PYTHON_VERSION: { source: "static", value: "3.12.8" },
     SUPABASE_URL: { source: "static", value: SHARED_SUPABASE_URL },
-    SUPABASE_SERVICE_ROLE_KEY: { source: "secret", required: true },
-    SUPABASE_ANON_KEY: { source: "secret", required: true },
+    // Shared LPL Supabase keys. Anon is publishable -> baked in. Service-role is the
+    // ONE real secret, and it's UNIVERSAL (same for every app) -> owner sets it once.
+    SUPABASE_SERVICE_ROLE_KEY: {
+      source: "secret",
+      required: true,
+      universal: true,
+      label: "Supabase service-role key (shared across all your apps)",
+      hint: "Supabase dashboard → Project Settings → API → service_role (secret). Same key for every app on the LPL database.",
+    },
+    SUPABASE_ANON_KEY: { source: "static", value: SHARED_SUPABASE_PUBLISHABLE_KEY },
     JWT_SECRET: { source: "generate" },
     ADMIN_EMAIL: { source: "static", value: "lincoln@unitedundergod.org" },
-    ADMIN_PASSWORD: { source: "secret", required: true, envFallback: "LASER_ADMIN_PASSWORD" },
+    ADMIN_PASSWORD: {
+      source: "secret",
+      required: true,
+      envFallback: "LASER_ADMIN_PASSWORD",
+      label: "Admin password for Laser (you choose it)",
+      hint: "The password to seed Laser's built-in admin (lincoln@unitedundergod.org). Pick anything; you'll use it to log in.",
+    },
     // Backend CORS/cookie origin = the Laser frontend's Vercel production URL.
     FRONTEND_URL: { source: "static", value: "https://laser-engrave-market.vercel.app" },
     STRIPE_API_KEY: { source: "secret", required: false },
@@ -77,6 +97,23 @@ export function backendDeployProfileFor(slug: string): BackendDeployProfile | un
 
 export function hasBackendDeployProfile(slug: string): boolean {
   return PROFILES.some((p) => p.slug === slug);
+}
+
+export type OwnerInputSecret = { key: string; label: string; hint: string; universal: boolean };
+
+// The required, owner-supplied secrets a backend deploy needs pasted in the Deploy
+// panel (static/generated values are handled automatically). `universal` ones are
+// the same for every ecosystem app (shared LPL Supabase) — set once, reused.
+export function ownerInputSecrets(slug: string): OwnerInputSecret[] {
+  const profile = backendDeployProfileFor(slug);
+  if (!profile) return [];
+  const out: OwnerInputSecret[] = [];
+  for (const [key, spec] of Object.entries(profile.env)) {
+    if (spec.source === "secret" && spec.required) {
+      out.push({ key, label: spec.label || key, hint: spec.hint || "", universal: Boolean(spec.universal) });
+    }
+  }
+  return out;
 }
 
 export type BackendDeployOptions = {

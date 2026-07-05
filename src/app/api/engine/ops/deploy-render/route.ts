@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Please sign in first." }, { status: 401 });
   }
 
-  let body: { slug?: unknown; apiKey?: unknown; save?: unknown };
+  let body: { slug?: unknown; apiKey?: unknown; save?: unknown; secrets?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -36,7 +36,16 @@ export async function POST(request: Request) {
   }
   const apiKey = typeof body.apiKey === "string" && body.apiKey.trim() ? body.apiKey.trim() : undefined;
 
-  const result = await deployAppBackend(ownerEmail, slug, { apiKeyOverride: apiKey });
+  // Owner-pasted backend secrets (service-role key, admin password, …) flow straight
+  // to Render for this deploy and are NOT stored here — only the Render key is saved.
+  const secretOverrides: Record<string, string> = {};
+  if (body.secrets && typeof body.secrets === "object") {
+    for (const [k, v] of Object.entries(body.secrets as Record<string, unknown>)) {
+      if (typeof v === "string" && v.trim()) secretOverrides[k] = v.trim();
+    }
+  }
+
+  const result = await deployAppBackend(ownerEmail, slug, { apiKeyOverride: apiKey, secretOverrides });
 
   // If the owner pasted a key inline and the deploy got far enough to use it,
   // remember it for next time (unless they opted out). Best-effort — never blocks
