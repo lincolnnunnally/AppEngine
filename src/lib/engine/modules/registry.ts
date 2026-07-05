@@ -1,17 +1,31 @@
-// The module registry — the single place the generator asks "which real modules
-// can I emit into an app?". Foundation modules are always composed; optional
-// modules will be composed when an app selects them (added as they are built out
-// to the identity-auth gold standard). This is the seam that turns the module
-// catalog from a display-only card list into an installable library.
+// The module registry — the library of build-ready blocks the generator can
+// compose into an app. Foundation-tier modules go into every app; optional-tier
+// modules go in ONLY when that app selects them (see modulesFor). Not every
+// module goes into every app — apps pull the subset they need and combine them.
+// As catalog blocks are completed from their real source, they are registered here.
 
 import type { AppModule, AppModuleContext, GeneratedModuleFile } from "./types";
 import { identityAuthModule } from "./identity-auth";
 import { directoryCommunityModule } from "./directory-community";
+import { connectionEngineModule } from "./connection-engine";
+import { purposeOnboardingModule } from "./purpose-onboarding";
+import { becomingGrowthModule } from "./becoming-growth-dashboard";
+import { publicInviteModule } from "./public-invite-loop";
+import { publicProfileModule } from "./public-profile-og-sharing";
+import { adminOpsModule } from "./admin-ops-moderation";
+import { communicationModule } from "./communication";
 
-// Registered, build-ready modules (emit real, verified code). As catalog blocks
-// are promoted from "pointer" to real modules, they are added here — highest
-// demand first. identity-auth + directory-community are live.
-const MODULES: AppModule[] = [identityAuthModule, directoryCommunityModule];
+const MODULES: AppModule[] = [
+  identityAuthModule,
+  directoryCommunityModule,
+  connectionEngineModule,
+  purposeOnboardingModule,
+  becomingGrowthModule,
+  publicInviteModule,
+  publicProfileModule,
+  adminOpsModule,
+  communicationModule
+];
 
 export function allModules(): AppModule[] {
   return MODULES;
@@ -31,24 +45,33 @@ export function buildReadyModuleSlugs(): string[] {
   return MODULES.map((module) => module.slug);
 }
 
-// ---- composition helpers the generator calls to assemble an app -------------
+// ---- composition (selective, per app) ---------------------------------------
 
-export function composeModuleFiles(ctx: AppModuleContext): GeneratedModuleFile[] {
-  return MODULES.flatMap((module) => module.files(ctx));
+// Which modules an app receives: foundation always, optional only when selected.
+// A `selected` of undefined means "everything" — used by verification/tooling
+// that composes the whole library; the generator always passes an explicit set,
+// so a real app only gets its foundation + the optional blocks it chose.
+function modulesFor(selected?: Set<string>): AppModule[] {
+  if (!selected) return MODULES;
+  return MODULES.filter((module) => module.tier === "foundation" || selected.has(module.slug));
 }
 
-export function composeModuleEnvLines(): string[] {
-  return MODULES.flatMap((module) => module.envLines?.() ?? []);
+export function composeModuleFiles(ctx: AppModuleContext, selected?: Set<string>): GeneratedModuleFile[] {
+  return modulesFor(selected).flatMap((module) => module.files(ctx));
 }
 
-export function composeModuleHomeLinks(): string {
-  return MODULES.flatMap((module) => module.homeLinks?.() ?? []).join("\n");
+export function composeModuleEnvLines(selected?: Set<string>): string[] {
+  return modulesFor(selected).flatMap((module) => module.envLines?.() ?? []);
 }
 
-export function composeModuleSchemaSql(): string {
-  return MODULES.map((module) => module.schemaSql?.() ?? "").filter(Boolean).join("\n");
+export function composeModuleHomeLinks(selected?: Set<string>): string {
+  return modulesFor(selected).flatMap((module) => module.homeLinks?.() ?? []).join("\n");
 }
 
-export function composeModuleSeedSql(): string {
-  return MODULES.map((module) => module.seedSql?.() ?? "").filter(Boolean).join("\n");
+export function composeModuleSchemaSql(selected?: Set<string>): string {
+  return modulesFor(selected).map((module) => module.schemaSql?.() ?? "").filter(Boolean).join("\n");
+}
+
+export function composeModuleSeedSql(selected?: Set<string>): string {
+  return modulesFor(selected).map((module) => module.seedSql?.() ?? "").filter(Boolean).join("\n");
 }

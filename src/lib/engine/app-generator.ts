@@ -13,6 +13,7 @@ import {
   composeModuleSchemaSql,
   composeModuleSeedSql
 } from "./modules/registry";
+import { findModulesForNeed } from "./module-catalog";
 import { analyzeIdea } from "./planner";
 import {
   foundationEnvLines,
@@ -226,6 +227,9 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
   const roleMatrix = normalizeRoleMatrix(handoff, plan.auth.roles);
   const roles = roleMatrix.map((role) => role.role);
   const protectedRoutes = normalizeProtectedRoutes(handoff);
+  // Which optional modules this app pulls in — matched from its own need, so not
+  // every module goes into every app. Foundation modules are always composed.
+  const selectedModuleSlugs = selectAppModuleSlugs(project, plan);
   const apiRoutes = normalizeApiRoutes(handoff);
   const databaseModel = normalizeDatabaseModel(handoff);
   const qaChecks = normalizeQaChecks(handoff);
@@ -384,7 +388,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
         'AUTH_URL="http://localhost:3000"',
         'APP_ENGINE_OWNER_EMAIL="you@example.com"',
         'APP_ENGINE_STATS_TOKEN=""',
-        ...composeModuleEnvLines(),
+        ...composeModuleEnvLines(selectedModuleSlugs),
         'OPENAI_API_KEY=""',
         'ANTHROPIC_API_KEY=""',
         'VERCEL_TOKEN=""',
@@ -413,7 +417,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
       path: "src/app/opengraph-image.tsx",
       content: `import { ImageResponse } from "next/og";\nimport { appBrand } from "@/lib/app-brand";\n\nexport const runtime = "edge";\nexport const size = { width: 1200, height: 630 };\nexport const contentType = "image/png";\n\nexport default function OgImage() {\n  return new ImageResponse(\n    (\n      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px", background: "${theme.paper}", color: "${theme.ink}", fontFamily: "sans-serif" }}>\n        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "96px", height: "96px", borderRadius: "20px", background: "${theme.accent}", color: "${theme.accentInk}", fontSize: "44px", fontWeight: 700 }}>{appBrand.monogram}</div>\n        <div style={{ fontSize: "64px", fontWeight: 700, marginTop: "40px" }}>{appBrand.name}</div>\n        <div style={{ fontSize: "30px", opacity: 0.8, marginTop: "16px" }}>{appBrand.tagline}</div>\n      </div>\n    ),\n    size\n  );\n}\n`
     },
-    ...composeModuleFiles({ projectName, roles, roleMatrix, protectedRoutes }),
+    ...composeModuleFiles({ projectName, roles, roleMatrix, protectedRoutes }, selectedModuleSlugs),
     {
       path: "src/lib/db/client.ts",
       content: `import { neon } from "@neondatabase/serverless";\n\nexport function hasDatabase() {\n  return Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("USER:PASSWORD@HOST"));\n}\n\nexport function getDatabase() {\n  if (!hasDatabase()) {\n    throw new Error("DATABASE_URL is required before using Neon persistence.");\n  }\n\n  return neon(process.env.DATABASE_URL!);\n}\n`
@@ -432,7 +436,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Get started</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n${composeModuleHomeLinks()}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
+      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Get started</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n${composeModuleHomeLinks(selectedModuleSlugs)}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/app/page.tsx",
@@ -488,11 +492,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/lib/db/schema.sql",
-      content: buildSchemaSql()
+      content: buildSchemaSql(selectedModuleSlugs)
     },
     {
       path: "src/lib/db/seed.sql",
-      content: buildSeedSql(projectName, customer, problem, appData)
+      content: buildSeedSql(projectName, customer, problem, appData, selectedModuleSlugs)
     },
     {
       path: "src/lib/templates/index.ts",
@@ -625,6 +629,16 @@ function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>, handoff: Generat
     ],
     adminProjects: buildAdminProjects(plan, handoff)
   };
+}
+
+// Match the app's need to the build-ready module catalog so it composes only the
+// blocks it actually needs (reuses findModulesForNeed — the same matcher the
+// planner uses). Foundation modules are always included by the registry.
+function selectAppModuleSlugs(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>): Set<string> {
+  const need = [project.idea, plan.problem, plan.appType, plan.customer, ...plan.templates.map((template) => template.name)]
+    .filter(Boolean)
+    .join(" ");
+  return new Set(findModulesForNeed(need).map((match) => match.module.slug));
 }
 
 function buildSelectedModules(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
@@ -929,7 +943,7 @@ function toTitle(input: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function buildSchemaSql() {
+function buildSchemaSql(selected?: Set<string>) {
   return `create extension if not exists pgcrypto;
 
 create table if not exists verification_token (
@@ -1153,14 +1167,15 @@ create index if not exists deployments_project_environment_idx on deployments(pr
 create index if not exists customer_requests_org_status_idx on customer_requests(organization_id, status);
 create index if not exists notifications_org_read_idx on notifications(organization_id, read_at);
 create index if not exists audit_events_org_idx on audit_events(organization_id, created_at desc);
-` + foundationSchemaSql() + "\n" + composeModuleSchemaSql() + "\n";
+` + foundationSchemaSql() + "\n" + composeModuleSchemaSql(selected) + "\n";
 }
 
 function buildSeedSql(
   projectName: string,
   customer: string,
   problem: string,
-  appData: ReturnType<typeof buildAppSeedData>
+  appData: ReturnType<typeof buildAppSeedData>,
+  selected?: Set<string>
 ) {
   const templateRows = appData.selectedModules
     .map(
@@ -1260,7 +1275,7 @@ on conflict (organization_id, name) do update set
   status = excluded.status,
   readiness_score = excluded.readiness_score,
   updated_at = now();
-` + foundationSeedSql() + "\n" + composeModuleSeedSql() + "\n";
+` + foundationSeedSql() + "\n" + composeModuleSeedSql(selected) + "\n";
 }
 
 function slugify(input: string) {

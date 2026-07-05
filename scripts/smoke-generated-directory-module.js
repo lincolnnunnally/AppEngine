@@ -59,8 +59,8 @@ has(home, "/directory", "nav: linked from the home page");
 // generator composes modules generically (structural)
 const gen = fs.readFileSync(path.join(root, "src/lib/engine/app-generator.ts"), "utf8");
 has(gen, "composeModuleFiles(", "generator: composes all registered modules");
-has(gen, "composeModuleSchemaSql()", "generator: composes module schemas");
-has(gen, "composeModuleSeedSql()", "generator: composes module seed data");
+has(gen, "composeModuleSchemaSql(", "generator: composes module schemas");
+has(gen, "composeModuleSeedSql(", "generator: composes module seed data");
 
 // registry has both live modules
 const reg = fs.readFileSync(path.join(root, "src/lib/engine/modules/registry.ts"), "utf8");
