@@ -14,6 +14,10 @@ import {
   getCredentialStatuses,
   type CredentialStatus
 } from "@/lib/engine/ecosystem-credential-registry";
+import { hasBackendDeployProfile } from "@/lib/engine/app-backend-deploy";
+import { pushableKeyCount } from "@/lib/engine/ops-push-env";
+import { RenderDeployPanel } from "@/components/engine/render-deploy-panel";
+import { CredentialPushAllButton } from "@/components/engine/credential-push-all-button";
 
 // Owner-only, single home for every secret and variable. We Succeed's own keys
 // write straight to its Vercel project; a custom-variable row adds anything; and
@@ -89,6 +93,7 @@ export default async function IntegrationsPage({
   const statuses = await getIntegrationStatuses();
   const credStatuses = await getCredentialStatuses().catch(() => ({} as Record<string, CredentialStatus>));
   const apiReady = hasVercelConfigApi();
+  const renderKeyStored = Boolean(process.env.RENDER_API_KEY?.trim());
   const groups = [...new Set(INTEGRATION_FIELDS.map((field) => field.group))];
   // Every registered app except We Succeed itself (that's the own-keys section above).
   const otherApps = CREDENTIAL_REGISTRY.filter((app) => app.slug !== "appengine-core");
@@ -155,13 +160,28 @@ export default async function IntegrationsPage({
       </section>
 
       {/* ── Per-app secrets (the old /credentials page, folded in) ────────── */}
-      {otherApps.map((app) => (
+      {otherApps.map((app) => {
+        const deployable = hasBackendDeployProfile(app.slug);
+        const backendUrl =
+          app.keys.find((key) => key.envVar === "VITE_BACKEND_URL")?.publicValue ||
+          (app.renderService ? `https://${app.renderService}.onrender.com` : "");
+        const pushCount = pushableKeyCount(app.slug);
+        return (
         <section className="panel" key={app.slug}>
           <div className="cred-group-head">
             <h2>{app.name}</h2>
             {app.renderService ? <span className="cred-tag">Render: {app.renderService}</span> : null}
+            {pushCount > 0 ? <CredentialPushAllButton slug={app.slug} appName={app.name} count={pushCount} /> : null}
           </div>
           <p className="cred-summary">{app.summary}</p>
+          {deployable && app.renderService ? (
+            <RenderDeployPanel
+              slug={app.slug}
+              serviceName={app.renderService}
+              expectedBackendUrl={backendUrl}
+              renderKeyStored={renderKeyStored}
+            />
+          ) : null}
           <div className="integration-grid">
             {app.keys.map((key) => {
               const status = credStatuses[`${app.slug}:${key.envVar}`] || "manual";
@@ -189,6 +209,10 @@ export default async function IntegrationsPage({
                       />
                       <button className="soft-launch-action" type="submit" disabled={!apiReady}>Save</button>
                     </div>
+                  ) : key.host === "render" && deployable ? (
+                    <p className="integration-hint">
+                      <code className="cred-var">{key.envVar}</code> · set automatically by <strong>Deploy backend</strong> above — no dashboard step.
+                    </p>
                   ) : (
                     <p className="integration-hint">
                       <code className="cred-var">{key.envVar}</code> · {HOST_LABEL[key.host]} — set this in its {HOST_LABEL[key.host]} dashboard ({key.location}).
@@ -199,7 +223,8 @@ export default async function IntegrationsPage({
             })}
           </div>
         </section>
-      ))}
+        );
+      })}
 
       <section className="panel">
         <form action={applyAction}>
