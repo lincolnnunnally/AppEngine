@@ -6,6 +6,14 @@ import { buildGeneratedAppHandoff, type GeneratedAppHandoff } from "./app-output
 import { assertProjectBuildAllowed } from "./build-gate";
 import { createLocalExport, getLocalProject, listLocalExports, listLocalRuns } from "./development-store";
 import { isLocalMode } from "./local-mode";
+import {
+  composeModuleEnvLines,
+  composeModuleFiles,
+  composeModuleHomeLinks,
+  composeModuleSchemaSql,
+  composeModuleSeedSql
+} from "./modules/registry";
+import { findModulesForNeed } from "./module-catalog";
 import { analyzeIdea } from "./planner";
 import {
   foundationEnvLines,
@@ -219,6 +227,9 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
   const roleMatrix = normalizeRoleMatrix(handoff, plan.auth.roles);
   const roles = roleMatrix.map((role) => role.role);
   const protectedRoutes = normalizeProtectedRoutes(handoff);
+  // Which optional modules this app pulls in — matched from its own need, so not
+  // every module goes into every app. Foundation modules are always composed.
+  const selectedModuleSlugs = selectAppModuleSlugs(project, plan);
   const apiRoutes = normalizeApiRoutes(handoff);
   const databaseModel = normalizeDatabaseModel(handoff);
   const qaChecks = normalizeQaChecks(handoff);
@@ -377,10 +388,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
         'AUTH_URL="http://localhost:3000"',
         'APP_ENGINE_OWNER_EMAIL="you@example.com"',
         'APP_ENGINE_STATS_TOKEN=""',
-        'AUTH_GITHUB_ID=""',
-        'AUTH_GITHUB_SECRET=""',
-        'AUTH_GOOGLE_ID=""',
-        'AUTH_GOOGLE_SECRET=""',
+        ...composeModuleEnvLines(selectedModuleSlugs),
         'OPENAI_API_KEY=""',
         'ANTHROPIC_API_KEY=""',
         'VERCEL_TOKEN=""',
@@ -409,14 +417,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
       path: "src/app/opengraph-image.tsx",
       content: `import { ImageResponse } from "next/og";\nimport { appBrand } from "@/lib/app-brand";\n\nexport const runtime = "edge";\nexport const size = { width: 1200, height: 630 };\nexport const contentType = "image/png";\n\nexport default function OgImage() {\n  return new ImageResponse(\n    (\n      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px", background: "${theme.paper}", color: "${theme.ink}", fontFamily: "sans-serif" }}>\n        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "96px", height: "96px", borderRadius: "20px", background: "${theme.accent}", color: "${theme.accentInk}", fontSize: "44px", fontWeight: 700 }}>{appBrand.monogram}</div>\n        <div style={{ fontSize: "64px", fontWeight: 700, marginTop: "40px" }}>{appBrand.name}</div>\n        <div style={{ fontSize: "30px", opacity: 0.8, marginTop: "16px" }}>{appBrand.tagline}</div>\n      </div>\n    ),\n    size\n  );\n}\n`
     },
-    {
-      path: "src/auth.ts",
-      content: `import NextAuth from "next-auth";\nimport PostgresAdapter from "@auth/pg-adapter";\nimport { Pool } from "@neondatabase/serverless";\nimport GitHub from "next-auth/providers/github";\nimport Google from "next-auth/providers/google";\nimport { roleForEmail } from "@/lib/auth/roles";\n\nfunction hasDatabase() {\n  return Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("USER:PASSWORD@HOST"));\n}\n\nconst providers = [\n  ...(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET\n    ? [GitHub({ clientId: process.env.AUTH_GITHUB_ID, clientSecret: process.env.AUTH_GITHUB_SECRET })]\n    : []),\n  ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET\n    ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET })]\n    : [])\n];\n\nexport const { handlers, auth, signIn, signOut } = NextAuth(() => {\n  const adapter = hasDatabase() ? PostgresAdapter(new Pool({ connectionString: process.env.DATABASE_URL })) : undefined;\n\n  return {\n    adapter,\n    secret: process.env.AUTH_SECRET || "generated-app-local-development-secret",\n    providers,\n    callbacks: {\n      session({ session }) {\n        if (session.user) {\n          (session.user as typeof session.user & { role?: string }).role = roleForEmail(session.user.email);\n        }\n        return session;\n      }\n    }\n  };\n});\n`
-    },
-    {
-      path: "src/app/api/auth/[...nextauth]/route.ts",
-      content: `import { handlers } from "@/auth";\n\nexport const { GET, POST } = handlers;\n`
-    },
+    ...composeModuleFiles({ projectName, roles, roleMatrix, protectedRoutes }, selectedModuleSlugs),
     {
       path: "src/lib/db/client.ts",
       content: `import { neon } from "@neondatabase/serverless";\n\nexport function hasDatabase() {\n  return Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("USER:PASSWORD@HOST"));\n}\n\nexport function getDatabase() {\n  if (!hasDatabase()) {\n    throw new Error("DATABASE_URL is required before using Neon persistence.");\n  }\n\n  return neon(process.env.DATABASE_URL!);\n}\n`
@@ -435,11 +436,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Get started</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
-    },
-    {
-      path: "src/app/sign-in/page.tsx",
-      content: `import { signIn } from "@/auth";\nimport { isAuthConfigured } from "@/lib/auth/session";\n\nconst PROVIDERS = [\n  { id: "github", label: "Continue with GitHub", envId: "AUTH_GITHUB_ID", envSecret: "AUTH_GITHUB_SECRET" },\n  { id: "google", label: "Continue with Google", envId: "AUTH_GOOGLE_ID", envSecret: "AUTH_GOOGLE_SECRET" }\n];\n\nfunction activeProviders() {\n  return PROVIDERS.filter((provider) => process.env[provider.envId] && process.env[provider.envSecret]);\n}\n\nexport default function SignInPage() {\n  const configured = isAuthConfigured();\n  const providers = activeProviders();\n\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">Sign In</p>\n      <h1>Access ${projectName}</h1>\n      {configured && providers.length > 0 ? (\n        <>\n          <p>Sign in to open your workspace.</p>\n          <section className="grid">\n            {providers.map((provider) => (\n              <form\n                key={provider.id}\n                action={async () => {\n                  "use server";\n                  await signIn(provider.id, { redirectTo: "/app" });\n                }}\n              >\n                <button className="button primary" type="submit">{provider.label}</button>\n              </form>\n            ))}\n          </section>\n        </>\n      ) : (\n        <>\n          <p>\n            {process.env.NODE_ENV === "production"\n              ? "Sign-in isn't configured yet. The app owner needs to finish identity setup before accounts can log in."\n              : "Local setup mode is active until DATABASE_URL, AUTH_SECRET, and an OAuth provider are configured."}\n          </p>\n          <section className="grid">\n            <article className="card">\n              <span>Customer</span>\n              <strong>Customer workspace</strong>\n              <p>Manage account, requests, onboarding, billing, and notifications.</p>\n              <a className="button primary" href="/app">Continue</a>\n            </article>\n            <article className="card">\n              <span>Admin</span>\n              <strong>Admin console</strong>\n              <p>Owner and admin users can manage customers, projects, QA, and deployments.</p>\n              <a className="button" href="/admin">Open Admin</a>\n            </article>\n          </section>\n        </>\n      )}\n    </main>\n  );\n}\n`
+      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Get started</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n${composeModuleHomeLinks(selectedModuleSlugs)}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/app/page.tsx",
@@ -494,24 +491,12 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
       content: `import { NextResponse } from "next/server";\nimport { canAccessAdmin } from "@/lib/auth/roles";\nimport { getCurrentUser } from "@/lib/auth/session";\nimport { listAdminProjects } from "@/lib/db/queries";\n\nexport async function GET() {\n  const user = await getCurrentUser();\n\n  if (!user) {\n    return NextResponse.json({ error: "Authentication required" }, { status: 401 });\n  }\n\n  if (!canAccessAdmin(user.role)) {\n    return NextResponse.json({ error: "Admin access required" }, { status: 403 });\n  }\n\n  return NextResponse.json({ user, projects: await listAdminProjects() });\n}\n`
     },
     {
-      path: "src/lib/auth/roles.ts",
-      content: `import { rolePermissions } from "./permissions";\n\nexport const roles = ${JSON.stringify(roles, null, 2)} as const;\nexport const defaultRoles = ["owner", "admin", "customer"] as const;\n\nexport type GeneratedRole = (typeof roles)[number];\nexport type DefaultRole = (typeof defaultRoles)[number];\nexport type Role = GeneratedRole | DefaultRole;\n\nexport function roleForEmail(email?: string | null): Role {\n  const normalizedEmail = email?.trim().toLowerCase();\n  // Comma-separated list: the app\u2019s owner plus any platform admins.\n  const ownerEmails = (process.env.APP_ENGINE_OWNER_EMAIL || "")\n    .split(",")\n    .map((entry) => entry.trim().toLowerCase())\n    .filter(Boolean);\n\n  if (normalizedEmail && ownerEmails.includes(normalizedEmail)) {\n    return "owner";\n  }\n\n  return "customer";\n}\n\nexport function canAccessAdmin(role?: string | null) {\n  return role === "owner" || role === "admin";\n}\n\nexport function canAccessCustomerArea(role?: string | null) {\n  return Boolean(role && (roles as readonly string[]).includes(role));\n}\n\nexport function permissionsForRole(role?: string | null) {\n  return rolePermissions.find((entry) => entry.role === role)?.can || [];\n}\n`
-    },
-    {
-      path: "src/lib/auth/permissions.ts",
-      content: `export const rolePermissions = ${JSON.stringify(roleMatrix, null, 2)} as const;\n\nexport const protectedRoutes = ${JSON.stringify(protectedRoutes, null, 2)} as const;\n\nexport type ProtectedRoute = (typeof protectedRoutes)[number];\n\nfunction pathMatches(pattern: string, path: string) {\n  if (pattern.endsWith("/*")) {\n    const basePath = pattern.slice(0, -1);\n    return path.startsWith(basePath);\n  }\n\n  return path === pattern || path.startsWith(pattern + "/");\n}\n\nexport function allowedRolesForPath(path: string) {\n  const route = protectedRoutes.find((candidate) => pathMatches(candidate.path, path));\n\n  return route ? [...(route.access as readonly string[])] : [];\n}\n\nexport function canAccessRoute(role?: string | null, path = "/") {\n  const allowedRoles = allowedRolesForPath(path);\n\n  return allowedRoles.length === 0 || Boolean(role && allowedRoles.includes(role));\n}\n`
-    },
-    {
-      path: "src/lib/auth/session.ts",
-      content: `import { redirect } from "next/navigation";\nimport { auth } from "@/auth";\nimport { hasDatabase } from "@/lib/db/client";\nimport { canAccessAdmin, canAccessCustomerArea, roleForEmail, type Role } from "./roles";\n\nexport type CurrentUser = {\n  name: string;\n  email: string;\n  role: Role;\n  mode: "session" | "setup";\n};\n\nfunction hasAuthProvider() {\n  return Boolean(\n    (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) ||\n      (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)\n  );\n}\n\nexport function isAuthConfigured() {\n  return hasDatabase() && Boolean(process.env.AUTH_SECRET) && hasAuthProvider();\n}\n\nexport async function getCurrentUser(): Promise<CurrentUser | null> {\n  if (!isAuthConfigured()) {\n    // The setup bypass exists for local development only. A deployed app\n    // with unfinished auth must stay locked, never silently grant owner.\n    if (process.env.NODE_ENV === "production") {\n      return null;\n    }\n\n    const email = process.env.APP_ENGINE_OWNER_EMAIL || "owner@example.com";\n\n    return {\n      name: "Local Setup User",\n      email,\n      role: "owner",\n      mode: "setup"\n    };\n  }\n\n  const session = await auth();\n  const email = session?.user?.email;\n\n  if (!email) {\n    return null;\n  }\n\n  return {\n    name: session.user?.name || email,\n    email,\n    role: roleForEmail(email),\n    mode: "session"\n  };\n}\n\nexport async function requireCustomerAccess(nextPath = "/app") {\n  const user = await getCurrentUser();\n\n  if (!user || !canAccessCustomerArea(user.role)) {\n    redirect("/sign-in?next=" + encodeURIComponent(nextPath));\n  }\n\n  return user;\n}\n\nexport async function requireAdminAccess(nextPath = "/admin") {\n  const user = await getCurrentUser();\n\n  if (!user) {\n    redirect("/sign-in?next=" + encodeURIComponent(nextPath));\n  }\n\n  if (!canAccessAdmin(user.role)) {\n    redirect("/app");\n  }\n\n  return user;\n}\n`
-    },
-    {
       path: "src/lib/db/schema.sql",
-      content: buildSchemaSql()
+      content: buildSchemaSql(selectedModuleSlugs)
     },
     {
       path: "src/lib/db/seed.sql",
-      content: buildSeedSql(projectName, customer, problem, appData)
+      content: buildSeedSql(projectName, customer, problem, appData, selectedModuleSlugs)
     },
     {
       path: "src/lib/templates/index.ts",
@@ -644,6 +629,16 @@ function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>, handoff: Generat
     ],
     adminProjects: buildAdminProjects(plan, handoff)
   };
+}
+
+// Match the app's need to the build-ready module catalog so it composes only the
+// blocks it actually needs (reuses findModulesForNeed — the same matcher the
+// planner uses). Foundation modules are always included by the registry.
+function selectAppModuleSlugs(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>): Set<string> {
+  const need = [project.idea, plan.problem, plan.appType, plan.customer, ...plan.templates.map((template) => template.name)]
+    .filter(Boolean)
+    .join(" ");
+  return new Set(findModulesForNeed(need).map((match) => match.module.slug));
 }
 
 function buildSelectedModules(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
@@ -948,7 +943,7 @@ function toTitle(input: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function buildSchemaSql() {
+function buildSchemaSql(selected?: Set<string>) {
   return `create extension if not exists pgcrypto;
 
 create table if not exists verification_token (
@@ -961,7 +956,7 @@ create table if not exists verification_token (
 create table if not exists users (
   id serial primary key,
   name varchar(255),
-  email varchar(255),
+  email varchar(255) unique,
   "emailVerified" timestamptz,
   image text
 );
@@ -1172,14 +1167,15 @@ create index if not exists deployments_project_environment_idx on deployments(pr
 create index if not exists customer_requests_org_status_idx on customer_requests(organization_id, status);
 create index if not exists notifications_org_read_idx on notifications(organization_id, read_at);
 create index if not exists audit_events_org_idx on audit_events(organization_id, created_at desc);
-` + foundationSchemaSql() + "\n";
+` + foundationSchemaSql() + "\n" + composeModuleSchemaSql(selected) + "\n";
 }
 
 function buildSeedSql(
   projectName: string,
   customer: string,
   problem: string,
-  appData: ReturnType<typeof buildAppSeedData>
+  appData: ReturnType<typeof buildAppSeedData>,
+  selected?: Set<string>
 ) {
   const templateRows = appData.selectedModules
     .map(
@@ -1279,7 +1275,7 @@ on conflict (organization_id, name) do update set
   status = excluded.status,
   readiness_score = excluded.readiness_score,
   updated_at = now();
-` + foundationSeedSql() + "\n";
+` + foundationSeedSql() + "\n" + composeModuleSeedSql(selected) + "\n";
 }
 
 function slugify(input: string) {
