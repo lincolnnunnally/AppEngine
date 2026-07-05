@@ -170,6 +170,7 @@
     "smoke:security-hardening": "node scripts/smoke-security-hardening.js",
     "smoke:auth-session-sanitized": "node scripts/smoke-auth-session-sanitized.js",
     "smoke:generated-auth-module": "node scripts/smoke-generated-auth-module.js",
+    "smoke:generated-directory-module": "node scripts/smoke-generated-directory-module.js",
     "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
     "smoke:storage-provider-plan": "node scripts/smoke-storage-provider-plan.js",
     "smoke:spark-intake-persistence": "node scripts/smoke-spark-intake-persistence.js",

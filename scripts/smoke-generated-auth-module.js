@@ -82,7 +82,7 @@ const env = (identityAuthModule.envLines?.() ?? []).join("\n");
 
 // 9) generator wiring (structural)
 const gen = fs.readFileSync(path.join(root, "src/lib/engine/app-generator.ts"), "utf8");
-has(gen, "identityAuthModule.files({", "generator: composes the auth module");
+has(gen, "composeModuleFiles(", "generator: composes registered modules (incl. auth)");
 has(gen, "email varchar(255) unique", "generator: users.email is unique (no duplicate accounts)");
 hasnt(gen, "content: `import NextAuth", "generator: inline auth literal removed");
 
