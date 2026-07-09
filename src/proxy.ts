@@ -34,7 +34,7 @@ function isLocalHost(host: string) {
   return host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
 }
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").toLowerCase().split(":")[0];
   const { pathname } = request.nextUrl;
 
