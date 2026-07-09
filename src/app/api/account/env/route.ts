@@ -52,7 +52,9 @@ export async function POST(request: Request) {
       ? "Saved — stored for your apps and applied to the engine (live after its next redeploy)."
       : `Saved for your apps. Couldn't also apply it to the engine's hosting: ${mirror.message}`;
   }
-  return json({ ok: true, message });
+  // `warning` = format-hint mismatch (looks like a placeholder). The save went
+  // through — this only flags it. Never contains the value.
+  return json({ ok: true, message, warning: result.warning });
 }
 
 export async function DELETE(request: Request) {

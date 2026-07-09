@@ -98,6 +98,28 @@ export function isValidVaultKey(key: string): { ok: boolean; message?: string } 
   return { ok: true };
 }
 
+// Format hints for known keys whose real values have a recognizable shape. A
+// mismatch WARNS but never blocks the save — the goal is catching obvious
+// placeholders (docs dummies like a truncated sk_test_… or "whsec_test_secret")
+// at entry time instead of letting them silently break a payments or deploy
+// step later. Custom keys are never checked, and the warning text describes the
+// expected shape only — it must never include any part of the value.
+const KEY_FORMAT_HINTS: Record<string, { pattern: RegExp; minLength?: number; expected: string }> = {
+  STRIPE_SECRET_KEY: { pattern: /^sk_(live|test)_[A-Za-z0-9]{24,}$/, minLength: 32, expected: "sk_live_… or sk_test_… followed by a long random string (docs examples are shorter than real keys)" },
+  STRIPE_WEBHOOK_SECRET: { pattern: /^whsec_[A-Za-z0-9]{24,}$/, expected: "whsec_ followed by a long random string" },
+  RENDER_API_KEY: { pattern: /^rnd_/, expected: "a key starting with rnd_" },
+  ANTHROPIC_API_KEY: { pattern: /^sk-ant-/, expected: "a key starting with sk-ant-" }
+};
+
+export function checkValueFormat(key: string, value: string): string | null {
+  const cleanKey = key.trim().toUpperCase();
+  const hint = KEY_FORMAT_HINTS[cleanKey];
+  if (!hint) return null;
+  const clean = value.trim();
+  if (hint.pattern.test(clean) && clean.length >= (hint.minLength ?? 0)) return null;
+  return `The value saved for ${cleanKey} doesn't look like a real one — expected ${hint.expected}. It was saved anyway, but if it's a placeholder, anything that needs this key will fail. Double-check where you copied it from.`;
+}
+
 let ensured = false;
 async function ensureTable() {
   if (ensured || !hasDatabase()) return;
@@ -133,7 +155,7 @@ export async function listVaultEntries(userEmail: string): Promise<VaultEntry[]>
   }));
 }
 
-export async function setVaultVar(userEmail: string, key: string, value: string, appScope = ""): Promise<{ ok: boolean; message?: string }> {
+export async function setVaultVar(userEmail: string, key: string, value: string, appScope = ""): Promise<{ ok: boolean; message?: string; warning?: string }> {
   if (!hasDatabase()) return { ok: false, message: "Key storage isn't available yet." };
   const check = isValidVaultKey(key);
   if (!check.ok) return check;
@@ -148,7 +170,8 @@ export async function setVaultVar(userEmail: string, key: string, value: string,
     on conflict (user_email, key, app_scope)
     do update set value_encrypted = excluded.value_encrypted, updated_at = now()
   `;
-  return { ok: true };
+  const warning = checkValueFormat(cleanKey, value);
+  return warning ? { ok: true, warning } : { ok: true };
 }
 
 export async function deleteVaultVar(userEmail: string, key: string, appScope = ""): Promise<void> {
@@ -257,22 +280,26 @@ export function parseBulkEnvContent(content: string): BulkParseResult {
   return { entries: [...entries.values()], skipped };
 }
 
-// Stores every parsed entry; returns per-import counts for the UI.
+// Stores every parsed entry; returns per-import counts for the UI. Warnings are
+// format-hint mismatches (see checkValueFormat) — key names + expected shapes
+// only, never values.
 export async function importVaultEntries(
   userEmail: string,
   content: string
-): Promise<{ ok: boolean; saved: number; skipped: Array<{ line: number; reason: string }>; message?: string }> {
-  if (!hasDatabase()) return { ok: false, saved: 0, skipped: [], message: "Key storage isn't available yet." };
+): Promise<{ ok: boolean; saved: number; skipped: Array<{ line: number; reason: string }>; warnings: string[]; message?: string }> {
+  if (!hasDatabase()) return { ok: false, saved: 0, skipped: [], warnings: [], message: "Key storage isn't available yet." };
   const { entries, skipped } = parseBulkEnvContent(content);
   if (!entries.length) {
-    return { ok: false, saved: 0, skipped, message: "No usable keys found — expected KEY=VALUE lines or KEY,VALUE rows." };
+    return { ok: false, saved: 0, skipped, warnings: [], message: "No usable keys found — expected KEY=VALUE lines or KEY,VALUE rows." };
   }
   let saved = 0;
+  const warnings: string[] = [];
   for (const entry of entries) {
     const result = await setVaultVar(userEmail, entry.key, entry.value, entry.appScope);
     if (result.ok) saved += 1;
+    if (result.ok && result.warning) warnings.push(result.warning);
   }
-  return { ok: true, saved, skipped };
+  return { ok: true, saved, skipped, warnings };
 }
 
 // The deploy-time merge: shared values first, then this app's overrides on top.

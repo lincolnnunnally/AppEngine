@@ -4956,6 +4956,12 @@ label {
   font-size: 0.85rem;
 }
 
+/* Format-hint mismatch on a saved key value (looks like a placeholder). */
+.env-vault-warning,
+.env-vault-skips.env-vault-warning {
+  color: var(--gold);
+}
+
 /* Build-flow brand step: optional custom color + logo. */
 .brand-step {
   margin-top: 18px;
