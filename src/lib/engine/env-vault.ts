@@ -35,6 +35,7 @@ export const KNOWN_KEYS: readonly KnownKey[] = [
   { key: "RESEND_API_KEY", scope: "universal", usedFor: "Sending email from your apps", whereToFind: "resend.com → API Keys → Create API Key" },
   { key: "SENDER_EMAIL", scope: "universal", usedFor: "The address your apps' email comes from", whereToFind: "A sender you verified in Resend (Domains)" },
   { key: "RENDER_API_KEY", scope: "universal", usedFor: "Programmatic control of your Render services (ONE key per Render account covers every service in it)", whereToFind: "dashboard.render.com → Account Settings → API Keys → Create API Key" },
+  { key: "SUPABASE_DB_URL", scope: "universal", usedFor: "Direct database connection for app backends (EasyPeazy, snip.show) — full access, keep secret", whereToFind: "supabase.com → your project → Connect (top of page) → Connection String → URI (use the Session pooler one; includes your database password)" },
   { key: "NEXT_PUBLIC_SUPABASE_URL", scope: "universal", usedFor: "Your Supabase project's URL (safe in the browser)", whereToFind: "supabase.com → your project → Project Settings → API → Project URL" },
   { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", scope: "universal", usedFor: "Supabase public (anon) key for the browser", whereToFind: "Same page → Project API keys → anon public" },
   { key: "SUPABASE_SERVICE_ROLE_KEY", scope: "universal", usedFor: "Supabase server key — full access, keep secret", whereToFind: "Same page → Project API keys → service_role (secret)" },
