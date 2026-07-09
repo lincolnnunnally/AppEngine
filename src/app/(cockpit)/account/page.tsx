@@ -8,6 +8,7 @@ import { BuyCredits } from "@/components/billing/buy-credits";
 import { RequestChange } from "@/components/account/request-change";
 import { EnvVault } from "@/components/account/env-vault";
 import { ApproveApp } from "@/components/account/approve-app";
+import { KeyStatusChecklist } from "@/components/engine/key-status-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -148,9 +149,10 @@ export default async function AccountPage() {
             <h2>Keys live on Integrations &amp; secrets</h2>
             <p>
               Every key — for the engine, for your live apps, and for apps you build here — is entered in ONE place
-              so nothing gets scattered again.
+              so nothing gets scattered again. Here&apos;s where each one stands right now:
             </p>
-            <a className="soft-launch-action" href="/integrations">Open Integrations &amp; secrets</a>
+            <KeyStatusChecklist userKey={userKey || null} />
+            <a className="soft-launch-action" href="/integrations">Enter or update keys on Integrations &amp; secrets</a>
           </>
         ) : (
           <>

@@ -111,11 +111,23 @@ const KEY_FORMAT_HINTS: Record<string, { pattern: RegExp; minLength?: number; ex
   ANTHROPIC_API_KEY: { pattern: /^sk-ant-/, expected: "a key starting with sk-ant-" }
 };
 
+// SHA-256 digests of exact values that are famous documentation dummies — they
+// PASS the shape checks above (Stripe's docs example is a perfectly-shaped
+// sk_test_…) but are never real, so matching one always warns. Stored hashed so
+// the literal dummies never appear in source (they trip secret scanners).
+const KNOWN_PLACEHOLDER_SHA256 = new Set([
+  "2cafc0970149a84f3b9e62eaf169f36f59907a3b3e31f7b82e68c69cd27f7326", // Stripe's canonical docs example secret key
+  "7a200eb89adb0904fd5bc5ac4cac4f9528b0ac7bf03cbc2aa1508c26b055776f" // the literal whsec_test_secret
+]);
+
 export function checkValueFormat(key: string, value: string): string | null {
   const cleanKey = key.trim().toUpperCase();
   const hint = KEY_FORMAT_HINTS[cleanKey];
   if (!hint) return null;
   const clean = value.trim();
+  if (KNOWN_PLACEHOLDER_SHA256.has(crypto.createHash("sha256").update(clean).digest("hex"))) {
+    return `The value saved for ${cleanKey} is a well-known documentation example, not a real key. It was saved anyway, but anything that needs this key will fail — copy the real one from your own dashboard.`;
+  }
   if (hint.pattern.test(clean) && clean.length >= (hint.minLength ?? 0)) return null;
   return `The value saved for ${cleanKey} doesn't look like a real one — expected ${hint.expected}. It was saved anyway, but if it's a placeholder, anything that needs this key will fail. Double-check where you copied it from.`;
 }
@@ -136,6 +148,28 @@ async function ensureTable() {
     )
   `;
   ensured = true;
+}
+
+// Key/scope pairs whose STORED value fails its format hint (see checkValueFormat)
+// — powers the "provided, but looks like a placeholder" badge on the key
+// checklist, so a docs-dummy Stripe key reads as needing attention instead of
+// silently counting as provided. Decrypts server-side; returns names only.
+export async function listVaultFormatWarnings(userEmail: string): Promise<Array<{ key: string; appScope: string }>> {
+  if (!hasDatabase()) return [];
+  await ensureTable();
+  const sql = getDatabase();
+  const rows = await sql`
+    select key, app_scope, value_encrypted from app_user_env_vars
+    where user_email = ${userEmail}
+  `;
+  const flagged: Array<{ key: string; appScope: string }> = [];
+  for (const row of rows) {
+    const value = decrypt(String(row.value_encrypted));
+    if (value !== null && checkValueFormat(String(row.key), value)) {
+      flagged.push({ key: String(row.key), appScope: String(row.app_scope || "") });
+    }
+  }
+  return flagged;
 }
 
 // List a user's stored keys — names and scopes only, never values.

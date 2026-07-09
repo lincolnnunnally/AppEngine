@@ -23,6 +23,7 @@ import { auth } from "@/auth";
 import { RenderDeployPanel } from "@/components/engine/render-deploy-panel";
 import { CredentialPushAllButton } from "@/components/engine/credential-push-all-button";
 import { EnvVault } from "@/components/account/env-vault";
+import { KeyStatusChecklist } from "@/components/engine/key-status-checklist";
 
 // Owner-only, single home for every secret and variable. The key VAULT (universal
 // + per-app keys that feed builds, backend deploys, and env pushes) is entered
@@ -177,6 +178,7 @@ export default async function IntegrationsPage({
           and the per-app push buttons below copy it into an app&apos;s hosting. Keys the engine itself runs on are
           applied to We Succeed automatically. Values are stored encrypted and never shown again.
         </p>
+        <KeyStatusChecklist userKey={userKey || null} />
         <EnvVault home apps={scopeApps} />
       </section>
 

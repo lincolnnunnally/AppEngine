@@ -53,6 +53,17 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
   const universalCatalog = catalog.filter((item) => item.scope !== "per_app");
   const perAppCatalog = catalog.filter((item) => item.scope === "per_app");
 
+  // Needed-vs-provided at the point of choice: a universal key that already has a
+  // universal value reads "✓ set"; a per-app key shows how many apps have one.
+  function optionStatus(item: CatalogItem): string {
+    if (item.scope === "per_app") {
+      const count = entries.filter((entry) => entry.key === item.key && entry.appScope).length;
+      if (count > 0) return ` — ✓ set for ${count} app${count === 1 ? "" : "s"}`;
+      return entries.some((entry) => entry.key === item.key && !entry.appScope) ? " — ✓ set (universal)" : " — needed";
+    }
+    return entries.some((entry) => entry.key === item.key && !entry.appScope) ? " — ✓ set" : " — needed";
+  }
+
   // Picking a known key pre-sets where it applies: universal keys default to
   // "every app"; per-app keys clear the scope so the owner picks the one app.
   function onSelectKey(key: string) {
@@ -176,12 +187,12 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
             <option value="">Which key are you adding?</option>
             <optgroup label="Universal — set once, used by every app">
               {universalCatalog.map((item) => (
-                <option key={item.key} value={item.key}>{item.key} — {item.usedFor}</option>
+                <option key={item.key} value={item.key}>{item.key}{optionStatus(item)} — {item.usedFor}</option>
               ))}
             </optgroup>
             <optgroup label="Per-app — usually different for each app">
               {perAppCatalog.map((item) => (
-                <option key={item.key} value={item.key}>{item.key} — {item.usedFor}</option>
+                <option key={item.key} value={item.key}>{item.key}{optionStatus(item)} — {item.usedFor}</option>
               ))}
             </optgroup>
             <option value="custom">Something else — type any key name</option>
