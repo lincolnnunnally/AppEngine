@@ -7,46 +7,39 @@ import { useState, type ReactNode } from "react";
 type RailItem = { label: string; href: string };
 type RailGroup = { label: string; items: RailItem[] };
 
-// Operator rail — the full factory cockpit. Shown only to owner/admin.
+// Operator rail — owner-first (redesign 2026-07-09). The four things the owner
+// actually uses live at the top; every technical/factory surface is tucked into
+// the collapsed "Engine room" fold below. Nothing was removed — just demoted.
 const OPERATOR_GROUPS: RailGroup[] = [
-  { label: "Home", items: [{ label: "Dashboard", href: "/" }, { label: "Canonical status", href: "/canonical-status" }] },
   {
-    label: "Intake",
-    // One unified entrance (the conversation lives at "/"). The standalone form is
-    // the fallback; both intake routes still exist but are no longer two front doors.
-    items: [{ label: "Intake form", href: "/problem-intake-lite" }]
-  },
-  {
-    label: "Build",
+    label: "Command",
     items: [
-      { label: "Orchestrator", href: "/orchestrator" },
-      { label: "Builder", href: "/builder" },
-      { label: "Owner control", href: "/owner-control-center" }
+      { label: "Dashboard", href: "/" },
+      { label: "Reports", href: "/reports" },
+      { label: "Domains", href: "/domains" },
+      { label: "Keys & integrations", href: "/integrations" }
     ]
   },
   {
-    label: "Ecosystem",
-    items: [
-      { label: "Module catalog", href: "/module-catalog" },
-      { label: "Life Core", href: "/life-core" }
-    ]
-  },
-  {
-    // The customer-facing side, reachable from the cockpit: build an app the way
-    // a customer does and watch your own apps' progress.
-    label: "Customer view",
-    items: [
-      { label: "Build an app", href: "/build" },
-      { label: "Your apps", href: "/account" }
-    ]
+    label: "Create",
+    items: [{ label: "Start something new", href: "/start" }]
   }
 ];
 
-// Settings sits in the rail footer, rendered smaller. Operator-only.
-const SETTINGS_GROUP: RailGroup = {
-  label: "Settings",
+// The machinery — everything Claude uses to build, which the owner rarely
+// opens. Rendered inside a collapsed fold so it stays reachable, not visible.
+const ENGINE_ROOM_GROUP: RailGroup = {
+  label: "Engine room",
   items: [
-    { label: "Integrations & secrets", href: "/integrations" },
+    { label: "Owner control", href: "/owner-control-center" },
+    { label: "Builder", href: "/builder" },
+    { label: "Orchestrator", href: "/orchestrator" },
+    { label: "Module catalog", href: "/module-catalog" },
+    { label: "Life Core", href: "/life-core" },
+    { label: "Canonical status", href: "/canonical-status" },
+    { label: "Intake form", href: "/problem-intake-lite" },
+    { label: "Build an app (customer view)", href: "/build" },
+    { label: "Your apps (customer view)", href: "/account" },
     { label: "Admin", href: "/admin" }
   ]
 };
@@ -91,9 +84,11 @@ export default function AppShell({ children, isOperator = true }: { children: Re
   const [open, setOpen] = useState(false);
 
   const navGroups = isOperator ? OPERATOR_GROUPS : CONSUMER_GROUPS;
-  const settingsGroup = isOperator ? SETTINGS_GROUP : null;
+  const engineRoom = isOperator ? ENGINE_ROOM_GROUP : null;
   const brand = isOperator ? OPERATOR_BRAND : CONSUMER_BRAND;
-  const labelGroups = settingsGroup ? [...navGroups, settingsGroup] : navGroups;
+  const labelGroups = engineRoom ? [...navGroups, engineRoom] : navGroups;
+  // Keep the fold open while the owner is ON an engine-room page.
+  const engineRoomActive = Boolean(engineRoom?.items.some((item) => isActive(pathname, item.href)));
 
   const renderItem = (item: RailItem, extraClass = "") => {
     const active = isActive(pathname, item.href);
@@ -136,27 +131,20 @@ export default function AppShell({ children, isOperator = true }: { children: Re
                 {group.items.map((item) => renderItem(item))}
               </div>
             ))}
+            {engineRoom ? (
+              <details className="rail-group rail-fold" open={engineRoomActive}>
+                <summary>{engineRoom.label}</summary>
+                {engineRoom.items.map((item) => renderItem(item, "rail-item-sm"))}
+              </details>
+            ) : null}
           </nav>
 
-          {settingsGroup ? (
-            <div className="rail-foot">
-              <div className="rail-group">
-                <p className="rail-group-label">{settingsGroup.label}</p>
-                {settingsGroup.items.map((item) => renderItem(item, "rail-item-sm"))}
-              </div>
-              <div className="rail-identity-row">
-                <p className="rail-identity">Owner view</p>
-                <a className="rail-signout" href="/api/auth/signout">Sign out</a>
-              </div>
+          <div className="rail-foot">
+            <div className="rail-identity-row">
+              <p className="rail-identity">{isOperator ? "Owner view" : "Signed in"}</p>
+              <a className="rail-signout" href="/api/auth/signout">Sign out</a>
             </div>
-          ) : (
-            <div className="rail-foot">
-              <div className="rail-identity-row">
-                <p className="rail-identity">Signed in</p>
-                <a className="rail-signout" href="/api/auth/signout">Sign out</a>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </aside>
 

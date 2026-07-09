@@ -1,11 +1,21 @@
+import { auth } from "@/auth";
+import { canAccessEngineOwner } from "@/lib/auth/access";
+import { normalizeUserKey } from "@/lib/engine/billing";
 import { ConversationalIntake } from "@/components/intake/conversational-intake";
+import { OwnerCommandDeck } from "@/components/engine/owner-command-deck";
 
-// Entry point. One conversational discovery replaces the old two-door form wall:
-// the agent asks a few questions one at a time (problem OR build — the same
-// question set, just framed differently) and maps the answers onto the existing
-// intake APIs behind the scenes. A "use the form" fallback keeps the original
-// forms for anyone who prefers them. Routing/auth unchanged.
-export default function HomePage() {
+// The front door depends on who walks in. The OWNER lands on the command deck —
+// every app, one attention list, doors into each app and its admin (redesign
+// 2026-07-09: this app's real user is the owner; the machinery serves him, not
+// the other way around). Customers still get the conversational intake; their
+// experience is unchanged. The intake stays reachable for the owner at /start.
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  if (await canAccessEngineOwner()) {
+    const session = await auth();
+    return <OwnerCommandDeck userKey={normalizeUserKey(session?.user?.email) || null} />;
+  }
   return (
     <main className="entry">
       <ConversationalIntake />

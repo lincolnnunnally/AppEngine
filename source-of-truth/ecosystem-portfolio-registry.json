@@ -609,10 +609,11 @@
       "nextSafeAction": "create_planning_issue",
       "domain": {
         "intendedDomain": "toner.management",
-        "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Canonicalize the toner source and merge the dashboard/admin variants; the domain is owned and ready to attach once one platform deploys.",
-        "note": "Domain owned; nothing serving (owner, 2026-07-03).",
-        "factsFrom": "owner-2026-07-03"
+        "urlStatus": "live",
+        "servingUrl": "https://toner.management",
+        "nextStep": "None \u2014 live and public on our Vercel (Neon-backed). Later: fold admin hub into the universal dashboard.",
+        "note": "Went live 2026-07-04; registry fact refreshed 2026-07-09 after it was found stale.",
+        "factsFrom": "verified-2026-07-09"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",

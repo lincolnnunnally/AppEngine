@@ -36,7 +36,13 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "Choose a valid credit pack." }, 400);
   }
 
-  const origin = process.env.AUTH_URL?.replace(/\/$/, "") || "https://www.we-succeed.org";
+  // Return the buyer to the host they started on (the app now serves on more
+  // than one domain); AUTH_URL stays the fallback when headers are absent.
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+  const origin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : process.env.AUTH_URL?.replace(/\/$/, "") || "https://www.we-succeed.org";
 
   try {
     const checkout = await stripeRequest<{ url?: string }>("/v1/checkout/sessions", {
