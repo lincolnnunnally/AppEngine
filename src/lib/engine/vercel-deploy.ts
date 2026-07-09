@@ -9,6 +9,7 @@
 // KICKS OFF the deploy and returns the URL + id; the build finishes async and state
 // is polled via getDeploymentState. SERVER ONLY (uses VERCEL_TOKEN).
 import crypto from "node:crypto";
+import { cloudflareDnsConfigured, publishEcosystemSubdomain } from "./cloudflare-dns.ts";
 
 const VERCEL_API = "https://api.vercel.com";
 
@@ -151,7 +152,7 @@ export async function deployGeneratedAppToVercel(
 export async function promoteDeploymentToProduction(
   projectName: string,
   deploymentId: string
-): Promise<{ ok: boolean; message: string; productionUrl?: string }> {
+): Promise<{ ok: boolean; message: string; productionUrl?: string; subdomainUrl?: string }> {
   if (!vercelDeployConfigured()) {
     return { ok: false, message: "Hosting isn't configured (VERCEL_TOKEN)." };
   }
@@ -164,7 +165,23 @@ export async function promoteDeploymentToProduction(
       const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
       return { ok: false, message: data.error?.message || `Couldn't make it official (${response.status}).` };
     }
-    return { ok: true, message: "This version is now official.", productionUrl: `https://${projectName}.vercel.app` };
+
+    // Ecosystem subdomain (the DNS-hub runbook's promise): every app that goes
+    // official also gets <slug>.unitedundergod.org. Strictly best-effort — the
+    // promote already succeeded, so a DNS hiccup only means "no subdomain yet".
+    // The adapter is add-only: it will never touch an existing DNS record.
+    let subdomainUrl: string | undefined;
+    if (cloudflareDnsConfigured()) {
+      const subdomain = await publishEcosystemSubdomain(projectName).catch(() => null);
+      if (subdomain?.ok && subdomain.url) subdomainUrl = subdomain.url;
+    }
+
+    return {
+      ok: true,
+      message: subdomainUrl ? `This version is now official — also live at ${subdomainUrl}.` : "This version is now official.",
+      productionUrl: `https://${projectName}.vercel.app`,
+      subdomainUrl
+    };
   } catch {
     return { ok: false, message: "Couldn't reach the hosting API." };
   }
