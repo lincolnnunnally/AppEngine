@@ -59,11 +59,13 @@ export async function POST(request: Request) {
 
   const skippedNote = result.skipped.length ? ` ${result.skipped.length} line${result.skipped.length === 1 ? "" : "s"} skipped.` : "";
   const mirrorNote = mirrored ? ` ${mirrored} engine key${mirrored === 1 ? "" : "s"} also applied to the engine (live after its next redeploy).` : "";
+  const warnNote = result.warnings.length ? ` ${result.warnings.length} value${result.warnings.length === 1 ? " looks" : "s look"} like a placeholder — see the warnings below.` : "";
   return json({
     ok: true,
     saved: result.saved,
     skipped: result.skipped,
-    message: `Imported ${result.saved} key${result.saved === 1 ? "" : "s"}.${skippedNote}${mirrorNote}`
+    warnings: result.warnings,
+    message: `Imported ${result.saved} key${result.saved === 1 ? "" : "s"}.${skippedNote}${warnNote}${mirrorNote}`
   });
 }
 

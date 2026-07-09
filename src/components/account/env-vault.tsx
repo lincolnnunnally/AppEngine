@@ -22,6 +22,7 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
   const [appScope, setAppScope] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -64,14 +65,16 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
   async function save() {
     setBusy(true);
     setNotice(null);
+    setWarning(null);
     try {
       const response = await fetch("/api/account/env", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ key: activeKey, value, appScope })
       });
-      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string; warning?: string };
       setNotice(data.message || (data.ok ? "Saved." : "Couldn't save that key."));
+      setWarning(data.warning || null);
       if (data.ok) {
         setValue("");
         setCustomKey("");
@@ -89,12 +92,14 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
   const [bulkText, setBulkText] = useState("");
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [bulkSkipped, setBulkSkipped] = useState<Array<{ line: number; reason: string }>>([]);
+  const [bulkWarnings, setBulkWarnings] = useState<string[]>([]);
 
   async function importBulk(content: string) {
     if (!content.trim()) return;
     setBusy(true);
     setBulkNotice(null);
     setBulkSkipped([]);
+    setBulkWarnings([]);
     try {
       const response = await fetch("/api/account/env/bulk", {
         method: "POST",
@@ -105,9 +110,11 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
         ok?: boolean;
         message?: string;
         skipped?: Array<{ line: number; reason: string }>;
+        warnings?: string[];
       };
       setBulkNotice(data.message || (data.ok ? "Imported." : "Couldn't import that."));
       setBulkSkipped(data.skipped || []);
+      setBulkWarnings(data.warnings || []);
       if (data.ok) {
         setBulkText("");
         await refresh();
@@ -237,6 +244,7 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
           {busy ? "Saving…" : "Save key"}
         </button>
         {notice ? <p className="note">{notice}</p> : null}
+        {warning ? <p className="note env-vault-warning">⚠️ {warning}</p> : null}
         {home ? (
           <p className="env-vault-help">
             Not sure which key an app needs? The app sections further down this page list every key each app needs
@@ -281,6 +289,14 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
           {busy ? "Importing…" : "Import pasted keys"}
         </button>
         {bulkNotice ? <p className="note">{bulkNotice}</p> : null}
+        {bulkWarnings.length > 0 ? (
+          <ul className="env-vault-skips env-vault-warning">
+            {bulkWarnings.slice(0, 8).map((item) => (
+              <li key={item}>⚠️ {item}</li>
+            ))}
+            {bulkWarnings.length > 8 ? <li>…and {bulkWarnings.length - 8} more.</li> : null}
+          </ul>
+        ) : null}
         {bulkSkipped.length > 0 ? (
           <ul className="env-vault-skips">
             {bulkSkipped.slice(0, 8).map((skip) => (
