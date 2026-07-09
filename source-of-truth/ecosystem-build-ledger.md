@@ -193,10 +193,10 @@ These are the first safe tasks. They are intentionally documentation/audit tasks
 | ECO-001 | AVAILABLE | Create canonical portfolio registry from this ledger | AppEngine | Lets owner see every app and next safe action |
 | ECO-002 | AVAILABLE | Run AIPOS restart audit for ChurchConnect | ChurchConnect | Active app, currently closest to real shared-Supabase proof |
 | ECO-003 | COMPLETED | Run AIPOS restart audit for Kindred-Connection | Kindred | Highest-leverage shared module source; mining audit and template catalog now exist in source-of-truth |
-| ECO-004 | AVAILABLE | Decide Snip.Show canonical repo and merge direction | Snip.Show / emergent | Prevents two clip tools from drifting |
-| ECO-005 | AVAILABLE | Decide Toner canonical repo and module split | Toner repos | Prevents eight toner repos from becoming eight builds |
+| ECO-004 | DECIDED (2026-07-05) | Decide Snip.Show canonical repo and merge direction — resolved: the `emergent` repo is the richer canonical FEATURE SOURCE to mine, not a server to deploy; owner locked a mobile-first NATIVE local-snipping rebuild (2026-07-05 plan); completed cloud-transfer work parked unmerged on Snip.Show branch `claude/wire-to-lpl-resources`. See BUILD-LEDGER.md TRANSFER item T8 (2026-07-09) | Snip.Show / emergent | Prevents two clip tools from drifting |
+| ECO-005 | DECIDED (2026-07-04) | Decide Toner canonical repo and module split — resolved by owner ruling: Toner is a product FAMILY sharing one core (our-suppliers vs their-suppliers; individual vs enterprise front-ends), not one canonical repo; the admin-hub repo folds into the universal ops dashboard. See `source-of-truth/ecosystem-owner-rulings.md` (PR #294) | Toner repos | Prevents eight toner repos from becoming eight builds |
 | ECO-006 | AVAILABLE | Create Spark Launch Pack from `life-produces-life/apps/spark-of-hope` | Spark | First missing core journey app with existing package |
-| ECO-007 | AVAILABLE | Create Opportunity app boundary decision | Opportunity/AppEngine/ideas | Prevents intake/front-door confusion |
+| ECO-007 | DECIDED (2026-07-04) | Create Opportunity app boundary decision — resolved by owner ruling: Opportunity is its OWN standalone app leveraging AppEngine (connects people around an opportunity to solve a problem together); Path B extraction + own domain; a DIFFERENT app from Ideas. See `source-of-truth/ecosystem-owner-rulings.md` (PR #298) | Opportunity/AppEngine/ideas | Prevents intake/front-door confusion |
 | ECO-008 | AVAILABLE | Create shared Connection module extraction packet | Kindred + configs | Stops rebuilding the same matching engine |
 | ECO-009 | COMPLETED | Create rebrandable template catalog from existing app patterns | AppEngine + Kindred | Lets new apps start by rebranding and plugging credentials instead of starting blank |
 | ECO-010 | COMPLETED | Build shared Location & Proximity module (PostGIS geo_places + RPCs + clients; owner directive 2026-07-03) | All apps (ChurchConnect finder, Kindred discover, Laser makers, Live On Mission, Milstead.us, dating) | Only fully-missing catalog block; every location feature currently reinvents geo. Schema staged in db/location-proximity-schema.sql; applied to shared LPL Supabase as migration eco010_location_proximity_module (owner-approved 2026-07-04) |
@@ -206,9 +206,9 @@ These are the first safe tasks. They are intentionally documentation/audit tasks
 These need owner decisions before code work:
 
 1. Does `life-produces-life` become the monorepo home for core journey apps and shared packages, or remain a reference/source package?
-2. Should `Opportunity` live as its own app, or remain the public intake/front door inside AppEngine/We Succeed?
-3. For `Snip.Show`, should the canonical repo be `Snip.Show` with `emergent` merged into it?
-4. For Toner, should `TotalTonerManagement` be canonical, or is the local `toner-management-app` ahead of GitHub and should be published first?
+2. ~~Should `Opportunity` live as its own app, or remain the public intake/front door inside AppEngine/We Succeed?~~ **DECIDED 2026-07-04 (ECO-007): its own app** — see `ecosystem-owner-rulings.md` (PR #298).
+3. ~~For `Snip.Show`, should the canonical repo be `Snip.Show` with `emergent` merged into it?~~ **DECIDED 2026-07-05 (ECO-004): `emergent` is the feature source to mine; owner pivoted to a mobile-first native local-snipping rebuild** — see BUILD-LEDGER.md T8.
+4. ~~For Toner, should `TotalTonerManagement` be canonical, or is the local `toner-management-app` ahead of GitHub and should be published first?~~ **DECIDED 2026-07-04 (ECO-005): Toner is a product family sharing one core; admin hub folds into the ops dashboard** — see `ecosystem-owner-rulings.md` (PR #294).
 5. Should `Kids Need Dads` get a clean canonical repo, or should `RebuildingDads` be renamed/adapted?
 6. Should commercial apps use the shared Supabase ecosystem tree by default, or only shared identity with app-scoped schemas?
 
