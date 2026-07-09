@@ -15,8 +15,11 @@ const BADGE_FOR_STATUS: Record<PortfolioUrlStatus, string> = {
 };
 
 function AppCard({ app }: { app: DeckApp }) {
-  return (
-    <article className="dx-app">
+  // The whole card is a door when the app has one (owner: "if it says
+  // something, clicking it should go there"). Buttons stay OUTSIDE the link
+  // (nested anchors are invalid HTML — same pattern as the account app cards).
+  const body = (
+    <>
       <div>
         <span className={`dx-badge ${BADGE_FOR_STATUS[app.status]}`}>{app.statusLabel}</span>
         {app.attentionCount > 0 ? (
@@ -35,6 +38,17 @@ function AppCard({ app }: { app: DeckApp }) {
         <p className="dx-note">Not reporting usage yet</p>
       ) : (
         <p className="dx-note">{app.nextStep}</p>
+      )}
+    </>
+  );
+  return (
+    <article className="dx-app">
+      {app.url ? (
+        <a className="dx-app-link" href={app.url} target="_blank" rel="noreferrer">
+          {body}
+        </a>
+      ) : (
+        body
       )}
       <div className="dx-app-actions">
         {app.url ? (
@@ -73,33 +87,31 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
           the engine reviews what already exists, then builds it to completion — nothing technical lands on your desk.
         </p>
         <div className="dx-stat-grid">
-          <div className="dx-stat dx-stat--lime">
+          <a className="dx-stat dx-stat--lime" href="#portfolio">
             <strong>{deck.liveCount}</strong>
             <span>apps live</span>
-            <p>of {deck.totalApps} in the portfolio</p>
-          </div>
-          <div className={`dx-stat ${actItems.length ? "dx-stat--pink" : "dx-stat--purple"}`}>
+            <p>of {deck.totalApps} in the portfolio ↓</p>
+          </a>
+          <a className={`dx-stat ${actItems.length ? "dx-stat--pink" : "dx-stat--purple"}`} href="#attention">
             <strong>{actItems.length}</strong>
             <span>need your attention</span>
-            <p>{actItems.length ? "listed below — each with the exact next step" : "nothing is waiting on you"}</p>
-          </div>
-          <div className="dx-stat dx-stat--cyan">
+            <p>{actItems.length ? "listed below — each with the exact next step ↓" : "nothing is waiting on you"}</p>
+          </a>
+          <a className="dx-stat dx-stat--cyan" href="/reports">
             <strong>{deck.usersAcrossApps ?? "—"}</strong>
             <span>users (reporting apps)</span>
-            <p>{deck.reportingApps} app{deck.reportingApps === 1 ? "" : "s"} reporting usage</p>
-          </div>
-          <div className={`dx-stat ${keysNeeded ? "dx-stat--purple" : "dx-stat--lime"}`}>
+            <p>{deck.reportingApps} app{deck.reportingApps === 1 ? "" : "s"} reporting usage → reports</p>
+          </a>
+          <a className={`dx-stat ${keysNeeded ? "dx-stat--purple" : "dx-stat--lime"}`} href="/integrations">
             <strong>{keys ? `${keysProvided}/${keysProvided + keysNeeded}` : "—"}</strong>
             <span>keys in place</span>
-            <p>
-              <a className="account-link" href="/integrations">enter or check keys →</a>
-            </p>
-          </div>
+            <p>enter or check keys →</p>
+          </a>
         </div>
       </section>
 
       {actItems.length > 0 ? (
-        <section className="panel">
+        <section className="panel" id="attention">
           <p className="dx-label">Needs your attention</p>
           <div className="dx-callout dx-callout--alert">
             {actItems.slice(0, 8).map((item, index) => (
@@ -108,6 +120,9 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
                 <span className="dx-tag dx-tag--alert">{item.appName}</span>
                 <b>{item.finding}</b>
                 <span className="dx-note">{item.action}</span>
+                {item.link ? (
+                  <a className="account-link" href={item.link}>Fix it →</a>
+                ) : null}
               </p>
             ))}
             {actItems.length > 8 ? <p className="dx-note">…and {actItems.length - 8} more.</p> : null}
@@ -119,7 +134,7 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
           ) : null}
         </section>
       ) : (
-        <section className="panel">
+        <section className="panel" id="attention">
           <p className="dx-label">Needs your attention</p>
           <div className="dx-callout">
             <b>Nothing is waiting on you.</b>{" "}
@@ -132,7 +147,7 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
         </section>
       )}
 
-      <section className="panel">
+      <section className="panel" id="portfolio">
         <p className="dx-label">The portfolio — facts as of {new Date(deck.factsAsOf).toLocaleDateString("en-US")}</p>
         <div className="dx-app-grid">
           {deck.apps.map((app) => (

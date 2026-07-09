@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // "Your keys" — the user's environment vault. Add a key once and every app they
 // build gets it automatically; scope a key to one app to override just that app.
@@ -12,6 +13,7 @@ type CatalogItem = { key: string; usedFor: string; whereToFind: string; scope?: 
 type AppOption = { label: string; slug: string };
 
 export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boolean }) {
+  const router = useRouter();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [available, setAvailable] = useState(true);
@@ -92,6 +94,7 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
         setSelectedKey("");
         setAppScope("");
         await refresh();
+        router.refresh(); // the server-rendered checklist updates without a manual reload
       }
     } catch {
       setNotice("Network error. Try again.");
@@ -129,6 +132,7 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
       if (data.ok) {
         setBulkText("");
         await refresh();
+        router.refresh(); // the server-rendered checklist updates without a manual reload
       }
     } catch {
       setBulkNotice("Network error. Try again.");
@@ -156,6 +160,7 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
         body: JSON.stringify({ key: entry.key, appScope: entry.appScope })
       });
       await refresh();
+      router.refresh();
     } finally {
       setBusy(false);
     }
@@ -228,9 +233,21 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
           />
         </div>
 
-        {apps.length > 0 ? (
+        {/* No guessing about scope: known keys already know where they apply.
+            Universal keys skip the question entirely; per-app keys just ask
+            WHICH app; only custom keys offer the full choice. And a "wrong"
+            choice is never fatal — a universal value acts as the fallback, a
+            per-app value overrides it for that one app, and either can be
+            removed and re-saved any time. */}
+        {help?.scope === "universal" ? (
+          <p className="env-vault-help">
+            <strong>Universal key</strong> — applies to every app automatically. Nothing to choose.
+          </p>
+        ) : apps.length > 0 && (help?.scope === "per_app" || selectedKey === "custom" || !help) ? (
           <div className="env-vault-scope-choose">
-            <span className="env-vault-scope-label">Where this key applies:</span>
+            <span className="env-vault-scope-label">
+              {help?.scope === "per_app" ? "Which app is this for?" : "Where this key applies:"}
+            </span>
             <select
               className="convo-input env-vault-select"
               value={appScope}
@@ -238,11 +255,14 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
               disabled={busy}
               aria-label="Where this key applies"
             >
-              <option value="">Every app (universal — set once)</option>
+              <option value="">
+                {help?.scope === "per_app" ? "All apps (fallback — a scoped one overrides it)" : "Every app (universal — set once)"}
+              </option>
               {apps.map((app) => (
                 <option key={app.slug} value={app.slug}>Just this app: {app.label}</option>
               ))}
             </select>
+            <span className="key-checklist-note">A wrong choice never breaks anything — it can be re-scoped any time.</span>
           </div>
         ) : null}
 

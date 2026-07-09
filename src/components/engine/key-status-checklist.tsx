@@ -73,13 +73,15 @@ export async function buildKeyStatus(userKey: string | null): Promise<KeyStatusD
   // variable name. We Succeed's own Stripe pair lives in its Vercel env
   // (INTEGRATION_FIELDS), so its rows read from the engine statuses.
   const payments: PaymentRow[] = [];
+  // Selling app builds for credits is PAUSED (owner, 2026-07-09) — these keys
+  // only matter if that returns, so an empty slot is informational, never red.
   for (const envVar of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
     payments.push({
-      appName: "We Succeed (builds billing)",
+      appName: "We Succeed (builds billing — paused)",
       slug: null,
       envVar,
-      state: engineStatuses[envVar] ? "hosting" : "needed",
-      note: engineStatuses[envVar] ? "set on its hosting" : "enter in the We Succeed · Payments section"
+      state: engineStatuses[envVar] ? "hosting" : "manual",
+      note: engineStatuses[envVar] ? "set on its hosting" : "not needed unless selling app builds for credits resumes"
     });
   }
   // A universal Stripe entry (not scoped to any app) feeds every GENERATED
@@ -117,7 +119,10 @@ export async function buildKeyStatus(userKey: string | null): Promise<KeyStatusD
       const hosting = credStatuses[`${group.slug}:${key.envVar}`];
       let state: PaymentRow["state"];
       let note: string;
-      if (inVault && warned(key.envVar, group.slug)) {
+      if (key.whoProvides === "already-set") {
+        state = "hosting";
+        note = "already live on the app's hosting — nothing to enter";
+      } else if (inVault && warned(key.envVar, group.slug)) {
         state = "placeholder";
         note = "in your vault but the value doesn't look real — re-save it";
       } else if (inVault) {

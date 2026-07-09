@@ -5859,6 +5859,29 @@ a:focus-visible {
 .dx-stat--pink strong { color: var(--pink); }
 .dx-stat--cyan strong { color: var(--cyan); }
 
+/* Clickable variants — cards and stats that "say something" ARE the door. */
+a.dx-stat {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+
+a.dx-stat:hover {
+  border-color: var(--teal);
+}
+
+.dx-app-link {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dx-app-link:hover h3 {
+  color: var(--lime);
+}
+
 .dx-stat span {
   display: block;
   font-family: var(--mono);

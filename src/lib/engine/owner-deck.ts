@@ -43,6 +43,7 @@ export type DeckAttention = {
   severity: "act" | "watch";
   finding: string;
   action: string;
+  link: string | null; // where clicking the row takes the owner to actually fix it
 };
 
 export type OwnerDeck = {
@@ -138,13 +139,16 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
       appName: item.appName,
       severity: item.severity === "action_needed" ? ("act" as const) : ("watch" as const),
       finding: item.finding,
-      action: item.action
+      action: item.action,
+      link: item.link ?? null
     })),
     ...credentialItems.map((item) => ({
       appName: item.appName,
       severity: item.priority === "blocker" ? ("act" as const) : ("watch" as const),
       finding: item.displayName,
-      action: item.action
+      action: item.action,
+      // Credential items are entered/checked on the keys page.
+      link: "/integrations"
     }))
   ].sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "act" ? -1 : 1));
 
