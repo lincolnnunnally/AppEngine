@@ -122,7 +122,8 @@ const DISPLAY: Record<string, DisplayMeta> = {
   },
   "kindred-connections": {
     tagline: "Genuine friendships and encouraging groups for people who feel alone — connection that builds you up.",
-    group: "Hope & transformation"
+    group: "Hope & transformation",
+    liveUrl: "https://kindred.unitedundergod.org"
   },
   opportunity: {
     tagline: "Name the problem, find the opportunity hidden inside it, and take a practical next step.",
@@ -134,7 +135,8 @@ const DISPLAY: Record<string, DisplayMeta> = {
   },
   "childfirst-solutions": {
     tagline: "Co-parenting support, mediation, and child-focused decision tools for families in conflict or transition.",
-    group: "Hope & transformation"
+    group: "Hope & transformation",
+    liveUrl: "https://childfirst.unitedundergod.org"
   },
   "community-connections": {
     tagline: "A platform for communities to get involved in their own renewal — local tools, events, service, and belonging.",
