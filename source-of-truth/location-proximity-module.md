@@ -72,13 +72,14 @@ that. Also: the module cannot know which `subject_type`s are people, so the
 "person rows are never `exact`" rule is enforced by the consuming app and by
 migration review — not by the schema.
 
-## Activation checklist (owner-gated)
+## Activation checklist
 
-1. 🔒 Lincoln approves: `CREATE EXTENSION postgis` + this schema applied to the
-   shared LPL Supabase as a **timestamped migration in the live
-   supabase_migrations chain** (repo `db/` drafts are never applied directly —
-   DB_REALITY_RECONCILIATION.md). Collision audit: `geo_*` prefix vs existing
-   shared tables.
+1. Apply `CREATE EXTENSION postgis` + this schema to the shared LPL Supabase as
+   a **timestamped migration in the live supabase_migrations chain** (repo
+   `db/` drafts are never applied directly — DB_REALITY_RECONCILIATION.md).
+   Autonomous under the authority model (owner directive 2026-07-09): back up
+   first, verify after; no owner approval step. Collision audit: `geo_*`
+   prefix vs existing shared tables.
 2. Optional: seed `geo_zip_centroids` from the Census gazetteer (free data).
 3. First consumer wiring, in order: ChurchConnect church finder (replaces
    zip-exact match), Kindred `/discover` (replaces the 500-doc Python scan),

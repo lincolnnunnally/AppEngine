@@ -28,10 +28,11 @@ Closes #<!-- issue number -->
 - [ ] Migrations repeatable; required env vars listed (if applicable)
 - [ ] Auth / role / protected-route rules specified where relevant
 
-## Lincoln approval needed before merge?
-<!-- Lincoln approves merges to `main`, deployments, database changes, and any paid/external resources. -->
-- [ ] Merge to `main`
-- [ ] Deployment (`deploy`)
-- [ ] Database change (`db-change`)
-- [ ] Paid / external resource (`paid-resource`)
-- [ ] None of the above — safe to merge once QA passes
+## Owner surface needed? (authority model, 2026-07-09)
+<!-- Merges to `main`, deployments (incl. production), and database changes are AUTONOMOUS —
+     engineering replaces approval: backup before destructive DB ops, reversible deploys,
+     end-to-end verification, then report. Surface to Lincoln ONLY the three items below. -->
+- [ ] Money — new paid service, plan upgrade, or purchase (`paid-resource`)
+- [ ] Credential only Lincoln can create (account API key, OAuth app, registrar/DNS login, Stripe/email account)
+- [ ] Mission / philosophy / doctrine / product-direction change (ask Lincoln — never invent it)
+- [ ] None of the above — merge, deploy, and verify autonomously once QA passes

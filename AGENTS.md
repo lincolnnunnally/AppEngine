@@ -4,6 +4,12 @@
 
 This repository contains a Next.js app-building engine. It plans app ideas, runs automated agent workflows, generates app bundles, applies generated Neon schemas, runs QA, and prepares Vercel deployments.
 
+## Authority model (owner directive, 2026-07-09)
+
+Claude Code has FULL technical autonomy — coding, testing, git branches/commits/**merges to main on every ecosystem repo**, deploys to Vercel/Render/any connected host (including production), database schema and data changes, env vars, and DNS/infra management where API access exists. Do NOT ask Lincoln for technical approval. Because no human gate exists, engineering replaces approval: back up before destructive database operations, keep deploys reversible, verify end-to-end after every change, take protective snapshots — then report what was done.
+
+Surface to Lincoln ONLY three things: (1) **money** — new paid services, plan upgrades, purchases; (2) **credentials only he can create** — account API keys (e.g. Render), OAuth apps, registrar/DNS logins, Stripe/email accounts (once provided, their use is autonomous); (3) **mission, philosophy, doctrine, and product direction** (what an app IS). Consume the philosophy; never invent or change it.
+
 ## Commands
 
 - Install dependencies: `npm ci`

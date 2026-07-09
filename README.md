@@ -218,7 +218,7 @@ Lincoln conversation -> ChatGPT handoff packet -> GitHub issue -> intake packet 
 
 The first useful public launch is `v1`. Later improvements become `vNext`, `v2`, or focused follow-up issues instead of endlessly expanding the MVP.
 
-Preview deployments are public by default for fast review and route-specific verification. Production stays approval-gated. Public previews must not expose secrets, real private user data, production writes, paid provider actions, admin-only data, or real migrations.
+Preview deployments are public by default for fast review and route-specific verification. Production deploys are autonomous under the authority model (owner directive 2026-07-09, see `AGENTS.md`): Claude Code deploys production itself, keeping deploys reversible and verifying end-to-end — new paid resources still go to Lincoln. Public previews must not expose secrets, real private user data, production writes, paid provider actions, admin-only data, or real migrations.
 
 Before provisioning provider resources or approving release, agents must produce or approve a `provider_cost_review` artifact. That review checks provider reuse, preview cost posture, production approval, monthly ceiling or owner-defined cap, upgrade trigger, and whether new paid Vercel, Render, database, storage, email, payment, AI, analytics, or monitoring resources are allowed.
 
@@ -509,8 +509,10 @@ manual phase-to-phase pipeline autonomous while keeping every gate:
    auto-deploys.
 
 Safety preserved: cost governance can pause the chain, the release gate blocks
-production, QA readiness must stay >= 90%, and production always requires owner
-approval. Smoke: `npm run smoke:autonomous-loop`.
+production, and QA readiness must stay >= 90%. (The in-app engine loop never
+auto-deploys production; production promotion is performed by Claude Code under
+the 2026-07-09 authority model — reversible, verified end-to-end — not by an
+owner-approval step.) Smoke: `npm run smoke:autonomous-loop`.
 
 ## Deployment Workflow
 
