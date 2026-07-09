@@ -20,15 +20,14 @@ import { NextResponse, type NextRequest } from "next/server";
 const SHOWCASE_HOST = "apps.unitedundergod.org";
 const SHOWCASE_PATH = "/apps-showcase";
 
-// TEMPORARY: the cockpit's future home. GitHub OAuth allows exactly ONE
-// callback URL and it is registered to www.we-succeed.org, so sign-in cannot
-// work on this host yet (host-only cookies; a proxy attempt broke sign-in and
-// was rolled back 2026-07-09). Until the owner moves the GitHub OAuth app's
-// callback to https://appengine.unitedundergod.org/api/auth/callback/github
-// (then: set AUTH_URL to this host and DELETE this block), send everything to
-// the host where sign-in works — nothing dead-ends.
-const COCKPIT_HOST = "appengine.unitedundergod.org";
-const CANONICAL_FACTORY_ORIGIN = "https://www.we-succeed.org";
+// The cockpit's canonical home (owner directive 2026-07-09; the GitHub OAuth
+// app's callback URL moved here on 2026-07-09, and AUTH_URL points here). The
+// old we-succeed.org addresses forward PAGE traffic to the new home so no
+// bookmark dead-ends — but /api/* keeps answering on the old host too (Stripe
+// webhooks and stats pollers don't follow redirects). When we-succeed.org is
+// repurposed, detach those domains from this project and drop this block.
+const COCKPIT_ORIGIN = "https://appengine.unitedundergod.org";
+const LEGACY_FACTORY_HOSTS = new Set(["we-succeed.org", "www.we-succeed.org"]);
 
 function isLocalHost(host: string) {
   return host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
@@ -38,9 +37,9 @@ export default function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").toLowerCase().split(":")[0];
   const { pathname } = request.nextUrl;
 
-  if (host === COCKPIT_HOST) {
+  if (LEGACY_FACTORY_HOSTS.has(host) && !pathname.startsWith("/api/")) {
     return NextResponse.redirect(
-      `${CANONICAL_FACTORY_ORIGIN}${pathname}${request.nextUrl.search}`,
+      `${COCKPIT_ORIGIN}${pathname}${request.nextUrl.search}`,
       307
     );
   }
