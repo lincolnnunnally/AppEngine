@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // surface. The copy tracks APP_ENGINE_PUBLIC_ACCESS so going public is a pure env
 // flip: "owner" keeps the private soft-launch copy (current live behavior),
 // "allowlist" shows an invited-access welcome, "public" shows the open welcome.
-// No infrastructure jargon — consumer-facing brand is "We Succeed".
+// No infrastructure jargon — consumer-facing brand is "AppEngine".
 type SoftLaunchCopy = {
   kicker: string;
   title: string;
@@ -19,17 +19,17 @@ const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   owner: {
     kicker: "we-succeed.org",
     title: "Owner-only soft launch",
-    body: "We Succeed builds real, working apps from a problem or idea you describe. It's in a controlled preview right now — Lincoln can sign in to run it privately before public access opens.",
+    body: "AppEngine builds real, working apps from a problem or idea you describe. It's in a controlled preview right now — Lincoln can sign in to run it privately before public access opens.",
     cta: "Owner sign in"
   },
   allowlist: {
-    kicker: "We Succeed — app builder",
+    kicker: "AppEngine — app builder",
     title: "You're invited in early",
-    body: "Describe a problem you want solved or a tool you want to build, and We Succeed builds you a real, working app for it. If your email is on the early-access list, sign in to start.",
+    body: "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it. If your email is on the early-access list, sign in to start.",
     cta: "Sign in"
   },
   public: {
-    kicker: "We Succeed — app builder",
+    kicker: "AppEngine — app builder",
     title: "Describe it. We build the app.",
     body: "Tell us a problem you want solved or a tool you want to build, and we build you a real, working app for it — live, online, ready to sign into. The first version is a working starter you then improve with us.",
     cta: "Sign in to start"

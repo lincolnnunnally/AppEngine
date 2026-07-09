@@ -58,7 +58,7 @@ const CONSUMER_GROUPS: RailGroup[] = [
 ];
 
 const OPERATOR_BRAND = "App Engine";
-const CONSUMER_BRAND = "We Succeed";
+const CONSUMER_BRAND = "AppEngine";
 
 function normalizePath(pathname: string | null): string {
   if (!pathname) return "/";

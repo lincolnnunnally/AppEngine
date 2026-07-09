@@ -70,14 +70,14 @@ export async function buildKeyStatus(userKey: string | null): Promise<KeyStatusD
   });
 
   // Every Stripe slot any registered app declares, under that app's exact
-  // variable name. We Succeed's own Stripe pair lives in its Vercel env
+  // variable name. AppEngine's own Stripe pair lives in its Vercel env
   // (INTEGRATION_FIELDS), so its rows read from the engine statuses.
   const payments: PaymentRow[] = [];
   // Selling app builds for credits is PAUSED (owner, 2026-07-09) — these keys
   // only matter if that returns, so an empty slot is informational, never red.
   for (const envVar of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
     payments.push({
-      appName: "We Succeed (builds billing — paused)",
+      appName: "AppEngine (builds billing — paused)",
       slug: null,
       envVar,
       state: engineStatuses[envVar] ? "hosting" : "manual",

@@ -27,7 +27,7 @@ import { KeyStatusChecklist } from "@/components/engine/key-status-checklist";
 
 // Owner-only, single home for every secret and variable. The key VAULT (universal
 // + per-app keys that feed builds, backend deploys, and env pushes) is entered
-// here; We Succeed's own keys write straight to its Vercel project; a
+// here; AppEngine's own keys write straight to its Vercel project; a
 // custom-variable row adds anything; and each other app has its own section that
 // writes straight to THAT app's Vercel project. This replaces the old split across
 // /integrations + /account "Your keys" + /credentials — one page, and each store
@@ -120,7 +120,7 @@ export default async function IntegrationsPage({
   const credStatuses = await getCredentialStatuses().catch(() => ({} as Record<string, CredentialStatus>));
   const apiReady = hasVercelConfigApi();
   const groups = [...new Set(INTEGRATION_FIELDS.map((field) => field.group))];
-  // Every registered app except We Succeed itself (that's the own-keys section above).
+  // Every registered app except AppEngine itself (that's the own-keys section above).
   const otherApps = CREDENTIAL_REGISTRY.filter((app) => app.slug !== "appengine-core");
 
   // The vault section's per-app scope options: every registered ecosystem app
@@ -155,7 +155,7 @@ export default async function IntegrationsPage({
         <p className="eyebrow">Owner</p>
         <h1>Integrations &amp; secrets</h1>
         <p>
-          The one place for every secret and variable — for We Succeed and for each app you own. Paste a value,
+          The one place for every secret and variable — for AppEngine and for each app you own. Paste a value,
           it&apos;s saved to that app&apos;s hosting (encrypted), and goes live on the next deploy. Secret values are
           never shown back — a field marked <strong>set</strong> already has one; enter a new value to replace it.
         </p>
@@ -181,19 +181,19 @@ export default async function IntegrationsPage({
         <p>
           Add a key once and it&apos;s used everywhere it&apos;s needed: new builds start with it, backend deploys
           read it, and the per-app push buttons below copy it into an app&apos;s hosting. Keys the engine itself
-          runs on are applied to We Succeed automatically. Values are stored encrypted and never shown again.
+          runs on are applied to AppEngine automatically. Values are stored encrypted and never shown again.
         </p>
         <EnvVault home apps={scopeApps} />
       </section>
 
-      {/* ── We Succeed's own keys — folded; the summary carries the status ── */}
+      {/* ── AppEngine's own keys — folded; the summary carries the status ── */}
       {groups.map((group) => {
         const fields = INTEGRATION_FIELDS.filter((field) => field.group === group);
         const setCount = fields.filter((field) => statuses[field.key]).length;
         return (
         <details className="panel integration-fold" key={group}>
           <summary className="integration-fold-summary">
-            <span className="integration-fold-title">We Succeed · {group}</span>
+            <span className="integration-fold-title">AppEngine · {group}</span>
             <span className={`integration-status integration-status--${setCount === fields.length ? "set" : "needed"}`}>
               {setCount}/{fields.length} set
             </span>
@@ -228,10 +228,10 @@ export default async function IntegrationsPage({
       {/* ── Add any variable (the old "Your keys" custom add) ─────────────── */}
       <details className="panel integration-fold">
         <summary className="integration-fold-summary">
-          <span className="integration-fold-title">We Succeed · Add any variable</span>
+          <span className="integration-fold-title">AppEngine · Add any variable</span>
           <span className="key-checklist-note">for a key that isn&apos;t listed anywhere above</span>
         </summary>
-        <p className="integration-hint">Add it by name — it&apos;s saved to We Succeed&apos;s environment, encrypted.</p>
+        <p className="integration-hint">Add it by name — it&apos;s saved to AppEngine&apos;s environment, encrypted.</p>
         <form action={saveCustomAction} className="integration-row">
           <div className="integration-input-row">
             <input className="convo-input integration-input" name="key" type="text" placeholder="VARIABLE_NAME" autoComplete="off" />
@@ -338,7 +338,7 @@ export default async function IntegrationsPage({
 
       <section className="panel">
         <form action={applyAction}>
-          <button className="soft-launch-action" type="submit" disabled={!apiReady}>Apply changes (redeploy We Succeed)</button>
+          <button className="soft-launch-action" type="submit" disabled={!apiReady}>Apply changes (redeploy AppEngine)</button>
           <p className="integration-hint">Saving stores the values; a redeploy of each app is what makes its values live.</p>
         </form>
       </section>

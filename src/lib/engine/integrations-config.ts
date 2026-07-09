@@ -24,7 +24,7 @@ export const INTEGRATION_FIELDS: IntegrationField[] = [
   { key: "AUTH_GOOGLE_ID", label: "Google Client ID", group: "Sign-in", secret: false, placeholder: "…apps.googleusercontent.com" },
   { key: "AUTH_GOOGLE_SECRET", label: "Google Client Secret", group: "Sign-in", secret: true },
   { key: "AUTH_RESEND_KEY", label: "Resend API Key (email sign-in)", group: "Sign-in", secret: true, placeholder: "re_…" },
-  { key: "EMAIL_FROM", label: "Email From Address", group: "Sign-in", secret: false, placeholder: "We Succeed <signin@we-succeed.org>" },
+  { key: "EMAIL_FROM", label: "Email From Address", group: "Sign-in", secret: false, placeholder: "AppEngine <signin@we-succeed.org>" },
   { key: "OPENAI_API_KEY", label: "OpenAI API Key", group: "AI builds", secret: true, placeholder: "sk-…" },
   { key: "OPENAI_MODEL", label: "OpenAI Model", group: "AI builds", secret: false, placeholder: "gpt-5.1" },
   { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", group: "Payments", secret: true, placeholder: "sk_live_… (use sk_test_… first)" },
