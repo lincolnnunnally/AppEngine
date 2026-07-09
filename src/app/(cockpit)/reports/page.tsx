@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { canAccessEngineOwner } from "@/lib/auth/access";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { getOpsSnapshot } from "@/lib/engine/ops-stats";
 import { stripeGet } from "@/lib/engine/stripe";
@@ -15,7 +15,16 @@ import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 export const dynamic = "force-dynamic";
 
 type StripeSummary =
-  | { state: "ok"; available: number; pending: number; currency: string; charges30d: number; revenue30d: number }
+  | {
+      state: "ok";
+      available: number;
+      pending: number;
+      currency: string;
+      charges30d: number;
+      revenue30d: number;
+      truncated: boolean; // more than 500 charges in the window — sum is a floor
+      otherCurrencies: string[]; // non-USD money exists and is NOT in these totals
+    }
   | { state: "no_key" }
   | { state: "denied"; message: string }
   | { state: "error"; message: string };
@@ -33,18 +42,41 @@ async function loadStripeSummary(ownerEmail: string | null): Promise<StripeSumma
       pending?: Array<{ amount: number; currency: string }>;
     }>("/v1/balance", key);
     const since = Math.floor(Date.now() / 1000) - 30 * 86_400;
-    const charges = await stripeGet<{ data?: Array<{ amount: number; refunded?: boolean; paid?: boolean }> }>(
-      `/v1/charges?limit=100&created[gte]=${since}`,
-      key
-    );
-    const good = (charges.data ?? []).filter((charge) => charge.paid && !charge.refunded);
+    // Paginate (Stripe caps a page at 100); five pages = 500 charges. Past that
+    // the number is flagged as a floor rather than silently undercounting.
+    type Charge = { id?: string; amount: number; currency?: string; refunded?: boolean; paid?: boolean };
+    const all: Charge[] = [];
+    let startingAfter = "";
+    let truncated = false;
+    for (let page = 0; page < 5; page += 1) {
+      const charges = await stripeGet<{ data?: Charge[]; has_more?: boolean }>(
+        `/v1/charges?limit=100&created[gte]=${since}${startingAfter ? `&starting_after=${startingAfter}` : ""}`,
+        key
+      );
+      const batch = charges.data ?? [];
+      all.push(...batch);
+      truncated = Boolean(charges.has_more);
+      startingAfter = batch.length ? batch[batch.length - 1].id || "" : "";
+      if (!charges.has_more || !startingAfter) break;
+    }
+    // Sum a single currency — mixing currencies produces a number that exists
+    // in no currency. USD is the account currency; anything else is flagged.
+    const good = all.filter((charge) => charge.paid && !charge.refunded);
+    const usd = good.filter((charge) => (charge.currency ?? "usd").toLowerCase() === "usd");
+    const otherCurrencies = [
+      ...new Set(good.map((charge) => (charge.currency ?? "usd").toUpperCase()).filter((cur) => cur !== "USD"))
+    ];
+    const usdOnly = (entries?: Array<{ amount: number; currency: string }>) =>
+      (entries ?? []).filter((entry) => entry.currency?.toLowerCase() === "usd").reduce((sum, entry) => sum + entry.amount, 0);
     return {
       state: "ok",
-      available: (balance.available ?? []).reduce((sum, entry) => sum + entry.amount, 0),
-      pending: (balance.pending ?? []).reduce((sum, entry) => sum + entry.amount, 0),
-      currency: balance.available?.[0]?.currency?.toUpperCase() || "USD",
-      charges30d: good.length,
-      revenue30d: good.reduce((sum, charge) => sum + charge.amount, 0)
+      available: usdOnly(balance.available),
+      pending: usdOnly(balance.pending),
+      currency: "USD",
+      charges30d: usd.length,
+      revenue30d: usd.reduce((sum, charge) => sum + charge.amount, 0),
+      truncated,
+      otherCurrencies
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stripe didn't answer.";
@@ -60,7 +92,7 @@ function dollars(cents: number): string {
 }
 
 export default async function ReportsPage() {
-  if (!(await canAccessEngineOwner())) redirect("/");
+  if (!(await canAccessEngineAdmin())) redirect("/");
   const session = await auth();
   const ownerEmail = normalizeUserKey(session?.user?.email) || null;
 
@@ -99,9 +131,13 @@ export default async function ReportsPage() {
         {stripe.state === "ok" ? (
           <div className="dx-stat-grid">
             <div className="dx-stat dx-stat--lime">
-              <strong>{dollars(stripe.revenue30d)}</strong>
+              <strong>{dollars(stripe.revenue30d)}{stripe.truncated ? "+" : ""}</strong>
               <span>revenue, last 30 days</span>
-              <p>{stripe.charges30d} payment{stripe.charges30d === 1 ? "" : "s"}</p>
+              <p>
+                {stripe.charges30d}{stripe.truncated ? "+" : ""} payment{stripe.charges30d === 1 ? "" : "s"}
+                {stripe.truncated ? " · over 500 charges — shown as a floor" : ""}
+                {stripe.otherCurrencies.length ? ` · non-USD money not included: ${stripe.otherCurrencies.join(", ")}` : ""}
+              </p>
             </div>
             <div className="dx-stat dx-stat--cyan">
               <strong>{dollars(stripe.available)}</strong>

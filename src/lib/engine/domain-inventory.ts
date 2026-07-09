@@ -90,7 +90,14 @@ export async function listDomainInventory(): Promise<DomainRecord[]> {
     dnsHost: String(row.dns_host || ""),
     appSlug: String(row.app_slug || ""),
     status: String(row.status || ""),
-    expiresOn: row.expires_on ? String(row.expires_on).slice(0, 10) : null,
+    // The driver returns DATE columns as JS Date objects — format locally
+    // (toISOString would shift a day in negative-UTC-offset timezones).
+    expiresOn:
+      row.expires_on instanceof Date
+        ? `${row.expires_on.getFullYear()}-${String(row.expires_on.getMonth() + 1).padStart(2, "0")}-${String(row.expires_on.getDate()).padStart(2, "0")}`
+        : row.expires_on
+          ? String(row.expires_on).slice(0, 10)
+          : null,
     notes: String(row.notes || ""),
     updatedAt: row.updated_at ? String(row.updated_at) : null
   }));
@@ -139,12 +146,21 @@ export async function pullCloudflareZones(): Promise<{ ok: boolean; message: str
   if (!token) return { ok: false, message: "Cloudflare token isn't available to the engine yet (add CLOUDFLARE_API_TOKEN in Your keys).", found: 0 };
   if (!hasDatabase()) return { ok: false, message: "Domain storage isn't available (no database).", found: 0 };
   try {
-    const response = await fetch("https://api.cloudflare.com/client/v4/zones?per_page=50", {
-      headers: { authorization: `Bearer ${token}` }
-    });
-    if (!response.ok) return { ok: false, message: `Cloudflare said ${response.status} — check the token's zone permissions.`, found: 0 };
-    const data = (await response.json()) as { result?: Array<{ name?: string; status?: string; original_registrar?: string | null }> };
-    const zones = data.result ?? [];
+    // Paginate — one page would silently drop zones past 50 while reporting success.
+    const zones: Array<{ name?: string; status?: string; original_registrar?: string | null }> = [];
+    for (let page = 1; page <= 10; page += 1) {
+      const response = await fetch(`https://api.cloudflare.com/client/v4/zones?per_page=50&page=${page}`, {
+        headers: { authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) return { ok: false, message: `Cloudflare said ${response.status} — check the token's zone permissions.`, found: 0 };
+      const data = (await response.json()) as {
+        result?: Array<{ name?: string; status?: string; original_registrar?: string | null }>;
+        result_info?: { page?: number; total_pages?: number };
+      };
+      zones.push(...(data.result ?? []));
+      const totalPages = data.result_info?.total_pages ?? 1;
+      if ((data.result_info?.page ?? page) >= totalPages) break;
+    }
     for (const zone of zones) {
       if (!zone.name) continue;
       await upsertDomain({

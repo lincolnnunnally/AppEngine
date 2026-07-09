@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { canAccessEngineOwner } from "@/lib/auth/access";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { ConversationalIntake } from "@/components/intake/conversational-intake";
 import { OwnerCommandDeck } from "@/components/engine/owner-command-deck";
@@ -12,7 +12,7 @@ import { OwnerCommandDeck } from "@/components/engine/owner-command-deck";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  if (await canAccessEngineOwner()) {
+  if (await canAccessEngineAdmin()) {
     const session = await auth();
     return <OwnerCommandDeck userKey={normalizeUserKey(session?.user?.email) || null} />;
   }

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { canAccessEngineOwner } from "@/lib/auth/access";
+import { canAccessEngineAdmin } from "@/lib/auth/access";
 import {
   domainInventoryAvailable,
   KNOWN_DOMAIN_SEEDS,
@@ -21,23 +21,28 @@ function back(message: string, ok: boolean): never {
 
 async function saveDomainAction(formData: FormData) {
   "use server";
-  if (!(await canAccessEngineOwner())) redirect("/");
-  const expires = String(formData.get("expiresOn") || "").trim();
+  if (!(await canAccessEngineAdmin())) redirect("/");
+  // Blank fields are omitted (undefined) so updating one field of an existing
+  // domain never wipes the rest — the upsert only overwrites what was typed.
+  const field = (name: string): string | undefined => {
+    const value = String(formData.get(name) || "").trim();
+    return value ? value : undefined;
+  };
   const result = await upsertDomain({
     domain: String(formData.get("domain") || ""),
-    registrar: String(formData.get("registrar") || "").trim(),
-    dnsHost: String(formData.get("dnsHost") || "").trim(),
-    appSlug: String(formData.get("appSlug") || "").trim(),
-    status: String(formData.get("status") || "").trim(),
-    expiresOn: expires || null,
-    notes: String(formData.get("notes") || "").trim()
+    registrar: field("registrar"),
+    dnsHost: field("dnsHost"),
+    appSlug: field("appSlug"),
+    status: field("status"),
+    expiresOn: field("expiresOn"),
+    notes: field("notes")
   });
   back(result.message, result.ok);
 }
 
 async function addSeedAction(formData: FormData) {
   "use server";
-  if (!(await canAccessEngineOwner())) redirect("/");
+  if (!(await canAccessEngineAdmin())) redirect("/");
   const domain = String(formData.get("domain") || "");
   const seed = KNOWN_DOMAIN_SEEDS.find((entry) => entry.domain === domain);
   if (!seed) back("That suggestion isn't on file.", false);
@@ -47,7 +52,7 @@ async function addSeedAction(formData: FormData) {
 
 async function removeDomainAction(formData: FormData) {
   "use server";
-  if (!(await canAccessEngineOwner())) redirect("/");
+  if (!(await canAccessEngineAdmin())) redirect("/");
   const domain = String(formData.get("domain") || "");
   await removeDomain(domain);
   back(`${domain} removed.`, true);
@@ -55,7 +60,7 @@ async function removeDomainAction(formData: FormData) {
 
 async function pullCloudflareAction() {
   "use server";
-  if (!(await canAccessEngineOwner())) redirect("/");
+  if (!(await canAccessEngineAdmin())) redirect("/");
   const result = await pullCloudflareZones();
   back(result.message, result.ok);
 }
@@ -69,7 +74,7 @@ export default async function DomainsPage({
 }: {
   searchParams: Promise<{ msg?: string; ok?: string }>;
 }) {
-  if (!(await canAccessEngineOwner())) redirect("/");
+  if (!(await canAccessEngineAdmin())) redirect("/");
 
   const params = await searchParams;
   const notice = params.msg ? { ok: params.ok === "1", message: params.msg } : null;

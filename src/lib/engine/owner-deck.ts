@@ -56,8 +56,20 @@ export type OwnerDeck = {
   opsCheckedAt: string | null; // null = ops snapshot unavailable (still honest)
 };
 
+// The board and the ops collector grew separate slugs for the same app (a known
+// roster drift): the board says "appengine", ops-stats registers the self target
+// as "appengine-core". Alias them so AppEngine's own card reflects its own stats.
+const SLUG_ALIASES: Record<string, string> = { appengine: "appengine-core" };
+
+function canonicalSlug(slug: string): string {
+  const aliased = Object.entries(SLUG_ALIASES).find(([, opsSlug]) => opsSlug === slug);
+  return aliased ? aliased[0] : slug;
+}
+
 function opsRecordFor(entry: PortfolioUrlStatusEntry, records: OpsStatsRecord[]): OpsStatsRecord | undefined {
-  const bySlug = records.find((record) => record.slug === entry.slug);
+  const bySlug = records.find(
+    (record) => record.slug === entry.slug || record.slug === SLUG_ALIASES[entry.slug]
+  );
   if (bySlug) return bySlug;
   if (!entry.servingUrl) return undefined;
   try {
@@ -83,7 +95,10 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
   const opsAttention = snapshot?.attention ?? [];
 
   const attentionBySlug = new Map<string, number>();
-  const bump = (slug: string) => attentionBySlug.set(slug, (attentionBySlug.get(slug) ?? 0) + 1);
+  const bump = (slug: string) => {
+    const canonical = canonicalSlug(slug);
+    attentionBySlug.set(canonical, (attentionBySlug.get(canonical) ?? 0) + 1);
+  };
   for (const item of opsAttention) bump(item.slug);
   for (const item of credentialItems) bump(item.slug);
 
