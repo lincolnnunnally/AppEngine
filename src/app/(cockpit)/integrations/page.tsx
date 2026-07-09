@@ -167,25 +167,37 @@ export default async function IntegrationsPage({
         ) : null}
       </section>
 
-      {/* ── Your keys — the vault (moved here from the Your-apps page) ────── */}
+      {/* ── 1. Status: needed vs provided, at a glance ─────────────────────── */}
       <section className="panel">
-        <p className="eyebrow">Your keys</p>
+        <p className="eyebrow">Status</p>
+        <h2>What&apos;s provided, what&apos;s still needed</h2>
+        <KeyStatusChecklist userKey={userKey || null} />
+      </section>
+
+      {/* ── 2. Entry: the vault (moved here from the Your-apps page) ───────── */}
+      <section className="panel">
+        <p className="eyebrow">Add or update a key</p>
         <h2>One vault for every app</h2>
         <p>
-          Add a key once — <code className="cred-var">RENDER_API_KEY</code>,{" "}
-          <code className="cred-var">ANTHROPIC_API_KEY</code>, <code className="cred-var">SUPABASE_DB_URL</code>
-          {" "}and the rest — and it&apos;s used everywhere it&apos;s needed: new builds start with it, backend deploys read it,
-          and the per-app push buttons below copy it into an app&apos;s hosting. Keys the engine itself runs on are
-          applied to We Succeed automatically. Values are stored encrypted and never shown again.
+          Add a key once and it&apos;s used everywhere it&apos;s needed: new builds start with it, backend deploys
+          read it, and the per-app push buttons below copy it into an app&apos;s hosting. Keys the engine itself
+          runs on are applied to We Succeed automatically. Values are stored encrypted and never shown again.
         </p>
-        <KeyStatusChecklist userKey={userKey || null} />
         <EnvVault home apps={scopeApps} />
       </section>
 
-      {/* ── We Succeed's own keys ─────────────────────────────────────────── */}
-      {groups.map((group) => (
-        <section className="panel" key={group}>
-          <h2>We Succeed · {group}</h2>
+      {/* ── We Succeed's own keys — folded; the summary carries the status ── */}
+      {groups.map((group) => {
+        const fields = INTEGRATION_FIELDS.filter((field) => field.group === group);
+        const setCount = fields.filter((field) => statuses[field.key]).length;
+        return (
+        <details className="panel integration-fold" key={group}>
+          <summary className="integration-fold-summary">
+            <span className="integration-fold-title">We Succeed · {group}</span>
+            <span className={`integration-status integration-status--${setCount === fields.length ? "set" : "needed"}`}>
+              {setCount}/{fields.length} set
+            </span>
+          </summary>
           <div className="integration-grid">
             {INTEGRATION_FIELDS.filter((field) => field.group === group).map((field) => (
               <form key={field.key} action={saveAction} className="integration-row">
@@ -209,13 +221,17 @@ export default async function IntegrationsPage({
               </form>
             ))}
           </div>
-        </section>
-      ))}
+        </details>
+        );
+      })}
 
       {/* ── Add any variable (the old "Your keys" custom add) ─────────────── */}
-      <section className="panel">
-        <h2>We Succeed · Add any variable</h2>
-        <p className="integration-hint">Need a key that isn&apos;t listed above? Add it by name — it&apos;s saved to We Succeed&apos;s environment, encrypted.</p>
+      <details className="panel integration-fold">
+        <summary className="integration-fold-summary">
+          <span className="integration-fold-title">We Succeed · Add any variable</span>
+          <span className="key-checklist-note">for a key that isn&apos;t listed anywhere above</span>
+        </summary>
+        <p className="integration-hint">Add it by name — it&apos;s saved to We Succeed&apos;s environment, encrypted.</p>
         <form action={saveCustomAction} className="integration-row">
           <div className="integration-input-row">
             <input className="convo-input integration-input" name="key" type="text" placeholder="VARIABLE_NAME" autoComplete="off" />
@@ -223,7 +239,7 @@ export default async function IntegrationsPage({
             <button className="soft-launch-action" type="submit" disabled={!apiReady}>Add</button>
           </div>
         </form>
-      </section>
+      </details>
 
       {/* ── Per-app secrets (the old /credentials page, folded in) ────────── */}
       {otherApps.map((app) => {
@@ -232,13 +248,24 @@ export default async function IntegrationsPage({
           app.keys.find((key) => key.envVar === "VITE_BACKEND_URL")?.publicValue ||
           (app.renderService ? `https://${app.renderService}.onrender.com` : "");
         const pushCount = pushableKeyCount(app.slug);
+        const appKeyStatuses = app.keys.map((key) => credStatuses[`${app.slug}:${key.envVar}`] || "manual");
+        const setCount = appKeyStatuses.filter((status) => status === "set" || status === "known").length;
+        const missingCount = appKeyStatuses.filter((status) => status === "missing").length;
+        const manualCount = app.keys.length - setCount - missingCount;
         return (
-        <section className="panel" key={app.slug}>
-          <div className="cred-group-head">
-            <h2>{app.name}</h2>
+        <details className="panel integration-fold" key={app.slug}>
+          <summary className="integration-fold-summary">
+            <span className="integration-fold-title">{app.name}</span>
             {app.renderService ? <span className="cred-tag">Render: {app.renderService}</span> : null}
-            {pushCount > 0 ? <CredentialPushAllButton slug={app.slug} appName={app.name} count={pushCount} /> : null}
-          </div>
+            {setCount > 0 ? <span className="integration-status integration-status--set">{setCount} set</span> : null}
+            {missingCount > 0 ? <span className="integration-status integration-status--needed">{missingCount} not set</span> : null}
+            {manualCount > 0 ? <span className="integration-status integration-status--manual">{manualCount} in dashboards</span> : null}
+          </summary>
+          {pushCount > 0 ? (
+            <div className="cred-group-head">
+              <CredentialPushAllButton slug={app.slug} appName={app.name} count={pushCount} />
+            </div>
+          ) : null}
           <p className="cred-summary">{app.summary}</p>
           {deployable && app.renderService ? (
             <RenderDeployPanel
@@ -305,7 +332,7 @@ export default async function IntegrationsPage({
               );
             })}
           </div>
-        </section>
+        </details>
         );
       })}
 
