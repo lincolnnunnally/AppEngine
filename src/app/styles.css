@@ -5087,6 +5087,44 @@ label {
   background: rgba(180, 83, 9, 0.08);
 }
 
+/* ── Key status checklist (needed vs provided, on /integrations + Your apps) ── */
+.integration-status--needed {
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.key-checklist-heading {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 10px 0 6px;
+}
+
+.key-checklist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.key-checklist-row .integration-status {
+  flex-shrink: 0;
+  min-width: 84px;
+  text-align: center;
+}
+
+.key-checklist-app {
+  font-size: 0.88rem;
+}
+
+.key-checklist-note {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 /* ── App credentials registry (/credentials) ── */
 .cred-group-head {
   display: flex;
