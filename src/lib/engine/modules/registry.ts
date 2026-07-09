@@ -52,6 +52,7 @@ import { fleetMonitoringModule } from "./fleet-monitoring-agent";
 import { supplierAutomationModule } from "./supplier-order-automation";
 import { contentSchedulerModule } from "./content-publishing-scheduler";
 import { businessFormationModule } from "./business-formation-provisioning";
+import { paymentsBillingModule } from "./payments-billing";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -100,7 +101,8 @@ const MODULES: AppModule[] = [
   fleetMonitoringModule,
   supplierAutomationModule,
   contentSchedulerModule,
-  businessFormationModule
+  businessFormationModule,
+  paymentsBillingModule
 ];
 
 export function allModules(): AppModule[] {

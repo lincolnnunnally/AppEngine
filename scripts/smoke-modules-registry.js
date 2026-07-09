@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url";
 // Scalable gate for the whole module library: auto-discovers every module file in
 // src/lib/engine/modules/, validates each against the AppModule contract, and
 // checks cross-module invariants (no duplicate emitted paths, no colliding schema
-// tables, every module registered). Grows automatically as modules are added.
+// tables, every module registered, no module path shadowing a base-generator or
+// foundation-modules file unless deliberately listed). Grows automatically as
+// modules are added.
 // Run: node scripts/smoke-modules-registry.js
 
 const root = process.cwd();
@@ -73,6 +75,47 @@ for (const fileName of files) {
     bad(`${tag} envLines documents its feature flag`);
   }
 }
+
+// ---- module paths vs base-generator / foundation paths ------------------------
+// The generator resolves base/module path overlaps module-wins (buildGeneratedFiles
+// in ../app-generator.ts filters same-path base entries when a module emits that
+// path). Every overlap must therefore be deliberate and listed here — otherwise a
+// module file could silently replace a base page nobody meant it to (or, before
+// the module-wins rule, be silently overwritten by a base placeholder).
+const intendedBaseOverrides = new Map([
+  // purpose-onboarding's real onboarding flow replaces the base placeholder page.
+  ["src/app/onboarding/page.tsx", "purpose-onboarding"]
+]);
+
+const generatorSrc = fs.readFileSync(path.join(root, "src/lib/engine/app-generator.ts"), "utf8");
+// File entries use `path: "src/..."`; route strings (`path: "/app"`) start with "/".
+const basePaths = new Set([...generatorSrc.matchAll(/path: "([^"]+)"/g)].map((m) => m[1]).filter((p) => !p.startsWith("/")));
+const foundationSrc = fs.readFileSync(path.join(root, "src/lib/engine/foundation-modules.ts"), "utf8");
+const foundationPaths = new Set([...foundationSrc.matchAll(/file\("([^"]+)"/g)].map((m) => m[1]));
+
+if (basePaths.size < 10) bad("base-generator paths parse from app-generator.ts", `only ${basePaths.size} found — extraction regex likely stale`);
+if (foundationPaths.size < 5) bad("foundation paths parse from foundation-modules.ts", `only ${foundationPaths.size} found — extraction regex likely stale`);
+
+let overlapCount = 0;
+for (const [emittedPath, owner] of allPaths) {
+  const collidesWith = basePaths.has(emittedPath) ? "base-generator" : foundationPaths.has(emittedPath) ? "foundation-modules" : null;
+  if (!collidesWith) continue;
+  overlapCount++;
+  if (intendedBaseOverrides.get(emittedPath) === owner) ok(`[${owner}] intentionally overrides ${collidesWith} file ${emittedPath}`);
+  else bad(`[${owner}] path ${emittedPath} shadows a ${collidesWith} file`, "list it in intendedBaseOverrides only if the module file should win");
+}
+for (const [overridePath, owner] of intendedBaseOverrides) {
+  if (allPaths.get(overridePath) !== owner) bad(`intendedBaseOverrides is stale: ${overridePath} is not emitted by [${owner}]`);
+  else if (!basePaths.has(overridePath) && !foundationPaths.has(overridePath)) bad(`intendedBaseOverrides is stale: ${overridePath} is no longer a base/foundation path`);
+}
+// The resolution mechanism itself must stay in the generator, or the overrides
+// above silently flip back to base-wins (files are written sequentially).
+if (generatorSrc.includes("moduleFileEntries.has(file) || !moduleFilePaths.has(file.path)")) {
+  ok("app-generator resolves base/module path overlaps module-wins");
+} else {
+  bad("app-generator resolves base/module path overlaps module-wins", "filter missing from buildGeneratedFiles");
+}
+ok(`checked ${allPaths.size} module paths against ${basePaths.size} base + ${foundationPaths.size} foundation paths (${overlapCount} intentional overlaps)`);
 
 ok(`discovered ${moduleCount} modules, ${allPaths.size} emitted files, ${allTables.size} module tables (no collisions)`);
 
