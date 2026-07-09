@@ -16,15 +16,23 @@ import {
 } from "@/lib/engine/ecosystem-credential-registry";
 import { hasBackendDeployProfile, ownerInputSecrets } from "@/lib/engine/app-backend-deploy";
 import { pushableKeyCount } from "@/lib/engine/ops-push-env";
+import { listVaultEntries, type VaultEntry } from "@/lib/engine/env-vault";
+import { listBuildJobsForUser } from "@/lib/engine/build-jobs";
+import { normalizeUserKey } from "@/lib/engine/billing";
+import { auth } from "@/auth";
 import { RenderDeployPanel } from "@/components/engine/render-deploy-panel";
 import { CredentialPushAllButton } from "@/components/engine/credential-push-all-button";
+import { EnvVault } from "@/components/account/env-vault";
 
-// Owner-only, single home for every secret and variable. We Succeed's own keys
-// write straight to its Vercel project; a custom-variable row adds anything; and
-// each other app has its own section that writes straight to THAT app's Vercel
-// project. This replaces the old split across /integrations + /account "Your keys"
-// + /credentials — one page, one write path. Server actions re-check owner access
-// on every call; secret values are never sent back to the browser, only status.
+// Owner-only, single home for every secret and variable. The key VAULT (universal
+// + per-app keys that feed builds, backend deploys, and env pushes) is entered
+// here; We Succeed's own keys write straight to its Vercel project; a
+// custom-variable row adds anything; and each other app has its own section that
+// writes straight to THAT app's Vercel project. This replaces the old split across
+// /integrations + /account "Your keys" + /credentials — one page, and each store
+// keeps its one existing write path (vault → /api/account/env; Vercel env →
+// setProjectEnvValue). Server actions re-check owner access on every call; secret
+// values are never sent back to the browser, only status.
 export const dynamic = "force-dynamic";
 
 const HOST_LABEL: Record<string, string> = { vercel: "Vercel", render: "Render", supabase: "Supabase", provider: "Provider" };
@@ -110,10 +118,35 @@ export default async function IntegrationsPage({
   const statuses = await getIntegrationStatuses();
   const credStatuses = await getCredentialStatuses().catch(() => ({} as Record<string, CredentialStatus>));
   const apiReady = hasVercelConfigApi();
-  const renderKeyStored = Boolean(process.env.RENDER_API_KEY?.trim());
   const groups = [...new Set(INTEGRATION_FIELDS.map((field) => field.group))];
   // Every registered app except We Succeed itself (that's the own-keys section above).
   const otherApps = CREDENTIAL_REGISTRY.filter((app) => app.slug !== "appengine-core");
+
+  // The vault section's per-app scope options: every registered ecosystem app
+  // (backend deploy profiles resolve the vault by these slugs) plus any apps the
+  // owner generated here. Vault entries also make the Render key status truthful
+  // below — the deploy path reads the vault before falling back to process.env.
+  const session = await auth();
+  const userKey = normalizeUserKey(session?.user?.email);
+  let vaultEntries: VaultEntry[] = [];
+  let generatedApps: Array<{ label: string; slug: string }> = [];
+  if (userKey) {
+    vaultEntries = await listVaultEntries(userKey).catch(() => []);
+    generatedApps = await listBuildJobsForUser(userKey)
+      .then((jobs) =>
+        jobs
+          .filter((job) => job.vercelProject)
+          .map((job) => ({ label: job.idea.trim().slice(0, 60) || "Untitled app", slug: String(job.vercelProject) }))
+      )
+      .catch(() => []);
+  }
+  const scopeApps = [
+    ...otherApps.map((app) => ({ label: app.name, slug: app.slug })),
+    ...generatedApps.filter((generated) => !otherApps.some((app) => app.slug === generated.slug))
+  ];
+  const renderKeyStored =
+    Boolean(process.env.RENDER_API_KEY?.trim()) ||
+    vaultEntries.some((entry) => entry.key === "RENDER_API_KEY" && !entry.appScope);
 
   return (
     <main className="shell">
@@ -131,6 +164,20 @@ export default async function IntegrationsPage({
         {notice ? (
           <p className={`integration-notice integration-notice--${notice.ok ? "ok" : "error"}`}>{notice.message}</p>
         ) : null}
+      </section>
+
+      {/* ── Your keys — the vault (moved here from the Your-apps page) ────── */}
+      <section className="panel">
+        <p className="eyebrow">Your keys</p>
+        <h2>One vault for every app</h2>
+        <p>
+          Add a key once — <code className="cred-var">RENDER_API_KEY</code>,{" "}
+          <code className="cred-var">ANTHROPIC_API_KEY</code>, <code className="cred-var">SUPABASE_DB_URL</code>
+          {" "}and the rest — and it&apos;s used everywhere it&apos;s needed: new builds start with it, backend deploys read it,
+          and the per-app push buttons below copy it into an app&apos;s hosting. Keys the engine itself runs on are
+          applied to We Succeed automatically. Values are stored encrypted and never shown again.
+        </p>
+        <EnvVault home apps={scopeApps} />
       </section>
 
       {/* ── We Succeed's own keys ─────────────────────────────────────────── */}

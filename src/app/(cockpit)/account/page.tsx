@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { canAccessEngineCustomerArea } from "@/lib/auth/access";
+import { canAccessEngineCustomerArea, canAccessEngineOwner } from "@/lib/auth/access";
 import { getBalanceCents, getBillingConfig, isBillingEnabled, normalizeUserKey } from "@/lib/engine/billing";
 import { listBuildJobsForUser, type BuildJob, type BuildJobStatus } from "@/lib/engine/build-jobs";
 import { listChangeRequestsForUser } from "@/lib/engine/change-requests";
@@ -35,6 +35,11 @@ export default async function AccountPage() {
   if (!(await canAccessEngineCustomerArea())) {
     redirect("/");
   }
+
+  // The owner manages ALL keys in one place — /integrations (which embeds this
+  // same vault component). Customers can't open that owner-only page, so they
+  // keep the vault form here; the owner gets a pointer instead of a second form.
+  const isOwner = await canAccessEngineOwner();
 
   const session = await auth();
   const userKey = normalizeUserKey(session?.user?.email);
@@ -138,18 +143,29 @@ export default async function AccountPage() {
 
       <section className="panel">
         <p className="eyebrow">Your keys</p>
-        <h2>Keys for apps you build here</h2>
-        <p>
-          Add an API key once and every <em>new</em> app you generate here starts with it — email, payments, AI,
-          and more. Managing secrets for an app that already exists (We Succeed, or one of your own apps)? Do that
-          on <a className="account-link" href="/integrations">Integrations &amp; secrets</a> — the single home for
-          every live app&apos;s variables.
-        </p>
-        <EnvVault
-          apps={apps
-            .filter((app) => app.vercelProject)
-            .map((app) => ({ label: appTitle(app.idea), slug: String(app.vercelProject) }))}
-        />
+        {isOwner ? (
+          <>
+            <h2>Keys live on Integrations &amp; secrets</h2>
+            <p>
+              Every key — for the engine, for your live apps, and for apps you build here — is entered in ONE place
+              so nothing gets scattered again.
+            </p>
+            <a className="soft-launch-action" href="/integrations">Open Integrations &amp; secrets</a>
+          </>
+        ) : (
+          <>
+            <h2>Keys for apps you build here</h2>
+            <p>
+              Add an API key once and every <em>new</em> app you generate here starts with it — email, payments, AI,
+              and more.
+            </p>
+            <EnvVault
+              apps={apps
+                .filter((app) => app.vercelProject)
+                .map((app) => ({ label: appTitle(app.idea), slug: String(app.vercelProject) }))}
+            />
+          </>
+        )}
       </section>
 
       {billingOn ? (

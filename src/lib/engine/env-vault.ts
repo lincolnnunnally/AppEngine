@@ -25,17 +25,21 @@ const KEY_PATTERN = /^[A-Z][A-Z0-9_]{1,63}$/;
 // whether it is usually UNIVERSAL (one value shared by every app — set it once) or
 // PER-APP (each app has its own). `scope` is guidance for the UI, not a rule — any
 // key can be saved shared or scoped to one app. Custom keys are allowed too.
+// `engineRuntime` marks keys the ENGINE ITSELF reads from its own process.env
+// (Render client, AI workers, DNS adapter) — when the OWNER saves one of these
+// universally, the vault write also mirrors it into We Succeed's own hosting env
+// so entering it once genuinely powers everything.
 export type KnownKeyScope = "universal" | "per_app";
-export type KnownKey = { key: string; usedFor: string; whereToFind: string; scope: KnownKeyScope };
+export type KnownKey = { key: string; usedFor: string; whereToFind: string; scope: KnownKeyScope; engineRuntime?: boolean };
 
 export const KNOWN_KEYS: readonly KnownKey[] = [
   // ── Universal — the same value across your apps, so set it once ──────────────
-  { key: "ANTHROPIC_API_KEY", scope: "universal", usedFor: "AI features (Claude) in your apps", whereToFind: "console.anthropic.com → API Keys" },
-  { key: "OPENAI_API_KEY", scope: "universal", usedFor: "AI features (OpenAI) in your apps", whereToFind: "platform.openai.com → API keys" },
+  { key: "ANTHROPIC_API_KEY", scope: "universal", engineRuntime: true, usedFor: "AI features (Claude) in your apps", whereToFind: "console.anthropic.com → API Keys" },
+  { key: "OPENAI_API_KEY", scope: "universal", engineRuntime: true, usedFor: "AI features (OpenAI) in your apps", whereToFind: "platform.openai.com → API keys" },
   { key: "RESEND_API_KEY", scope: "universal", usedFor: "Sending email from your apps", whereToFind: "resend.com → API Keys → Create API Key" },
   { key: "SENDER_EMAIL", scope: "universal", usedFor: "The address your apps' email comes from", whereToFind: "A sender you verified in Resend (Domains)" },
-  { key: "RENDER_API_KEY", scope: "universal", usedFor: "Programmatic control of your Render services (ONE key per Render account covers every service in it)", whereToFind: "dashboard.render.com → Account Settings → API Keys → Create API Key" },
-  { key: "CLOUDFLARE_API_TOKEN", scope: "universal", usedFor: "DNS management for all your domains — attach domains to apps, mail records, email forwarding (one token covers every domain in the account)", whereToFind: "dash.cloudflare.com → My Profile → API Tokens → Create Custom Token (Zone:Edit, DNS:Edit, Zone Settings:Edit, Email Routing:Edit; All zones from account)" },
+  { key: "RENDER_API_KEY", scope: "universal", engineRuntime: true, usedFor: "Programmatic control of your Render services (ONE key per Render account covers every service in it)", whereToFind: "dashboard.render.com → Account Settings → API Keys → Create API Key" },
+  { key: "CLOUDFLARE_API_TOKEN", scope: "universal", engineRuntime: true, usedFor: "DNS management for all your domains — attach domains to apps, mail records, email forwarding (one token covers every domain in the account)", whereToFind: "dash.cloudflare.com → My Profile → API Tokens → Create Custom Token (Zone:Edit, DNS:Edit, Zone Settings:Edit, Email Routing:Edit; All zones from account)" },
   { key: "SUPABASE_DB_URL", scope: "universal", usedFor: "Direct database connection for app backends (EasyPeazy, snip.show) — full access, keep secret", whereToFind: "supabase.com → your project → Connect (top of page) → Connection String → URI (use the Session pooler one; includes your database password)" },
   { key: "NEXT_PUBLIC_SUPABASE_URL", scope: "universal", usedFor: "Your Supabase project's URL (safe in the browser)", whereToFind: "supabase.com → your project → Project Settings → API → Project URL" },
   { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", scope: "universal", usedFor: "Supabase public (anon) key for the browser", whereToFind: "Same page → Project API keys → anon public" },
@@ -48,6 +52,13 @@ export const KNOWN_KEYS: readonly KnownKey[] = [
 ];
 
 export type VaultEntry = { key: string; appScope: string; updatedAt: string | null };
+
+// True for keys the engine's own runtime reads from process.env — the owner's
+// vault save mirrors these into We Succeed's hosting env (see the env API route).
+export function isEngineRuntimeKey(key: string): boolean {
+  const clean = key.trim().toUpperCase();
+  return KNOWN_KEYS.some((entry) => entry.key === clean && entry.engineRuntime === true);
+}
 
 function vaultKey(): Buffer {
   const secret = process.env.APP_ENGINE_VAULT_KEY || process.env.AUTH_SECRET || "app-engine-local-dev-vault";

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
+import { canAccessEngineConsumerSurface, canAccessEngineOwner } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
-import { deleteVaultVar, KNOWN_KEYS, listVaultEntries, setVaultVar, vaultAvailable } from "@/lib/engine/env-vault";
+import { deleteVaultVar, isEngineRuntimeKey, KNOWN_KEYS, listVaultEntries, setVaultVar, vaultAvailable } from "@/lib/engine/env-vault";
+import { appEngineProjectId, setProjectEnvValue } from "@/lib/engine/integrations-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,20 @@ export async function POST(request: Request) {
   const appScope = typeof body.appScope === "string" ? body.appScope : "";
   const result = await setVaultVar(userKey, key, value, appScope);
   if (!result.ok) return json({ ok: false, message: result.message || "Couldn't save that key." }, 400);
-  return json({ ok: true, message: "Saved. Your next build or update will use it." });
+
+  // Owner bridge: keys the engine itself reads (Render, AI workers, DNS) are also
+  // written to We Succeed's own hosting env via the one Vercel write path, so the
+  // owner enters a key ONCE and both the vault and the engine have it. Best-effort:
+  // the vault save above already succeeded either way.
+  let message = "Saved. Your next build or update will use it.";
+  if (!appScope.trim() && isEngineRuntimeKey(key) && (await canAccessEngineOwner())) {
+    const cleanKey = key.trim().toUpperCase();
+    const mirror = await setProjectEnvValue(appEngineProjectId() || "", cleanKey, value, { secret: true, label: cleanKey });
+    message = mirror.ok
+      ? "Saved — stored for your apps and applied to the engine (live after its next redeploy)."
+      : `Saved for your apps. Couldn't also apply it to the engine's hosting: ${mirror.message}`;
+  }
+  return json({ ok: true, message });
 }
 
 export async function DELETE(request: Request) {

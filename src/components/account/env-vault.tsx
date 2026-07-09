@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 // "Your keys" — the user's environment vault. Add a key once and every app they
 // build gets it automatically; scope a key to one app to override just that app.
 // Values are write-only: shown never, replaced any time.
+// `home` marks the canonical embed on /integrations (owner); the footer pointer
+// to /integrations only renders on other pages, so the home never links to itself.
 type Entry = { key: string; appScope: string; updatedAt: string | null };
 type CatalogItem = { key: string; usedFor: string; whereToFind: string; scope?: "universal" | "per_app" };
 type AppOption = { label: string; slug: string };
 
-export function EnvVault({ apps }: { apps: AppOption[] }) {
+export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boolean }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [available, setAvailable] = useState(true);
@@ -235,10 +237,17 @@ export function EnvVault({ apps }: { apps: AppOption[] }) {
           {busy ? "Saving…" : "Save key"}
         </button>
         {notice ? <p className="note">{notice}</p> : null}
-        <p className="env-vault-help">
-          Not sure which key an app needs, or where it goes?{" "}
-          <a href="/integrations">Integrations &amp; secrets</a> lists every key each app needs and whether it&apos;s set.
-        </p>
+        {home ? (
+          <p className="env-vault-help">
+            Not sure which key an app needs? The app sections further down this page list every key each app needs
+            and whether it&apos;s set.
+          </p>
+        ) : (
+          <p className="env-vault-help">
+            Not sure which key an app needs, or where it goes?{" "}
+            <a href="/integrations">Integrations &amp; secrets</a> lists every key each app needs and whether it&apos;s set.
+          </p>
+        )}
       </div>
 
       <details className="env-vault-bulk">

@@ -66,7 +66,7 @@ export async function pushVaultValueToVercel(ownerEmail: string, slug: string, e
   const vaultEnv = await resolveEnvForApp(ownerEmail, slug).catch(() => ({} as Record<string, string>));
   const value = vaultEnv[envVar];
   if (!value) {
-    return { ok: false, message: `Add ${envVar} to your key vault first (in Your keys), then push it here.` };
+    return { ok: false, message: `Add ${envVar} to your key vault first (Your keys, top of Integrations & secrets), then push it here.` };
   }
 
   return upsertVercelEnv(group.vercelProjectId, envVar, value);
@@ -113,7 +113,7 @@ export async function pushAllVaultValuesToVercel(ownerEmail: string, slug: strin
       skipped,
       total: vercelKeys.length,
       message: missing === vercelKeys.length
-        ? `None of ${group.name}'s keys are in Your keys yet — add them there, then push.`
+        ? `None of ${group.name}'s keys are in your key vault yet — add them in Your keys (top of Integrations & secrets), then push.`
         : `Couldn't push any of ${group.name}'s keys just now — try again.`,
     };
   }
