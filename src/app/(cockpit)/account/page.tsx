@@ -148,11 +148,11 @@ export default async function AccountPage() {
           <>
             <h2>Keys live on Integrations &amp; secrets</h2>
             <p>
-              Every key — for the engine, for your live apps, and for apps you build here — is entered in ONE place
-              so nothing gets scattered again. Here&apos;s where each one stands right now:
+              This page stays about your apps. Every key is entered and listed in ONE place — Integrations &amp;
+              secrets. Quick status:
             </p>
-            <KeyStatusChecklist userKey={userKey || null} />
-            <a className="soft-launch-action" href="/integrations">Enter or update keys on Integrations &amp; secrets</a>
+            <KeyStatusChecklist userKey={userKey || null} compact />
+            <a className="soft-launch-action" href="/integrations">Open Integrations &amp; secrets</a>
           </>
         ) : (
           <>

@@ -105,7 +105,7 @@ export function isValidVaultKey(key: string): { ok: boolean; message?: string } 
 // step later. Custom keys are never checked, and the warning text describes the
 // expected shape only — it must never include any part of the value.
 const KEY_FORMAT_HINTS: Record<string, { pattern: RegExp; minLength?: number; expected: string }> = {
-  STRIPE_SECRET_KEY: { pattern: /^sk_(live|test)_[A-Za-z0-9]{24,}$/, minLength: 32, expected: "sk_live_… or sk_test_… followed by a long random string (docs examples are shorter than real keys)" },
+  STRIPE_SECRET_KEY: { pattern: /^(sk|rk)_(live|test)_[A-Za-z0-9]{24,}$/, minLength: 32, expected: "sk_live_… or rk_live_… (restricted keys are real keys too) followed by a long random string" },
   STRIPE_WEBHOOK_SECRET: { pattern: /^whsec_[A-Za-z0-9]{24,}$/, expected: "whsec_ followed by a long random string" },
   RENDER_API_KEY: { pattern: /^rnd_/, expected: "a key starting with rnd_" },
   ANTHROPIC_API_KEY: { pattern: /^sk-ant-/, expected: "a key starting with sk-ant-" }

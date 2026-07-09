@@ -5125,6 +5125,44 @@ label {
   color: var(--muted);
 }
 
+.key-summary {
+  margin: 8px 0;
+}
+
+/* Collapsible sections on /integrations — the summary line carries the counts,
+   so the page reads as a short index until a section is opened. */
+.integration-fold-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.integration-fold-summary::-webkit-details-marker {
+  display: none;
+}
+
+.integration-fold-summary::before {
+  content: "▸";
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.integration-fold[open] > .integration-fold-summary::before {
+  content: "▾";
+}
+
+.integration-fold-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.integration-fold[open] > .integration-fold-summary {
+  margin-bottom: 10px;
+}
+
 /* ── App credentials registry (/credentials) ── */
 .cred-group-head {
   display: flex;
