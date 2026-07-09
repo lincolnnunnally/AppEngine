@@ -1,6 +1,8 @@
 # Drift Audit — 2026-07-04
 
 > Owner concern (Lincoln): parallel/duplicate surfaces built instead of extending what existed (the ONE-RULE violation). Ran a 6-lens read-only audit of the app. This is the durable record; secrets consolidation (finding #1) shipped in PR #300.
+>
+> **Update 2026-07-09 (finding #1 recurrence, fixed):** entry drifted again — the key VAULT form (`KNOWN_KEYS`: RENDER_API_KEY, SUPABASE_DB_URL, ANTHROPIC_API_KEY…) lived only on `/account` "Your keys" while `/integrations` claimed to be the one home. Fixed by embedding the SAME `EnvVault` component (same `/api/account/env` write path) at the top of `/integrations` with ecosystem apps as scope options; `/account` now shows the form only to non-owner customers (owner gets a link). Owner saves of engine-runtime keys (RENDER_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, CLOUDFLARE_API_TOKEN) also mirror into We Succeed's Vercel env via the PR #300 `setProjectEnvValue` funnel, so one entry powers both the vault and the engine. Rule going forward: a new key gets added to `KNOWN_KEYS` (vault) or `INTEGRATION_FIELDS`/registry (Vercel env) — never a new form.
 
 All paths confirmed under `production-app/`. Here is the report.
 

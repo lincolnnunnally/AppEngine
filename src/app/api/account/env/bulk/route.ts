@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
+import { canAccessEngineConsumerSurface, canAccessEngineOwner } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
-import { importVaultEntries } from "@/lib/engine/env-vault";
+import { importVaultEntries, isEngineRuntimeKey, parseBulkEnvContent } from "@/lib/engine/env-vault";
+import { appEngineProjectId, setProjectEnvValue } from "@/lib/engine/integrations-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,12 +43,27 @@ export async function POST(request: Request) {
     return json({ ok: false, message: result.message || "Nothing could be imported.", skipped: result.skipped }, 400);
   }
 
+  // Owner bridge (same as the single-key route): any imported universal key the
+  // engine itself reads is also mirrored into We Succeed's hosting env, so a bulk
+  // import behaves exactly like typing each key in by hand. Best-effort.
+  let mirrored = 0;
+  if (await canAccessEngineOwner()) {
+    const engineEntries = parseBulkEnvContent(content).entries.filter(
+      (entry) => !entry.appScope && isEngineRuntimeKey(entry.key)
+    );
+    for (const entry of engineEntries) {
+      const mirror = await setProjectEnvValue(appEngineProjectId() || "", entry.key, entry.value, { secret: true, label: entry.key });
+      if (mirror.ok) mirrored += 1;
+    }
+  }
+
   const skippedNote = result.skipped.length ? ` ${result.skipped.length} line${result.skipped.length === 1 ? "" : "s"} skipped.` : "";
+  const mirrorNote = mirrored ? ` ${mirrored} engine key${mirrored === 1 ? "" : "s"} also applied to the engine (live after its next redeploy).` : "";
   return json({
     ok: true,
     saved: result.saved,
     skipped: result.skipped,
-    message: `Imported ${result.saved} key${result.saved === 1 ? "" : "s"}.${skippedNote}`
+    message: `Imported ${result.saved} key${result.saved === 1 ? "" : "s"}.${skippedNote}${mirrorNote}`
   });
 }
 
