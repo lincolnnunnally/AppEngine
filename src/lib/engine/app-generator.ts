@@ -250,7 +250,16 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
   };
   const blueprintJson = JSON.stringify(blueprint, null, 2);
 
-  return [
+  // Module-emitted files win over same-path base/foundation entries. The bundle
+  // writer writes files sequentially, so without this a base placeholder listed
+  // after the module spread silently overwrites a selected module's real page
+  // (e.g. purpose-onboarding's /onboarding). Any base/module path overlap must be
+  // intentional — the modules-registry smoke keeps that list documented.
+  const moduleFiles = composeModuleFiles({ projectName, roles, roleMatrix, protectedRoutes }, selectedModuleSlugs);
+  const moduleFilePaths = new Set(moduleFiles.map((file) => file.path));
+  const moduleFileEntries = new Set<GeneratedFile>(moduleFiles);
+
+  const files: GeneratedFile[] = [
     {
       path: "package.json",
       content: `${JSON.stringify(
@@ -417,7 +426,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
       path: "src/app/opengraph-image.tsx",
       content: `import { ImageResponse } from "next/og";\nimport { appBrand } from "@/lib/app-brand";\n\nexport const runtime = "edge";\nexport const size = { width: 1200, height: 630 };\nexport const contentType = "image/png";\n\nexport default function OgImage() {\n  return new ImageResponse(\n    (\n      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px", background: "${theme.paper}", color: "${theme.ink}", fontFamily: "sans-serif" }}>\n        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "96px", height: "96px", borderRadius: "20px", background: "${theme.accent}", color: "${theme.accentInk}", fontSize: "44px", fontWeight: 700 }}>{appBrand.monogram}</div>\n        <div style={{ fontSize: "64px", fontWeight: 700, marginTop: "40px" }}>{appBrand.name}</div>\n        <div style={{ fontSize: "30px", opacity: 0.8, marginTop: "16px" }}>{appBrand.tagline}</div>\n      </div>\n    ),\n    size\n  );\n}\n`
     },
-    ...composeModuleFiles({ projectName, roles, roleMatrix, protectedRoutes }, selectedModuleSlugs),
+    ...moduleFiles,
     {
       path: "src/lib/db/client.ts",
       content: `import { neon } from "@neondatabase/serverless";\n\nexport function hasDatabase() {\n  return Boolean(process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("USER:PASSWORD@HOST"));\n}\n\nexport function getDatabase() {\n  if (!hasDatabase()) {\n    throw new Error("DATABASE_URL is required before using Neon persistence.");\n  }\n\n  return neon(process.env.DATABASE_URL!);\n}\n`
@@ -559,6 +568,8 @@ export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
     },
     ...foundationModuleFiles()
   ];
+
+  return files.filter((file) => moduleFileEntries.has(file) || !moduleFilePaths.has(file.path));
 }
 
 type RolePermission = {
