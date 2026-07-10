@@ -10,6 +10,7 @@ import {
   composeModuleEnvLines,
   composeModuleFiles,
   composeModuleHomeLinks,
+  buildReadyModuleSlugs,
   composeModuleSchemaSql,
   composeModuleSeedSql
 } from "./modules/registry";
@@ -33,6 +34,10 @@ type GeneratorProject = {
   revenue_model?: string | null;
   app_type?: string | null;
   plan?: ReturnType<typeof analyzeIdea>;
+  // Curated composition: when a project carries explicit module slugs, the
+  // generator composes exactly those optional modules instead of matching the
+  // need against the catalog (see selectAppModuleSlugs).
+  module_slugs?: string[] | null;
 };
 
 type GeneratedFile = {
@@ -284,7 +289,8 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
             "@neondatabase/serverless": "latest"
           },
           devDependencies: {
-            typescript: "latest",
+            // TS 7 (the native compiler) breaks `next build`; pin to 5.x.
+            typescript: "^5",
             "@types/node": "latest",
             "@types/react": "latest",
             "@types/react-dom": "latest"
@@ -645,7 +651,14 @@ function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>, handoff: Generat
 // Match the app's need to the build-ready module catalog so it composes only the
 // blocks it actually needs (reuses findModulesForNeed — the same matcher the
 // planner uses). Foundation modules are always included by the registry.
+// Curated override: a project created with explicit moduleSlugs composes exactly
+// that set (unknown slugs are ignored) — the deliberate-scope escape hatch for
+// the matcher's over-inclusive selection.
 function selectAppModuleSlugs(project: GeneratorProject, plan: ReturnType<typeof analyzeIdea>): Set<string> {
+  if (Array.isArray(project.module_slugs) && project.module_slugs.length > 0) {
+    const buildReady = new Set(buildReadyModuleSlugs());
+    return new Set(project.module_slugs.filter((slug) => buildReady.has(slug)));
+  }
   const need = [project.idea, plan.problem, plan.appType, plan.customer, ...plan.templates.map((template) => template.name)]
     .filter(Boolean)
     .join(" ");

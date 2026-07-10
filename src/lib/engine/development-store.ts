@@ -29,6 +29,8 @@ type StoredProject = {
   // Customer ownership + canonical-gate clearance for customer-triggered builds.
   created_by_user_email?: string;
   gateClearance?: BuildGateClearance;
+  // Curated composition (optional): exact optional-module slugs to compose.
+  module_slugs?: string[];
 };
 
 export type StoredRun = {
@@ -191,7 +193,8 @@ export async function createLocalPlannedProject(
     updated_at: now,
     plan,
     created_by_user_email: ownership?.customerEmail,
-    gateClearance: ownership?.gateClearance
+    gateClearance: ownership?.gateClearance,
+    module_slugs: input.moduleSlugs
   };
 
   store.projects.unshift(project);

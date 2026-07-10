@@ -32,7 +32,11 @@ export const createProjectInput = z.object({
   problem: z.string().optional(),
   revenueModel: z.string().default("Not sure yet"),
   appType: z.string().default("Auto detect"),
-  buildTarget: z.string().optional()
+  buildTarget: z.string().optional(),
+  // Optional curated composition: when set, the generator composes exactly these
+  // optional modules (plus foundation) instead of fuzzy-matching the need against
+  // the catalog. Fixes the over-inclusive selection for deliberately-scoped apps.
+  moduleSlugs: z.array(z.string()).optional()
 });
 
 export type CreateProjectInput = z.infer<typeof createProjectInput>;
