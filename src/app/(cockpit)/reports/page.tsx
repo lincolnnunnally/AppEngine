@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
-import { getOpsSnapshot } from "@/lib/engine/ops-stats";
+import { getOpsSnapshot, type OpsStatsRecord } from "@/lib/engine/ops-stats";
 import { stripeGet } from "@/lib/engine/stripe";
 import { resolveEnvForApp } from "@/lib/engine/env-vault";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
@@ -91,19 +91,72 @@ function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export default async function ReportsPage() {
+// Usage-table sorting via ?sort=&dir= — same plain-link pattern as the domains
+// inventory. Missing numbers sort as -1 so "most first" (the common read)
+// always puts silent cells at the bottom.
+const USAGE_SORTS: Record<string, { label: string; compare: (a: OpsStatsRecord, b: OpsStatsRecord) => number }> = {
+  app: { label: "App", compare: (a, b) => a.name.localeCompare(b.name) },
+  users: { label: "Users", compare: (a, b) => (a.stats.users ?? -1) - (b.stats.users ?? -1) || a.name.localeCompare(b.name) },
+  active: { label: "Active (30d)", compare: (a, b) => (a.stats.activeUsers30d ?? -1) - (b.stats.activeUsers30d ?? -1) || a.name.localeCompare(b.name) },
+  new7: { label: "New (7d)", compare: (a, b) => (a.stats.newUsers7d ?? -1) - (b.stats.newUsers7d ?? -1) || a.name.localeCompare(b.name) },
+  orders: { label: "Orders (30d)", compare: (a, b) => (a.stats.ordersRecent ?? -1) - (b.stats.ordersRecent ?? -1) || a.name.localeCompare(b.name) },
+  tickets: { label: "Open tickets", compare: (a, b) => (a.stats.ticketsOpen ?? -1) - (b.stats.ticketsOpen ?? -1) || a.name.localeCompare(b.name) }
+};
+
+function SortHeader({ column, active, dir }: { column: string; active: string; dir: "asc" | "desc" }) {
+  const isActive = column === active;
+  const nextDir = isActive && dir === "asc" ? "desc" : "asc";
+  return (
+    <th>
+      <a className="dx-sort" href={`/reports?sort=${column}&dir=${nextDir}#usage`}>
+        {USAGE_SORTS[column].label}
+        {isActive ? (dir === "asc" ? " ▲" : " ▼") : ""}
+      </a>
+    </th>
+  );
+}
+
+export default async function ReportsPage({
+  searchParams
+}: {
+  searchParams: Promise<{ sort?: string; dir?: string }>;
+}) {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const session = await auth();
   const ownerEmail = normalizeUserKey(session?.user?.email) || null;
 
-  const [snapshot, stripe, llm] = await Promise.all([
+  const [snapshot, stripe, llm, params] = await Promise.all([
     getOpsSnapshot().catch(() => null),
     loadStripeSummary(ownerEmail),
-    getLlmUsageTotals().catch(() => null)
+    getLlmUsageTotals().catch(() => null),
+    searchParams
   ]);
 
   const reportingApps = (snapshot?.apps ?? []).filter((record) => record.reporting);
   const silentApps = (snapshot?.apps ?? []).filter((record) => !record.reporting);
+
+  // Default read: most users first — the question the owner opens this page with.
+  const sortKey = params.sort && USAGE_SORTS[params.sort] ? params.sort : "users";
+  const dir: "asc" | "desc" = params.dir === "asc" ? "asc" : params.dir === "desc" ? "desc" : sortKey === "app" ? "asc" : "desc";
+  reportingApps.sort((a, b) => USAGE_SORTS[sortKey].compare(a, b) * (dir === "desc" ? -1 : 1));
+
+  // The lead: every app, one line — reporting apps first (most users first),
+  // then the silent ones with their honest state. Per-app REVENUE is not
+  // faked here: money is portfolio-wide (Stripe section) until each app's
+  // revenue reporting is wired.
+  const leadApps = [
+    ...[...reportingApps].sort((a, b) => (b.stats.users ?? -1) - (a.stats.users ?? -1) || a.name.localeCompare(b.name)),
+    ...[...silentApps].sort((a, b) => a.name.localeCompare(b.name))
+  ];
+  const usageLine = (record: OpsStatsRecord): string => {
+    const parts: string[] = [];
+    if (typeof record.stats.users === "number") parts.push(`${record.stats.users} users`);
+    if (typeof record.stats.activeUsers30d === "number") parts.push(`${record.stats.activeUsers30d} active (30d)`);
+    if (typeof record.stats.newUsers7d === "number") parts.push(`${record.stats.newUsers7d} new (7d)`);
+    if (typeof record.stats.ordersRecent === "number") parts.push(`${record.stats.ordersRecent} orders (30d)`);
+    if (typeof record.stats.ticketsOpen === "number" && record.stats.ticketsOpen > 0) parts.push(`${record.stats.ticketsOpen} open tickets`);
+    return parts.join(" · ") || "reporting, no numbers yet";
+  };
 
   // Last 14 days of AI spend, oldest first, for the mini bar strip.
   const llmDays = llm
@@ -125,6 +178,32 @@ export default async function ReportsPage() {
           it, so reporting grows app by app instead of pretending.
         </p>
       </section>
+
+      {leadApps.length > 0 ? (
+        <section className="panel">
+          <p className="dx-label">Each app in one line</p>
+          {leadApps.map((record) => {
+            const actNeeds = record.needs.filter((need) => need.severity === "action_needed").length;
+            return (
+              <p className="dx-row" key={record.key}>
+                {record.url ? (
+                  <a className="account-link" href={record.url} target="_blank" rel="noreferrer"><b>{record.name}</b></a>
+                ) : (
+                  <b>{record.name}</b>
+                )}
+                <span className="dx-note">{record.reporting ? usageLine(record) : record.note || "not reporting yet"}</span>
+                {actNeeds > 0 ? (
+                  <a className="dx-tag dx-tag--alert" href="/#attention">{actNeeds} to fix →</a>
+                ) : null}
+              </p>
+            );
+          })}
+          <p className="dx-note" style={{ marginTop: 10 }}>
+            Revenue shows portfolio-wide below — per-app revenue lands as each app's reporting is wired. Apps
+            without numbers need their stats endpoint + token wired; the engine handles that as apps are finished.
+          </p>
+        </section>
+      ) : null}
 
       <section className="panel">
         <p className="dx-label">Money — Stripe</p>
@@ -170,19 +249,19 @@ export default async function ReportsPage() {
         </p>
       </section>
 
-      <section className="panel">
-        <p className="dx-label">Usage — by app</p>
+      <section className="panel" id="usage">
+        <p className="dx-label">Usage — by app{reportingApps.length > 1 ? " · click a column to sort" : ""}</p>
         {reportingApps.length > 0 ? (
           <div className="dx-table-wrap">
             <table className="dx-table">
               <thead>
                 <tr>
-                  <th>App</th>
-                  <th>Users</th>
-                  <th>Active (30d)</th>
-                  <th>New (7d)</th>
-                  <th>Orders (30d)</th>
-                  <th>Open tickets</th>
+                  <SortHeader column="app" active={sortKey} dir={dir} />
+                  <SortHeader column="users" active={sortKey} dir={dir} />
+                  <SortHeader column="active" active={sortKey} dir={dir} />
+                  <SortHeader column="new7" active={sortKey} dir={dir} />
+                  <SortHeader column="orders" active={sortKey} dir={dir} />
+                  <SortHeader column="tickets" active={sortKey} dir={dir} />
                 </tr>
               </thead>
               <tbody>
@@ -213,8 +292,8 @@ export default async function ReportsPage() {
         )}
         {silentApps.length > 0 ? (
           <p className="dx-note" style={{ marginTop: 10 }}>
-            Not reporting yet: {silentApps.map((record) => record.name).join(", ")} — each needs its stats endpoint +
-            token wired (the engine handles that as apps are finished).
+            {silentApps.length} app{silentApps.length === 1 ? " isn't" : "s aren't"} reporting yet — each one's
+            state is in the line-per-app list above.
           </p>
         ) : null}
       </section>

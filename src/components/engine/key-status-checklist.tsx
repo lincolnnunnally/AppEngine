@@ -192,18 +192,41 @@ function CompactSummary({ data }: { data: KeyStatusData }) {
   );
 }
 
-export async function KeyStatusChecklist({ userKey, compact = false }: { userKey: string | null; compact?: boolean }) {
+export async function KeyStatusChecklist({
+  userKey,
+  compact = false,
+  focus = false
+}: {
+  userKey: string | null;
+  compact?: boolean;
+  focus?: boolean; // true = show only rows that still need the owner (needed / check-value)
+}) {
   const data = await buildKeyStatus(userKey);
 
   if (compact) {
     return <CompactSummary data={data} />;
   }
 
+  const needsAction = (state: UniversalRow["state"] | PaymentRow["state"]) =>
+    state === "needed" || state === "placeholder";
+  const universal = focus ? data.universal.filter((row) => needsAction(row.state)) : data.universal;
+  const payments = focus ? data.payments.filter((row) => needsAction(row.state)) : data.payments;
+
+  if (focus && universal.length === 0 && payments.length === 0) {
+    return (
+      <p className="key-checklist-row">
+        {statusBadge("set", "all provided")}
+        <span className="key-checklist-note">every key on the checklist is provided or already on hosting — nothing to enter.</span>
+      </p>
+    );
+  }
+
   return (
     <div className="integration-grid">
+      {universal.length > 0 ? (
       <div>
         <h3 className="key-checklist-heading">Universal keys — needed once, used everywhere</h3>
-        {data.universal.map((row) => (
+        {universal.map((row) => (
           <p className="key-checklist-row" key={row.key}>
             {badgeFor(row.state)}
             <code className="cred-var">{row.key}</code>
@@ -211,9 +234,11 @@ export async function KeyStatusChecklist({ userKey, compact = false }: { userKey
           </p>
         ))}
       </div>
+      ) : null}
+      {payments.length > 0 ? (
       <div>
         <h3 className="key-checklist-heading">Payment keys — one per app taking money</h3>
-        {data.payments.map((row) => (
+        {payments.map((row) => (
           <p className="key-checklist-row" key={`${row.slug || "we-succeed"}:${row.envVar}:${row.appName}`}>
             {badgeFor(row.state)}
             <strong className="key-checklist-app">{row.appName}</strong>
@@ -226,6 +251,7 @@ export async function KeyStatusChecklist({ userKey, compact = false }: { userKey
           app&apos;s revenue separate. Scope the key to the app when you save it.
         </p>
       </div>
+      ) : null}
     </div>
   );
 }

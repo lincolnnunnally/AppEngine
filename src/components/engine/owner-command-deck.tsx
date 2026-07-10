@@ -66,7 +66,17 @@ function AppCard({ app }: { app: DeckApp }) {
   );
 }
 
-export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) {
+// Portfolio filter chips — plain links (?apps=), same no-JS pattern as the
+// domains sort headers. Buckets can overlap ("live" and "needs attention" are
+// both true for a live app with a blocker); each chip answers one owner
+// question: what's live / what needs me / what isn't out yet.
+const PORTFOLIO_FILTERS: Record<string, { label: string; match: (app: DeckApp) => boolean }> = {
+  live: { label: "Live", match: (app) => app.status === "live" },
+  attention: { label: "Needs attention", match: (app) => app.attentionCount > 0 },
+  idle: { label: "Not live yet", match: (app) => app.status !== "live" }
+};
+
+export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: string | null; appsFilter?: string }) {
   const deck = await loadOwnerDeck();
   const keys = await buildKeyStatus(userKey).catch(() => null);
   const keyRows = keys ? [...keys.universal, ...keys.payments] : [];
@@ -74,6 +84,30 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
   const keysNeeded = keyRows.filter((row) => row.state === "needed" || row.state === "placeholder").length;
   const actItems = deck.attention.filter((item) => item.severity === "act");
   const watchItems = deck.attention.filter((item) => item.severity === "watch");
+
+  // Attention grouped by app: one heading per app, its items under it — the
+  // owner clears an app at a time instead of hopping between apps in a flat
+  // list. Capped at 8 items total across groups, same budget as before.
+  const actGroups: Array<{ appName: string; items: typeof actItems }> = [];
+  for (const item of actItems) {
+    const group = actGroups.find((entry) => entry.appName === item.appName);
+    if (group) group.items.push(item);
+    else actGroups.push({ appName: item.appName, items: [item] });
+  }
+  actGroups.sort((a, b) => b.items.length - a.items.length);
+  let itemBudget = 8;
+  const shownGroups = actGroups
+    .map((group) => {
+      const items = group.items.slice(0, Math.max(0, itemBudget));
+      itemBudget -= items.length;
+      return { appName: group.appName, items };
+    })
+    .filter((group) => group.items.length > 0);
+  const shownCount = shownGroups.reduce((sum, group) => sum + group.items.length, 0);
+
+  const activeFilter = appsFilter && PORTFOLIO_FILTERS[appsFilter] ? appsFilter : "";
+  const shownApps = activeFilter ? deck.apps.filter(PORTFOLIO_FILTERS[activeFilter].match) : deck.apps;
+  const chipCount = (key: string) => deck.apps.filter(PORTFOLIO_FILTERS[key].match).length;
 
   return (
     <main className="shell">
@@ -87,7 +121,7 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
           the engine reviews what already exists, then builds it to completion — nothing technical lands on your desk.
         </p>
         <div className="dx-stat-grid">
-          <a className="dx-stat dx-stat--lime" href="#portfolio">
+          <a className="dx-stat dx-stat--lime" href="/?apps=live#portfolio">
             <strong>{deck.liveCount}</strong>
             <span>apps live</span>
             <p>of {deck.totalApps} in the portfolio ↓</p>
@@ -114,18 +148,27 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
         <section className="panel" id="attention">
           <p className="dx-label">Needs your attention</p>
           <div className="dx-callout dx-callout--alert">
-            {actItems.slice(0, 8).map((item, index) => (
-              <p className="dx-row" key={`${item.appName}-${index}`}>
-                <span className="dx-index">{String(index + 1).padStart(2, "0")}</span>
-                <span className="dx-tag dx-tag--alert">{item.appName}</span>
-                <b>{item.finding}</b>
-                <span className="dx-note">{item.action}</span>
-                {item.link ? (
-                  <a className="account-link" href={item.link}>Fix it →</a>
-                ) : null}
-              </p>
+            {shownGroups.map((group) => (
+              <div className="dx-attn-group" key={group.appName}>
+                <p className="dx-attn-head">
+                  <span className="dx-tag dx-tag--alert">{group.appName}</span>
+                  {group.items.length > 1 ? (
+                    <span className="dx-note">{group.items.length} things to fix</span>
+                  ) : null}
+                </p>
+                {group.items.map((item, index) => (
+                  <p className="dx-row" key={`${group.appName}-${index}`}>
+                    <span className="dx-index">{String(index + 1).padStart(2, "0")}</span>
+                    <b>{item.finding}</b>
+                    <span className="dx-note">{item.action}</span>
+                    {item.link ? (
+                      <a className="account-link" href={item.link}>Fix it →</a>
+                    ) : null}
+                  </p>
+                ))}
+              </div>
             ))}
-            {actItems.length > 8 ? <p className="dx-note">…and {actItems.length - 8} more.</p> : null}
+            {actItems.length > shownCount ? <p className="dx-note">…and {actItems.length - shownCount} more.</p> : null}
           </div>
           {watchItems.length > 0 ? (
             <p className="dx-note" style={{ color: "var(--muted)" }}>
@@ -149,11 +192,37 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null }) 
 
       <section className="panel" id="portfolio">
         <p className="dx-label">The portfolio — facts as of {new Date(deck.factsAsOf).toLocaleDateString("en-US")}</p>
-        <div className="dx-app-grid">
-          {deck.apps.map((app) => (
-            <AppCard app={app} key={app.slug} />
-          ))}
+        <div className="dx-chips">
+          <a className={`dx-chip${activeFilter === "" ? " dx-chip--active" : ""}`} href="/#portfolio">
+            All <strong>{deck.apps.length}</strong>
+          </a>
+          {Object.entries(PORTFOLIO_FILTERS).map(([key, filter]) => {
+            const count = chipCount(key);
+            // A chip that matches nothing isn't rendered — nothing clickable
+            // that goes nowhere.
+            if (count === 0) return null;
+            return (
+              <a
+                className={`dx-chip${activeFilter === key ? " dx-chip--active" : ""}`}
+                href={`/?apps=${key}#portfolio`}
+                key={key}
+              >
+                {filter.label} <strong>{count}</strong>
+              </a>
+            );
+          })}
         </div>
+        {shownApps.length === 0 ? (
+          <p className="dx-note">
+            No apps match that filter right now. <a className="account-link" href="/#portfolio">Show all {deck.apps.length} →</a>
+          </p>
+        ) : (
+          <div className="dx-app-grid">
+            {shownApps.map((app) => (
+              <AppCard app={app} key={app.slug} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="panel">

@@ -49,8 +49,14 @@ function credStatusClass(status: CredentialStatus): string {
   return "manual";
 }
 
-function back(message: string, ok: boolean): never {
-  redirect(`/integrations?msg=${encodeURIComponent(message)}&ok=${ok ? "1" : "0"}`);
+// Redirects preserve the focus toggle — saving a key while in "only what needs
+// action" mode lands back on the shrinking to-do view, not the full page.
+function back(message: string, ok: boolean, focus?: string): never {
+  redirect(`/integrations?msg=${encodeURIComponent(message)}&ok=${ok ? "1" : "0"}${focus === "action" ? "&focus=action" : ""}`);
+}
+
+function focusOf(formData: FormData): string {
+  return String(formData.get("focus") || "");
 }
 
 async function saveAction(formData: FormData) {
@@ -59,7 +65,7 @@ async function saveAction(formData: FormData) {
   const key = String(formData.get("key") || "");
   const value = String(formData.get("value") || "");
   const result = await setIntegrationValue(key, value);
-  back(result.message, result.ok);
+  back(result.message, result.ok, focusOf(formData));
 }
 
 async function saveCustomAction(formData: FormData) {
@@ -68,7 +74,7 @@ async function saveCustomAction(formData: FormData) {
   const key = String(formData.get("key") || "");
   const value = String(formData.get("value") || "");
   const result = await setCustomIntegrationValue(key, value);
-  back(result.message, result.ok);
+  back(result.message, result.ok, focusOf(formData));
 }
 
 async function saveAppKeyAction(formData: FormData) {
@@ -78,7 +84,7 @@ async function saveAppKeyAction(formData: FormData) {
   const key = String(formData.get("key") || "");
   const value = String(formData.get("value") || "");
   const result = await setAppEnvValue(slug, key, value);
-  back(result.message, result.ok);
+  back(result.message, result.ok, focusOf(formData));
 }
 
 // One-click "Apply": the system already knows this value (a non-secret publicValue
@@ -93,9 +99,13 @@ async function applyKnownValueAction(formData: FormData) {
   const group = CREDENTIAL_REGISTRY.find((g) => g.slug === slug);
   const entry = group?.keys.find((k) => k.envVar === key);
   const value = entry?.publicValue;
-  if (!value) back(`No known value on file for ${key}.`, false);
+  if (!value) back(`No known value on file for ${key}.`, false, focusOf(formData));
   const result = await setAppEnvValue(slug, key, value);
-  back(result.ok ? `Applied ${key} to ${group?.name || slug}. Redeploy that app to pick it up.` : result.message, result.ok);
+  back(
+    result.ok ? `Applied ${key} to ${group?.name || slug}. Redeploy that app to pick it up.` : result.message,
+    result.ok,
+    focusOf(formData)
+  );
 }
 
 async function applyAction() {
@@ -108,7 +118,7 @@ async function applyAction() {
 export default async function IntegrationsPage({
   searchParams
 }: {
-  searchParams: Promise<{ msg?: string; ok?: string }>;
+  searchParams: Promise<{ msg?: string; ok?: string; focus?: string }>;
 }) {
   if (!(await canAccessEngineOwner())) {
     redirect("/");
@@ -116,6 +126,9 @@ export default async function IntegrationsPage({
 
   const params = await searchParams;
   const notice = params.msg ? { ok: params.ok === "1", message: params.msg } : null;
+  // "Only what needs action" mode: fully-handled folds and already-provided
+  // rows disappear; what's left is the owner's actual to-do list, folds open.
+  const focus = params.focus === "action";
   const statuses = await getIntegrationStatuses();
   const credStatuses = await getCredentialStatuses().catch(() => ({} as Record<string, CredentialStatus>));
   const apiReady = hasVercelConfigApi();
@@ -171,7 +184,12 @@ export default async function IntegrationsPage({
       <section className="panel">
         <p className="eyebrow">Status</p>
         <h2>What&apos;s provided, what&apos;s still needed</h2>
-        <KeyStatusChecklist userKey={userKey || null} />
+        <p>
+          <a className="dx-btn" href={focus ? "/integrations" : "/integrations?focus=action"}>
+            {focus ? "Show everything" : "Show only what needs action"}
+          </a>
+        </p>
+        <KeyStatusChecklist userKey={userKey || null} focus={focus} />
       </section>
 
       {/* ── 2. Entry: the vault (moved here from the Your-apps page) ───────── */}
@@ -186,12 +204,26 @@ export default async function IntegrationsPage({
         <EnvVault home apps={scopeApps} />
       </section>
 
+      {/* Focus mode with a clean board: say so instead of rendering nothing. */}
+      {focus &&
+      INTEGRATION_FIELDS.every((field) => statuses[field.key]) &&
+      otherApps.every((app) => app.keys.every((key) => (credStatuses[`${app.slug}:${key.envVar}`] || "manual") !== "missing")) ? (
+        <section className="panel">
+          <p className="dx-note">
+            Nothing needs action — every key that can be checked is in place.{" "}
+            <a className="account-link" href="/integrations">Show everything →</a>
+          </p>
+        </section>
+      ) : null}
+
       {/* ── AppEngine's own keys — folded; the summary carries the status ── */}
       {groups.map((group) => {
         const fields = INTEGRATION_FIELDS.filter((field) => field.group === group);
         const setCount = fields.filter((field) => statuses[field.key]).length;
+        const shownFields = focus ? fields.filter((field) => !statuses[field.key]) : fields;
+        if (focus && shownFields.length === 0) return null;
         return (
-        <details className="panel integration-fold" key={group}>
+        <details className="panel integration-fold" key={group} open={focus || undefined}>
           <summary className="integration-fold-summary">
             <span className="integration-fold-title">AppEngine · {group}</span>
             <span className={`integration-status integration-status--${setCount === fields.length ? "set" : "needed"}`}>
@@ -199,9 +231,10 @@ export default async function IntegrationsPage({
             </span>
           </summary>
           <div className="integration-grid">
-            {INTEGRATION_FIELDS.filter((field) => field.group === group).map((field) => (
+            {shownFields.map((field) => (
               <form key={field.key} action={saveAction} className="integration-row">
                 <input type="hidden" name="key" value={field.key} />
+                {focus ? <input type="hidden" name="focus" value="action" /> : null}
                 <div className="integration-label">
                   <span>{field.label}</span>
                   <span className={`integration-status integration-status--${statuses[field.key] ? "set" : "unset"}`}>
@@ -226,6 +259,7 @@ export default async function IntegrationsPage({
       })}
 
       {/* ── Add any variable (the old "Your keys" custom add) ─────────────── */}
+      {focus ? null : (
       <details className="panel integration-fold">
         <summary className="integration-fold-summary">
           <span className="integration-fold-title">AppEngine · Add any variable</span>
@@ -240,6 +274,7 @@ export default async function IntegrationsPage({
           </div>
         </form>
       </details>
+      )}
 
       {/* ── Per-app secrets (the old /credentials page, folded in) ────────── */}
       {otherApps.map((app) => {
@@ -252,8 +287,12 @@ export default async function IntegrationsPage({
         const setCount = appKeyStatuses.filter((status) => status === "set" || status === "known").length;
         const missingCount = appKeyStatuses.filter((status) => status === "missing").length;
         const manualCount = app.keys.length - setCount - missingCount;
+        // Focus mode: an app with nothing missing disappears; one with gaps
+        // shows ONLY the missing rows, already unfolded.
+        const shownKeys = focus ? app.keys.filter((key) => (credStatuses[`${app.slug}:${key.envVar}`] || "manual") === "missing") : app.keys;
+        if (focus && shownKeys.length === 0) return null;
         return (
-        <details className="panel integration-fold" key={app.slug}>
+        <details className="panel integration-fold" key={app.slug} open={focus || undefined}>
           <summary className="integration-fold-summary">
             <span className="integration-fold-title">{app.name}</span>
             {app.renderService ? <span className="cred-tag">Render: {app.renderService}</span> : null}
@@ -261,13 +300,13 @@ export default async function IntegrationsPage({
             {missingCount > 0 ? <span className="integration-status integration-status--needed">{missingCount} not set</span> : null}
             {manualCount > 0 ? <span className="integration-status integration-status--manual">{manualCount} in dashboards</span> : null}
           </summary>
-          {pushCount > 0 ? (
+          {!focus && pushCount > 0 ? (
             <div className="cred-group-head">
               <CredentialPushAllButton slug={app.slug} appName={app.name} count={pushCount} />
             </div>
           ) : null}
           <p className="cred-summary">{app.summary}</p>
-          {deployable && app.renderService ? (
+          {!focus && deployable && app.renderService ? (
             <RenderDeployPanel
               slug={app.slug}
               serviceName={app.renderService}
@@ -277,13 +316,14 @@ export default async function IntegrationsPage({
             />
           ) : null}
           <div className="integration-grid">
-            {app.keys.map((key) => {
+            {shownKeys.map((key) => {
               const status = credStatuses[`${app.slug}:${key.envVar}`] || "manual";
               const pushable = key.host === "vercel" && Boolean(app.vercelProjectId);
               return (
                 <form key={key.envVar + key.displayName} action={saveAppKeyAction} className="integration-row">
                   <input type="hidden" name="slug" value={app.slug} />
                   <input type="hidden" name="key" value={key.envVar} />
+                  {focus ? <input type="hidden" name="focus" value="action" /> : null}
                   <div className="integration-label">
                     <span>{key.displayName}</span>
                     <span className={`integration-status integration-status--${credStatusClass(status)}`}>
