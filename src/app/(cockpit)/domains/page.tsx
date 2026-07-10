@@ -6,6 +6,7 @@ import {
   KNOWN_DOMAIN_SEEDS,
   listDomainInventory,
   pullCloudflareZones,
+  refreshAllDomainFacts,
   refreshDomainFacts,
   removeDomain,
   upsertDomain
@@ -16,9 +17,19 @@ import {
 // seeds the ecosystem already knows about appear as one-click adds; Cloudflare
 // zones can be pulled live. Registrars without a usable API stay manual.
 export const dynamic = "force-dynamic";
+// "Refresh all facts" walks the inventory against the public registry at ~1
+// request/second — give the action room beyond the 10s default.
+export const maxDuration = 60;
 
-function back(message: string, ok: boolean): never {
-  redirect(`/domains?msg=${encodeURIComponent(message)}&ok=${ok ? "1" : "0"}`);
+// Row actions carry the current sort in hidden fields so acting on a sorted
+// view doesn't snap the table back to A–Z.
+function sortSuffix(sort?: string, dir?: string): string {
+  return sort ? `&sort=${encodeURIComponent(sort)}&dir=${dir === "desc" ? "desc" : "asc"}` : "";
+}
+
+function back(message: string, ok: boolean, formData?: FormData): never {
+  const keep = formData ? sortSuffix(String(formData.get("sort") || ""), String(formData.get("dir") || "")) : "";
+  redirect(`/domains?msg=${encodeURIComponent(message)}&ok=${ok ? "1" : "0"}${keep}`);
 }
 
 async function saveDomainAction(formData: FormData) {
@@ -40,14 +51,21 @@ async function saveDomainAction(formData: FormData) {
     nameServers: field("nameServers"),
     notes: field("notes")
   });
-  back(result.message, result.ok);
+  back(result.message, result.ok, formData);
 }
 
 async function refreshFactsAction(formData: FormData) {
   "use server";
   if (!(await canAccessEngineAdmin())) redirect("/");
   const result = await refreshDomainFacts(String(formData.get("domain") || ""));
-  back(result.message, result.ok);
+  back(result.message, result.ok, formData);
+}
+
+async function refreshAllFactsAction(formData: FormData) {
+  "use server";
+  if (!(await canAccessEngineAdmin())) redirect("/");
+  const result = await refreshAllDomainFacts();
+  back(result.message, result.ok, formData);
 }
 
 async function addSeedAction(formData: FormData) {
@@ -65,7 +83,7 @@ async function removeDomainAction(formData: FormData) {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const domain = String(formData.get("domain") || "");
   await removeDomain(domain);
-  back(`${domain} removed.`, true);
+  back(`${domain} removed.`, true, formData);
 }
 
 async function pullCloudflareAction() {
@@ -122,6 +140,17 @@ export default async function DomainsPage({
   const expiring = rows.filter((row) => row.expiresOn && daysUntil(row.expiresOn) <= 60);
   // ?edit=<domain> prefills the form below with that row for in-place editing.
   const editing = params.edit ? rows.find((row) => row.domain === params.edit) ?? null : null;
+  // Only an explicitly chosen sort is carried through links and row actions —
+  // acting on a sorted view must not snap the table back to A–Z.
+  const chosenSort = params.sort && SORTS[params.sort] ? sortKey : "";
+  const keep = chosenSort ? `&sort=${chosenSort}&dir=${dir}` : "";
+  const cancelHref = keep ? `/domains?${keep.slice(1)}#inventory` : "/domains#inventory";
+  const sortFields = (
+    <>
+      <input type="hidden" name="sort" value={chosenSort} />
+      <input type="hidden" name="dir" value={dir} />
+    </>
+  );
 
   return (
     <main className="shell">
@@ -139,11 +168,26 @@ export default async function DomainsPage({
           <p className={`integration-notice integration-notice--${notice.ok ? "ok" : "error"}`}>{notice.message}</p>
         ) : null}
         {!available ? <p className="integration-warn">Domain storage needs the database — unavailable in this environment.</p> : null}
-        <form action={pullCloudflareAction}>
-          <button className="dx-btn dx-btn--primary" type="submit" disabled={!available}>
-            Pull zones from Cloudflare
-          </button>
-        </form>
+        <div className="action-row">
+          <form action={pullCloudflareAction}>
+            <button className="dx-btn dx-btn--primary" type="submit" disabled={!available}>
+              Pull zones from Cloudflare
+            </button>
+          </form>
+          {rows.length > 0 ? (
+            <form action={refreshAllFactsAction}>
+              {sortFields}
+              <button
+                className="dx-btn"
+                type="submit"
+                disabled={!available}
+                title="Registrar, expiry, and name servers for every row — the registry is asked about one domain per second, so this takes a moment"
+              >
+                Refresh all facts ({rows.length})
+              </button>
+            </form>
+          ) : null}
+        </div>
       </section>
 
       {expiring.length > 0 ? (
@@ -197,15 +241,17 @@ export default async function DomainsPage({
                     <td className="dx-mono">{row.nameServers ? row.nameServers.split(",").map((ns) => ns.trim()).join(" · ") : "—"}</td>
                     <td>{row.notes || ""}</td>
                     <td>
-                      <a className="account-link" href={`/domains?edit=${encodeURIComponent(row.domain)}#edit-domain`}>Edit</a>
+                      <a className="account-link" href={`/domains?edit=${encodeURIComponent(row.domain)}${keep}#edit-domain`}>Edit</a>
                       {" · "}
                       <form action={refreshFactsAction} style={{ display: "inline" }}>
                         <input type="hidden" name="domain" value={row.domain} />
+                        {sortFields}
                         <button className="account-link-button" type="submit" title="Pull registrar, expiry, and name servers from the public registry">Refresh facts</button>
                       </form>
                       {" · "}
                       <form action={removeDomainAction} style={{ display: "inline" }}>
                         <input type="hidden" name="domain" value={row.domain} />
+                        {sortFields}
                         <button className="account-link-button" type="submit">Remove</button>
                       </form>
                     </td>
@@ -238,8 +284,18 @@ export default async function DomainsPage({
 
       <section className="panel" id="edit-domain">
         <p className="dx-label">{editing ? `Editing ${editing.domain}` : "Add or update a domain"}</p>
-        <p className="dx-note">Blank fields keep their current value — you only overwrite what you type. "Refresh facts" on any row fills registrar, expiry, and name servers from the public registry automatically.</p>
+        <p className="dx-note">
+          Blank fields keep their current value — you only overwrite what you type. &quot;Refresh facts&quot; on any row fills
+          registrar, expiry, and name servers from the public registry automatically.
+          {editing ? (
+            <>
+              {" "}
+              <a className="account-link" href={cancelHref}>Cancel — leave {editing.domain} as it is →</a>
+            </>
+          ) : null}
+        </p>
         <form action={saveDomainAction} className="form-grid">
+          {sortFields}
           <label>
             Domain
             <input className="convo-input" name="domain" type="text" placeholder="example.com" defaultValue={editing?.domain ?? ""} required />

@@ -170,6 +170,25 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
     return apps.find((app) => app.slug === slug)?.label || slug;
   }
 
+  // Saved-keys list: find one key fast once the vault grows. Search matches the
+  // key name or the app it's scoped to; sort is name A–Z or most recently
+  // updated. Pure client-side view state — the entries themselves are untouched.
+  const [savedQuery, setSavedQuery] = useState("");
+  const [savedSort, setSavedSort] = useState<"name" | "recent">("name");
+  const savedNeedle = savedQuery.trim().toLowerCase();
+  const savedCompare = (a: Entry, b: Entry) =>
+    savedSort === "recent"
+      ? (b.updatedAt || "").localeCompare(a.updatedAt || "") || a.key.localeCompare(b.key)
+      : a.key.localeCompare(b.key);
+  const visibleEntries = entries
+    .filter(
+      (entry) =>
+        !savedNeedle ||
+        entry.key.toLowerCase().includes(savedNeedle) ||
+        (entry.appScope ? appLabel(entry.appScope).toLowerCase().includes(savedNeedle) : false)
+    )
+    .sort(savedCompare);
+
   if (!loaded) {
     return <p className="account-app-meta">Loading your keys…</p>;
   }
@@ -340,14 +359,38 @@ export function EnvVault({ apps, home = false }: { apps: AppOption[]; home?: boo
 
       {entries.length > 0 ? (
         <div className="env-vault-saved">
+          {entries.length > 6 ? (
+            <div className="env-vault-row">
+              <input
+                className="convo-input"
+                type="search"
+                value={savedQuery}
+                placeholder={`Search your ${entries.length} saved keys — by name or app`}
+                onChange={(event) => setSavedQuery(event.target.value)}
+                aria-label="Search saved keys"
+              />
+              <select
+                className="convo-input env-vault-select"
+                value={savedSort}
+                onChange={(event) => setSavedSort(event.target.value === "recent" ? "recent" : "name")}
+                aria-label="Sort saved keys"
+              >
+                <option value="name">Sort: name A–Z</option>
+                <option value="recent">Sort: recently updated</option>
+              </select>
+            </div>
+          ) : null}
+          {visibleEntries.length === 0 ? (
+            <p className="account-app-meta">No saved keys match “{savedQuery.trim()}”.</p>
+          ) : null}
           {[
-            { heading: "Universal — every app", rows: entries.filter((entry) => !entry.appScope) },
-            { heading: "Per-app", rows: entries.filter((entry) => entry.appScope) }
+            { heading: "Universal — every app", rows: visibleEntries.filter((entry) => !entry.appScope) },
+            { heading: "Per-app", rows: visibleEntries.filter((entry) => entry.appScope) }
           ]
             .filter((group) => group.rows.length > 0)
             .map((group) => (
               <div key={group.heading} className="env-vault-saved-group">
-                <p className="env-vault-saved-heading">{group.heading}</p>
+                <p className="env-vault-saved-heading">{group.heading} · {group.rows.length}</p>
                 <ul className="env-vault-list">
                   {group.rows.map((entry) => (
                     <li className="env-vault-item" key={`${entry.key}:${entry.appScope}`}>

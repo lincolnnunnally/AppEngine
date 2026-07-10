@@ -11,10 +11,15 @@ import { OwnerCommandDeck } from "@/components/engine/owner-command-deck";
 // experience is unchanged. The intake stays reachable for the owner at /start.
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams: Promise<{ apps?: string }>;
+}) {
   if (await canAccessEngineAdmin()) {
     const session = await auth();
-    return <OwnerCommandDeck userKey={normalizeUserKey(session?.user?.email) || null} />;
+    const params = await searchParams;
+    return <OwnerCommandDeck userKey={normalizeUserKey(session?.user?.email) || null} appsFilter={params.apps} />;
   }
   return (
     <main className="entry">

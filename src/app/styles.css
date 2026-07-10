@@ -6081,3 +6081,50 @@ a.dx-stat:hover {
 .dx-sort:hover {
   color: var(--ink);
 }
+
+/* Filter chips (deck portfolio) — plain links, query-param driven. */
+.dx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.dx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.dx-chip strong {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.dx-chip:hover { border-color: var(--teal); color: var(--ink); }
+
+.dx-chip--active {
+  border-color: color-mix(in srgb, var(--lime) 55%, transparent);
+  color: var(--lime);
+}
+
+.dx-chip--active strong { color: var(--lime); }
+
+/* Attention list grouped by app (deck) */
+.dx-attn-group { margin: 0 0 6px; }
+
+.dx-attn-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.dx-attn-group .dx-row { border-top: 0; padding-top: 6px; }
