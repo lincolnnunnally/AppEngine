@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 function LiveCard({ app }: { app: ShowcaseApp }) {
   return (
-    <a className="uug-card uug-live" href={app.liveUrl}>
+    <a className="uug-card uug-live" href={app.liveUrl} target="_blank" rel="noopener noreferrer">
       <h3>{app.name}</h3>
       {app.tagline ? <p>{app.tagline}</p> : null}
       <span className="uug-visit">
@@ -60,7 +60,7 @@ export default function AppsShowcasePage() {
       <header className="uug-top">
         <span className="uug-mark" aria-hidden="true" />
         <span className="uug-wordmark">United Under God</span>
-        <a className="uug-toplink" href="https://www.unitedundergod.org">
+        <a className="uug-toplink" href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">
           unitedundergod.org
         </a>
       </header>
@@ -113,10 +113,10 @@ export default function AppsShowcasePage() {
 
       <footer className="uug-foot">
         <p>
-          Built with <a href="https://www.we-succeed.org">We Succeed</a> — the app builder behind this family.
+          Built with <a href="https://www.we-succeed.org" target="_blank" rel="noopener noreferrer">We Succeed</a> — the app builder behind this family.
         </p>
         <p className="uug-foot-sub">
-          Part of the <a href="https://www.unitedundergod.org">United Under God</a> ecosystem.
+          Part of the <a href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">United Under God</a> ecosystem.
         </p>
       </footer>
     </div>
