@@ -5,6 +5,7 @@ import {
   KNOWN_DOMAIN_SEEDS,
   listDomainInventory,
   pullCloudflareZones,
+  refreshDomainFacts,
   removeDomain,
   upsertDomain
 } from "@/lib/engine/domain-inventory";
@@ -35,8 +36,16 @@ async function saveDomainAction(formData: FormData) {
     appSlug: field("appSlug"),
     status: field("status"),
     expiresOn: field("expiresOn"),
+    nameServers: field("nameServers"),
     notes: field("notes")
   });
+  back(result.message, result.ok);
+}
+
+async function refreshFactsAction(formData: FormData) {
+  "use server";
+  if (!(await canAccessEngineAdmin())) redirect("/");
+  const result = await refreshDomainFacts(String(formData.get("domain") || ""));
   back(result.message, result.ok);
 }
 
@@ -72,7 +81,7 @@ function daysUntil(iso: string): number {
 export default async function DomainsPage({
   searchParams
 }: {
-  searchParams: Promise<{ msg?: string; ok?: string }>;
+  searchParams: Promise<{ msg?: string; ok?: string; edit?: string }>;
 }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
 
@@ -83,6 +92,8 @@ export default async function DomainsPage({
   const inInventory = new Set(rows.map((row) => row.domain));
   const suggestions = KNOWN_DOMAIN_SEEDS.filter((seed) => !inInventory.has(seed.domain));
   const expiring = rows.filter((row) => row.expiresOn && daysUntil(row.expiresOn) <= 60);
+  // ?edit=<domain> prefills the form below with that row for in-place editing.
+  const editing = params.edit ? rows.find((row) => row.domain === params.edit) ?? null : null;
 
   return (
     <main className="shell">
@@ -137,6 +148,7 @@ export default async function DomainsPage({
                   <th>App</th>
                   <th>Status</th>
                   <th>Expires</th>
+                  <th>Name servers</th>
                   <th>Notes</th>
                   <th></th>
                 </tr>
@@ -154,9 +166,17 @@ export default async function DomainsPage({
                     <td className="dx-mono">{row.appSlug || "—"}</td>
                     <td>{row.status || "—"}</td>
                     <td className="dx-mono">{row.expiresOn || "—"}</td>
+                    <td className="dx-mono">{row.nameServers ? row.nameServers.split(",").map((ns) => ns.trim()).join(" · ") : "—"}</td>
                     <td>{row.notes || ""}</td>
                     <td>
-                      <form action={removeDomainAction}>
+                      <a className="account-link" href={`/domains?edit=${encodeURIComponent(row.domain)}#edit-domain`}>Edit</a>
+                      {" · "}
+                      <form action={refreshFactsAction} style={{ display: "inline" }}>
+                        <input type="hidden" name="domain" value={row.domain} />
+                        <button className="account-link-button" type="submit" title="Pull registrar, expiry, and name servers from the public registry">Refresh facts</button>
+                      </form>
+                      {" · "}
+                      <form action={removeDomainAction} style={{ display: "inline" }}>
                         <input type="hidden" name="domain" value={row.domain} />
                         <button className="account-link-button" type="submit">Remove</button>
                       </form>
@@ -188,36 +208,41 @@ export default async function DomainsPage({
         </section>
       ) : null}
 
-      <section className="panel">
-        <p className="dx-label">Add or update a domain</p>
+      <section className="panel" id="edit-domain">
+        <p className="dx-label">{editing ? `Editing ${editing.domain}` : "Add or update a domain"}</p>
+        <p className="dx-note">Blank fields keep their current value — you only overwrite what you type. "Refresh facts" on any row fills registrar, expiry, and name servers from the public registry automatically.</p>
         <form action={saveDomainAction} className="form-grid">
           <label>
             Domain
-            <input className="convo-input" name="domain" type="text" placeholder="example.com" required />
+            <input className="convo-input" name="domain" type="text" placeholder="example.com" defaultValue={editing?.domain ?? ""} required />
           </label>
           <label>
             Registrar
-            <input className="convo-input" name="registrar" type="text" placeholder="Spaceship / eNom / DreamHost" />
+            <input className="convo-input" name="registrar" type="text" placeholder="Spaceship / eNom / DreamHost" defaultValue={editing?.registrar ?? ""} />
           </label>
           <label>
             DNS host
-            <input className="convo-input" name="dnsHost" type="text" placeholder="Cloudflare / DreamHost / Vercel" />
+            <input className="convo-input" name="dnsHost" type="text" placeholder="Cloudflare / DreamHost / Vercel" defaultValue={editing?.dnsHost ?? ""} />
           </label>
           <label>
             App (slug)
-            <input className="convo-input" name="appSlug" type="text" placeholder="which app uses it" />
+            <input className="convo-input" name="appSlug" type="text" placeholder="which app uses it" defaultValue={editing?.appSlug ?? ""} />
           </label>
           <label>
             Status
-            <input className="convo-input" name="status" type="text" placeholder="live / parked / not serving" />
+            <input className="convo-input" name="status" type="text" placeholder="live / parked / not serving" defaultValue={editing?.status ?? ""} />
           </label>
           <label>
             Expires (YYYY-MM-DD)
-            <input className="convo-input" name="expiresOn" type="date" />
+            <input className="convo-input" name="expiresOn" type="date" defaultValue={editing?.expiresOn ?? ""} />
+          </label>
+          <label>
+            Name servers
+            <input className="convo-input" name="nameServers" type="text" placeholder="ns1.example.com, ns2.example.com" defaultValue={editing?.nameServers ?? ""} />
           </label>
           <label>
             Notes
-            <input className="convo-input" name="notes" type="text" />
+            <input className="convo-input" name="notes" type="text" defaultValue={editing?.notes ?? ""} />
           </label>
           <div className="action-row">
             <button className="dx-btn dx-btn--primary" type="submit" disabled={!available}>Save domain</button>

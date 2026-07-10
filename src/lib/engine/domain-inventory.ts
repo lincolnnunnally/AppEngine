@@ -19,6 +19,7 @@ export type DomainRecord = {
   appSlug: string;
   status: string;
   expiresOn: string | null; // ISO date
+  nameServers: string; // comma-separated, from RDAP/Cloudflare or hand-entered
   notes: string;
   updatedAt: string | null;
 };
@@ -26,7 +27,7 @@ export type DomainRecord = {
 // What the ecosystem already knows (source-of-truth/ecosystem-portfolio-registry.json,
 // unitedundergod-subdomain-dns-plan.md, ecosystem-completion-prep.md — facts as of
 // 2026-07-09). Rendered as one-click "add to inventory" suggestions, NOT auto-written.
-export const KNOWN_DOMAIN_SEEDS: ReadonlyArray<Omit<DomainRecord, "updatedAt">> = [
+export const KNOWN_DOMAIN_SEEDS: ReadonlyArray<Omit<DomainRecord, "updatedAt" | "nameServers">> = [
   { domain: "unitedundergod.org", registrar: "Spaceship", dnsHost: "Cloudflare", appSlug: "united-under-god", status: "live (WordPress + app subdomains)", expiresOn: null, notes: "NS moved to Cloudflare 2026-07; WP + mail stay on DreamHost hosts" },
   { domain: "we-succeed.org", registrar: "Spaceship", dnsHost: "Vercel", appSlug: "appengine", status: "live (to be repurposed)", expiresOn: null, notes: "Owner: will be used for something else; cockpit moves to appengine.unitedundergod.org" },
   { domain: "churchconnect.cloud", registrar: "Spaceship", dnsHost: "Vercel", appSlug: "churchconnect", status: "live", expiresOn: null, notes: "" },
@@ -58,6 +59,8 @@ async function ensureTable() {
       updated_at timestamptz not null default now()
     )
   `;
+  // Columns added after first ship (safe on every start).
+  await sql`alter table app_domain_inventory add column if not exists name_servers text not null default ''`;
   ensured = true;
 }
 
@@ -92,6 +95,7 @@ export async function listDomainInventory(): Promise<DomainRecord[]> {
     status: String(row.status || ""),
     // The driver returns DATE columns as JS Date objects — format locally
     // (toISOString would shift a day in negative-UTC-offset timezones).
+    nameServers: String(row.name_servers || ""),
     expiresOn:
       row.expires_on instanceof Date
         ? `${row.expires_on.getFullYear()}-${String(row.expires_on.getMonth() + 1).padStart(2, "0")}-${String(row.expires_on.getDate()).padStart(2, "0")}`
@@ -112,10 +116,10 @@ export async function upsertDomain(input: Partial<DomainRecord> & { domain: stri
   // COALESCE against the existing row so a partial update (e.g. the Cloudflare
   // pull knowing only dns_host) never blanks fields entered by hand.
   await sql`
-    insert into app_domain_inventory (domain, registrar, dns_host, app_slug, status, expires_on, notes, updated_at)
+    insert into app_domain_inventory (domain, registrar, dns_host, app_slug, status, expires_on, name_servers, notes, updated_at)
     values (
       ${domain}, ${input.registrar ?? ""}, ${input.dnsHost ?? ""}, ${input.appSlug ?? ""},
-      ${input.status ?? ""}, ${input.expiresOn ?? null}, ${input.notes ?? ""}, now()
+      ${input.status ?? ""}, ${input.expiresOn ?? null}, ${input.nameServers ?? ""}, ${input.notes ?? ""}, now()
     )
     on conflict (domain) do update set
       registrar = case when ${input.registrar === undefined} then app_domain_inventory.registrar else excluded.registrar end,
@@ -123,6 +127,7 @@ export async function upsertDomain(input: Partial<DomainRecord> & { domain: stri
       app_slug = case when ${input.appSlug === undefined} then app_domain_inventory.app_slug else excluded.app_slug end,
       status = case when ${input.status === undefined} then app_domain_inventory.status else excluded.status end,
       expires_on = case when ${input.expiresOn === undefined} then app_domain_inventory.expires_on else excluded.expires_on end,
+      name_servers = case when ${input.nameServers === undefined} then app_domain_inventory.name_servers else excluded.name_servers end,
       notes = case when ${input.notes === undefined} then app_domain_inventory.notes else excluded.notes end,
       updated_at = now()
   `;
@@ -147,14 +152,14 @@ export async function pullCloudflareZones(): Promise<{ ok: boolean; message: str
   if (!hasDatabase()) return { ok: false, message: "Domain storage isn't available (no database).", found: 0 };
   try {
     // Paginate — one page would silently drop zones past 50 while reporting success.
-    const zones: Array<{ name?: string; status?: string; original_registrar?: string | null }> = [];
+    const zones: Array<{ name?: string; status?: string; original_registrar?: string | null; name_servers?: string[] }> = [];
     for (let page = 1; page <= 10; page += 1) {
       const response = await fetch(`https://api.cloudflare.com/client/v4/zones?per_page=50&page=${page}`, {
         headers: { authorization: `Bearer ${token}` }
       });
       if (!response.ok) return { ok: false, message: `Cloudflare said ${response.status} — check the token's zone permissions.`, found: 0 };
       const data = (await response.json()) as {
-        result?: Array<{ name?: string; status?: string; original_registrar?: string | null }>;
+        result?: Array<{ name?: string; status?: string; original_registrar?: string | null; name_servers?: string[] }>;
         result_info?: { page?: number; total_pages?: number };
       };
       zones.push(...(data.result ?? []));
@@ -167,11 +172,52 @@ export async function pullCloudflareZones(): Promise<{ ok: boolean; message: str
         domain: zone.name,
         dnsHost: "Cloudflare",
         status: zone.status === "active" ? "DNS on Cloudflare" : `Cloudflare: ${zone.status ?? "unknown"}`,
-        ...(zone.original_registrar ? { registrar: zone.original_registrar } : {})
+        ...(zone.original_registrar ? { registrar: zone.original_registrar } : {}),
+        ...(zone.name_servers?.length ? { nameServers: zone.name_servers.join(", ") } : {})
       });
     }
     return { ok: true, message: `Pulled ${zones.length} zone${zones.length === 1 ? "" : "s"} from Cloudflare.`, found: zones.length };
   } catch {
     return { ok: false, message: "Couldn't reach Cloudflare just now — try again.", found: 0 };
+  }
+}
+
+// Public registry facts for ANY domain via RDAP (the WHOIS successor — no keys):
+// registrar, expiration date, and current name servers. rdap.org redirects to
+// the authoritative registry server; fetch follows it. Best-effort: only the
+// fields actually found are written, everything else on the row is untouched.
+export async function refreshDomainFacts(domain: string): Promise<{ ok: boolean; message: string }> {
+  const clean = domain.trim().toLowerCase();
+  if (!isValidDomainName(clean)) return { ok: false, message: `"${domain}" doesn't look like a domain name.` };
+  try {
+    const response = await fetch(`https://rdap.org/domain/${encodeURIComponent(clean)}`, {
+      headers: { accept: "application/rdap+json, application/json" }
+    });
+    if (!response.ok) {
+      return { ok: false, message: `The public registry didn't answer for ${clean} (${response.status}) — enter facts by hand.` };
+    }
+    const data = (await response.json()) as {
+      events?: Array<{ eventAction?: string; eventDate?: string }>;
+      entities?: Array<{ roles?: string[]; vcardArray?: [string, Array<[string, unknown, string, unknown]>] }>;
+      nameservers?: Array<{ ldhName?: string }>;
+    };
+    const expiry = data.events?.find((event) => event.eventAction === "expiration")?.eventDate?.slice(0, 10);
+    const registrarEntity = data.entities?.find((entity) => entity.roles?.includes("registrar"));
+    const registrar = registrarEntity?.vcardArray?.[1]?.find((field) => field[0] === "fn")?.[3];
+    const nameServers = (data.nameservers ?? [])
+      .map((ns) => (ns.ldhName || "").toLowerCase())
+      .filter(Boolean)
+      .join(", ");
+    const found: string[] = [];
+    const update: Partial<DomainRecord> & { domain: string } = { domain: clean };
+    if (registrar && typeof registrar === "string") { update.registrar = registrar; found.push(`registrar: ${registrar}`); }
+    if (expiry) { update.expiresOn = expiry; found.push(`expires: ${expiry}`); }
+    if (nameServers) { update.nameServers = nameServers; found.push("name servers"); }
+    if (!found.length) return { ok: false, message: `${clean}: the registry answered but published no usable facts.` };
+    const saved = await upsertDomain(update);
+    if (!saved.ok) return saved;
+    return { ok: true, message: `${clean} refreshed from the public registry — ${found.join(" · ")}.` };
+  } catch {
+    return { ok: false, message: `Couldn't reach the public registry for ${clean} — try again.` };
   }
 }
