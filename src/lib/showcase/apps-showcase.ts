@@ -70,9 +70,9 @@ const CODE_REGISTRY_SLUG_ALIASES: Record<string, string> = {
 // where they come from elsewhere.
 const DISPLAY: Record<string, DisplayMeta> = {
   appengine: {
-    publicName: "We Succeed",
+    publicName: "App Engine",
     tagline:
-      "Describe a problem you want solved or a tool you want to build, and We Succeed builds you a real, working app for it.",
+      "Describe a problem you want solved or a tool you want to build, and App Engine builds you a real, working app for it.",
     group: "The builder",
     liveUrl: "https://www.we-succeed.org"
   },
