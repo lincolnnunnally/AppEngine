@@ -4,33 +4,33 @@
   "generatedAt": "2026-07-03T19:18:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 24,
+    "totalApps": 25,
     "reviewReadyApps": 1,
-    "productionLiveApps": 5,
+    "productionLiveApps": 6,
     "blockedApps": 23,
     "byDeploymentState": {
-      "production_live": 5,
+      "production_live": 6,
       "production_blocked": 18,
       "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 2,
+      "ready_for_vnext": 3,
       "review_blocked": 1,
       "ready_for_build": 2,
       "planned": 18,
       "preview_verified": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 2,
+      "create_vnext_packet": 3,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 18,
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 6,
+      "live": 8,
       "deployed_awaiting_domain": 0,
-      "domain_owned_not_serving": 7,
+      "domain_owned_not_serving": 6,
       "awaiting_url": 11
     }
   },
@@ -773,19 +773,19 @@
       "lastUpdated": "2026-07-03T19:18:00.000Z"
     },
     {
-      "name": "Kindred Dating (future separate app)",
+      "name": "Kindred Dating (superseded \u2014 shipped as Aligned Souls)",
       "slug": "kindred-dating",
       "reviewUrl": "unknown",
       "productionUrl": "approval-gated",
-      "currentVersion": "owner-decision-2026-07-03",
+      "currentVersion": "superseded-2026-07-10",
       "deploymentState": "production_blocked",
       "buildState": "planned",
       "nextSafeAction": "stop_for_owner_approval",
       "domain": {
         "intendedDomain": "",
         "urlStatus": "awaiting_url",
-        "nextStep": "No domain until the doctrine amendment clears \u2014 the name (Soulful Dating / Aligned Souls / Soul Connection) and its URL come with that decision.",
-        "note": "",
+        "nextStep": "None \u2014 superseded. The separate dating app shipped as Aligned Souls (slug aligned-souls) at alignedsouls.unitedundergod.org on 2026-07-10; this placeholder stays for history only. Do not build from it.",
+        "note": "Owner named the app Aligned Souls 2026-07-09; v1 went live 2026-07-10 (BUILD-LEDGER T11).",
         "factsFrom": "owner-2026-07-03"
       },
       "sourceOfTruthFiles": [
@@ -808,12 +808,43 @@
         }
       ],
       "blockers": [
+        "SUPERSEDED 2026-07-10: the app this entry anticipated shipped as its own owner-approved app \u2014 Aligned Souls (slug aligned-souls), live at alignedsouls.unitedundergod.org. See that entry; keep this one as the historical record.",
         "Owner decision 2026-07-03: dating is a SEPARATE app from Kindred (working names Soulful Dating / Aligned Souls / Soul Connection); Kindred stays friendship-first \u2014 never blur the two.",
-        "Ecosystem doctrine amendment is the gate: the dating app needs Lincoln's doctrine sign-off before any build.",
-        "Prerequisite: Connection-engine extraction (ECO-008) from Kindred; the missing geo capability is the shared Location & Proximity module (ECO-010, AppEngine PR #256)."
+        "Ecosystem doctrine amendment was the gate; resolved by owner naming/approval 2026-07-09 and the doctrine-encoded build (BUILD-LEDGER T11)."
       ],
       "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-07-10T13:29:14.000Z"
+    },
+    {
+      "name": "Aligned Souls",
+      "slug": "aligned-souls",
+      "reviewUrl": "https://alignedsouls.unitedundergod.org",
+      "productionUrl": "https://alignedsouls.unitedundergod.org",
+      "currentVersion": "v1-live-2026-07-10",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "alignedsouls.unitedundergod.org",
+        "urlStatus": "live",
+        "nextStep": "Nothing needed for the URL \u2014 live on the UUG subdomain (owner hosting decision 2026-07-04). A dedicated domain (alignedsouls.app / aligned-souls.com / alignedsouls.dating) is a later owner decision (money).",
+        "note": "Soul-dating app, SEPARATE from Kindred Connections (owner amendment 2026-07-03; owner named it Aligned Souls 2026-07-09). Supersedes the kindred-dating placeholder entry. Doctrine coded in: bull's-eye capped at 5, pause-dating is the win state, no fake profiles.",
+        "factsFrom": "build-ledger-T11-2026-07-10"
+      },
+      "sourceOfTruthFiles": [
+        "BUILD-LEDGER.md (T11)",
+        "source-of-truth/soul-dating-app-spec.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        {
+          "label": "Live app (E2E-verified 2026-07-10: 24/24 API checks + real-browser walkthrough)",
+          "url": "https://alignedsouls.unitedundergod.org"
+        }
+      ],
+      "lastUpdated": "2026-07-10T13:29:14.000Z"
     },
     {
       "name": "United Under God (site)",

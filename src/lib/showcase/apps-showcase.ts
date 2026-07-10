@@ -125,6 +125,13 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Hope & transformation",
     liveUrl: "https://kindred.unitedundergod.org"
   },
+  "aligned-souls": {
+    // Tagline condenses the owner's mission line in soul-dating-app-spec.md.
+    tagline:
+      "A companion who helps you become who God designed you to be — found by knowing people deeply, not endless swiping.",
+    group: "Hope & transformation",
+    liveUrl: "https://alignedsouls.unitedundergod.org"
+  },
   opportunity: {
     tagline: "Name the problem, find the opportunity hidden inside it, and take a practical next step.",
     group: "Hope & transformation"
@@ -187,7 +194,7 @@ const DISPLAY: Record<string, DisplayMeta> = {
   "kindred-dating": {
     tagline: "",
     group: "Hope & transformation",
-    hide: "Future separate app gated on owner doctrine sign-off (registry: stop_for_owner_approval)."
+    hide: "Superseded — shipped as its own owner-approved app, Aligned Souls (see the aligned-souls card; live 2026-07-10)."
   },
   honestly: {
     tagline: "",
