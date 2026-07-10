@@ -80,10 +80,12 @@ has(route, "export const { GET, POST } = handlers", "route: nextauth handler wir
 const env = (identityAuthModule.envLines?.() ?? []).join("\n");
 ["AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET", "AUTH_RESEND_KEY", "EMAIL_FROM", "AUTH_GITHUB_ID"].forEach((k) => has(env, k, `env: documents ${k}`));
 
-// 9) generator wiring (structural)
+// 9) generator wiring (structural) — the base schema lives in base-schema.ts (T12)
 const gen = fs.readFileSync(path.join(root, "src/lib/engine/app-generator.ts"), "utf8");
+const baseSchema = fs.readFileSync(path.join(root, "src/lib/engine/base-schema.ts"), "utf8");
 has(gen, "composeModuleFiles(", "generator: composes registered modules (incl. auth)");
-has(gen, "email varchar(255) unique", "generator: users.email is unique (no duplicate accounts)");
+has(baseSchema, "email varchar(255) unique", "base schema: users.email is unique (no duplicate accounts)");
+has(baseSchema, "id uuid primary key default gen_random_uuid()", "base schema: users.id is uuid (T12 identity decision)");
 hasnt(gen, "content: `import NextAuth", "generator: inline auth literal removed");
 
 // 10) FUNCTIONAL — the emitted sanitizer actually strips the sessionToken
