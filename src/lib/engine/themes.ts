@@ -254,6 +254,12 @@ p, small { color: var(--ink); line-height: 1.6; }
 .input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font: inherit; background: var(--panel); color: var(--ink); }
 textarea.input { min-height: 96px; resize: vertical; }
 .note { color: var(--muted); font-size: .9rem; margin: 6px 0 0; }
+.chip-row, .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chip { min-height: 36px; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; background: var(--panel); color: var(--ink); font: inherit; font-size: .9rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip.chip-on, .chip.active { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.choice { display: flex; align-items: flex-start; gap: 10px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--panel); cursor: pointer; }
+.choice input { margin-top: 4px; accent-color: var(--accent); }
 .app-header { position: sticky; top: 0; z-index: 20; background: var(--panel); border-bottom: 1px solid var(--line); }
 .app-header-inner { width: min(1120px, 100%); margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .app-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--ink); text-decoration: none; }
