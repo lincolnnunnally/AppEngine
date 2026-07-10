@@ -11,3 +11,7 @@ generated-prompt.md
 generated-codex-prompt.md
 codex-output.md
 codex.patch
+
+# Local agent workspaces — never commit
+.claude/
+.codex-worktrees/
