@@ -25,11 +25,42 @@ function file(path: string, lines: string[]): GeneratedModuleFile {
   return { path, content: lines.join("\n") + "\n" };
 }
 
+// ---- src/lib/db/branding-design-options.ts (pure options, client-safe) ------
+// The branding form is a client component; the font list lives in a file with
+// no database driver so importing it never pulls @/lib/db/client toward the
+// client bundle.
+
+function brandingOptionsFile(): GeneratedModuleFile {
+  return file("src/lib/db/branding-design-options.ts", [
+    "// Pure branding option lists — importable from client components (no",
+    "// database driver in this file).",
+    "",
+    "// The font choices, ported verbatim from ChurchBrandingSettings.tsx fontOptions.",
+    "export const FONT_OPTIONS = [",
+    '  "Inter",',
+    '  "Roboto",',
+    '  "Open Sans",',
+    '  "Lato",',
+    '  "Montserrat",',
+    '  "Playfair Display",',
+    '  "Merriweather",',
+    '  "Georgia",',
+    '  "Times New Roman",',
+    '  "Arial"',
+    "];"
+  ]);
+}
+
 // ---- src/lib/db/branding-design.ts (model + queries) ------------------------
 
 function brandingLibFile(): GeneratedModuleFile {
   return file("src/lib/db/branding-design.ts", [
     'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    'import { FONT_OPTIONS } from "@/lib/db/branding-design-options";',
+    "",
+    "// Re-exported for server-side callers; client components import the options",
+    "// from @/lib/db/branding-design-options directly (keeps the db driver server-only).",
+    "export { FONT_OPTIONS };",
     "",
     "// A per-owner branding record, ported from ChurchBrandingSettings.tsx formData:",
     "// name/tagline/logo, the three brand colors, heading + body fonts, and contact",
@@ -64,20 +95,6 @@ function brandingLibFile(): GeneratedModuleFile {
     '  phone: "",',
     '  address: ""',
     "};",
-    "",
-    "// The font choices, ported verbatim from ChurchBrandingSettings.tsx fontOptions.",
-    "export const FONT_OPTIONS = [",
-    '  "Inter",',
-    '  "Roboto",',
-    '  "Open Sans",',
-    '  "Lato",',
-    '  "Montserrat",',
-    '  "Playfair Display",',
-    '  "Merriweather",',
-    '  "Georgia",',
-    '  "Times New Roman",',
-    '  "Arial"',
-    "];",
     "",
     "// A design template, ported from InAppDesignEditor.tsx DESIGN_TEMPLATES. The",
     "// canvas element list drives the real editor; here we carry the pickable",
@@ -499,7 +516,7 @@ function brandingFormFile(): GeneratedModuleFile {
     "",
     'import { useState } from "react";',
     'import { useRouter } from "next/navigation";',
-    'import { FONT_OPTIONS } from "@/lib/db/branding-design";',
+    'import { FONT_OPTIONS } from "@/lib/db/branding-design-options";',
     "",
     "type BrandingValues = {",
     "  brandName: string;",
@@ -806,6 +823,7 @@ export const brandingDesignModule: AppModule = {
   tier: "optional",
   featureFlagEnv: "FEATURE_BRANDING",
   files: () => [
+    brandingOptionsFile(),
     brandingLibFile(),
     brandingApiFile(),
     designsApiFile(),

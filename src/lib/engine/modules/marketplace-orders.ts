@@ -36,11 +36,57 @@ function file(path: string, lines: string[]): GeneratedModuleFile {
   return { path, content: lines.join("\n") + "\n" };
 }
 
+// ---- src/lib/db/marketplace-options.ts (pure pricing rules, client-safe) ----
+// The checkout form is a client component that recomputes bulk pricing live;
+// the tiers and the discount walk live in a file with no database driver so
+// importing them never pulls @/lib/db/client toward the client bundle.
+
+function marketplaceOptionsFile(): GeneratedModuleFile {
+  return file("src/lib/db/marketplace-options.ts", [
+    "// Pure marketplace pricing constants + math — importable from client",
+    "// components (no database driver in this file).",
+    "",
+    "// Bulk-discount tiers, ported VERBATIM from src/lib/api.ts BULK_PRICING_TIERS:",
+    "// 100+ units → 7% off, 500+ units → 12% off.",
+    "export const BULK_PRICING_TIERS = [",
+    "  { minQuantity: 100, discountPercent: 7 },",
+    "  { minQuantity: 500, discountPercent: 12 }",
+    "] as const;",
+    "",
+    "// The share of an order that goes to the maker, ported from OrderAllocation.tsx",
+    "// (order.total_price * 0.70 = maker earnings; the platform keeps 30%).",
+    "export const MAKER_EARNINGS_SHARE = 0.7;",
+    "",
+    "// calculateBulkDiscount, ported VERBATIM from src/lib/api.ts: below the first",
+    "// tier there is no discount; otherwise walk to the highest tier the quantity",
+    "// qualifies for and apply that percent to the subtotal.",
+    "export function calculateBulkDiscount(",
+    "  quantity: number,",
+    "  unitPrice: number,",
+    "  bulkDiscountEligible = true",
+    "): { discountPercent: number; discountAmount: number; finalPrice: number } {",
+    "  if (!bulkDiscountEligible || quantity < BULK_PRICING_TIERS[0].minQuantity) {",
+    "    return { discountPercent: 0, discountAmount: 0, finalPrice: unitPrice * quantity };",
+    "  }",
+    "  let tier: { minQuantity: number; discountPercent: number } = BULK_PRICING_TIERS[0];",
+    "  for (const t of BULK_PRICING_TIERS) if (quantity >= t.minQuantity) tier = t;",
+    "  const subtotal = unitPrice * quantity;",
+    "  const discountAmount = subtotal * (tier.discountPercent / 100);",
+    "  return { discountPercent: tier.discountPercent, discountAmount, finalPrice: subtotal - discountAmount };",
+    "}"
+  ]);
+}
+
 // ---- src/lib/db/marketplace.ts (model + queries, ported from the real sources) -
 
 function marketplaceLibFile(): GeneratedModuleFile {
   return file("src/lib/db/marketplace.ts", [
     'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    'import { BULK_PRICING_TIERS, MAKER_EARNINGS_SHARE, calculateBulkDiscount } from "@/lib/db/marketplace-options";',
+    "",
+    "// Re-exported for server-side callers; client components import the pricing",
+    "// rules from @/lib/db/marketplace-options directly (keeps the db driver server-only).",
+    "export { BULK_PRICING_TIERS, MAKER_EARNINGS_SHARE, calculateBulkDiscount };",
     "",
     "// A product, ported from LaserEngraving src/lib/api.ts `Product`: a base price",
     "// plus an add-on price, a material, a category, stock, sku, and a",
@@ -141,35 +187,6 @@ function marketplaceLibFile(): GeneratedModuleFile {
     "};",
     "",
     "export type ProductFilters = { q?: string; categoryId?: string; activeOnly?: boolean; limit?: number };",
-    "",
-    "// Bulk-discount tiers, ported VERBATIM from src/lib/api.ts BULK_PRICING_TIERS:",
-    "// 100+ units → 7% off, 500+ units → 12% off.",
-    "export const BULK_PRICING_TIERS = [",
-    "  { minQuantity: 100, discountPercent: 7 },",
-    "  { minQuantity: 500, discountPercent: 12 }",
-    "] as const;",
-    "",
-    "// The share of an order that goes to the maker, ported from OrderAllocation.tsx",
-    "// (order.total_price * 0.70 = maker earnings; the platform keeps 30%).",
-    "export const MAKER_EARNINGS_SHARE = 0.7;",
-    "",
-    "// calculateBulkDiscount, ported VERBATIM from src/lib/api.ts: below the first",
-    "// tier there is no discount; otherwise walk to the highest tier the quantity",
-    "// qualifies for and apply that percent to the subtotal.",
-    "export function calculateBulkDiscount(",
-    "  quantity: number,",
-    "  unitPrice: number,",
-    "  bulkDiscountEligible = true",
-    "): { discountPercent: number; discountAmount: number; finalPrice: number } {",
-    "  if (!bulkDiscountEligible || quantity < BULK_PRICING_TIERS[0].minQuantity) {",
-    "    return { discountPercent: 0, discountAmount: 0, finalPrice: unitPrice * quantity };",
-    "  }",
-    "  let tier: { minQuantity: number; discountPercent: number } = BULK_PRICING_TIERS[0];",
-    "  for (const t of BULK_PRICING_TIERS) if (quantity >= t.minQuantity) tier = t;",
-    "  const subtotal = unitPrice * quantity;",
-    "  const discountAmount = subtotal * (tier.discountPercent / 100);",
-    "  return { discountPercent: tier.discountPercent, discountAmount, finalPrice: subtotal - discountAmount };",
-    "}",
     "",
     "// A ranked maker match, ported from OrderAllocation.tsx `MakerMatch`.",
     "export type MakerMatch = {",
@@ -1199,7 +1216,7 @@ function checkoutFormFile(): GeneratedModuleFile {
     "",
     'import { useMemo, useState } from "react";',
     'import { useRouter } from "next/navigation";',
-    'import { calculateBulkDiscount } from "@/lib/db/marketplace";',
+    'import { calculateBulkDiscount } from "@/lib/db/marketplace-options";',
     "",
     "// The checkout, ported from CheckoutForm.tsx: quantity + fulfillment choice +",
     "// shipping address, with the live bulk-discount total computed the same way.",
@@ -1842,6 +1859,7 @@ export const marketplaceOrdersModule: AppModule = {
   tier: "optional",
   featureFlagEnv: "FEATURE_MARKETPLACE",
   files: () => [
+    marketplaceOptionsFile(),
     marketplaceLibFile(),
     productsApiFile(),
     ordersApiFile(),

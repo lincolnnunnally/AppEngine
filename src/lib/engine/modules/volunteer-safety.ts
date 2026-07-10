@@ -29,11 +29,15 @@ function file(path: string, lines: string[]): GeneratedModuleFile {
   return { path, content: lines.join("\n") + "\n" };
 }
 
-// ---- src/lib/db/volunteer-safety.ts (model + queries, ported from the sources) --
+// ---- src/lib/db/volunteer-safety-options.ts (pure options, client-safe) -----
+// The availability form is a client component; the skills catalog lives in a
+// file with no database driver so importing it never pulls @/lib/db/client
+// toward the client bundle.
 
-function volunteerSafetyLibFile(): GeneratedModuleFile {
-  return file("src/lib/db/volunteer-safety.ts", [
-    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+function volunteerOptionsFile(): GeneratedModuleFile {
+  return file("src/lib/db/volunteer-safety-options.ts", [
+    "// Pure volunteer option lists — importable from client components (no",
+    "// database driver in this file).",
     "",
     "// The fixed skills catalog, ported verbatim from VolunteerAvailability.tsx",
     "// VOLUNTEER_SKILLS (icon + label per id).",
@@ -53,7 +57,20 @@ function volunteerSafetyLibFile(): GeneratedModuleFile {
     '  { id: "counseling", label: "Counseling Support", icon: "\\uD83D\\uDCAC" },',
     '  { id: "transportation", label: "Transportation", icon: "\\uD83D\\uDE90" },',
     '  { id: "other", label: "Other / General Help", icon: "\\u2728" }',
-    "];",
+    "];"
+  ]);
+}
+
+// ---- src/lib/db/volunteer-safety.ts (model + queries, ported from the sources) --
+
+function volunteerSafetyLibFile(): GeneratedModuleFile {
+  return file("src/lib/db/volunteer-safety.ts", [
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    'import { VOLUNTEER_SKILLS } from "@/lib/db/volunteer-safety-options";',
+    "",
+    "// Re-exported for server-side callers; client components import the options",
+    "// from @/lib/db/volunteer-safety-options directly (keeps the db driver server-only).",
+    "export { VOLUNTEER_SKILLS };",
     "",
     "// Roles that require a background check before serving, ported verbatim from",
     "// background_checks.py BACKGROUND_CHECK_REQUIRED_ROLES.",
@@ -796,7 +813,7 @@ function availabilityFormFile(): GeneratedModuleFile {
     "",
     'import { useState } from "react";',
     'import { useRouter } from "next/navigation";',
-    'import { VOLUNTEER_SKILLS } from "@/lib/db/volunteer-safety";',
+    'import { VOLUNTEER_SKILLS } from "@/lib/db/volunteer-safety-options";',
     "",
     "type Initial = {",
     "  available: boolean;",
@@ -1348,6 +1365,7 @@ export const volunteerSafetyModule: AppModule = {
   tier: "optional",
   featureFlagEnv: "FEATURE_VOLUNTEER",
   files: () => [
+    volunteerOptionsFile(),
     volunteerSafetyLibFile(),
     volunteersApiFile(),
     checksApiFile(),

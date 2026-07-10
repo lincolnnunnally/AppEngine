@@ -21,11 +21,15 @@ function file(path: string, lines: string[]): GeneratedModuleFile {
   return { path, content: lines.join("\n") + "\n" };
 }
 
-// ---- src/lib/db/onboarding.ts (model + queries + insight derivation) --------
+// ---- src/lib/db/onboarding-options.ts (pure option lists, client-safe) ------
+// The capture form is a client component; option lists live in a file with no
+// database driver so importing them never pulls @/lib/db/client toward the
+// client bundle (the split live-on-mission had to make by hand).
 
-function onboardingLibFile(): GeneratedModuleFile {
-  return file("src/lib/db/onboarding.ts", [
-    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+function onboardingOptionsFile(): GeneratedModuleFile {
+  return file("src/lib/db/onboarding-options.ts", [
+    "// Pure onboarding option lists — importable from client components (no",
+    "// database driver in this file).",
     "",
     "// Ported from Kindred-Connection Onboarding.js VALUE_OPTIONS — the values a",
     "// person can claim as their own.",
@@ -43,7 +47,20 @@ function onboardingLibFile(): GeneratedModuleFile {
     '  { key: "community", label: "I want people who are growing", hint: "A community moving in the same direction.", lookingFor: "community" },',
     '  { key: "both", label: "Growth first — and maybe more later", hint: "The slow path. Often the lasting one.", lookingFor: "both" },',
     '  { key: "purpose", label: "I am clear: I want to build something", hint: "Specific and intentional.", lookingFor: "purpose" }',
-    "];",
+    "];"
+  ]);
+}
+
+// ---- src/lib/db/onboarding.ts (model + queries + insight derivation) --------
+
+function onboardingLibFile(): GeneratedModuleFile {
+  return file("src/lib/db/onboarding.ts", [
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    'import { MOTIVATION_OPTIONS, VALUE_OPTIONS } from "@/lib/db/onboarding-options";',
+    "",
+    "// Re-exported for server-side callers; client components import the options",
+    "// from @/lib/db/onboarding-options directly (keeps the db driver server-only).",
+    "export { MOTIVATION_OPTIONS, VALUE_OPTIONS };",
     "",
     "export type OnboardingInsights = {",
     "  archetype: string;",
@@ -480,7 +497,7 @@ function onboardingFormFile(): GeneratedModuleFile {
     "",
     'import { useState } from "react";',
     'import { useRouter } from "next/navigation";',
-    'import { VALUE_OPTIONS, MOTIVATION_OPTIONS } from "@/lib/db/onboarding";',
+    'import { VALUE_OPTIONS, MOTIVATION_OPTIONS } from "@/lib/db/onboarding-options";',
     "",
     "type Initial = {",
     "  purpose: string;",
@@ -750,6 +767,7 @@ export const purposeOnboardingModule: AppModule = {
   tier: "optional",
   featureFlagEnv: "FEATURE_ONBOARDING",
   files: () => [
+    onboardingOptionsFile(),
     onboardingLibFile(),
     onboardingApiFile(),
     onboardingReanalyzeApiFile(),

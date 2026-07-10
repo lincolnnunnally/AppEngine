@@ -30,11 +30,52 @@ function file(path: string, lines: string[]): GeneratedModuleFile {
   return { path, content: lines.join("\n") + "\n" };
 }
 
+// ---- src/lib/db/ideas-options.ts (pure option lists, client-safe) -----------
+// The forge picker is a client component; output-type and length lists live in
+// a file with no database driver so importing them never pulls @/lib/db/client
+// toward the client bundle.
+
+function ideasOptionsFile(): GeneratedModuleFile {
+  return file("src/lib/db/ideas-options.ts", [
+    "// Pure forge option lists — importable from client components (no database",
+    "// driver in this file).",
+    "",
+    "// The 12 output types, ported from src/lib/forge.js OUTPUT_TYPES (keys match",
+    "// forge_prompts.py). label + blurb drive the picker UI.",
+    "export const OUTPUT_TYPES: Array<{ key: string; label: string; blurb: string }> = [",
+    '  { key: "blog_post", label: "Blog post", blurb: "Thoughtful long-form, hook \\u2192 body \\u2192 CTA." },',
+    '  { key: "sermon_outline", label: "Talk outline", blurb: "Big idea, three movements, close." },',
+    '  { key: "video_script", label: "Video script", blurb: "Cold open, beats with timestamps, CTA." },',
+    '  { key: "song_lyrics", label: "Song lyrics", blurb: "Verse / chorus / bridge with vibe note." },',
+    '  { key: "presentation_outline", label: "Slide deck", blurb: "Slides + speaker notes, ready to present." },',
+    '  { key: "book_chapter", label: "Book chapter", blurb: "Scene-first, thesis, sectioned, hook to next." },',
+    '  { key: "devotional", label: "Reflection", blurb: "Passage, reflection, question, close." },',
+    '  { key: "twitter_thread", label: "Thread", blurb: "Numbered, \\u2264270 chars each, real CTA." },',
+    '  { key: "linkedin_post", label: "LinkedIn post", blurb: "One hook, skim-friendly, no humblebrag." },',
+    '  { key: "instagram_caption", label: "Instagram caption", blurb: "Voice-memo tone, CTA, real hashtags." },',
+    '  { key: "op_ed", label: "Op-ed", blurb: "Local vignette \\u2192 why-now \\u2192 action." },',
+    '  { key: "coaching_exercise", label: "Coaching exercise", blurb: "Goal, prompts, action steps, accountability." }',
+    "];",
+    "",
+    "// Length options, ported from src/lib/forge.js LENGTH_OPTIONS.",
+    "export const LENGTH_OPTIONS: Array<{ key: string; label: string; hint: string }> = [",
+    '  { key: "short", label: "Short", hint: "tight, single-sit read" },',
+    '  { key: "medium", label: "Medium", hint: "the default sweet spot" },',
+    '  { key: "long", label: "Long", hint: "rich, fully-developed" }',
+    "];"
+  ]);
+}
+
 // ---- src/lib/db/ideas.ts (model + queries, ported from notes.py + forge.py) --
 
 function ideasLibFile(): GeneratedModuleFile {
   return file("src/lib/db/ideas.ts", [
     'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    'import { LENGTH_OPTIONS, OUTPUT_TYPES } from "@/lib/db/ideas-options";',
+    "",
+    "// Re-exported for server-side callers; client components import the options",
+    "// from @/lib/db/ideas-options directly (keeps the db driver server-only).",
+    "export { LENGTH_OPTIONS, OUTPUT_TYPES };",
     "",
     "// An idea/note record, ported from notes.py NoteOut. Ideas are captured as",
     "// text first (the app also supports voice/photo capture doors — the `type`",
@@ -75,35 +116,11 @@ function ideasLibFile(): GeneratedModuleFile {
     "  updatedAt: string;",
     "};",
     "",
-    "// The 12 output types, ported from src/lib/forge.js OUTPUT_TYPES (keys match",
-    "// forge_prompts.py). label + blurb drive the picker UI.",
-    "export const OUTPUT_TYPES: Array<{ key: string; label: string; blurb: string }> = [",
-    '  { key: "blog_post", label: "Blog post", blurb: "Thoughtful long-form, hook \\u2192 body \\u2192 CTA." },',
-    '  { key: "sermon_outline", label: "Talk outline", blurb: "Big idea, three movements, close." },',
-    '  { key: "video_script", label: "Video script", blurb: "Cold open, beats with timestamps, CTA." },',
-    '  { key: "song_lyrics", label: "Song lyrics", blurb: "Verse / chorus / bridge with vibe note." },',
-    '  { key: "presentation_outline", label: "Slide deck", blurb: "Slides + speaker notes, ready to present." },',
-    '  { key: "book_chapter", label: "Book chapter", blurb: "Scene-first, thesis, sectioned, hook to next." },',
-    '  { key: "devotional", label: "Reflection", blurb: "Passage, reflection, question, close." },',
-    '  { key: "twitter_thread", label: "Thread", blurb: "Numbered, \\u2264270 chars each, real CTA." },',
-    '  { key: "linkedin_post", label: "LinkedIn post", blurb: "One hook, skim-friendly, no humblebrag." },',
-    '  { key: "instagram_caption", label: "Instagram caption", blurb: "Voice-memo tone, CTA, real hashtags." },',
-    '  { key: "op_ed", label: "Op-ed", blurb: "Local vignette \\u2192 why-now \\u2192 action." },',
-    '  { key: "coaching_exercise", label: "Coaching exercise", blurb: "Goal, prompts, action steps, accountability." }',
-    "];",
-    "",
     "export const OUTPUT_TYPE_KEYS = OUTPUT_TYPES.map((t) => t.key);",
     "",
     "export function labelFor(key: string): string {",
     "  return OUTPUT_TYPES.find((t) => t.key === key)?.label || key;",
     "}",
-    "",
-    "// Length options, ported from src/lib/forge.js LENGTH_OPTIONS.",
-    "export const LENGTH_OPTIONS: Array<{ key: string; label: string; hint: string }> = [",
-    '  { key: "short", label: "Short", hint: "tight, single-sit read" },',
-    '  { key: "medium", label: "Medium", hint: "the default sweet spot" },',
-    '  { key: "long", label: "Long", hint: "rich, fully-developed" }',
-    "];",
     "",
     "function normalizeTags(tags: unknown): string[] {",
     "  const arr = Array.isArray(tags) ? tags : [];",
@@ -1118,7 +1135,7 @@ function ideaActionsFile(): GeneratedModuleFile {
     "",
     'import { useState } from "react";',
     'import { useRouter } from "next/navigation";',
-    'import { OUTPUT_TYPES, LENGTH_OPTIONS } from "@/lib/db/ideas";',
+    'import { OUTPUT_TYPES, LENGTH_OPTIONS } from "@/lib/db/ideas-options";',
     "",
     "type PolishResult = { original: string; polished: string; changed: boolean; modelUsed: string };",
     "",
@@ -1485,6 +1502,7 @@ export const ideaCaptureModule: AppModule = {
   tier: "optional",
   featureFlagEnv: "FEATURE_IDEAS",
   files: () => [
+    ideasOptionsFile(),
     ideasLibFile(),
     forgeEngineFile(),
     ideasApiFile(),

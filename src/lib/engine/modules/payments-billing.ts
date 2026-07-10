@@ -18,14 +18,31 @@ function file(path: string, lines: string[]): GeneratedModuleFile {
   return { path, content: lines.join("\n") + "\n" };
 }
 
+// ---- src/lib/db/giving-options.ts (pure option lists, client-safe) ----------
+// The giving form is a client component; the preset amounts live in a file
+// with no database driver so importing them never pulls @/lib/db/client toward
+// the client bundle.
+
+function givingOptionsFile(): GeneratedModuleFile {
+  return file("src/lib/db/giving-options.ts", [
+    "// Pure giving option lists — importable from client components (no database",
+    "// driver in this file).",
+    "",
+    "// Preset gift amounts, ported from OnlineGiving.tsx PRESET_AMOUNTS.",
+    "export const PRESET_AMOUNTS = [10, 25, 50, 100, 250, 500];"
+  ]);
+}
+
 // ---- src/lib/db/giving.ts (model + queries) ----------------------------------
 
 function givingLibFile(): GeneratedModuleFile {
   return file("src/lib/db/giving.ts", [
     'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    'import { PRESET_AMOUNTS } from "@/lib/db/giving-options";',
     "",
-    "// Preset gift amounts, ported from OnlineGiving.tsx PRESET_AMOUNTS.",
-    "export const PRESET_AMOUNTS = [10, 25, 50, 100, 250, 500];",
+    "// Re-exported for server-side callers; client components import the options",
+    "// from @/lib/db/giving-options directly (keeps the db driver server-only).",
+    "export { PRESET_AMOUNTS };",
     "",
     "export type GivingFund = { id: string; name: string; description: string };",
     "",
@@ -572,7 +589,7 @@ function givingFormFile(): GeneratedModuleFile {
     '"use client";',
     "",
     'import { useState } from "react";',
-    'import { PRESET_AMOUNTS } from "@/lib/db/giving";',
+    'import { PRESET_AMOUNTS } from "@/lib/db/giving-options";',
     "",
     "// Ported from OnlineGiving.tsx's give view: preset amount grid, custom amount,",
     "// fund designation, minimum $1 validation, then redirect to checkout. Monthly",
@@ -793,6 +810,7 @@ export const paymentsBillingModule: AppModule = {
   tier: "optional",
   featureFlagEnv: "FEATURE_GIVING",
   files: () => [
+    givingOptionsFile(),
     givingLibFile(),
     givingCheckoutLibFile(),
     givingCheckoutApiFile(),

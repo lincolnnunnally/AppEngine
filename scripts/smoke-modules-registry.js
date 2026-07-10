@@ -117,6 +117,7 @@ if (typeFamily(baseParsed.tables.get("users")?.get("id") ?? "") !== "uuid") {
 
 const files = fs.readdirSync(modulesDir).filter((f) => f.endsWith(".ts") && !["types.ts", "registry.ts"].includes(f));
 const allPaths = new Map(); // emitted path -> module slug
+const allFiles = new Map(); // emitted path -> { slug, content } for the client-bundle check
 const allTables = new Map(); // table name -> module slug
 const moduleSchemas = []; // { slug, sql, parsed } for the composed FK/type checks
 const moduleSeeds = []; // { slug, sql } for the statement-split check
@@ -145,7 +146,7 @@ for (const fileName of files) {
   for (const f of emitted) {
     if (!f || typeof f.path !== "string" || typeof f.content !== "string" || !f.content.trim()) { bad(`${tag} emits valid file`, JSON.stringify(f?.path)); continue; }
     if (allPaths.has(f.path)) bad(`${tag} no path collision`, `${f.path} also from [${allPaths.get(f.path)}]`);
-    else allPaths.set(f.path, entry.slug);
+    else { allPaths.set(f.path, entry.slug); allFiles.set(f.path, { slug: entry.slug, content: f.content }); }
   }
   ok(`${tag} emits ${emitted.length} files`);
 
@@ -164,6 +165,38 @@ for (const fileName of files) {
     bad(`${tag} envLines documents its feature flag`);
   }
 }
+
+// ---- client-bundle safety: "use client" files vs @/lib/db/* -------------------
+// A "use client" file that value-imports from a lib which loads @/lib/db/client
+// pulls the postgres driver toward the client bundle of every generated app —
+// the defect live-on-mission had to hand-fix with its onboarding-options split.
+// Pure option lists/constants a client component needs belong in a *-options.ts
+// file with no driver import; the driver-bearing lib re-exports them for
+// server-side callers. Type-only imports are fine (erased at build time).
+const clientDbImportRe = /^import\s+(type\s+)?({[^}]*}|[\w$*\s,]+)\s+from\s+"(@\/lib\/db\/[^"]+)";?/gm;
+const clientBundleFailuresBefore = failures;
+let clientFileCount = 0;
+let clientDbImportCount = 0;
+for (const [emittedPath, f] of allFiles) {
+  if (!/^\s*['"]use client['"]/.test(f.content)) continue;
+  clientFileCount++;
+  for (const m of f.content.matchAll(clientDbImportRe)) {
+    const [, typeKeyword, spec, target] = m;
+    const s = spec.trim();
+    const typeOnly = typeKeyword || (s.startsWith("{") && s.slice(1, -1).split(",").every((x) => x.trim().startsWith("type ")));
+    if (typeOnly) continue;
+    clientDbImportCount++;
+    if (target === "@/lib/db/client") { bad(`[${f.slug}] client file ${emittedPath} imports the db driver directly`); continue; }
+    const targetPath = "src/" + target.slice(2) + ".ts";
+    const lib = allFiles.get(targetPath);
+    if (!lib) { bad(`[${f.slug}] client file ${emittedPath} imports ${target}`, `${targetPath} is not emitted by any module — cannot prove it is driver-free`); continue; }
+    if (/@\/lib\/db\/client|from "postgres"/.test(lib.content)) {
+      bad(`[${f.slug}] client file ${emittedPath} pulls the db driver via ${target}`, "move the imported values to a pure *-options.ts file (no @/lib/db/client) and re-export them server-side");
+    }
+  }
+}
+if (failures === clientBundleFailuresBefore) ok(`client-bundle safety: ${clientFileCount} "use client" files checked, ${clientDbImportCount} value-imports from @/lib/db/* resolved driver-free`);
+if (clientFileCount < 50) bad('client-bundle safety scans "use client" files', `only ${clientFileCount} found — detection likely stale`);
 
 // ---- module paths vs base-generator / foundation paths ------------------------
 // The generator resolves base/module path overlaps module-wins (buildGeneratedFiles
