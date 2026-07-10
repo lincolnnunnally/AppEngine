@@ -47,8 +47,9 @@ export const KNOWN_KEYS: readonly KnownKey[] = [
   { key: "VITE_SUPABASE_URL", scope: "universal", usedFor: "Supabase project URL for Vite apps (same value, Vite's variable name)", whereToFind: "Same Supabase Project URL as above" },
   { key: "VITE_SUPABASE_ANON_KEY", scope: "universal", usedFor: "Supabase anon key for Vite apps (same value, Vite's variable name)", whereToFind: "Same anon public key as above" },
   // ── Per-app — usually different for each app ─────────────────────────────────
-  { key: "STRIPE_SECRET_KEY", scope: "per_app", usedFor: "Taking payments (money goes to YOUR Stripe)", whereToFind: "dashboard.stripe.com → Developers → API keys → Secret key" },
-  { key: "STRIPE_WEBHOOK_SECRET", scope: "per_app", usedFor: "Confirming Stripe payments securely (one per app's webhook)", whereToFind: "dashboard.stripe.com → Developers → Webhooks → Signing secret" }
+  { key: "STRIPE_SECRET_KEY", scope: "universal", usedFor: "Server-side payments — ONE Stripe account, one key, shared by every app (money goes to YOUR Stripe). For card-on-file the restricted key needs these permissions turned ON: Customers (write), SetupIntents (write), PaymentIntents (write).", whereToFind: "dashboard.stripe.com → Developers → API keys → reveal Secret key (or Edit your restricted key to enable Customers/SetupIntents/PaymentIntents write)" },
+  { key: "STRIPE_PUBLISHABLE_KEY", scope: "universal", usedFor: "Browser-side key (safe to expose) — needed for on-page card forms like save-a-card. Same ONE Stripe account as the secret key.", whereToFind: "dashboard.stripe.com → Developers → API keys → Publishable key (starts pk_live_…)" },
+  { key: "STRIPE_WEBHOOK_SECRET", scope: "per_app", usedFor: "Confirming Stripe events securely — this ONE is per-app (each app's own webhook endpoint has its own signing secret)", whereToFind: "dashboard.stripe.com → Developers → Webhooks → your app's endpoint → Signing secret" }
 ];
 
 export type VaultEntry = { key: string; appScope: string; updatedAt: string | null };
@@ -106,6 +107,7 @@ export function isValidVaultKey(key: string): { ok: boolean; message?: string } 
 // expected shape only — it must never include any part of the value.
 const KEY_FORMAT_HINTS: Record<string, { pattern: RegExp; minLength?: number; expected: string }> = {
   STRIPE_SECRET_KEY: { pattern: /^(sk|rk)_(live|test)_[A-Za-z0-9]{24,}$/, minLength: 32, expected: "sk_live_… or rk_live_… (restricted keys are real keys too) followed by a long random string" },
+  STRIPE_PUBLISHABLE_KEY: { pattern: /^pk_(live|test)_[A-Za-z0-9]{24,}$/, minLength: 32, expected: "pk_live_… or pk_test_… followed by a long random string" },
   STRIPE_WEBHOOK_SECRET: { pattern: /^whsec_[A-Za-z0-9]{24,}$/, expected: "whsec_ followed by a long random string" },
   RENDER_API_KEY: { pattern: /^rnd_/, expected: "a key starting with rnd_" },
   ANTHROPIC_API_KEY: { pattern: /^sk-ant-/, expected: "a key starting with sk-ant-" }
