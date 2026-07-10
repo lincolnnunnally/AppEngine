@@ -53,6 +53,7 @@ import { supplierAutomationModule } from "./supplier-order-automation";
 import { contentSchedulerModule } from "./content-publishing-scheduler";
 import { businessFormationModule } from "./business-formation-provisioning";
 import { paymentsBillingModule } from "./payments-billing";
+import { contentEditModule } from "./content-edit";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -102,7 +103,8 @@ const MODULES: AppModule[] = [
   supplierAutomationModule,
   contentSchedulerModule,
   businessFormationModule,
-  paymentsBillingModule
+  paymentsBillingModule,
+  contentEditModule
 ];
 
 export function allModules(): AppModule[] {

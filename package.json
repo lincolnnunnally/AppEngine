@@ -173,6 +173,7 @@
     "smoke:generated-auth-module": "node scripts/smoke-generated-auth-module.js",
     "smoke:generated-directory-module": "node scripts/smoke-generated-directory-module.js",
     "smoke:modules-registry": "node scripts/smoke-modules-registry.js",
+    "smoke:generated-content-edit-module": "node scripts/smoke-generated-content-edit-module.js",
     "e2e:compose-selection": "node scripts/e2e-compose-selection.mjs",
     "smoke:production-auth-readiness": "node scripts/smoke-production-auth-readiness.js",
     "smoke:storage-provider-plan": "node scripts/smoke-storage-provider-plan.js",
