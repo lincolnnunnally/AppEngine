@@ -192,15 +192,22 @@ export async function refreshAllDomainFacts(limit = 15): Promise<{ ok: boolean; 
   const timeOf = (row: DomainRecord) => (row.updatedAt ? new Date(row.updatedAt).getTime() || 0 : 0);
   const targets = [...rows].sort((a, b) => timeOf(a) - timeOf(b)).slice(0, limit);
   let refreshed = 0;
+  let covered = 0;
   const noAnswer: string[] = [];
+  // Hard wall-clock budget UNDER the route's maxDuration: slow registries must
+  // end with an honest "click again", never a platform kill mid-sweep.
+  const startedAt = Date.now();
+  const TIME_BUDGET_MS = 40_000;
   for (const [index, row] of targets.entries()) {
+    if (Date.now() - startedAt > TIME_BUDGET_MS) break;
     if (index > 0) await new Promise((resolve) => setTimeout(resolve, 1000));
     const result = await refreshDomainFacts(row.domain);
+    covered += 1;
     if (result.ok) refreshed += 1;
     else noAnswer.push(row.domain);
   }
-  const rest = rows.length - targets.length;
-  const parts = [`Refreshed ${refreshed} of ${targets.length} domain${targets.length === 1 ? "" : "s"} from the public registry`];
+  const rest = rows.length - covered;
+  const parts = [`Refreshed ${refreshed} of ${covered} domain${covered === 1 ? "" : "s"} from the public registry`];
   if (noAnswer.length) {
     parts.push(`no usable answer for ${noAnswer.slice(0, 5).join(", ")}${noAnswer.length > 5 ? ` +${noAnswer.length - 5} more` : ""}`);
   }
