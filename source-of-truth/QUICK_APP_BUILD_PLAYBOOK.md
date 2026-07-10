@@ -18,7 +18,7 @@
 
 Everything below already exists and is verified. Check the shelf BEFORE writing anything new.
 
-### 1a. The 48 factory modules (`production-app/src/lib/engine/modules/`)
+### 1a. The 50 factory modules (`production-app/src/lib/engine/modules/`)
 
 Each is one file implementing the `AppModule` contract in `types.ts` (slug, name, tier,
 `featureFlagEnv`, `files(ctx)`, optional `schemaSql`/`seedSql`/`envLines`/`navLinks`/`requiredEnv`),
@@ -31,7 +31,7 @@ module names its exact lineage.
 **Foundation (1)**
 - `identity-auth` — the gold-standard module: NextAuth with sanitized client session (no raw sessionToken), Resend magic-link email, DB-backed roles from `app_user_profiles` (admin is grantable), unique emails, per-error sign-in page.
 
-**People, connection & community (8)**
+**People, connection & community (9)**
 - `directory-community` — people directory + profiles + search + data-quality score (ChurchConnect people.py).
 - `connection-engine` — assess relational posture + mindset/heartset, match people (ChurchConnect purpose_matching).
 - `needs-helper-matching` — asymmetric need↔helper matching: someone posts a need, helpers claim it.
@@ -40,6 +40,7 @@ module names its exact lineage.
 - `multi-org-association` — manage many organizations under one association.
 - `crm-follow-up` — track guests/members/leads through a pipeline with follow-ups.
 - `ratings-reviews` — ratings, reviews, and reputation for makers/content.
+- `membership-registry` — free membership program with a verifiable badge: statement-of-intent join flow, owner review queue, public member/verification pages, badge served only while membership is active (UUG SEAL lineage, 2026-07-10).
 
 **Growth, care & formation (10)**
 - `purpose-onboarding` — deep first-run capture of purpose, values, story.
