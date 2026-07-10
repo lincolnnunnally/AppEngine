@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
+import type { DomainRecord } from "@/lib/engine/domain-inventory";
 import {
   domainInventoryAvailable,
   KNOWN_DOMAIN_SEEDS,
@@ -78,10 +79,34 @@ function daysUntil(iso: string): number {
   return Math.floor((new Date(iso).getTime() - Date.now()) / 86_400_000);
 }
 
+// Column sorting via ?sort=&dir= — plain links, no JS. Empty values sort last
+// so "sort by expiration" reads as a renewal timeline instead of a wall of "—".
+const SORTS: Record<string, { label: string; compare: (a: DomainRecord, b: DomainRecord) => number }> = {
+  domain: { label: "Domain", compare: (a, b) => a.domain.localeCompare(b.domain) },
+  registrar: { label: "Registrar", compare: (a, b) => (a.registrar || "\uffff").localeCompare(b.registrar || "\uffff") || a.domain.localeCompare(b.domain) },
+  dns: { label: "DNS", compare: (a, b) => (a.dnsHost || "\uffff").localeCompare(b.dnsHost || "\uffff") || a.domain.localeCompare(b.domain) },
+  app: { label: "App", compare: (a, b) => (a.appSlug || "\uffff").localeCompare(b.appSlug || "\uffff") || a.domain.localeCompare(b.domain) },
+  status: { label: "Status", compare: (a, b) => (a.status || "\uffff").localeCompare(b.status || "\uffff") || a.domain.localeCompare(b.domain) },
+  expires: { label: "Expires", compare: (a, b) => (a.expiresOn ?? "9999-99-99").localeCompare(b.expiresOn ?? "9999-99-99") || a.domain.localeCompare(b.domain) }
+};
+
+function SortHeader({ column, active, dir }: { column: string; active: string; dir: "asc" | "desc" }) {
+  const isActive = column === active;
+  const nextDir = isActive && dir === "asc" ? "desc" : "asc";
+  return (
+    <th>
+      <a className="dx-sort" href={`/domains?sort=${column}&dir=${nextDir}#inventory`}>
+        {SORTS[column].label}
+        {isActive ? (dir === "asc" ? " ▲" : " ▼") : ""}
+      </a>
+    </th>
+  );
+}
+
 export default async function DomainsPage({
   searchParams
 }: {
-  searchParams: Promise<{ msg?: string; ok?: string; edit?: string }>;
+  searchParams: Promise<{ msg?: string; ok?: string; edit?: string; sort?: string; dir?: string }>;
 }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
 
@@ -89,6 +114,9 @@ export default async function DomainsPage({
   const notice = params.msg ? { ok: params.ok === "1", message: params.msg } : null;
   const available = domainInventoryAvailable();
   const rows = await listDomainInventory();
+  const sortKey = params.sort && SORTS[params.sort] ? params.sort : "domain";
+  const dir: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
+  rows.sort((a, b) => SORTS[sortKey].compare(a, b) * (dir === "desc" ? -1 : 1));
   const inInventory = new Set(rows.map((row) => row.domain));
   const suggestions = KNOWN_DOMAIN_SEEDS.filter((seed) => !inInventory.has(seed.domain));
   const expiring = rows.filter((row) => row.expiresOn && daysUntil(row.expiresOn) <= 60);
@@ -133,8 +161,8 @@ export default async function DomainsPage({
         </section>
       ) : null}
 
-      <section className="panel">
-        <p className="dx-label">Inventory — {rows.length} domain{rows.length === 1 ? "" : "s"}</p>
+      <section className="panel" id="inventory">
+        <p className="dx-label">Inventory — {rows.length} domain{rows.length === 1 ? "" : "s"} · click a column to sort</p>
         {rows.length === 0 ? (
           <p className="dx-note">Nothing recorded yet — add the suggestions below or enter a domain by hand.</p>
         ) : (
@@ -142,12 +170,12 @@ export default async function DomainsPage({
             <table className="dx-table">
               <thead>
                 <tr>
-                  <th>Domain</th>
-                  <th>Registrar</th>
-                  <th>DNS</th>
-                  <th>App</th>
-                  <th>Status</th>
-                  <th>Expires</th>
+                  <SortHeader column="domain" active={sortKey} dir={dir} />
+                  <SortHeader column="registrar" active={sortKey} dir={dir} />
+                  <SortHeader column="dns" active={sortKey} dir={dir} />
+                  <SortHeader column="app" active={sortKey} dir={dir} />
+                  <SortHeader column="status" active={sortKey} dir={dir} />
+                  <SortHeader column="expires" active={sortKey} dir={dir} />
                   <th>Name servers</th>
                   <th>Notes</th>
                   <th></th>

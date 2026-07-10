@@ -6071,3 +6071,13 @@ a.dx-stat:hover {
 .rail-fold > summary::-webkit-details-marker { display: none; }
 .rail-fold > summary::after { content: " ▸"; }
 .rail-fold[open] > summary::after { content: " ▾"; }
+
+/* Sortable table headers (Domains inventory) */
+.dx-sort {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.dx-sort:hover {
+  color: var(--ink);
+}
