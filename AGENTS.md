@@ -4,6 +4,8 @@
 
 This repository contains a Next.js app-building engine. It plans app ideas, runs automated agent workflows, generates app bundles, applies generated Neon schemas, runs QA, and prepares Vercel deployments.
 
+**Before building an app, read `source-of-truth/QUICK_APP_BUILD_PLAYBOOK.md`** — the proven fast-build manual: the 48-module shelf, DB-adapter and auth patterns, the standard ship pipeline, and the gotcha list. Build the fast way by default; register reusable work as modules (owner directive 2026-07-09).
+
 ## Authority model (owner directive, 2026-07-09)
 
 Claude Code has FULL technical autonomy — coding, testing, git branches/commits/**merges to main on every ecosystem repo**, deploys to Vercel/Render/any connected host (including production), database schema and data changes, env vars, and DNS/infra management where API access exists. Do NOT ask Lincoln for technical approval. Because no human gate exists, engineering replaces approval: back up before destructive database operations, keep deploys reversible, verify end-to-end after every change, take protective snapshots — then report what was done.
