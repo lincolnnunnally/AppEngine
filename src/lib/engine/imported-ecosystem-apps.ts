@@ -97,6 +97,16 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     blockers: []
   },
   {
+    name: "Sandlot (formerly SwapAround)",
+    slug: "sandlot",
+    status: "live — kids meetups, fidget/toy exchange, supervised playdates (renamed from SwapAround 2026-07)",
+    productionUrl: "https://swaparound.vercel.app",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: ["Optional brand domain sandlot.unitedundergod.org not yet attached; Vercel project still named swaparound."]
+  },
+  {
     name: "Snip.Show",
     slug: "snip-show",
     status: "canonical-source decision pending (Snip.Show vs emergent repo)",

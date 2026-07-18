@@ -133,6 +133,13 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Hope & transformation",
     liveUrl: "https://alignedsouls.unitedundergod.org"
   },
+  sandlot: {
+    publicName: "Sandlot",
+    tagline:
+      "Kids meetups, fidget and toy exchange, and supervised playdates — free, parent-run, in person.",
+    group: "Hope & transformation",
+    liveUrl: "https://swaparound.vercel.app"
+  },
   opportunity: {
     tagline: "Name the problem, find the opportunity hidden inside it, and take a practical next step.",
     group: "Hope & transformation"
