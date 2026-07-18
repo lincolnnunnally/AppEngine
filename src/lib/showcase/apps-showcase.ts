@@ -121,14 +121,15 @@ const DISPLAY: Record<string, DisplayMeta> = {
     liveUrl: "https://laser.unitedundergod.org"
   },
   "kindred-connections": {
-    tagline: "Genuine friendships and encouraging groups for people who feel alone — connection that builds you up.",
+    tagline:
+      "Friendships and growth groups around purpose — become someone, then walk with people who help you grow.",
     group: "Hope & transformation",
     liveUrl: "https://kindred.unitedundergod.org"
   },
   "aligned-souls": {
     // Tagline condenses the owner's mission line in soul-dating-app-spec.md.
     tagline:
-      "A companion who helps you become who God designed you to be — found by knowing people deeply, not endless swiping.",
+      "Dating partners who help you become who God designed you to be — grow, take risks, and really live together.",
     group: "Hope & transformation",
     liveUrl: "https://alignedsouls.unitedundergod.org"
   },
@@ -146,11 +147,13 @@ const DISPLAY: Record<string, DisplayMeta> = {
     liveUrl: "https://childfirst.unitedundergod.org"
   },
   "community-connections": {
-    tagline: "A platform for communities to get involved in their own renewal — local tools, events, service, and belonging.",
+    tagline:
+      "Connect neighbors around making the community stronger — friendship that serves place, not only loneliness.",
     group: "Church & community"
   },
   milstead: {
-    tagline: "The first demonstration community — where Community Connections comes to life at neighborhood scale.",
+    tagline:
+      "milstead.us prototype — Community Connections at neighborhood scale: friends around local renewal and better connection.",
     group: "Church & community"
   },
   "snip-show": {

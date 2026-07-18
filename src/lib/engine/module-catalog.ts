@@ -67,13 +67,23 @@ const MODULES: ModuleCatalogEntry[] = [
   },
   {
     slug: "connection-engine",
-    name: "Connection Engine (assess + match)",
+    name: "Connection Engine (purpose + match)",
     category: "connection",
     purpose:
-      "Assess and grow each person, then match on mindset/heartset for friendship and mutual growth — groups (pods) before pairs. The reusable belonging engine behind community apps.",
-    capabilities: ["matching", "belonging", "assessment", "loneliness prescription", "relational posture", "pods / groups", "coaching", "growth pairing"],
-    usedByApps: ["kindred-connections", "churchconnect", "kids-need-dads"],
-    primarySource: "Kindred-Connection (GitHub) backend/routers/soul_match.py + relational_posture.py + loneliness_prescription.py + pods.py — the canonical engine; ChurchConnect purpose_matching.py is a second impl",
+      "Purpose-first belonging: match people who are becoming someone and building something together — shared purpose and growth goals lead, values next, hobbies last; groups (pods) with an explicit purpose before pairs. Loneliness is welcomed, but healing routes through purpose, service, and mutual growth — not pairing lonely people as the fix. Powers Kindred (friendship), Aligned Souls (dating companions for who God designed you to be), and Community Connections / milstead.us (neighbors strengthening place).",
+    capabilities: [
+      "purpose-weighted matching",
+      "belonging",
+      "assessment",
+      "relational posture",
+      "purpose pods / groups",
+      "growth pairing",
+      "mutual improvement",
+      "loneliness-to-service path",
+      "coaching handoff"
+    ],
+    usedByApps: ["kindred-connections", "aligned-souls", "community-connections", "milstead", "churchconnect", "kids-need-dads"],
+    primarySource: "Kindred-Connection (GitHub) backend/routers/soul_match.py + relational_posture.py + loneliness_prescription.py + pods.py — the canonical engine; AppEngine modules/connection-engine.ts is the installable extract",
     status: "extractable"
   },
   {
