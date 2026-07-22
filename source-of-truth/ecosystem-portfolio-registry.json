@@ -1,37 +1,37 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-07-03T19:18:00.000Z",
+  "generatedAt": "2026-07-21T00:00:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 25,
+    "totalApps": 27,
     "reviewReadyApps": 1,
-    "productionLiveApps": 6,
-    "blockedApps": 23,
+    "productionLiveApps": 9,
+    "blockedApps": 17,
     "byDeploymentState": {
-      "production_live": 6,
-      "production_blocked": 18,
+      "production_blocked": 17,
+      "production_live": 9,
       "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 3,
-      "review_blocked": 1,
+      "planned": 17,
+      "preview_verified": 1,
       "ready_for_build": 2,
-      "planned": 18,
-      "preview_verified": 1
+      "ready_for_vnext": 6,
+      "review_blocked": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 3,
-      "stop_for_owner_approval": 2,
+      "await_owner_review": 1,
       "create_implementation_issue": 1,
-      "create_planning_issue": 18,
-      "await_owner_review": 1
+      "create_planning_issue": 17,
+      "create_vnext_packet": 6,
+      "stop_for_owner_approval": 2
     },
     "byUrlStatus": {
-      "live": 8,
+      "live": 11,
       "deployed_awaiting_domain": 0,
       "domain_owned_not_serving": 6,
-      "awaiting_url": 11
+      "awaiting_url": 10
     }
   },
   "apps": [
@@ -739,20 +739,20 @@
       "lastUpdated": "2026-07-03T19:18:00.000Z"
     },
     {
-      "name": "Ideas / Idea Capture",
+      "name": "Ideas",
       "slug": "ideas",
-      "reviewUrl": "unknown",
-      "productionUrl": "approval-gated",
-      "currentVersion": "existing-backend-frontend-mobile",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "reviewUrl": "https://ideas.unitedundergod.org",
+      "productionUrl": "https://ideas.unitedundergod.org",
+      "currentVersion": "2026-07-18-live",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
-        "intendedDomain": "",
-        "urlStatus": "awaiting_url",
-        "nextStep": "No domain yet \u2014 decide its relation to the AppEngine intake first; it may live inside We Succeed rather than on its own URL.",
-        "note": "",
-        "factsFrom": "owner-2026-07-03"
+        "intendedDomain": "ideas.unitedundergod.org",
+        "urlStatus": "live",
+        "nextStep": "Nothing needed \u2014 live at ideas.unitedundergod.org (also ideas-app-ochre.vercel.app).",
+        "note": "Capture \u2192 content engine. Standalone Next.js on shared LPL Supabase (ideas_* tables + ideas-audio bucket). Whisper transcription + ClickUp + custom domain wired. Owner builds the mobile app himself.",
+        "factsFrom": "owner-2026-07-21"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -766,11 +766,9 @@
         }
       ],
       "linkedPRs": [],
-      "blockers": [
-        "Decide relation to Opportunity/AppEngine intake before launch work."
-      ],
+      "blockers": [],
       "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-07-21T00:00:00.000Z"
     },
     {
       "name": "Kindred Dating (superseded \u2014 shipped as Aligned Souls)",
@@ -1127,6 +1125,31 @@
       ],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-03T19:18:00.000Z"
+    },
+    {
+      "name": "Dreamstand",
+      "slug": "dreamstand",
+      "reviewUrl": "https://dreamstand.unitedundergod.org",
+      "productionUrl": "https://dreamstand.unitedundergod.org",
+      "currentVersion": "2026-07-21-money-smarts",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "dreamstand.unitedundergod.org",
+        "urlStatus": "live",
+        "nextStep": "Nothing needed \u2014 live at dreamstand.unitedundergod.org (also dreamstand.vercel.app).",
+        "note": "Kids-entrepreneurship app: dream \u2192 plan \u2192 money-smarts (four jars: save/give/grow/spend) \u2192 try \u2192 learn. Standalone Next.js on shared LPL Supabase (dstand_* tables). Config pending: RESEND_API_KEY enables password-reset/notification emails.",
+        "factsFrom": "owner-2026-07-21"
+      },
+      "sourceOfTruthFiles": [
+        "source-of-truth/ecosystem-build-ledger.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [],
+      "lastUpdated": "2026-07-21T00:00:00.000Z"
     }
   ],
   "guardrails": {

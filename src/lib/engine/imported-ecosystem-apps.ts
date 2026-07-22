@@ -191,13 +191,23 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     blockers: ["Standalone boundary unclear — decide module-vs-app before any build."]
   },
   {
-    name: "Ideas / Idea Capture",
+    name: "Ideas",
     slug: "ideas-idea-capture",
-    status: "idea capture + content forge source mined",
-    productionUrl: "approval-gated",
-    deploymentState: "production_blocked",
-    buildState: "planned",
-    nextSafeAction: "create_planning_issue",
+    status: "live — capture→content engine at ideas.unitedundergod.org (repo ideas-app; owner builds the mobile app himself)",
+    productionUrl: "https://ideas.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
     blockers: []
+  },
+  {
+    name: "Dreamstand",
+    slug: "dreamstand",
+    status: "live — kids-entrepreneurship app (dream→plan→money-smarts→try→learn) at dreamstand.unitedundergod.org",
+    productionUrl: "https://dreamstand.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: ["RESEND_API_KEY not set — password-reset/notification emails dormant until configured."]
   }
 ];

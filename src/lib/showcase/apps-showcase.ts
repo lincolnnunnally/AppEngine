@@ -177,7 +177,15 @@ const DISPLAY: Record<string, DisplayMeta> = {
     publicName: "Ideas",
     // Not in the ecosystem map; line condensed from the registry status text.
     tagline: "Capture ideas the moment they arrive and forge them into content.",
-    group: "Everyday services"
+    group: "Everyday services",
+    liveUrl: "https://ideas.unitedundergod.org"
+  },
+  dreamstand: {
+    publicName: "Dreamstand",
+    tagline:
+      "Kids turn their own ideas into real little businesses — learning money, courage, and that a flop is never a failure, just a lesson.",
+    group: "Hope & transformation",
+    liveUrl: "https://dreamstand.unitedundergod.org"
   },
   // Registry entries that the registry itself marks as not standalone public
   // products — hidden from the outward-facing page, with the registry reason.
