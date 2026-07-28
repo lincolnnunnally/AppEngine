@@ -1,0 +1,51 @@
+name: Growth Loop
+
+# Weekly, because every rule compares a 7-day window against the one before it.
+# Running more often would re-ask a question whose answer cannot have changed.
+on:
+  schedule:
+    - cron: "0 13 * * 1" # Mondays, 13:00 UTC (early morning US Eastern)
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Persist findings and file issues (false = analyse only)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+# The detection rules and the database credential both live in the growth-loop
+# edge function, not here — this repo is public. CI holds only the endpoint
+# secret, which opens that one function and nothing else.
+jobs:
+  growth-loop:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run the growth loop
+        working-directory: production-app
+        env:
+          GROWTH_LOOP_SECRET: ${{ secrets.GROWTH_LOOP_SECRET }}
+          # gh needs a token to open issues in each app's own repo. The default
+          # GITHUB_TOKEN is scoped to this repository only, so a PAT with repo
+          # scope is required for cross-repo filing.
+          GH_TOKEN: ${{ secrets.GROWTH_LOOP_GH_TOKEN || github.token }}
+          # Owner kill switch: set this repository variable to "true" to record
+          # findings without filing anything while a budget pause is in effect.
+          APPENGINE_COST_GOVERNANCE_PAUSED: ${{ vars.APPENGINE_COST_GOVERNANCE_PAUSED }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.apply }}" = "true" ]; then
+            node scripts/growth-loop.mjs --apply
+          else
+            node scripts/growth-loop.mjs
+          fi

@@ -197,7 +197,9 @@
     "growth:seo": "node scripts/add-seo-surface.mjs",
     "growth:register": "node scripts/register-app-telemetry.mjs",
     "growth:ship": "node scripts/ship-growth-foundation.mjs",
-    "smoke:growth-telemetry": "node scripts/smoke-growth-telemetry.js"
+    "smoke:growth-telemetry": "node scripts/smoke-growth-telemetry.js",
+    "growth:labels": "node scripts/ensure-ai-labels.mjs",
+    "growth:loop": "node scripts/growth-loop.mjs"
   },
   "dependencies": {
     "@auth/pg-adapter": "1.11.2",

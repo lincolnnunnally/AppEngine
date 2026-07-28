@@ -105,6 +105,49 @@ runStep("the ingest function gates on registry + origin, and drops PII", () => {
   }
 });
 
+runStep("the growth loop keeps rules and DB credentials out of the public repo", () => {
+  // The AppEngine repo is public. Detection needs the service-role key, so the
+  // rules live in the edge function and CI holds only the endpoint secret.
+  assertFileIncludes("shared-edge-functions/growth-loop/index.ts", [
+    "GROWTH_LOOP_SECRET",
+    "x-growth-secret",
+    "MIN_MEASURED_DAYS",
+    "lpl_app_health",
+    "onConflict: 'fingerprint'"
+  ]);
+  const loop = readFile("scripts/growth-loop.mjs");
+  if (loop.includes("SERVICE_ROLE") || loop.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+    throw new Error("scripts/growth-loop.mjs must never touch the service-role key — this repo is public");
+  }
+});
+
+runStep("the loop will not judge an app before it has a week of data", () => {
+  assertFileIncludes("shared-edge-functions/growth-loop/index.ts", [
+    "MIN_MEASURED_DAYS = 7",
+    "if (app.measured_days < MIN_MEASURED_DAYS) return out;"
+  ]);
+});
+
+runStep("the loop is governed: caps, kill switch, and issues only", () => {
+  assertFileIncludes("scripts/growth-loop.mjs", [
+    "MAX_ISSUES_PER_RUN",
+    "APPENGINE_COST_GOVERNANCE_PAUSED",
+    "mark_filed"
+  ]);
+  const loop = readFile("scripts/growth-loop.mjs");
+  // It files issues. It must never push, merge, or deploy on its own.
+  for (const forbidden of ["git push", "git merge", "vercel deploy", "gh pr merge"]) {
+    if (loop.includes(forbidden)) {
+      throw new Error(`the growth loop must not run "${forbidden}" — it files issues, humans and the council decide`);
+    }
+  }
+});
+
+runStep("every app repo carries the ai:* labels the loop files against", () => {
+  assertFileIncludes("scripts/ensure-ai-labels.mjs", ["ai:growth", "ai:fix", "ai:plan", "ai:monitor"]);
+  assertFileIncludes("package.json", ['"growth:labels"', '"growth:loop"']);
+});
+
 runStep("package exposes the growth scripts", () => {
   assertFileIncludes("package.json", [
     '"smoke:growth-telemetry"',
