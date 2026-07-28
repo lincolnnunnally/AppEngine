@@ -41,6 +41,9 @@ jobs:
       - name: Confirm generated app schemas are inert
         run: npm run generated-apps:guard
 
+      - name: Reject cloud-sync duplicate files
+        run: npm run dupes:check
+
       - name: Typecheck
         run: npm run typecheck
 

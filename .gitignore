@@ -15,3 +15,14 @@ codex.patch
 # Local agent workspaces — never commit
 .claude/
 .codex-worktrees/
+.vercel
+.env*
+
+# iCloud Drive conflict copies ("foo 2.ts" beside "foo.ts"). These are generated
+# silently whenever two agents write the same file, and an agent running
+# `git add -A` will otherwise commit stale source. scripts/check-duplicate-files.js
+# is the precise check (it only flags a copy sitting beside its own original);
+# this is the blunt stop. Caveat: a file genuinely named "Part 2.md" needs
+# `git add -f`.
+* [0-9]
+* [0-9].*

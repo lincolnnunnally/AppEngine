@@ -199,7 +199,9 @@
     "growth:ship": "node scripts/ship-growth-foundation.mjs",
     "smoke:growth-telemetry": "node scripts/smoke-growth-telemetry.js",
     "growth:labels": "node scripts/ensure-ai-labels.mjs",
-    "growth:loop": "node scripts/growth-loop.mjs"
+    "growth:loop": "node scripts/growth-loop.mjs",
+    "dupes:check": "node scripts/check-duplicate-files.js",
+    "dupes:clean": "node scripts/check-duplicate-files.js --fix"
   },
   "dependencies": {
     "@auth/pg-adapter": "1.11.2",
