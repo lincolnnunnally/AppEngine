@@ -37,6 +37,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // Deno sources: they import jsr:/npm: specifiers and reference the Deno
+    // global, none of which resolve under Next's TypeScript config. They are
+    // deployed to Supabase, never bundled here, and are typechecked by the
+    // Supabase CLI on deploy. shared-client/ is deliberately NOT excluded — it
+    // is ordinary Next-compatible code and we want its errors surfaced here.
+    "shared-edge-functions"
   ]
 }

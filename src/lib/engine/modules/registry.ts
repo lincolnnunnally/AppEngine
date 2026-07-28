@@ -56,6 +56,7 @@ import { paymentsBillingModule } from "./payments-billing";
 import { contentEditModule } from "./content-edit";
 import { membershipRegistryModule } from "./membership-registry";
 import { assetClaimModule } from "./asset-claim";
+import { growthTelemetryModule } from "./growth-telemetry";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -108,7 +109,8 @@ const MODULES: AppModule[] = [
   paymentsBillingModule,
   contentEditModule,
   membershipRegistryModule,
-  assetClaimModule
+  assetClaimModule,
+  growthTelemetryModule
 ];
 
 export function allModules(): AppModule[] {

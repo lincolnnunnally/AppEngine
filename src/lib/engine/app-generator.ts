@@ -226,6 +226,10 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
   const theme = applyBrand(resolveTheme(themeId, `${project.idea} ${plan.appType} ${plan.customer}`), brand);
   const rawName = project.name || plan.title || "Generated App";
   const projectName = escapeText(rawName);
+  // The identity this app reports telemetry under. Must match the row created in
+  // lpl_app_registry (npm run growth:register) or the shared ingest drops its
+  // events — that gate is what stops any origin writing into another app's funnel.
+  const appSlug = slugify(rawName);
   const monogram = monogramFor(rawName);
   const logoUrl = brand && typeof brand.logoUrl === "string" && /^https?:\/\//.test(brand.logoUrl.trim()) ? brand.logoUrl.trim() : "";
   const customer = escapeText(plan.customer);
@@ -415,7 +419,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/layout.tsx",
-      content: `import "./styles.css";\nimport { AppShell } from "@/components/app-shell";\nimport { appBrand } from "@/lib/app-brand";\n\nexport const viewport = {\n  width: "device-width",\n  initialScale: 1,\n  themeColor: "${theme.paper}",\n  colorScheme: "${theme.mode}"\n};\n\nexport const metadata = {\n  title: { default: appBrand.name, template: "%s — " + appBrand.name },\n  description: appBrand.tagline,\n  icons: { icon: "/favicon.svg" },\n  openGraph: { title: appBrand.name, description: appBrand.tagline, type: "website" },\n  twitter: { card: "summary_large_image", title: appBrand.name, description: appBrand.tagline }\n};\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>\n        <AppShell>{children}</AppShell>\n      </body>\n    </html>\n  );\n}\n`
+      content: `import "./styles.css";\nimport { AppShell } from "@/components/app-shell";\nimport { appBrand } from "@/lib/app-brand";\nimport { Telemetry } from "@/lib/TelemetryProvider";\n\nexport const viewport = {\n  width: "device-width",\n  initialScale: 1,\n  themeColor: "${theme.paper}",\n  colorScheme: "${theme.mode}"\n};\n\nexport const metadata = {\n  title: { default: appBrand.name, template: "%s — " + appBrand.name },\n  description: appBrand.tagline,\n  icons: { icon: "/favicon.svg" },\n  openGraph: { title: appBrand.name, description: appBrand.tagline, type: "website" },\n  twitter: { card: "summary_large_image", title: appBrand.name, description: appBrand.tagline }\n};\n\nexport default function RootLayout({ children }: { children: React.ReactNode }) {\n  return (\n    <html lang="en">\n      <body>\n        <AppShell>{children}</AppShell>\n        <Telemetry app="${appSlug}" />\n      </body>\n    </html>\n  );\n}\n`
     },
     {
       path: "src/lib/app-brand.ts",

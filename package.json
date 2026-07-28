@@ -192,7 +192,12 @@
     "generated-apps:guard": "node scripts/check-generated-app-migration-guard.js",
     "source:check": "node scripts/check-source-of-truth.js",
     "smoke:env-vault": "node scripts/smoke-env-vault.js",
-    "smoke:ops-push-env": "node scripts/smoke-ops-push-env.js"
+    "smoke:ops-push-env": "node scripts/smoke-ops-push-env.js",
+    "growth:retrofit": "node scripts/retrofit-telemetry.mjs",
+    "growth:seo": "node scripts/add-seo-surface.mjs",
+    "growth:register": "node scripts/register-app-telemetry.mjs",
+    "growth:ship": "node scripts/ship-growth-foundation.mjs",
+    "smoke:growth-telemetry": "node scripts/smoke-growth-telemetry.js"
   },
   "dependencies": {
     "@auth/pg-adapter": "1.11.2",
