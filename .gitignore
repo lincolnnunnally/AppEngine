@@ -26,3 +26,6 @@ codex.patch
 # `git add -f`.
 * [0-9]
 * [0-9].*
+
+# Supabase CLI scratch (version cache) — never part of the repo
+supabase/.temp
