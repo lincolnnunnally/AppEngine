@@ -96,7 +96,7 @@ const DISPLAY: Record<string, DisplayMeta> = {
   "live-on-mission": {
     tagline: "Small, practical acts of service — local opportunities to put hope into practice.",
     group: "Hope & transformation",
-    liveUrl: "https://live-on-mission.com"
+    liveUrl: "https://liveonmission.unitedundergod.org"
   },
   "kids-need-dads": {
     tagline: "Support, mentorship, encouragement, and restoration for fathers — because children need their dads.",
@@ -166,6 +166,12 @@ const DISPLAY: Record<string, DisplayMeta> = {
   "snip-show": {
     publicName: "Snip.Show",
     tagline: "AI-assisted clipping, publishing, and monetization support for content creators.",
+    // Deliberately no liveUrl. snip.unitedundergod.org does serve (HTTP 200), but
+    // what it serves is the Emergent prototype: zero backend calls, no form action,
+    // signup writes to localStorage — while the page offers "Create your Snip
+    // account" and promises "revenue share". In this file liveUrl is the
+    // live/coming-soon switch, so adding it would publish a clickable LIVE card on
+    // the public showcase for something that cannot do what it advertises.
     group: "Everyday services"
   },
   iconium: {

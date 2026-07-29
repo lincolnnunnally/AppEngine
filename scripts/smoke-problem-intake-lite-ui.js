@@ -3,9 +3,13 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 
-runStep("soft-launch problem intake route is discoverable and owner-gated", () => {
+runStep("soft-launch problem intake route is discoverable and gated", () => {
+  // The gate was deliberately widened from owner-only to the staged consumer
+  // surface, which still fails closed to operators until APP_ENGINE_PUBLIC_ACCESS
+  // opens the doors. canAccessEngineOwner still exists and still guards the
+  // operator screens — this route simply is not one of them any more.
   assertFileIncludes("src/app/(cockpit)/problem-intake-lite/page.tsx", [
-    "canAccessEngineOwner",
+    "canAccessEngineConsumerSurface",
     "/soft-launch",
     "ProblemIntakeForm"
   ]);

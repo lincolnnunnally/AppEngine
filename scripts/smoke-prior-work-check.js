@@ -47,17 +47,14 @@ runStep("RUN-001 returns extend_existing against the real ChurchConnect repo", (
     );
   }
 
-  // The real ChurchConnect bug: ConnectionInbox reads connection_inbox while
-  // ConnectionCards reads connection_cards. The gate must flag that split.
-  assertTrue(
-    artifact.findings.some(
-      (finding) =>
-        finding.kind === "table_split" &&
-        finding.tables.includes("connection_inbox") &&
-        finding.tables.includes("connection_cards")
-    ),
-    "connection_inbox vs connection_cards split is flagged"
-  );
+  // This used to require a table_split finding across connection_inbox and
+  // connection_cards — the real ChurchConnect bug at the time. That split has since
+  // been RECONCILED: ConnectionInbox.tsx no longer reads a table directly, it goes
+  // through the backend transfer endpoint, and connection_inbox does not exist in
+  // the live schema. Asserting the bug still gets flagged now asserts a regression
+  // we fixed. Deliberately not replaced with an inverted "no findings" assertion —
+  // that would be coupled to a live external repo and would fail the moment the
+  // gate CORRECTLY detects some other split.
 
   // Side-door rule: every proposed new parallel surface is flagged.
   assertTrue(artifact.sideDoorViolations.length >= 3, "all proposed side doors flagged");

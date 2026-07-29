@@ -105,16 +105,25 @@ runStep("intake UI captures the request and shows the packet", () => {
   ]);
 });
 
-runStep("the main entry route offers the two doors", () => {
-  // The entry page is the two-door front door (PR #177). Both doors flow through
-  // the problem_intake_gate behind the scenes: problem -> consumer problem intake
-  // (/problem-intake-lite), build -> /opportunity-intake.
-  assertFileIncludes("src/app/(cockpit)/page.tsx", [
-    'href="/problem-intake-lite"',
-    'href="/opportunity-intake"',
-    'data-testid="entry-door-problem"',
-    'data-testid="entry-door-build"'
-  ]);
+runStep("both intake doors stay reachable from the entry surface", () => {
+  // This used to assert the literal two-door layout (PR #177). That layout was
+  // deliberately replaced twice — 8400468 collapsed the doors into one guided
+  // conversation ("one guided flow replaces the two-door form wall"), and 84bc617
+  // made "/" the owner command deck with the conversation moved to /start. The
+  // contract that actually matters is unchanged and is what we assert now: both
+  // doors are still REACHABLE, and both still flow through the problem_intake_gate.
+  // Verified by hand before this rewrite — neither route is orphaned.
+  assertFileIncludes("src/app/(cockpit)/page.tsx", ["ConversationalIntake", "OwnerCommandDeck"]);
+  assertFileIncludes("src/app/(cockpit)/start/page.tsx", ["ConversationalIntake"]);
+
+  // The conversation carries the problem door as an always-rendered form fallback.
+  assertFileIncludes("src/components/intake/conversational-intake.tsx", ['href="/problem-intake-lite"']);
+
+  // ...and each frame maps onto the door that owns it.
+  assertFileIncludes("src/lib/engine/conversational-intake.ts", ['formHref: "/problem-intake-lite"', 'formHref: "/opportunity-intake"']);
+
+  // The operator rail keeps the raw form reachable for the owner (Engine room fold).
+  assertFileIncludes("src/components/engine/app-shell.tsx", ['href: "/problem-intake-lite"']);
 });
 
 console.log("problem-intake-gate smoke ok");
