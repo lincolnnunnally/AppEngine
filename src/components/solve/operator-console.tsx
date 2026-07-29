@@ -87,6 +87,14 @@ export default function SolutionEngineConsole({ initial }: { initial: OperatorDa
               <strong>{escalation.category}</strong> &mdash; case {escalation.case_id.slice(0, 8)} &mdash;{" "}
               {new Date(escalation.created_at).toLocaleString()}
               <div className="muted" style={{ whiteSpace: "pre-wrap" }}>{escalation.excerpt}</div>
+              {escalation.notified_at ? (
+                <div className="muted">Alert emailed {new Date(escalation.notified_at).toLocaleString()}.</div>
+              ) : (
+                <div style={{ color: "var(--coral)", fontWeight: 700 }}>
+                  NOBODY WAS EMAILED{escalation.notify_error ? ` — ${escalation.notify_error}` : ""}. Reach this person
+                  another way, now, and fix the alert path.
+                </div>
+              )}
               <button className="button" disabled={busy} onClick={() => act({ action: "ack-safety", escalationId: escalation.id })}>
                 A person has this
               </button>

@@ -349,3 +349,7 @@ create trigger se_pool_touch before update on se_connection_pool
 drop trigger if exists se_knowledge_touch on se_knowledge_records;
 create trigger se_knowledge_touch before update on se_knowledge_records
   for each row execute function se_touch_updated_at();
+
+-- Added 2026-07-29 after a live escalation showed a failed human alert was
+-- indistinguishable from one that hadn't been attempted yet.
+alter table se_safety_escalations add column if not exists notify_error text;

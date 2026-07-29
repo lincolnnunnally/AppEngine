@@ -204,10 +204,16 @@ async function escalate(theCase: SolutionCase, hit: SafetyHit): Promise<Solution
 
   const alert = await alertSafetyEscalation(escalated, hit.category, hit.excerpt);
 
-  if (alert.sent) {
-    await updateRowsQuietly("se_safety_escalations", `case_id=eq.${escalated.id}&notified_at=is.null`, {
-      notified_at: new Date().toISOString()
-    });
+  // Record the outcome either way. A failed alert used to look exactly like an
+  // alert that hadn't been attempted yet — and this is the one path where nobody
+  // finding out is the worst thing that can happen. Now the console shows it.
+  await updateRowsQuietly("se_safety_escalations", `case_id=eq.${escalated.id}&notified_at=is.null`, {
+    notified_at: alert.sent ? new Date().toISOString() : null,
+    notify_error: alert.sent ? null : alert.reason || "the alert did not send"
+  });
+
+  if (!alert.sent) {
+    console.error(`[solution-engine] SAFETY ALERT NOT DELIVERED for case ${escalated.id}: ${alert.reason}`);
   }
 
   return escalated;

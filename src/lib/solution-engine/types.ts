@@ -188,6 +188,8 @@ export type SafetyEscalation = {
   detected_by: string;
   excerpt: string | null;
   notified_at: string | null;
+  // Why the human alert didn't reach anyone, when it didn't. Surfaced in red.
+  notify_error: string | null;
   acknowledged_at: string | null;
   created_at: string;
 };

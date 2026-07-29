@@ -19,9 +19,36 @@ export function resendConfigured() {
   return Boolean(process.env.AUTH_RESEND_KEY && process.env.EMAIL_FROM);
 }
 
+export function isEmailAddress(value: string | null | undefined): boolean {
+  return Boolean(value && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim()));
+}
+
+// §4d says a human is always told. This names who, and is checked rather than
+// assumed — a safety contact that isn't a real address is a broken guarantee.
+export function getSafetyContact(): { address: string | null; problem: string | null } {
+  const configured = (process.env.SOLUTION_ENGINE_SAFETY_CONTACT || process.env.APP_ENGINE_OWNER_EMAIL || "").trim();
+
+  if (!configured) {
+    return { address: null, problem: "No safety contact is configured (SOLUTION_ENGINE_SAFETY_CONTACT)." };
+  }
+
+  if (!isEmailAddress(configured)) {
+    return { address: null, problem: `The configured safety contact ("${configured}") is not an email address.` };
+  }
+
+  return { address: configured, problem: null };
+}
+
 export async function sendEmail(message: OutboundMessage): Promise<{ sent: boolean; reason?: string }> {
   if (!resendConfigured()) {
-    return { sent: false, reason: "email is not configured" };
+    return { sent: false, reason: "email is not configured (AUTH_RESEND_KEY + EMAIL_FROM)" };
+  }
+
+  // Caught a live one: production had a recipient that wasn't an email address at
+  // all, and the provider's 422 was swallowed. Check the shape before spending a
+  // network call, so the reason we report is the real one.
+  if (!isEmailAddress(message.to)) {
+    return { sent: false, reason: `"${message.to}" is not a valid email address` };
   }
 
   try {
@@ -40,7 +67,10 @@ export async function sendEmail(message: OutboundMessage): Promise<{ sent: boole
     });
 
     if (!response.ok) {
-      return { sent: false, reason: `email provider returned ${response.status}` };
+      // The provider's own message is the useful part ("domain is not verified"),
+      // so carry it rather than a bare status code.
+      const detail = await response.text().catch(() => "");
+      return { sent: false, reason: `email provider returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}` };
     }
 
     return { sent: true };
@@ -162,14 +192,14 @@ export async function notifyFollowUp(theCase: SolutionCase): Promise<{ sent: boo
 // address, until a pastoral contact is designated. This is the one message that is
 // allowed to be blunt and operational, because its reader is staff, not the person.
 export async function alertSafetyEscalation(theCase: SolutionCase, category: string, excerpt: string): Promise<{ sent: boolean; reason?: string }> {
-  const to = process.env.SOLUTION_ENGINE_SAFETY_CONTACT || process.env.APP_ENGINE_OWNER_EMAIL;
+  const contact = getSafetyContact();
 
-  if (!to) {
-    return { sent: false, reason: "no safety contact configured" };
+  if (!contact.address) {
+    return { sent: false, reason: contact.problem || "no safety contact configured" };
   }
 
   const result = await sendEmail({
-    to,
+    to: contact.address,
     subject: `[Solution Engine] Safety escalation — ${category}`,
     body: [
       `A case was halted by the safety screen at ${new Date().toISOString()}.`,
