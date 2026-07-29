@@ -59,7 +59,11 @@ export async function sendEmail(message: OutboundMessage): Promise<{ sent: boole
         "content-type": "application/json"
       },
       body: JSON.stringify({
+        // Resend can only send from the verified subdomain
+        // (emails.unitedundergod.org), so replies are pointed at the real
+        // human inbox on the root domain instead — the ecosystem convention.
         from: process.env.EMAIL_FROM,
+        reply_to: process.env.EMAIL_REPLY_TO || "support@unitedundergod.org",
         to: [message.to],
         subject: message.subject,
         text: message.body
