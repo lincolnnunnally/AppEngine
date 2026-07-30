@@ -49,13 +49,18 @@ export default function proxy(request: NextRequest) {
     if (pathname.startsWith("/_next/") || pathname === "/favicon.ico" || pathname === "/robots.txt") {
       return NextResponse.next();
     }
+    // Public health only — fleet monitors and uptime probes need a real JSON
+    // answer on this host without opening the factory cockpit or other APIs.
+    if (pathname === "/api/health" || pathname === "/api/engine/health") {
+      return NextResponse.next();
+    }
     if (pathname === "/") {
       const url = request.nextUrl.clone();
       url.pathname = SHOWCASE_PATH;
       return NextResponse.rewrite(url);
     }
-    // Everything else on this host — cockpit paths, APIs, even /apps-showcase
-    // itself — collapses to the one public page.
+    // Everything else on this host — cockpit paths, other APIs, even
+    // /apps-showcase itself — collapses to the one public page.
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

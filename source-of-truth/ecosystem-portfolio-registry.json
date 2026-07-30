@@ -39,17 +39,17 @@
       "name": "AppEngine / We Succeed",
       "slug": "appengine",
       "reviewUrl": "https://apps.unitedundergod.org",
-      "productionUrl": "https://apps.unitedundergod.org",
+      "productionUrl": "https://www.we-succeed.org",
       "currentVersion": "2026-07-03-ops-attention-queue",
       "deploymentState": "production_live",
       "buildState": "ready_for_vnext",
       "nextSafeAction": "create_vnext_packet",
       "domain": {
-        "intendedDomain": "apps.unitedundergod.org",
+        "intendedDomain": "www.we-succeed.org",
         "urlStatus": "live",
-        "nextStep": "Nothing needed for the URL \u2014 live at www.we-succeed.org. If the name changes, update Vercel and this registry together.",
-        "note": "Lincoln may still change this domain (owner, 2026-07-03) \u2014 treat we-succeed.org as current, not final.",
-        "factsFrom": "owner-2026-07-03"
+        "nextStep": "Factory live at www.we-succeed.org; apps.unitedundergod.org is the public showcase only (health allowed). Keep Vercel + this registry aligned.",
+        "note": "productionUrl is the factory (we-succeed), not the showcase host. Showcase intentionally redirects most paths to /.",
+        "factsFrom": "owner-2026-07-03 + fleet-health-2026-07-30"
       },
       "sourceOfTruthFiles": [
         "CURRENT_SCOPE.md",
