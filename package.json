@@ -60,6 +60,7 @@
     "smoke:location-proximity": "node scripts/smoke-location-proximity.js",
     "smoke:env-compose": "node scripts/smoke-env-composer.js",
     "smoke:billing": "node scripts/smoke-billing.js",
+    "smoke:pricing-estimate": "node scripts/smoke-pricing-estimate.js",
     "smoke:customer-build": "node scripts/smoke-customer-build.js",
     "smoke:autonomous-loop": "node scripts/smoke-autonomous-loop.js",
     "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
