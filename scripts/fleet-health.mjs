@@ -37,8 +37,11 @@ import { readFileSync } from 'node:fs';
 const APPLY = process.argv.includes('--apply');
 const AS_JSON = process.argv.includes('--json');
 
-const OWNER = 'lincolnnunnally';
-const REPO = 'app-engine';
+// Derived from the environment in CI so this cannot drift: the GitHub repo is
+// `lincolnnunnally/AppEngine` while the local checkout directory is `app-engine`,
+// and hardcoding the directory name here is exactly the mistake that made the
+// first two runs fail with "Could not resolve to a Repository".
+const SLUG = process.env.GITHUB_REPOSITORY ?? 'lincolnnunnally/AppEngine';
 const ISSUE_TITLE = 'Fleet health: apps are down';
 const ISSUE_LABEL = 'fleet-health';
 
@@ -261,30 +264,30 @@ if (APPLY) {
   // `gh issue create --label` fails outright if the label does not exist, which
   // would make the very first run on a fresh repo a no-op failure.
   try {
-    gh(['label', 'create', ISSUE_LABEL, '--repo', `${OWNER}/${REPO}`,
+    gh(['label', 'create', ISSUE_LABEL, '--repo', SLUG,
         '--color', 'B60205', '--description', 'Opened automatically by scripts/fleet-health.mjs']);
   } catch {
     // Already exists — the only expected failure, and harmless.
   }
 
   const existing = JSON.parse(
-    gh(['issue', 'list', '--repo', `${OWNER}/${REPO}`, '--state', 'open',
+    gh(['issue', 'list', '--repo', SLUG, '--state', 'open',
         '--label', ISSUE_LABEL, '--limit', '1', '--json', 'number']) || '[]',
   );
   const openIssue = existing[0]?.number;
 
   if (down.length || degraded.length) {
     if (openIssue) {
-      gh(['issue', 'edit', String(openIssue), '--repo', `${OWNER}/${REPO}`, '--body-file', '-'], body());
+      gh(['issue', 'edit', String(openIssue), '--repo', SLUG, '--body-file', '-'], body());
       console.log(`\nUpdated issue #${openIssue}`);
     } else {
-      const url = gh(['issue', 'create', '--repo', `${OWNER}/${REPO}`,
+      const url = gh(['issue', 'create', '--repo', SLUG,
                       '--title', `${ISSUE_TITLE} (${down.length})`,
                       '--label', ISSUE_LABEL, '--body-file', '-'], body());
       console.log(`\nOpened ${url}`);
     }
   } else if (openIssue) {
-    gh(['issue', 'close', String(openIssue), '--repo', `${OWNER}/${REPO}`,
+    gh(['issue', 'close', String(openIssue), '--repo', SLUG,
         '--comment', `Recovered — all ${healthy.length} probed apps are answering as of ${new Date().toISOString()}.`]);
     console.log(`\nClosed issue #${openIssue} — fleet recovered`);
   } else {
