@@ -1,0 +1,56 @@
+name: Fleet Health
+
+# Every 30 minutes, because on 2026-07-29 Render suspended all 7 free services at
+# once and the fleet sat half-dead for a day. Every frontend kept returning 200,
+# so nothing alarmed and the portfolio registry still read "live". The weekly
+# Growth Loop asks whether apps are growing; nothing asked whether they were up.
+#
+# Cheap enough to run this often: unauthenticated GETs against public URLs, no
+# secrets, ~30s per run, and public repos have unmetered Actions minutes.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Open/update/close the tracking issue (false = probe and print only)"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+# Never let two runs interleave and fight over the same rolling issue.
+concurrency:
+  group: fleet-health
+  cancel-in-progress: false
+
+jobs:
+  fleet-health:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Probe the fleet
+        working-directory: production-app
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Owner kill switch, shared with the growth loop: record nothing while a
+          # budget or maintenance pause is in effect.
+          APPENGINE_COST_GOVERNANCE_PAUSED: ${{ vars.APPENGINE_COST_GOVERNANCE_PAUSED }}
+        run: |
+          if [ "${{ vars.APPENGINE_COST_GOVERNANCE_PAUSED }}" = "true" ]; then
+            node scripts/fleet-health.mjs
+          elif [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.apply }}" = "true" ]; then
+            node scripts/fleet-health.mjs --apply
+          else
+            node scripts/fleet-health.mjs
+          fi
