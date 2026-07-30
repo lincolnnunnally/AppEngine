@@ -258,6 +258,15 @@ function gh(args, input) {
 }
 
 if (APPLY) {
+  // `gh issue create --label` fails outright if the label does not exist, which
+  // would make the very first run on a fresh repo a no-op failure.
+  try {
+    gh(['label', 'create', ISSUE_LABEL, '--repo', `${OWNER}/${REPO}`,
+        '--color', 'B60205', '--description', 'Opened automatically by scripts/fleet-health.mjs']);
+  } catch {
+    // Already exists — the only expected failure, and harmless.
+  }
+
   const existing = JSON.parse(
     gh(['issue', 'list', '--repo', `${OWNER}/${REPO}`, '--state', 'open',
         '--label', ISSUE_LABEL, '--limit', '1', '--json', 'number']) || '[]',

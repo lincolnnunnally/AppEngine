@@ -32,8 +32,13 @@ jobs:
         with:
           node-version: "22"
 
+      # No working-directory: this repo's root IS production-app. The local
+      # checkout nests it one level deeper (app-engine/production-app), which is
+      # what makes `working-directory: production-app` look right and fail in CI
+      # with "No such file or directory". This job had never run when the bug was
+      # found (2026-07-30) — its first scheduled Monday had not arrived yet, so
+      # the failure was still latent.
       - name: Run the growth loop
-        working-directory: production-app
         env:
           GROWTH_LOOP_SECRET: ${{ secrets.GROWTH_LOOP_SECRET }}
           # gh needs a token to open issues in each app's own repo. The default

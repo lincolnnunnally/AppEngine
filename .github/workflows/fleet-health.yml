@@ -39,8 +39,10 @@ jobs:
         with:
           node-version: "22"
 
+      # No working-directory: this repo's root IS production-app. The local
+      # checkout nests it one level deeper (app-engine/production-app), which is
+      # what makes `working-directory: production-app` look right and fail in CI.
       - name: Probe the fleet
-        working-directory: production-app
         env:
           GH_TOKEN: ${{ github.token }}
           # Owner kill switch, shared with the growth loop: record nothing while a
