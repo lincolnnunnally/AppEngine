@@ -295,5 +295,14 @@ if (APPLY) {
   }
 }
 
-// Exit non-zero when something is actually down so a scheduled run shows red at a glance.
-process.exit(down.length ? 1 : 0);
+// Exit 0 whenever the PROBE itself succeeded, even with apps down.
+//
+// The tempting alternative — exit 1 while anything is down — turns 48 scheduled
+// runs a day red and emails a workflow failure every 30 minutes for as long as
+// the outage lasts. That is how a monitor teaches you to ignore it. The rolling
+// issue is the signal; the run status answers a different question, "did the
+// monitor work", and a genuinely broken monitor throws and exits non-zero on its
+// own without any help from here.
+//
+// Local runs can still branch on fleet state with --json.
+process.exit(0);
