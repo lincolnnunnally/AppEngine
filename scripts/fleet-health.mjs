@@ -252,10 +252,11 @@ function body() {
   return lines.join('\n');
 }
 
-function gh(args, input) {
+function gh(args, input, stderr = 'inherit') {
   return execFileSync('gh', args, {
     encoding: 'utf8',
     input,
+    stdio: ['pipe', 'pipe', stderr],
     env: { ...process.env, GH_TOKEN: process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN },
   }).trim();
 }
@@ -265,9 +266,12 @@ if (APPLY) {
   // would make the very first run on a fresh repo a no-op failure.
   try {
     gh(['label', 'create', ISSUE_LABEL, '--repo', SLUG,
-        '--color', 'B60205', '--description', 'Opened automatically by scripts/fleet-health.mjs']);
+        '--color', 'B60205', '--description', 'Opened automatically by scripts/fleet-health.mjs'],
+       undefined, 'ignore');
   } catch {
-    // Already exists — the only expected failure, and harmless.
+    // Already exists — the only expected failure. gh writes that notice to
+    // stderr, which would otherwise print on all 48 runs a day, so it is
+    // suppressed at the call rather than caught after the fact.
   }
 
   const existing = JSON.parse(
