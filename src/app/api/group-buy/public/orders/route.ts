@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     return corsJson({ ok: false, message: "Group Buy storage is not configured." }, 503);
   }
 
-  const caller = authenticateApp(request);
+  const caller = await authenticateApp(request);
 
   if (!caller) {
     return corsJson({ ok: false, message: "A valid app token is required to place member orders." }, 401);
@@ -133,7 +133,7 @@ export async function GET(request: Request) {
     return corsJson({ ok: false, message: "Group Buy storage is not configured." }, 503);
   }
 
-  const caller = authenticateApp(request);
+  const caller = await authenticateApp(request);
 
   if (!caller) {
     return corsJson({ ok: false, message: "A valid app token is required." }, 401);

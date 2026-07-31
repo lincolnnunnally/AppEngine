@@ -66,7 +66,11 @@ export type AppCaller = { appSlug: string };
 
 // Returns the app the bearer token belongs to, or null. The caller's claimed
 // app_slug is then checked against this — a token is scoped to exactly one app.
-export function authenticateApp(request: Request): AppCaller | null {
+//
+// gb_app_tokens is the source of truth (the shared edge function reads the same
+// table), with GROUP_BUY_APP_TOKENS as a local-dev fallback so the flow can be
+// exercised without touching production credentials.
+export async function authenticateApp(request: Request): Promise<AppCaller | null> {
   const header = request.headers.get("authorization") || "";
   const presented = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
 
@@ -78,6 +82,22 @@ export function authenticateApp(request: Request): AppCaller | null {
     if (timingSafeEqual(presented, token)) {
       return { appSlug };
     }
+  }
+
+  try {
+    const { selectRows } = await import("./db");
+    const rows = await selectRows<{ app_slug: string; token: string }>(
+      "gb_app_tokens",
+      "select=app_slug,token&active=is.true"
+    );
+
+    for (const row of rows) {
+      if (timingSafeEqual(presented, row.token)) {
+        return { appSlug: row.app_slug };
+      }
+    }
+  } catch {
+    // Storage unreachable — fall through to a plain 401 rather than leaking why.
   }
 
   return null;
