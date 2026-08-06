@@ -341,6 +341,43 @@ export async function importVaultEntries(
 // The deploy-time merge: shared values first, then this app's overrides on top.
 // Reserved keys are filtered even if they somehow got stored. Callers spread the
 // engine-provisioned env AFTER this, so engine keys always win.
+/**
+ * Find the stored key that is meant to satisfy `target`, tolerating the ways a
+ * name gets typed slightly differently from the one the code reads.
+ *
+ * Real cases this exists for: `PEXEL_API_KEY` stored against a `PEXELS_API_KEY`
+ * slot, and `ELEGANT_THEMES_API_KEY_GENERIC` against `ELEGANT_THEMES_API_KEY`.
+ * Both were silently useless — the key was in the vault and the app never saw
+ * it, with nothing anywhere saying why.
+ *
+ * Matching is on token sequences, not raw substrings, so `API_KEY` cannot
+ * quietly match `OPENAI_API_KEY`. A stored key may carry EXTRA trailing tokens
+ * (a qualifier like `_GENERIC`) but must begin with everything the target asks
+ * for. Trailing plurals are ignored per token.
+ */
+function tokens(key: string): string[] {
+  return key
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean)
+    // PEXELS -> PEXEL, THEMES -> THEME. Two-letter tokens are left alone so
+    // things like "AS" or "JS" aren't mangled.
+    .map((t) => (t.length > 3 && t.endsWith("S") ? t.slice(0, -1) : t));
+}
+
+export function matchVaultKey(available: string[], target: string): string | null {
+  const want = tokens(target);
+  if (!want.length) return null;
+
+  const scored = available
+    .map((candidate) => ({ candidate, got: tokens(candidate) }))
+    .filter(({ got }) => got.length >= want.length && want.every((t, i) => got[i] === t))
+    // Prefer the closest name — an exact token match beats one with qualifiers.
+    .sort((a, b) => a.got.length - b.got.length);
+
+  return scored[0]?.candidate ?? null;
+}
+
 export async function resolveEnvForApp(userEmail: string, appScope: string): Promise<Record<string, string>> {
   if (!hasDatabase()) return {};
   await ensureTable();

@@ -16,7 +16,7 @@ import {
 } from "@/lib/engine/ecosystem-credential-registry";
 import { hasBackendDeployProfile, ownerInputSecrets } from "@/lib/engine/app-backend-deploy";
 import { pushableKeyCount } from "@/lib/engine/ops-push-env";
-import { listVaultEntries, type VaultEntry } from "@/lib/engine/env-vault";
+import { listVaultEntries, matchVaultKey, resolveEnvForApp, type VaultEntry } from "@/lib/engine/env-vault";
 import { listBuildJobsForUser } from "@/lib/engine/build-jobs";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { auth } from "@/auth";
@@ -108,6 +108,44 @@ async function applyKnownValueAction(formData: FormData) {
   );
 }
 
+// Push a key ALREADY in the vault into an app's own Vercel project.
+//
+// Storing a key in the vault looks like it should be enough, and until now it
+// wasn't: the vault holds it for builds, but a separately-deployed app reads its
+// own project env and never saw it. There was no path between the two, and no
+// message anywhere saying so — the key just sat there.
+//
+// Only this server can do it: vault rows are encrypted with the production
+// secret, so the value is undecryptable anywhere else, including locally.
+async function applyVaultKeyAction(formData: FormData) {
+  "use server";
+  if (!(await canAccessEngineOwner())) redirect("/");
+  const slug = String(formData.get("slug") || "");
+  const key = String(formData.get("key") || "");
+  const group = CREDENTIAL_REGISTRY.find((g) => g.slug === slug);
+
+  const session = await auth();
+  const userKey = normalizeUserKey(session?.user?.email);
+  if (!userKey) back("Sign in again to use your stored keys.", false, focusOf(formData));
+
+  const stored = await resolveEnvForApp(userKey, slug);
+  const sourceKey = matchVaultKey(Object.keys(stored), key);
+  const value = sourceKey ? stored[sourceKey] : "";
+  if (!value) {
+    back(`No stored key matches ${key}. Add it under "Your keys" first.`, false, focusOf(formData));
+  }
+
+  const result = await setAppEnvValue(slug, key, value);
+  const named = sourceKey === key ? "" : ` (from your ${sourceKey})`;
+  back(
+    result.ok
+      ? `Applied ${key} to ${group?.name || slug}${named}. Redeploy that app to pick it up.`
+      : result.message,
+    result.ok,
+    focusOf(formData)
+  );
+}
+
 async function applyAction() {
   "use server";
   if (!(await canAccessEngineOwner())) redirect("/");
@@ -161,6 +199,12 @@ export default async function IntegrationsPage({
   const renderKeyStored =
     Boolean(process.env.RENDER_API_KEY?.trim()) ||
     vaultEntries.some((entry) => entry.key === "RENDER_API_KEY" && !entry.appScope);
+
+  // Names only — values stay encrypted server-side. Used to offer a one-click
+  // push when a key an app is missing is already sitting in the vault under a
+  // slightly different name.
+  const vaultKeyNames = vaultEntries.map((entry) => entry.key);
+  const vaultSourceFor = (envVar: string) => matchVaultKey(vaultKeyNames, envVar);
 
   return (
     <main className="shell">
@@ -334,6 +378,16 @@ export default async function IntegrationsPage({
                   {key.publicValue && !(pushable && status === "missing") ? <p className="cred-value">value: {key.publicValue}</p> : null}
                   {pushable ? (
                     <div className="integration-input-row">
+                      {status === "missing" && vaultSourceFor(key.envVar) ? (
+                        <button
+                          className="soft-launch-action"
+                          formAction={applyVaultKeyAction}
+                          disabled={!apiReady}
+                          title={`Push your stored ${vaultSourceFor(key.envVar)} into this app's project`}
+                        >
+                          Use my stored {vaultSourceFor(key.envVar)}
+                        </button>
+                      ) : null}
                       {key.publicValue && status === "missing" ? (
                         <button
                           className="soft-launch-action"
