@@ -180,6 +180,86 @@ const EASY_PEAZY: CredentialAppGroup = {
   ],
 };
 
+// ─── Easy Peazy — provisioning API ───────────────────────────────────────────
+// The Python backend that actually builds customer sites (backend/provisioner.py:
+// Spaceship domain → cPanel/SSH → WP-CLI install → Divi). It is a SEPARATE Vercel
+// project from the Easy Peazy frontend, so its keys need their own group — the
+// registry pushes to one project id per group.
+const EASY_PEAZY_API: CredentialAppGroup = {
+  slug: "easy-peazy-api",
+  name: "Easy Peazy — provisioning API",
+  summary:
+    "Builds each customer's WordPress + Divi site over SSH/WP-CLI. Everything below is needed before it can provision a real site; none of it is set yet.",
+  vercelProjectId: "prj_gKqKW3PZ99M7hKHNAf9qyrVrGpBD",
+  keys: [
+    {
+      displayName: "Elegant Themes — account username",
+      envVar: "ELEGANT_THEMES_USERNAME",
+      host: "vercel",
+      location: "Vercel project easy-peazy-api · production",
+      scope: "server",
+      secret: false,
+      whoProvides: "lincoln",
+      purpose:
+        "Half of the Divi licence activation written into each new site (wp option update et_automatic_updates_options). Your elegantthemes.com username — NOT your password, which is never needed.",
+      statusMode: "vercel_env",
+      attention: {
+        when: "missing",
+        priority: "recommended",
+        action:
+          "Add your Elegant Themes username so newly provisioned sites activate Divi and receive updates.",
+      },
+    },
+    {
+      displayName: "Elegant Themes — API key (members area)",
+      envVar: "ELEGANT_THEMES_API_KEY",
+      host: "vercel",
+      location: "Vercel project easy-peazy-api · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "The other half of Divi licence activation. From elegantthemes.com → Account → API Key. This is a per-account update token, not your login password — an unlimited lifetime membership covers unlimited client sites.",
+      statusMode: "vercel_env",
+      attention: {
+        when: "missing",
+        priority: "recommended",
+        action:
+          "Copy the API Key from your Elegant Themes members area so provisioned sites can activate Divi and auto-update.",
+      },
+    },
+  ],
+};
+
+// ─── AI Website Design ───────────────────────────────────────────────────────
+const AI_WEBSITE_DESIGN: CredentialAppGroup = {
+  slug: "ai-website-design",
+  name: "AI Website Design",
+  summary:
+    "LIVE at ai-website.design. Describe a business → Claude designs a complete multi-page site → edit text/photos/order in the browser, or export any page as a Divi layout for WordPress. Billing is wired. One key below is worth entering; nothing else is.",
+  vercelProjectId: "prj_2QI9Q99zC0D4UH8ReFRAva9uHd0F",
+  keys: [
+    {
+      displayName: "AI Website Design — Pexels API key (site photography)",
+      envVar: "PEXELS_API_KEY",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Fills every generated site's photos automatically. Without it the AI still writes a photo brief for each slot, but they stay empty until someone picks each one by hand — a real site is ~15 slots. The keyless fallback (Openverse) is documentary photography, not stock: it returns other businesses' branded vehicles and wildly off-subject matches, so it is deliberately never auto-inserted. Free key, 200 requests/hour, from pexels.com/api.",
+      statusMode: "vercel_env",
+      attention: {
+        when: "missing",
+        priority: "recommended",
+        action:
+          "Create a free key at pexels.com/api and store it as PEXELS_API_KEY for AI Website Design — it turns ~15 empty photo slots per generated site into filled ones with no other change.",
+      },
+    },
+  ],
+};
+
 // ─── Toner Management ────────────────────────────────────────────────────────
 const TONER_MANAGEMENT: CredentialAppGroup = {
   slug: "toner-management",
@@ -199,6 +279,8 @@ export const CREDENTIAL_REGISTRY: CredentialAppGroup[] = [
   SPARK,
   KIDS_NEED_DADS,
   EASY_PEAZY,
+  EASY_PEAZY_API,
+  AI_WEBSITE_DESIGN,
   TONER_MANAGEMENT,
 ];
 
