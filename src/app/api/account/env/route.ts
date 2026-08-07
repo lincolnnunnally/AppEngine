@@ -4,6 +4,7 @@ import { canAccessEngineConsumerSurface, canAccessEngineOwner } from "@/lib/auth
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { deleteVaultVar, isEngineRuntimeKey, KNOWN_KEYS, listVaultEntries, setVaultVar, vaultAvailable } from "@/lib/engine/env-vault";
 import { appEngineProjectId, setProjectEnvValue } from "@/lib/engine/integrations-config";
+import { propagateVaultKey } from "@/lib/engine/ops-push-env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,23 @@ export async function POST(request: Request) {
       ? "Saved — stored for your apps and applied to the engine (live after its next redeploy)."
       : `Saved for your apps. Couldn't also apply it to the engine's hosting: ${mirror.message}`;
   }
+  // Universal means universal: a key saved here goes straight to every registered
+  // app that declares it, instead of waiting for the owner to find a per-app push
+  // button. The credential registry is the boundary — a value only reaches an app
+  // that already lists that env var as one of its own slots. Best-effort; the
+  // vault save above stands either way.
+  if (await canAccessEngineOwner()) {
+    const spread = await propagateVaultKey(userKey, key, appScope).catch(() => null);
+    if (spread?.pushed.length) {
+      const names = Array.from(new Set(spread.pushed.map((p) => p.appName)));
+      const list = names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3} more` : names.join(", ");
+      message += ` Also sent to ${list} — redeploy ${names.length === 1 ? "it" : "them"} to pick it up.`;
+    }
+    if (spread?.failed.length) {
+      message += ` Couldn't reach ${spread.failed.length} app${spread.failed.length === 1 ? "" : "s"}; use Push all on their section.`;
+    }
+  }
+
   // `warning` = format-hint mismatch (looks like a placeholder). The save went
   // through — this only flags it. Never contains the value.
   return json({ ok: true, message, warning: result.warning });

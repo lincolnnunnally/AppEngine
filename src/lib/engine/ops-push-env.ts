@@ -11,7 +11,7 @@
 // Render/Supabase-hosted keys are NOT pushable here (no Render API) — those stay
 // manual, exactly as the credentials page says. SERVER ONLY.
 import { CREDENTIAL_REGISTRY } from "@/lib/engine/ecosystem-credential-registry";
-import { resolveEnvForApp } from "@/lib/engine/env-vault";
+import { matchVaultKey, resolveEnvForApp } from "@/lib/engine/env-vault";
 
 const VERCEL_API = "https://api.vercel.com";
 
@@ -64,12 +64,66 @@ export async function pushVaultValueToVercel(ownerEmail: string, slug: string, e
   }
 
   const vaultEnv = await resolveEnvForApp(ownerEmail, slug).catch(() => ({} as Record<string, string>));
-  const value = vaultEnv[envVar];
+  // Match by name SHAPE, not byte equality. A key stored as PEXEL_API_KEY must
+  // satisfy a PEXELS_API_KEY slot — an exact lookup reported "not in your vault"
+  // for a key that was demonstrably sitting right there, which is the whole
+  // reason the vault felt like it wasn't doing its job.
+  const sourceKey = matchVaultKey(Object.keys(vaultEnv), envVar);
+  const value = sourceKey ? vaultEnv[sourceKey] : "";
   if (!value) {
     return { ok: false, message: `Add ${envVar} to your key vault first (Your keys, top of Integrations & secrets), then push it here.` };
   }
 
   return upsertVercelEnv(group.vercelProjectId, envVar, value);
+}
+
+export type PropagateResult = {
+  pushed: Array<{ slug: string; appName: string; envVar: string }>;
+  failed: Array<{ appName: string; envVar: string; message: string }>;
+};
+
+/**
+ * Send a key that was JUST saved to every registered app that declares it.
+ *
+ * This is what makes the vault behave like a universal store instead of a
+ * holding pen. Before this, saving a key stored it — and every app that needed
+ * it stayed empty until the owner went and found a push button per app, which
+ * is exactly the manual work the vault exists to remove.
+ *
+ * The registry is the authorization boundary: a value only reaches an app that
+ * already declares that env var as one of its own Vercel slots. Nothing is
+ * pushed anywhere a key wasn't already expected.
+ *
+ * `appScope` narrows to a single app when the key was saved app-scoped.
+ * Best-effort — the vault save has already succeeded by the time this runs.
+ */
+export async function propagateVaultKey(
+  ownerEmail: string,
+  vaultKeyName: string,
+  appScope = ""
+): Promise<PropagateResult> {
+  const pushed: PropagateResult["pushed"] = [];
+  const failed: PropagateResult["failed"] = [];
+  const scope = appScope.trim().toLowerCase();
+
+  for (const group of CREDENTIAL_REGISTRY) {
+    if (!group.vercelProjectId) continue;
+    if (scope && group.slug !== scope) continue;
+
+    for (const key of group.keys) {
+      if (key.host !== "vercel") continue;
+      // Would this stored name satisfy this slot? Same shape-matching the push
+      // path uses, so PEXEL_API_KEY lands in a PEXELS_API_KEY slot.
+      if (matchVaultKey([vaultKeyName], key.envVar) !== vaultKeyName) continue;
+
+      const result = await pushVaultValueToVercel(ownerEmail, group.slug, key.envVar).catch(
+        () => ({ ok: false, message: "Push failed." })
+      );
+      if (result.ok) pushed.push({ slug: group.slug, appName: group.name, envVar: key.envVar });
+      else failed.push({ appName: group.name, envVar: key.envVar, message: result.message });
+    }
+  }
+  return { pushed, failed };
 }
 
 export type PushAllResult = PushEnvResult & { pushed: number; skipped: number; total: number };
@@ -98,8 +152,10 @@ export async function pushAllVaultValuesToVercel(ownerEmail: string, slug: strin
   let pushed = 0;
   let failed = 0;
   let missing = 0;
+  const vaultNames = Object.keys(vaultEnv);
   for (const key of vercelKeys) {
-    const value = vaultEnv[key.envVar];
+    const sourceKey = matchVaultKey(vaultNames, key.envVar);
+    const value = sourceKey ? vaultEnv[sourceKey] : "";
     if (!value) { missing += 1; continue; }
     const result = await upsertVercelEnv(group.vercelProjectId, key.envVar, value);
     if (result.ok) pushed += 1; else failed += 1;
