@@ -1,37 +1,37 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "generatedAt": "2026-08-07T20:42:54.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 27,
+    "totalApps": 34,
     "reviewReadyApps": 1,
-    "productionLiveApps": 9,
-    "blockedApps": 17,
+    "productionLiveApps": 18,
+    "blockedApps": 15,
     "byDeploymentState": {
-      "production_blocked": 17,
-      "production_live": 9,
+      "production_live": 18,
+      "production_blocked": 15,
       "review_ready": 1
     },
     "byBuildState": {
-      "planned": 17,
-      "preview_verified": 1,
+      "ready_for_vnext": 15,
+      "review_blocked": 1,
       "ready_for_build": 2,
-      "ready_for_vnext": 6,
-      "review_blocked": 1
+      "planned": 15,
+      "preview_verified": 1
     },
     "nextSafeActions": {
-      "await_owner_review": 1,
+      "create_vnext_packet": 15,
+      "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
-      "create_planning_issue": 17,
-      "create_vnext_packet": 6,
-      "stop_for_owner_approval": 2
+      "create_planning_issue": 15,
+      "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 11,
-      "deployed_awaiting_domain": 0,
-      "domain_owned_not_serving": 6,
-      "awaiting_url": 10
+      "live": 23,
+      "awaiting_url": 8,
+      "deployed_awaiting_domain": 1,
+      "domain_owned_not_serving": 2
     }
   },
   "apps": [
@@ -370,15 +370,16 @@
       "reviewUrl": "unknown",
       "productionUrl": "approval-gated",
       "currentVersion": "package-stub",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
-        "intendedDomain": "best-life.us",
-        "urlStatus": "domain_owned_not_serving",
-        "nextStep": "Nothing urgent \u2014 the domain can stay parked until the Best Life app exists; confirm best-life.us remains the chosen name when the build starts.",
-        "note": "Owned, DreamHost-parked (owner-confirmed 2026-07-03); unlinked from Kindred's Resend the same day.",
-        "factsFrom": "owner-2026-07-03"
+        "intendedDomain": "bestlife.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://bestlife.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Growth pathways and things to do near you.",
+        "factsFrom": "verified-2026-08-07"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -392,12 +393,9 @@
         }
       ],
       "linkedPRs": [],
-      "blockers": [
-        "Needs app profile, Launch Pack, and first build packet before coding.",
-        "best-life.us is owned and DreamHost-parked (owner-confirmed 2026-07-03; supersedes the earlier 'serves an unrelated WordPress site' reading) \u2014 it was unlinked from Kindred's Resend the same day; the domain decision stands before launch."
-      ],
+      "blockers": [],
       "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
     },
     {
       "name": "Live On Mission",
@@ -603,17 +601,17 @@
       "slug": "toner-management",
       "reviewUrl": "https://toner.unitedundergod.org",
       "productionUrl": "https://toner.unitedundergod.org",
-      "currentVersion": "canonicalization-needed",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "currentVersion": "2026-08-07-toner-connect-family",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "toner.unitedundergod.org",
         "urlStatus": "live",
         "servingUrl": "https://toner.management",
-        "nextStep": "None \u2014 live and public on our Vercel (Neon-backed). Later: fold admin hub into the universal dashboard.",
-        "note": "Went live 2026-07-04; registry fact refreshed 2026-07-09 after it was found stale.",
-        "factsFrom": "verified-2026-07-09"
+        "nextStep": "None \u2014 managed toner service live at toner.management / toner.unitedundergod.org.",
+        "note": "Canonical product TotalTonerManagement; multi-brand front doors include Toner Connect.",
+        "factsFrom": "verified-2026-08-07"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -631,12 +629,9 @@
         }
       ],
       "linkedPRs": [],
-      "blockers": [
-        "Choose canonical repo/local source and merge dashboard/admin variants into one platform.",
-        "Protective work done 2026-07-03: TonerTrackerPro history pushed to its empty origin; toner-platform private backup created (secrets excluded) \u2014 canonicalization still open."
-      ],
+      "blockers": [],
       "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
     },
     {
       "name": "Laser Engrave Market",
@@ -1150,6 +1145,191 @@
       "blockers": [],
       "evidenceLinks": [],
       "lastUpdated": "2026-07-21T00:00:00.000Z"
+    },
+    {
+      "name": "Toner Connect",
+      "slug": "toner-connect",
+      "reviewUrl": "https://tonerconnect.unitedundergod.org",
+      "productionUrl": "https://tonerconnect.unitedundergod.org",
+      "currentVersion": "2026-08-07-live",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "tonerconnect.io",
+        "urlStatus": "live",
+        "servingUrl": "https://tonerconnect.unitedundergod.org",
+        "nextStep": "tonerconnect.io nameservers updated 2026-08-07 \u2014 use UUG host until apex fully propagates.",
+        "note": "Same engine as Toner Management; BYO supplier / platform supply / buying group; $3 per facilitated order.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [
+        "TotalTonerManagement",
+        "src/lib/brand.ts"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://tonerconnect.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "Pulse",
+      "slug": "pulse",
+      "reviewUrl": "https://pulse.unitedundergod.org",
+      "productionUrl": "https://pulse.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "pulse.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://pulse.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Alignment signals between people and leaders.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://pulse.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "Immerse",
+      "slug": "immerse",
+      "reviewUrl": "https://immerse.unitedundergod.org",
+      "productionUrl": "https://immerse.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "immerse.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://immerse.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Find and plan nature immersion camping trips.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://immerse.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "Neighborly",
+      "slug": "neighborly",
+      "reviewUrl": "https://neighborly.unitedundergod.org",
+      "productionUrl": "https://neighborly.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "neighborly.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://neighborly.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Community connections for Milstead and beyond.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://neighborly.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "Presence",
+      "slug": "presence",
+      "reviewUrl": "https://presence.unitedundergod.org",
+      "productionUrl": "https://presence.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "presence.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://presence.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Real people, real places \u2014 simple hosting and presence.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://presence.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "Speak to Me",
+      "slug": "speak-to-me",
+      "reviewUrl": "https://speak-to-me.unitedundergod.org",
+      "productionUrl": "https://speak-to-me.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "speak-to-me.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://speak-to-me.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Simple personal Bible reading \u2014 Scripture as a living word.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://speak-to-me.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "Barefoot Coalition",
+      "slug": "barefoot-coalition",
+      "reviewUrl": "https://barefoot.unitedundergod.org",
+      "productionUrl": "https://barefoot.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "barefoot.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://barefoot.unitedundergod.org",
+        "nextStep": "None \u2014 live.",
+        "note": "Community for natural living, grounding, and freedom to go barefoot.",
+        "factsFrom": "verified-2026-08-07"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://barefoot.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-08-07T20:42:54.000Z"
     }
   ],
   "guardrails": {

@@ -110,9 +110,54 @@ const DISPLAY: Record<string, DisplayMeta> = {
     liveUrl: "https://easypeazy.unitedundergod.org"
   },
   "toner-management": {
-    tagline: "Printer monitoring, toner prediction, and ordering — so businesses never run out.",
+    publicName: "Toner Management",
+    tagline:
+      "We watch your printers and get toner to the right desk before anyone runs out — managed monitoring and fulfillment.",
     group: "Everyday services",
-    liveUrl: "https://toner.unitedundergod.org"
+    liveUrl: "https://toner.management"
+  },
+  "toner-connect": {
+    publicName: "Toner Connect",
+    tagline:
+      "Keep your suppliers (or use ours / a buying group). Free monitoring, auto-order ~4–5 days early, $3 per facilitated order.",
+    group: "Everyday services",
+    liveUrl: "https://tonerconnect.unitedundergod.org"
+  },
+  pulse: {
+    publicName: "Pulse",
+    tagline: "Two-way alignment signals between people and leaders — so issues surface before they become crises.",
+    group: "Church & community",
+    liveUrl: "https://pulse.unitedundergod.org"
+  },
+  immerse: {
+    publicName: "Immerse",
+    tagline: "Find and plan nature immersion camping trips — public land, simple trip planning, and real outdoor time.",
+    group: "Hope & transformation",
+    liveUrl: "https://immerse.unitedundergod.org"
+  },
+  neighborly: {
+    publicName: "Neighborly",
+    tagline: "Community connections for Milstead and beyond — neighbors helping neighbors, locally.",
+    group: "Church & community",
+    liveUrl: "https://neighborly.unitedundergod.org"
+  },
+  presence: {
+    publicName: "Presence",
+    tagline: "Real people, real places — simple ways to host and enjoy the presence of others.",
+    group: "Hope & transformation",
+    liveUrl: "https://presence.unitedundergod.org"
+  },
+  "speak-to-me": {
+    publicName: "Speak to Me",
+    tagline: "Simple personal Bible reading — hearing Scripture as a living word, one day at a time.",
+    group: "Hope & transformation",
+    liveUrl: "https://speak-to-me.unitedundergod.org"
+  },
+  "barefoot-coalition": {
+    publicName: "Barefoot Coalition",
+    tagline: "A community for natural living and grounding — rooted in nature, united in purpose.",
+    group: "Hope & transformation",
+    liveUrl: "https://barefoot.unitedundergod.org"
   },
   "laser-engrave-market": {
     publicName: "Laser Engrave Market",
@@ -146,7 +191,8 @@ const DISPLAY: Record<string, DisplayMeta> = {
   },
   "best-life": {
     tagline: "Growth pathways across every aspect of life — relational, financial, spiritual, mental, emotional, and physical.",
-    group: "Hope & transformation"
+    group: "Hope & transformation",
+    liveUrl: "https://bestlife.unitedundergod.org"
   },
   "childfirst-solutions": {
     tagline: "Co-parenting support, mediation, and child-focused decision tools for families in conflict or transition.",
@@ -154,9 +200,10 @@ const DISPLAY: Record<string, DisplayMeta> = {
     liveUrl: "https://childfirst.unitedundergod.org"
   },
   "community-connections": {
-    tagline:
-      "Connect neighbors around making the community stronger — friendship that serves place, not only loneliness.",
-    group: "Church & community"
+    // Live surface is Neighborly; keep this slug hidden so we do not double-card.
+    tagline: "",
+    group: "Church & community",
+    hide: "Live as Neighborly (neighborly.unitedundergod.org) — see the Neighborly card."
   },
   milstead: {
     tagline:
