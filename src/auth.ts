@@ -39,12 +39,26 @@ function buildProviders(databaseUrl?: string) {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const databaseUrl = getConfiguredDatabaseUrl();
+  const production = process.env.NODE_ENV === "production";
+  const sharedCookie = production
+    ? { httpOnly: true, sameSite: "lax" as const, path: "/", secure: true, domain: ".unitedundergod.org" }
+    : undefined;
 
   return {
     adapter: databaseUrl ? PostgresAdapter(new Pool({ connectionString: databaseUrl })) : undefined,
     secret: getAuthSecret(),
+    trustHost: true,
     providers: buildProviders(databaseUrl),
     pages: { signIn: "/signin" },
+    ...(sharedCookie
+      ? {
+          cookies: {
+            sessionToken: { options: sharedCookie },
+            callbackUrl: { options: sharedCookie },
+            csrfToken: { options: sharedCookie }
+          }
+        }
+      : {}),
     callbacks: {
       async session({ session, user }) {
         if (session.user) {
