@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { signIn } from "@/auth";
 import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth/access";
-import { DASHBOARD_ORIGIN, githubSignInHref, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
+import { DASHBOARD_ORIGIN, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
 
 async function afterSignIn(): Promise<string> {
   const host = hostFromHeader((await headers()).get("host"));
@@ -49,7 +49,6 @@ export default async function SignInPage({
   const params = searchParams ? await searchParams : undefined;
   const error = errorMessage(params?.error);
   const desk = await isDashboardRequest();
-  const githubHref = githubSignInHref(desk);
 
   return (
     <main className={desk ? "desk-auth" : "soft-launch"}>
@@ -125,20 +124,14 @@ export default async function SignInPage({
             </form>
           ) : null}
 
-          {github && desk ? (
-            <a className="signin-secondary" href={githubHref}>
-              Sign in with GitHub
-            </a>
-          ) : null}
-
-          {github && !desk ? (
+          {github ? (
             <form
               action={async () => {
                 "use server";
                 await signIn("github", { redirectTo: await afterSignIn() });
               }}
             >
-              <button className={consumerOption ? "signin-secondary" : "soft-launch-action signin-full"} type="submit">
+              <button className={desk || consumerOption ? "signin-secondary" : "soft-launch-action signin-full"} type="submit">
                 Sign in with GitHub
               </button>
             </form>

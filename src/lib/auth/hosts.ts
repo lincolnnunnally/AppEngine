@@ -36,13 +36,6 @@ export function isAllowedAuthOrigin(origin: string): boolean {
   }
 }
 
-// GitHub's OAuth app callback is registered on the factory host. Auth.js
-// only starts OAuth on POST, so the desk uses a factory page that POSTs
-// there in the browser (PKCE stays on the host GitHub will call back).
-export function githubSignInHref(fromDashboard: boolean): string {
-  return fromDashboard ? `${FACTORY_ORIGIN}/oauth/desk` : "";
-}
-
 export async function requestHost(): Promise<string> {
   return hostFromHeader((await headers()).get("host"));
 }
