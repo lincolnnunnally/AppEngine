@@ -14,16 +14,12 @@ const OPERATOR_GROUPS: RailGroup[] = [
   {
     label: "Command",
     items: [
-      { label: "Dashboard", href: "/" },
+      { label: "Businesses", href: "/" },
       { label: "Inbox", href: "/inbox" },
-      { label: "Reports", href: "/reports" },
+      { label: "Money", href: "/reports" },
       { label: "Domains", href: "/domains" },
-      { label: "Keys & integrations", href: "/integrations" }
+      { label: "Keys", href: "/integrations" }
     ]
-  },
-  {
-    label: "Create",
-    items: [{ label: "Start something new", href: "/start" }]
   }
 ];
 
@@ -41,7 +37,8 @@ const ENGINE_ROOM_GROUP: RailGroup = {
     { label: "Intake form", href: "/problem-intake-lite" },
     { label: "Build an app (customer view)", href: "/build" },
     { label: "Your apps (customer view)", href: "/account" },
-    { label: "Admin", href: "/admin" }
+    { label: "Admin", href: "/admin" },
+    { label: "Start something new", href: "/start" }
   ]
 };
 
@@ -58,7 +55,7 @@ const CONSUMER_GROUPS: RailGroup[] = [
   }
 ];
 
-const OPERATOR_BRAND = "App Engine";
+const OPERATOR_BRAND = "The businesses";
 const CONSUMER_BRAND = "AppEngine";
 
 function normalizePath(pathname: string | null): string {
