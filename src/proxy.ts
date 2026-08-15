@@ -39,8 +39,7 @@ const FACTORY_ONLY_PREFIXES = [
   "/spark-of-hope-intake-lite",
   "/opportunity-intake",
   "/problem-intake",
-  "/problem-intake-lite",
-  "/oauth/desk"
+  "/problem-intake-lite"
 ];
 
 function isLocalHost(host: string) {
