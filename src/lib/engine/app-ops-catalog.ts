@@ -94,7 +94,8 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   "united-under-god": {
     slug: "united-under-god",
     family: "church",
-    purpose: "The head of the movement — the why, not a product hub."
+    purpose: "The head of the movement — the why, not a product hub.",
+    adminPath: "/admin"
   },
   "toner-management": {
     slug: "toner-management",
@@ -131,7 +132,8 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   neighborly: {
     slug: "neighborly",
     family: "belonging",
-    purpose: "Canonical Community Connections — Milstead first."
+    purpose: "Canonical Community Connections — Milstead first.",
+    adminPath: "/admin"
   },
   milstead: {
     slug: "milstead",
@@ -152,27 +154,25 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     slug: "kids-need-dads",
     family: "family",
     purpose: "Support for fathers rebuilding with their children.",
-    adminNote: "Admin is inside the signed-in app for staff — there is no separate /admin URL."
+    adminPath: "/admin",
+    adminNote: "Staff who sign in as admin land here. Same console as the in-app admin."
   },
   "childfirst-solutions": {
     slug: "childfirst-solutions",
     family: "family",
-    purpose: "Child-focused decisions when families are in conflict."
+    purpose: "Child-focused decisions when families are in conflict.",
+    adminPath: "/admin"
   },
   "spark-of-hope": {
     slug: "spark-of-hope",
     family: "transformation",
-    purpose: "Real testimony for people ready to give up."
+    purpose: "Real testimony for people ready to give up.",
+    adminPath: "/admin"
   },
   opportunity: {
     slug: "opportunity",
     family: "transformation",
     purpose: "Problems become next steps."
-  },
-  "best-life": {
-    slug: "best-life",
-    family: "transformation",
-    purpose: "Growth past survival."
   },
   honestly: {
     slug: "honestly",
@@ -182,27 +182,38 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   pulse: {
     slug: "pulse",
     family: "transformation",
-    purpose: "Leaders hearing what their people want and value."
+    purpose: "Leaders hearing what their people want and value.",
+    adminPath: "/admin"
   },
   immerse: {
     slug: "immerse",
     family: "transformation",
-    purpose: "Adventure and presence off the screen."
+    purpose: "Adventure and presence off the screen.",
+    adminPath: "/admin"
   },
   presence: {
     slug: "presence",
     family: "transformation",
-    purpose: "Presence moments — being with people, not content."
+    purpose: "Presence moments — being with people, not content.",
+    adminPath: "/admin"
   },
   "speak-to-me": {
     slug: "speak-to-me",
     family: "transformation",
-    purpose: "Scripture spoken in a way a person can hear."
+    purpose: "Scripture spoken in a way a person can hear.",
+    adminPath: "/admin"
   },
   "barefoot-coalition": {
     slug: "barefoot-coalition",
     family: "transformation",
-    purpose: "A coalition identity — participation loop still to come."
+    purpose: "A coalition identity — participation loop still to come.",
+    adminPath: "/admin"
+  },
+  "best-life": {
+    slug: "best-life",
+    family: "transformation",
+    purpose: "Growth past survival.",
+    adminPath: "/admin"
   },
   "million-mistakes": {
     slug: "million-mistakes",
@@ -212,37 +223,57 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   "easy-peasy-website": {
     slug: "easy-peasy-website",
     family: "commerce",
-    purpose: "Websites and hosting without the tech overwhelm."
+    purpose: "Websites and hosting without the tech overwhelm.",
+    adminPath: "/admin"
   },
   "snip-show": {
     slug: "snip-show",
     family: "commerce",
-    purpose: "Local snipping for creators — rebuild in progress."
+    purpose: "Local snipping for creators — rebuild in progress.",
+    adminPath: "/admin",
+    adminNote: "Admin exists in the product; the public app is not live yet."
   },
   "laser-engrave-market": {
     slug: "laser-engrave-market",
     family: "commerce",
-    purpose: "Custom laser engraving and design."
+    purpose: "Custom laser engraving and design.",
+    adminPath: "/admin"
   },
   iconium: {
     slug: "iconium",
     family: "commerce",
-    purpose: "Logos that actually work — hybrid generate + retrieve."
+    purpose: "Logos that actually work — hybrid generate + retrieve.",
+    adminPath: "/admin"
   },
   ideas: {
     slug: "ideas",
     family: "commerce",
-    purpose: "Capture thinking, turn it into finished content."
+    purpose: "Capture thinking, turn it into finished content.",
+    adminPath: "/admin"
   },
   dreamstand: {
     slug: "dreamstand",
     family: "commerce",
-    purpose: "Kids selling lemonade-stand style — already in real use."
+    purpose: "Kids selling lemonade-stand style — already in real use.",
+    adminPath: "/admin"
   },
   sandlot: {
     slug: "sandlot",
     family: "commerce",
-    purpose: "Kids trading and meeting up around toys."
+    purpose: "Kids trading and meeting up around toys.",
+    adminPath: "/admin"
+  },
+  furfriend: {
+    slug: "furfriend",
+    family: "commerce",
+    purpose: "Pet sitting and care between neighbors.",
+    adminPath: "/admin"
+  },
+  "ai-website-design": {
+    slug: "ai-website-design",
+    family: "commerce",
+    purpose: "Describe a business, get a real website.",
+    adminPath: "/admin"
   }
 };
 

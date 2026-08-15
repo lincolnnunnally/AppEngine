@@ -4,7 +4,7 @@
   "generatedAt": "2026-08-07T20:42:54.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 34,
+    "totalApps": 36,
     "reviewReadyApps": 1,
     "productionLiveApps": 18,
     "blockedApps": 15,
@@ -28,7 +28,7 @@
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 23,
+      "live": 25,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -1330,6 +1330,54 @@
         "https://barefoot.unitedundergod.org"
       ],
       "lastUpdated": "2026-08-07T20:42:54.000Z"
+    },
+    {
+      "name": "FurFriend",
+      "slug": "furfriend",
+      "reviewUrl": "https://furfriend.pet",
+      "productionUrl": "https://furfriend.pet",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "furfriend.pet",
+        "urlStatus": "live",
+        "servingUrl": "https://furfriend.pet",
+        "nextStep": "None — live. Sitting marketplace stage 1; Stripe Connect is owner-gated.",
+        "note": "Pet sitting between neighbors. Admin at /admin.",
+        "factsFrom": "ecosystem-map-2026-08-15"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": ["https://furfriend.pet"],
+      "lastUpdated": "2026-08-15T16:00:00.000Z"
+    },
+    {
+      "name": "AI Website Design",
+      "slug": "ai-website-design",
+      "reviewUrl": "https://ai-website.design",
+      "productionUrl": "https://ai-website.design",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "ai-website.design",
+        "urlStatus": "live",
+        "servingUrl": "https://ai-website.design",
+        "nextStep": "None — live. Free describe→publish path is the product today.",
+        "note": "Admin at /admin.",
+        "factsFrom": "ecosystem-map-2026-08-15"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": ["https://ai-website.design"],
+      "lastUpdated": "2026-08-15T16:00:00.000Z"
     }
   ],
   "guardrails": {

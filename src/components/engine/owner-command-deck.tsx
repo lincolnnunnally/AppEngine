@@ -47,7 +47,24 @@ function AppCard({ app }: { app: DeckApp }) {
       </div>
       <h3>{app.name}</h3>
       <p className="dx-domain">{app.domain || app.url || "no address yet"}</p>
-      <p className="dx-note">{usageLine(app)}</p>
+      {app.reporting ? (
+        <div className="dx-metrics">
+          <div className="dx-metric">
+            <strong>{app.users ?? "—"}</strong>
+            <span>people</span>
+          </div>
+          <div className="dx-metric">
+            <strong>{app.activeUsers30d ?? app.newUsers7d ?? "—"}</strong>
+            <span>{app.activeUsers30d !== null ? "active" : "new this week"}</span>
+          </div>
+          <div className="dx-metric">
+            <strong>{app.inboxOpen || app.ticketsOpen || 0}</strong>
+            <span>need help</span>
+          </div>
+        </div>
+      ) : (
+        <p className="dx-note">{usageLine(app)}</p>
+      )}
     </>
   );
   return (

@@ -12,6 +12,8 @@ import { listDeployedBuildJobs } from "@/lib/engine/build-jobs";
 import { listOwnerRegisteredApps } from "@/lib/engine/portfolio-registrations";
 import { collectAttentionForApp, collectVercelDeployAttention, sortAttentionItems, type OpsAttentionItem } from "@/lib/engine/ops-attention";
 import { getInboxCounts } from "@/lib/engine/ecosystem-inbox";
+import { readLplOpsStats } from "@/lib/engine/lpl-ops-stats";
+import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 
 export type AppOpsStats = {
   users: number | null;
@@ -300,6 +302,29 @@ async function collectOpsTargets(): Promise<OpsTarget[]> {
     });
   }
 
+  // Portfolio live apps that were never registered as ops targets still belong
+  // on the business glance. They are not pollable until a token exists; the
+  // shared-database fallback in pollTarget can still fill real counts.
+  const seenSlugs = new Set(targets.map((target) => target.slug).filter(Boolean));
+  for (const entry of getPortfolioUrlStatusBoard().entries) {
+    if (seenSlugs.has(entry.slug)) continue;
+    if (entry.status !== "live") continue;
+    seenSlugs.add(entry.slug);
+    const host = hostOf(entry.servingUrl || "");
+    if (host) seenHosts.add(host);
+    targets.push({
+      key: `board:${entry.slug}`,
+      slug: entry.slug,
+      name: entry.appName,
+      url: entry.servingUrl || "",
+      kind: "remote",
+      pollable: false,
+      note: "Not reporting yet — this app doesn't share ops stats with AppEngine.",
+      generatedApp: false,
+      live: true
+    });
+  }
+
   return targets;
 }
 
@@ -457,6 +482,16 @@ async function pollTarget(target: OpsTarget, cached: OpsStatsRecord | null): Pro
       note = `Not reporting — it stopped answering (last good reading ${cached.checkedAt || "unknown"}).`;
     } else {
       note = `Not reporting yet — ${result.error || "the app didn't answer"}.`;
+    }
+  }
+
+  if (!reporting && target.slug) {
+    const lpl = await readLplOpsStats(target.slug).catch(() => null);
+    if (lpl) {
+      reporting = true;
+      answeredThisCycle = true;
+      stats = lpl.stats;
+      note = lpl.note;
     }
   }
 
