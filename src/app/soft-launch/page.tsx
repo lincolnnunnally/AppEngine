@@ -17,9 +17,9 @@ type SoftLaunchCopy = {
 
 const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   owner: {
-    kicker: "we-succeed.org",
-    title: "Owner-only soft launch",
-    body: "AppEngine builds real, working apps from a problem or idea you describe. It's in a controlled preview right now — Lincoln can sign in to run it privately before public access opens.",
+    kicker: "United Under God",
+    title: "The businesses",
+    body: "This is the internal desk for the live apps — money, people, and who needs a hand. Sign in with the owner account.",
     cta: "Owner sign in"
   },
   allowlist: {

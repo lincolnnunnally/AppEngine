@@ -40,6 +40,62 @@ a {
   width: min(1280px, calc(100vw - 32px));
 }
 
+.biz-hero .dx-display {
+  max-width: 16ch;
+}
+
+.biz-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.biz-search,
+.biz-select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.biz-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.biz-select {
+  min-width: 180px;
+}
+
+button.dx-chip {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.dx-sort {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.biz-table tbody tr.biz-row:hover {
+  background: color-mix(in srgb, var(--lime) 6%, transparent);
+}
+
+.biz-name {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.biz-name:hover {
+  color: var(--lime);
+}
+
 .topnav {
   display: flex;
   align-items: center;

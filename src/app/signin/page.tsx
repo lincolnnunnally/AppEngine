@@ -45,9 +45,9 @@ export default async function SignInPage({
   return (
     <main className="soft-launch">
       <section className="soft-launch-panel">
-        <p className="soft-launch-kicker">AppEngine — app builder</p>
-        <h1>Sign in to start</h1>
-        <p>Describe a problem you want solved or a tool you want to build, and we&apos;ll build you a real, working app. Sign in to begin — no setup needed.</p>
+        <p className="soft-launch-kicker">United Under God — the businesses</p>
+        <h1>Sign in to the desk</h1>
+        <p>This is the internal view of the live apps — money, people, and who needs a hand. Sign in with the owner account.</p>
 
         {error ? (
           <p className="signin-error" role="alert">

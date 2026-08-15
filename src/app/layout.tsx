@@ -6,8 +6,8 @@ import { Telemetry } from '../lib/TelemetryProvider';
 // Public-facing metadata — consumer brand only, no operator/infra jargon
 // (scope: customers never see "App Engine", "Neon", or provider/engine terms).
 export const metadata: Metadata = {
-  title: "AppEngine",
-  description: "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it — live, online, ready to sign into."
+  title: "The businesses — United Under God",
+  description: "Internal desk for the live apps: money, people, and who needs a hand."
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

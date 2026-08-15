@@ -113,7 +113,7 @@ runStep("both intake doors stay reachable from the entry surface", () => {
   // contract that actually matters is unchanged and is what we assert now: both
   // doors are still REACHABLE, and both still flow through the problem_intake_gate.
   // Verified by hand before this rewrite — neither route is orphaned.
-  assertFileIncludes("src/app/(cockpit)/page.tsx", ["ConversationalIntake", "OwnerCommandDeck"]);
+  assertFileIncludes("src/app/(cockpit)/page.tsx", ["OwnerCommandDeck", 'redirect("/signin")']);
   assertFileIncludes("src/app/(cockpit)/start/page.tsx", ["ConversationalIntake"]);
 
   // The conversation carries the problem door as an always-rendered form fallback.

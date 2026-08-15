@@ -38,22 +38,27 @@ runStep("shared-database fallback exists for apps that do not poll yet", () => {
   }
 });
 
-runStep("command deck is the business glance, not only live/not-live", () => {
+runStep("home is an internal business desk, not an app builder", () => {
   assertFileIncludes("src/components/engine/owner-command-deck.tsx", [
-    "people waiting",
-    "/inbox",
-    "/apps/${app.slug}",
-    "dx-family",
-    "Trends — from real numbers only",
-    "Challenge",
-    "Opportunity"
+    "the businesses",
+    "revenue, 30 days",
+    "BusinessExplorer",
+    "/inbox"
   ]);
+  assertFileIncludes("src/components/engine/business-explorer.tsx", [
+    "Search a business",
+    "Has orders",
+    "Growing",
+    "/apps/${app.slug}"
+  ]);
+  assertFileIncludes("src/lib/engine/stripe-summary.ts", ["loadStripeSummary", "revenue30d"]);
   assertFileIncludes("src/lib/engine/owner-deck.ts", [
     "inboxOpen",
     "deriveAppInsights",
     "openTickets",
     "familyForSlug"
   ]);
+  assertFileIncludes("src/app/signin/page.tsx", ["the businesses", "Sign in to the desk"]);
 });
 
 runStep("per-app dossier and central inbox exist", () => {
@@ -88,7 +93,10 @@ runStep("generated apps forward tickets to the owner inbox", () => {
 });
 
 runStep("nav and reports point at the inbox and dossiers", () => {
-  assertFileIncludes("src/components/engine/app-shell.tsx", ['{ label: "Inbox", href: "/inbox" }']);
+  assertFileIncludes("src/components/engine/app-shell.tsx", [
+    '{ label: "Businesses", href: "/" }',
+    '{ label: "Inbox", href: "/inbox" }'
+  ]);
   assertFileIncludes("src/app/(cockpit)/reports/page.tsx", ["`/apps/${record.slug}`"]);
 });
 
