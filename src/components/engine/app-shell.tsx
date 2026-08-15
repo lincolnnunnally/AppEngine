@@ -55,7 +55,7 @@ const CONSUMER_GROUPS: RailGroup[] = [
   }
 ];
 
-const OPERATOR_BRAND = "The businesses";
+const OPERATOR_BRAND = "United Under God";
 const CONSUMER_BRAND = "AppEngine";
 
 function normalizePath(pathname: string | null): string {
@@ -108,7 +108,19 @@ export default function AppShell({ children, isOperator = true }: { children: Re
       <aside className="app-rail" data-open={open ? "true" : "false"}>
         <div className="rail-brand">
           <Link className="rail-brand-mark" href="/" onClick={() => setOpen(false)}>
-            {brand}
+            {isOperator ? (
+              <>
+                <span className="desk-mark" aria-hidden="true">
+                  U
+                </span>
+                <span className="rail-brand-text">
+                  <strong>{brand}</strong>
+                  <em>the businesses</em>
+                </span>
+              </>
+            ) : (
+              brand
+            )}
           </Link>
           <button
             type="button"
