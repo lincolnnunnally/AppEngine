@@ -16,8 +16,22 @@ runStep("catalog records verified admin doors only", () => {
     "kindred-connections",
     "aligned-souls",
     "kids-need-dads",
-    "neighborly"
+    "neighborly",
+    "furfriend",
+    "ai-website-design",
+    "spark-of-hope",
+    "snip-show"
   ]);
+});
+
+runStep("shared-database fallback exists for apps that do not poll yet", () => {
+  assertFileIncludes("src/lib/engine/lpl-ops-stats.ts", [
+    "readLplOpsStats",
+    "kindred_profiles",
+    "knd_user_profiles",
+    "lom_user_profiles"
+  ]);
+  assertFileIncludes("src/lib/engine/ops-stats.ts", ["readLplOpsStats", "board:"]);
   const catalog = read("src/lib/engine/app-ops-catalog.ts");
   if (catalog.includes('churchconnect') === false) {
     throw new Error("ChurchConnect must have a catalog entry");

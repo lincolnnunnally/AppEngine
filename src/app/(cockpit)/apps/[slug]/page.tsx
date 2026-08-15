@@ -20,16 +20,20 @@ export default async function AppDossierPage({
   return (
     <main className="shell">
       <section className="panel">
-        <p className="dx-label">
-          <a className="account-link" href="/">
-            ← All apps
-          </a>
-          {" · "}
-          {dossier.familyLabel}
-        </p>
-        <h1 className="dx-display">{app.name}</h1>
-        <p className="dx-lede">{dossier.purpose}</p>
-        <p className="dx-domain">{app.domain || app.url || "no address yet"}</p>
+        <div className="dx-dossier-hero">
+          <div>
+            <p className="dx-label">
+              <a className="account-link" href="/">
+                ← All apps
+              </a>
+              {" · "}
+              {dossier.familyLabel}
+            </p>
+            <h1 className="dx-display">{app.name}</h1>
+            <p className="dx-lede">{dossier.purpose}</p>
+            <p className="dx-domain">{app.domain || app.url || "no address yet"}</p>
+          </div>
+        </div>
         <div className="dx-app-actions" style={{ marginTop: 16 }}>
           {app.url ? (
             <a className="dx-btn dx-btn--primary" href={app.url} target="_blank" rel="noreferrer">
