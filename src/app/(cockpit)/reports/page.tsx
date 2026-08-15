@@ -186,7 +186,9 @@ export default async function ReportsPage({
             const actNeeds = record.needs.filter((need) => need.severity === "action_needed").length;
             return (
               <p className="dx-row" key={record.key}>
-                {record.url ? (
+                {record.slug ? (
+                  <a className="account-link" href={`/apps/${record.slug}`}><b>{record.name}</b></a>
+                ) : record.url ? (
                   <a className="account-link" href={record.url} target="_blank" rel="noreferrer"><b>{record.name}</b></a>
                 ) : (
                   <b>{record.name}</b>
@@ -267,7 +269,13 @@ export default async function ReportsPage({
               <tbody>
                 {reportingApps.map((record) => (
                   <tr key={record.key}>
-                    <td>{record.name}</td>
+                    <td>
+                      {record.slug ? (
+                        <a className="account-link" href={`/apps/${record.slug}`}>{record.name}</a>
+                      ) : (
+                        record.name
+                      )}
+                    </td>
                     <td className="dx-mono">{record.stats.users ?? "—"}</td>
                     <td className="dx-mono">{record.stats.activeUsers30d ?? "—"}</td>
                     <td className="dx-mono">
@@ -340,7 +348,7 @@ export default async function ReportsPage({
         <p className="dx-row">
           <span className="dx-index">02</span>
           <b>Managers per app</b>
-          <span className="dx-note">roles exist in auth already (owner/admin/customer/vendor) — support surfaces come when you bring people on.</span>
+          <span className="dx-note">each app keeps its own admin for hired staff; the central inbox and per-app dossier are live now at /inbox and /apps/…</span>
         </p>
         <p className="dx-row">
           <span className="dx-index">03</span>

@@ -89,6 +89,24 @@ carry `vercelProject` to opt external apps into the env audit.
   rest.
 - AppEngine practices the standard it ships: it exposes the same token-gated
   `/api/admin/stats` for its own counts.
+- The command deck is the **business glance**: families (Toner, church,
+  belonging, family support, …), derived opportunities/challenges, and a
+  people-waiting count. Clicking a card opens `/apps/<slug>` — the dossier
+  for that app. Each app's own admin (ChurchConnect super admin, Toner
+  Central, Kindred `/admin`, Aligned Souls `/app/admin`, Live On Mission
+  `/admin-ops`) stays the operational console for hired staff or a sale.
+
+## Central inbox (people who need help)
+
+People on any app can submit a request at `/help?app=<slug>`. That lands in
+the owner inbox (`/inbox`) and emails `APP_ENGINE_OWNER_EMAIL` when mail is
+configured. Generated apps that ship the support module also forward a copy
+to `APP_ENGINE_INBOX_URL` (bearer `APP_ENGINE_INBOX_TOKEN` or the app's
+`APP_ENGINE_STATS_TOKEN`) so Lincoln does not have to open every per-app
+admin to see who is waiting.
+
+The inbox is the **across-the-board queue**. It does not replace per-app
+admin dashboards.
 
 ## Guardrails
 

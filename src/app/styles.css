@@ -5974,6 +5974,82 @@ a.dx-stat:hover {
   margin-top: 14px;
 }
 
+.dx-family {
+  margin-top: 18px;
+}
+
+.dx-family-label {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+
+.help-shell {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 18px 64px;
+}
+
+.help-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.help-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.help-field input,
+.help-field select,
+.help-field textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.help-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.help-honeypot {
+  position: absolute;
+  left: -9999px;
+  height: 0;
+  overflow: hidden;
+}
+
+.inbox-card {
+  border-top: 1px solid var(--line);
+  padding: 16px 0;
+}
+
+.inbox-card:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.inbox-actions {
+  margin-top: 12px;
+}
+
 .dx-app {
   border: 1px solid var(--line);
   border-radius: 10px;
