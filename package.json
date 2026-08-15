@@ -111,6 +111,7 @@
     "smoke:portfolio-build-packet-bridge-visibility": "node scripts/smoke-portfolio-build-packet-bridge-visibility.js",
     "smoke:live-portfolio-state": "node scripts/smoke-live-portfolio-state.js",
     "smoke:owner-portfolio-dashboard": "node scripts/smoke-owner-portfolio-dashboard.js",
+    "smoke:owner-business-command": "node scripts/smoke-owner-business-command.js",
     "smoke:ops-stats": "node scripts/smoke-ops-stats.js",
     "smoke:portfolio-url-status": "node scripts/smoke-portfolio-url-status.js",
     "smoke:problem-portfolio-routing": "node scripts/smoke-problem-portfolio-routing.js",

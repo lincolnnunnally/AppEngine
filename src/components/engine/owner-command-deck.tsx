@@ -14,15 +14,32 @@ const BADGE_FOR_STATUS: Record<PortfolioUrlStatus, string> = {
   unknown: "dx-badge--off"
 };
 
+function usageLine(app: DeckApp): string {
+  if (app.reporting) {
+    const parts = [`${app.users ?? "—"} users`];
+    if (app.activeUsers30d !== null) parts.push(`${app.activeUsers30d} active (30d)`);
+    if (app.growth === "up") parts.push("growing");
+    if (app.growth === "down") parts.push("slowing");
+    if (app.inboxOpen > 0) parts.push(`${app.inboxOpen} need help`);
+    return parts.join(" · ");
+  }
+  if (app.status === "live") return "Not reporting usage yet";
+  return app.nextStep;
+}
+
 function AppCard({ app }: { app: DeckApp }) {
-  // The whole card is a door when the app has one (owner: "if it says
-  // something, clicking it should go there"). Buttons stay OUTSIDE the link
-  // (nested anchors are invalid HTML — same pattern as the account app cards).
+  // The card itself is the dossier door — business facts for this app.
+  // Open app / this app's admin stay as explicit buttons so a sale or a
+  // hired manager still has the per-app dashboard.
   const body = (
     <>
       <div>
         <span className={`dx-badge ${BADGE_FOR_STATUS[app.status]}`}>{app.statusLabel}</span>
-        {app.attentionCount > 0 ? (
+        {app.inboxOpen > 0 ? (
+          <span className="dx-badge dx-badge--alert" style={{ marginLeft: 6 }}>
+            {app.inboxOpen} need help
+          </span>
+        ) : app.attentionCount > 0 ? (
           <span className="dx-badge dx-badge--alert" style={{ marginLeft: 6 }}>
             {app.attentionCount} to fix
           </span>
@@ -30,27 +47,18 @@ function AppCard({ app }: { app: DeckApp }) {
       </div>
       <h3>{app.name}</h3>
       <p className="dx-domain">{app.domain || app.url || "no address yet"}</p>
-      {app.reporting ? (
-        <p className="dx-note">
-          {app.users ?? "—"} users{app.activeUsers30d !== null ? ` · ${app.activeUsers30d} active (30d)` : ""}
-        </p>
-      ) : app.status === "live" ? (
-        <p className="dx-note">Not reporting usage yet</p>
-      ) : (
-        <p className="dx-note">{app.nextStep}</p>
-      )}
+      <p className="dx-note">{usageLine(app)}</p>
     </>
   );
   return (
     <article className="dx-app">
-      {app.url ? (
-        <a className="dx-app-link" href={app.url} target="_blank" rel="noreferrer">
-          {body}
-        </a>
-      ) : (
-        body
-      )}
+      <a className="dx-app-link" href={`/apps/${app.slug}`}>
+        {body}
+      </a>
       <div className="dx-app-actions">
+        <a className="dx-btn" href={`/apps/${app.slug}`}>
+          Details
+        </a>
         {app.url ? (
           <a className="dx-btn dx-btn--primary" href={app.url} target="_blank" rel="noreferrer">
             Open app ↗
@@ -58,7 +66,7 @@ function AppCard({ app }: { app: DeckApp }) {
         ) : null}
         {app.adminUrl ? (
           <a className="dx-btn" href={app.adminUrl} target={app.adminUrl.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
-            Admin ↗
+            {app.family === "toner" ? "Toner admin ↗" : "Admin ↗"}
           </a>
         ) : null}
       </div>
@@ -72,11 +80,18 @@ function AppCard({ app }: { app: DeckApp }) {
 // question: what's live / what needs me / what isn't out yet.
 const PORTFOLIO_FILTERS: Record<string, { label: string; match: (app: DeckApp) => boolean }> = {
   live: { label: "Live", match: (app) => app.status === "live" },
-  attention: { label: "Needs attention", match: (app) => app.attentionCount > 0 },
+  attention: { label: "Needs attention", match: (app) => app.attentionCount > 0 || app.inboxOpen > 0 },
+  help: { label: "People waiting", match: (app) => app.inboxOpen > 0 },
   idle: { label: "Not live yet", match: (app) => app.status !== "live" }
 };
 
-export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: string | null; appsFilter?: string }) {
+export async function OwnerCommandDeck({
+  userKey,
+  appsFilter
+}: {
+  userKey: string | null;
+  appsFilter?: string;
+}) {
   const deck = await loadOwnerDeck();
   const keys = await buildKeyStatus(userKey).catch(() => null);
   const keyRows = keys ? [...keys.universal, ...keys.payments] : [];
@@ -84,6 +99,7 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
   const keysNeeded = keyRows.filter((row) => row.state === "needed" || row.state === "placeholder").length;
   const actItems = deck.attention.filter((item) => item.severity === "act");
   const watchItems = deck.attention.filter((item) => item.severity === "watch");
+  const familyFilter = deck.families.find((family) => family.id === appsFilter);
 
   // Attention grouped by app: one heading per app, its items under it — the
   // owner clears an app at a time instead of hopping between apps in a flat
@@ -105,9 +121,23 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
     .filter((group) => group.items.length > 0);
   const shownCount = shownGroups.reduce((sum, group) => sum + group.items.length, 0);
 
-  const activeFilter = appsFilter && PORTFOLIO_FILTERS[appsFilter] ? appsFilter : "";
-  const shownApps = activeFilter ? deck.apps.filter(PORTFOLIO_FILTERS[activeFilter].match) : deck.apps;
+  const statusFilter = appsFilter && PORTFOLIO_FILTERS[appsFilter] ? appsFilter : "";
+  const activeFilter = statusFilter || (familyFilter ? familyFilter.id : "");
+  const shownApps = statusFilter
+    ? deck.apps.filter(PORTFOLIO_FILTERS[statusFilter].match)
+    : familyFilter
+      ? deck.apps.filter((app) => app.family === familyFilter.id)
+      : deck.apps;
   const chipCount = (key: string) => deck.apps.filter(PORTFOLIO_FILTERS[key].match).length;
+  const challenges = deck.insights.filter((insight) => insight.kind === "challenge").slice(0, 6);
+  const opportunities = deck.insights.filter((insight) => insight.kind === "opportunity").slice(0, 6);
+  const grouped = new Map<string, DeckApp[]>();
+  for (const app of shownApps) {
+    const key = app.familyLabel;
+    const list = grouped.get(key) ?? [];
+    list.push(app);
+    grouped.set(key, list);
+  }
 
   return (
     <main className="shell">
@@ -117,8 +147,8 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
           Every app. <em>One</em> glance.
         </h1>
         <p className="dx-lede">
-          Everything here exists to solve a real problem and help real people. You decide what gets built and why;
-          the engine reviews what already exists, then builds it to completion — nothing technical lands on your desk.
+          One place to see how every app is doing — trends, people waiting for help, and the next useful step. Click an
+          app for its business picture. Each app still has its own admin for staff, or for the day you sell it.
         </p>
         <div className="dx-stat-grid">
           <a className="dx-stat dx-stat--lime" href="/?apps=live#portfolio">
@@ -126,23 +156,57 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
             <span>apps live</span>
             <p>of {deck.totalApps} in the portfolio ↓</p>
           </a>
+          <a className={`dx-stat ${deck.openTickets ? "dx-stat--pink" : "dx-stat--lime"}`} href="/inbox">
+            <strong>{deck.openTickets}</strong>
+            <span>people waiting</span>
+            <p>{deck.openTickets ? "open the inbox →" : "no one is waiting on you"}</p>
+          </a>
           <a className={`dx-stat ${actItems.length ? "dx-stat--pink" : "dx-stat--purple"}`} href="#attention">
             <strong>{actItems.length}</strong>
             <span>need your attention</span>
-            <p>{actItems.length ? "listed below — each with the exact next step ↓" : "nothing is waiting on you"}</p>
+            <p>{actItems.length ? "listed below — each with the exact next step ↓" : "nothing else is waiting"}</p>
           </a>
           <a className="dx-stat dx-stat--cyan" href="/reports">
             <strong>{deck.usersAcrossApps ?? "—"}</strong>
             <span>users (reporting apps)</span>
             <p>{deck.reportingApps} app{deck.reportingApps === 1 ? "" : "s"} reporting usage → reports</p>
           </a>
-          <a className={`dx-stat ${keysNeeded ? "dx-stat--purple" : "dx-stat--lime"}`} href="/integrations">
-            <strong>{keys ? `${keysProvided}/${keysProvided + keysNeeded}` : "—"}</strong>
-            <span>keys in place</span>
-            <p>enter or check keys →</p>
-          </a>
         </div>
       </section>
+
+      {challenges.length > 0 || opportunities.length > 0 ? (
+        <section className="panel" id="insights">
+          <p className="dx-label">Trends — from real numbers only</p>
+          {challenges.map((insight) => (
+            <p className="dx-row" key={`c-${insight.slug}-${insight.text}`}>
+              <span className="dx-tag dx-tag--alert">Challenge</span>
+              <b>{insight.appName}</b>
+              <span className="dx-note">{insight.text}</span>
+              <a className="account-link" href={insight.href}>
+                See it →
+              </a>
+            </p>
+          ))}
+          {opportunities.map((insight) => (
+            <p className="dx-row" key={`o-${insight.slug}-${insight.text}`}>
+              <span className="dx-tag">Opportunity</span>
+              <b>{insight.appName}</b>
+              <span className="dx-note">{insight.text}</span>
+              <a className="account-link" href={insight.href}>
+                See it →
+              </a>
+            </p>
+          ))}
+          {keysNeeded > 0 ? (
+            <p className="dx-note" style={{ marginTop: 10 }}>
+              {keysProvided}/{keysProvided + keysNeeded} keys in place —{" "}
+              <a className="account-link" href="/integrations">
+                check integrations →
+              </a>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {actItems.length > 0 ? (
         <section className="panel" id="attention">
@@ -198,8 +262,6 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
           </a>
           {Object.entries(PORTFOLIO_FILTERS).map(([key, filter]) => {
             const count = chipCount(key);
-            // A chip that matches nothing isn't rendered — nothing clickable
-            // that goes nowhere.
             if (count === 0) return null;
             return (
               <a
@@ -212,16 +274,32 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
             );
           })}
         </div>
+        <div className="dx-chips" style={{ marginTop: 8 }}>
+          {deck.families.map((family) => (
+            <a
+              className={`dx-chip${activeFilter === family.id ? " dx-chip--active" : ""}`}
+              href={`/?apps=${family.id}#portfolio`}
+              key={family.id}
+            >
+              {family.label} <strong>{family.count}</strong>
+            </a>
+          ))}
+        </div>
         {shownApps.length === 0 ? (
           <p className="dx-note">
             No apps match that filter right now. <a className="account-link" href="/#portfolio">Show all {deck.apps.length} →</a>
           </p>
         ) : (
-          <div className="dx-app-grid">
-            {shownApps.map((app) => (
-              <AppCard app={app} key={app.slug} />
-            ))}
-          </div>
+          [...grouped.entries()].map(([label, apps]) => (
+            <div className="dx-family" key={label}>
+              <p className="dx-family-label">{label}</p>
+              <div className="dx-app-grid">
+                {apps.map((app) => (
+                  <AppCard app={app} key={app.slug} />
+                ))}
+              </div>
+            </div>
+          ))
         )}
       </section>
 
