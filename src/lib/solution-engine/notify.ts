@@ -84,7 +84,7 @@ export async function sendEmail(message: OutboundMessage): Promise<{ sent: boole
 }
 
 export function caseUrl(theCase: Pick<SolutionCase, "token">): string {
-  const base = (process.env.SOLUTION_ENGINE_PUBLIC_URL || process.env.AUTH_URL || "https://appengine.unitedundergod.org").replace(/\/$/, "");
+  const base = (process.env.SOLUTION_ENGINE_PUBLIC_URL || process.env.APP_ENGINE_PUBLIC_ORIGIN || "https://appengine.unitedundergod.org").replace(/\/$/, "");
   return `${base}/solve/c/${theCase.token}`;
 }
 

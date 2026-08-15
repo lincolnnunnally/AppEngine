@@ -7,10 +7,8 @@ import { NextResponse, type NextRequest } from "next/server";
 //   apps.unitedundergod.org/            -> rewrite to /apps-showcase (URL stays "/")
 //   apps.unitedundergod.org/<anything>  -> 308 back to "/" on the same host, so
 //                                          no cockpit page, intake, or API is
-//                                          ever reachable there. The factory's
-//                                          AUTH_URL pins sign-in to
-//                                          www.we-succeed.org; this host never
-//                                          offers it.
+//                                          ever reachable there. Sign-in is
+//                                          host-aware; this host never offers it.
 //
 // The showcase is public BY CONSTRUCTION: the route lives outside the (cockpit)
 // group whose layout enforces the APP_ENGINE_PUBLIC_ACCESS consumer gate, so
@@ -20,8 +18,8 @@ import { NextResponse, type NextRequest } from "next/server";
 const SHOWCASE_HOST = "apps.unitedundergod.org";
 const SHOWCASE_PATH = "/apps-showcase";
 
-// The cockpit's canonical home (owner directive 2026-07-09; the GitHub OAuth
-// app's callback URL moved here on 2026-07-09, and AUTH_URL points here). The
+// The factory's canonical home (owner directive 2026-07-09; the GitHub OAuth
+// app's callback URL lives here). The
 // old we-succeed.org addresses forward PAGE traffic to the new home so no
 // bookmark dead-ends — but /api/* keeps answering on the old host too (Stripe
 // webhooks and stats pollers don't follow redirects). When we-succeed.org is
@@ -41,7 +39,8 @@ const FACTORY_ONLY_PREFIXES = [
   "/spark-of-hope-intake-lite",
   "/opportunity-intake",
   "/problem-intake",
-  "/problem-intake-lite"
+  "/problem-intake-lite",
+  "/oauth/desk"
 ];
 
 function isLocalHost(host: string) {
