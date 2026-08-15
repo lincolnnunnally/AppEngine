@@ -184,7 +184,7 @@ async function notifyOwner(ticket: InboxTicket): Promise<string> {
       "",
       ticket.body,
       "",
-      `Open the inbox: https://appengine.unitedundergod.org/inbox`
+      `Open the inbox: https://dashboard.unitedundergod.org/inbox`
     ].join("\n")
   });
   return result.sent ? "sent" : `failed: ${result.reason || "email did not send"}`;

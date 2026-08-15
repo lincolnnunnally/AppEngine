@@ -2,13 +2,22 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./styles.css";
 import { Telemetry } from '../lib/TelemetryProvider';
+import { isDashboardRequest } from "@/lib/auth/hosts";
 
-// Public-facing metadata — consumer brand only, no operator/infra jargon
-// (scope: customers never see "App Engine", "Neon", or provider/engine terms).
-export const metadata: Metadata = {
-  title: "The businesses — United Under God",
-  description: "Internal desk for the live apps: money, people, and who needs a hand."
-};
+export async function generateMetadata(): Promise<Metadata> {
+  if (await isDashboardRequest()) {
+    return {
+      title: "The businesses — United Under God",
+      description: "Private desk for the live apps: money, people, and who needs a hand.",
+      robots: { index: false, follow: false }
+    };
+  }
+  return {
+    title: "AppEngine",
+    description:
+      "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it — live, online, ready to sign into."
+  };
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

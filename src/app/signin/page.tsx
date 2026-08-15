@@ -1,5 +1,12 @@
+import { headers } from "next/headers";
 import { signIn } from "@/auth";
 import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth/access";
+import { DASHBOARD_ORIGIN, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
+
+async function afterSignIn(): Promise<string> {
+  const host = hostFromHeader((await headers()).get("host"));
+  return isDashboardHostName(host) ? `${DASHBOARD_ORIGIN}/` : "/";
+}
 
 // Public, branded sign-in. Consumer-friendly options first (Google, email link);
 // GitHub is a quiet secondary option. Each renders only when its provider is
@@ -41,13 +48,24 @@ export default async function SignInPage({
   const consumerOption = google || email;
   const params = searchParams ? await searchParams : undefined;
   const error = errorMessage(params?.error);
+  const desk = await isDashboardRequest();
 
   return (
     <main className="soft-launch">
       <section className="soft-launch-panel">
-        <p className="soft-launch-kicker">United Under God — the businesses</p>
-        <h1>Sign in to the desk</h1>
-        <p>This is the internal view of the live apps — money, people, and who needs a hand. Sign in with the owner account.</p>
+        {desk ? (
+          <>
+            <p className="soft-launch-kicker">United Under God — the businesses</p>
+            <h1>Sign in to the desk</h1>
+            <p>This view is private. Sign in with the owner account to see money, people, and who needs a hand.</p>
+          </>
+        ) : (
+          <>
+            <p className="soft-launch-kicker">AppEngine — app builder</p>
+            <h1>Sign in to start</h1>
+            <p>Describe a problem you want solved or a tool you want to build, and we&apos;ll build you a real, working app. Sign in to begin.</p>
+          </>
+        )}
 
         {error ? (
           <p className="signin-error" role="alert">
@@ -60,7 +78,7 @@ export default async function SignInPage({
             <form
               action={async () => {
                 "use server";
-                await signIn("google", { redirectTo: "/" });
+                await signIn("google", { redirectTo: await afterSignIn() });
               }}
             >
               <button className="soft-launch-action signin-full" type="submit">
@@ -75,7 +93,7 @@ export default async function SignInPage({
               action={async (formData: FormData) => {
                 "use server";
                 const address = String(formData.get("email") || "").trim();
-                await signIn("resend", { email: address, redirectTo: "/" });
+                await signIn("resend", { email: address, redirectTo: await afterSignIn() });
               }}
             >
               <label className="signin-label" htmlFor="signin-email">
@@ -100,7 +118,7 @@ export default async function SignInPage({
             <form
               action={async () => {
                 "use server";
-                await signIn("github", { redirectTo: "/" });
+                await signIn("github", { redirectTo: await afterSignIn() });
               }}
             >
               <button className={consumerOption ? "signin-secondary" : "soft-launch-action signin-full"} type="submit">

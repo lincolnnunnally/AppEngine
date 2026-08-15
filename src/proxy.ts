@@ -27,7 +27,22 @@ const SHOWCASE_PATH = "/apps-showcase";
 // webhooks and stats pollers don't follow redirects). When we-succeed.org is
 // repurposed, detach those domains from this project and drop this block.
 const COCKPIT_ORIGIN = "https://appengine.unitedundergod.org";
+const DASHBOARD_HOST = "dashboard.unitedundergod.org";
+const DASHBOARD_ORIGIN = `https://${DASHBOARD_HOST}`;
 const LEGACY_FACTORY_HOSTS = new Set(["we-succeed.org", "www.we-succeed.org"]);
+
+// Public builder surfaces — never served on the private desk host.
+const FACTORY_ONLY_PREFIXES = [
+  "/start",
+  "/solve",
+  "/build",
+  "/account",
+  "/apps-showcase",
+  "/spark-of-hope-intake-lite",
+  "/opportunity-intake",
+  "/problem-intake",
+  "/problem-intake-lite"
+];
 
 function isLocalHost(host: string) {
   return host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
@@ -42,6 +57,32 @@ export default function proxy(request: NextRequest) {
       `${COCKPIT_ORIGIN}${pathname}${request.nextUrl.search}`,
       307
     );
+  }
+
+  if (host === DASHBOARD_HOST) {
+    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico" || pathname === "/robots.txt") {
+      return NextResponse.next();
+    }
+    if (FACTORY_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+      return NextResponse.redirect(`${COCKPIT_ORIGIN}${pathname}${request.nextUrl.search}`, 308);
+    }
+    return NextResponse.next();
+  }
+
+  // Factory host: the desk lives on dashboard.* — send old /inbox and /reports
+  // bookmarks there so Lincoln is not dropped back into the builder.
+  if (host === "appengine.unitedundergod.org") {
+    const desk =
+      pathname === "/inbox" ||
+      pathname.startsWith("/inbox/") ||
+      pathname === "/reports" ||
+      pathname === "/domains" ||
+      pathname === "/integrations" ||
+      pathname === "/apps" ||
+      (pathname.startsWith("/apps/") && !pathname.startsWith("/apps-showcase"));
+    if (desk) {
+      return NextResponse.redirect(`${DASHBOARD_ORIGIN}${pathname}${request.nextUrl.search}`, 308);
+    }
   }
 
   if (host === SHOWCASE_HOST) {

@@ -17,10 +17,10 @@ type SoftLaunchCopy = {
 
 const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   owner: {
-    kicker: "United Under God",
-    title: "The businesses",
-    body: "This is the internal desk for the live apps — money, people, and who needs a hand. Sign in with the owner account.",
-    cta: "Owner sign in"
+    kicker: "AppEngine",
+    title: "Owner-only preview",
+    body: "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app. Sign in to start. The internal business desk lives at dashboard.unitedundergod.org.",
+    cta: "Sign in"
   },
   allowlist: {
     kicker: "AppEngine — app builder",

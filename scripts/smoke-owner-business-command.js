@@ -58,7 +58,8 @@ runStep("home is an internal business desk, not an app builder", () => {
     "openTickets",
     "familyForSlug"
   ]);
-  assertFileIncludes("src/app/signin/page.tsx", ["the businesses", "Sign in to the desk"]);
+  assertFileIncludes("src/lib/auth/hosts.ts", ["dashboard.unitedundergod.org", "appengine.unitedundergod.org"]);
+  assertFileIncludes("src/app/signin/page.tsx", ["Sign in to the desk", "AppEngine — app builder"]);
 });
 
 runStep("per-app dossier and central inbox exist", () => {
