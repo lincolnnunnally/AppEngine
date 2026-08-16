@@ -19,6 +19,7 @@ export type RevenueStreamId =
   | "appengine"
   | "laser"
   | "kids-need-dads"
+  | "united-under-god"
   | "toner"
   | "ai-website-design"
   | "unattributed";
@@ -87,6 +88,16 @@ const KNOWN: Array<{
     match: (blob, meta) =>
       meta.app_slug === "kids-need-dads" ||
       /kids need dads|brotherhood fund|knd_/.test(blob)
+  },
+  {
+    id: "united-under-god",
+    slug: "united-under-god",
+    label: "United Under God gifts",
+    evidence: "unitedundergod.org/give or UUG donation metadata",
+    match: (blob, meta) =>
+      meta.app_slug === "united-under-god" ||
+      meta.app === "united-under-god" ||
+      /united under god|uug give|uug gift/.test(blob)
   },
   {
     id: "toner",
