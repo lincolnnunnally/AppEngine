@@ -50,7 +50,11 @@ export async function POST(request: Request) {
       client_reference_id: userKey,
       success_url: `${origin}/account?credits=added`,
       cancel_url: `${origin}/account?credits=cancelled`,
-      metadata: { user_key: userKey, credit_cents: packCents },
+      metadata: { user_key: userKey, credit_cents: String(packCents), app_slug: "appengine", stream: "credits" },
+      payment_intent_data: {
+        metadata: { user_key: userKey, credit_cents: String(packCents), app_slug: "appengine", stream: "credits" },
+        statement_descriptor_suffix: "CREDITS"
+      },
       line_items: [
         {
           quantity: 1,
