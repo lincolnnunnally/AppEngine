@@ -20,6 +20,7 @@ import {
   updateRows,
   upsertRow
 } from "./db";
+import { vendorCanReceivePayouts } from "./connect";
 import { buildManifest, taxNoteFor } from "./manifest";
 import type {
   BuyingGroup,
@@ -470,11 +471,16 @@ export async function placeOrder(input: PlaceOrderInput) {
     display_name: input.displayName
   });
 
+  const vendor = await selectOne<Vendor>("gb_vendors", `select=*&id=eq.${campaign.vendor_id}`);
+  const checkoutRequired = Boolean(vendor && vendorCanReceivePayouts(vendor));
+
   const shipTo = input.shipTo || null;
   const wantsConfirm = input.confirm !== false;
   const canConfirm =
     campaign.fulfillment !== "drop_ship_member" || shipToIsComplete(shipTo);
-  const status: Order["status"] = wantsConfirm && canConfirm ? "confirmed" : "pending";
+  // A Connect-ready vendor means the member pays first. Confirmed-but-unpaid
+  // would count toward the threshold with no money behind it.
+  const status: Order["status"] = wantsConfirm && canConfirm && !checkoutRequired ? "confirmed" : "pending";
 
   const existing = await selectOne<Order>(
     "gb_orders",
@@ -526,6 +532,7 @@ export async function placeOrder(input: PlaceOrderInput) {
     order: saved || order,
     progress: freshProgress,
     needs_shipping_address: campaign.fulfillment === "drop_ship_member" && !shipToIsComplete(shipTo),
+    checkout_required: checkoutRequired && (saved || order).payment_status !== "paid",
     tax_note: taxNoteFor(campaign)
   };
 }

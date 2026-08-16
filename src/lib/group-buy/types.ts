@@ -38,6 +38,10 @@ export type Vendor = {
   contact_phone: string | null;
   notes: string | null;
   research_source: string | null;
+  stripe_account_id?: string | null;
+  stripe_charges_enabled?: boolean;
+  stripe_payouts_enabled?: boolean;
+  stripe_details_submitted?: boolean;
   created_at: string;
   updated_at: string;
 };

@@ -109,6 +109,7 @@ export async function POST(request: Request) {
         savings_cents: Math.max(0, result.order.list_subtotal_cents - result.order.subtotal_cents)
       },
       needs_shipping_address: result.needs_shipping_address,
+      checkout_required: result.checkout_required,
       tax_note: result.tax_note,
       progress: result.progress
         ? {

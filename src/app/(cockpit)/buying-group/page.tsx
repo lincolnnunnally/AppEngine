@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { VendorConnectButton } from "@/components/group-buy/vendor-connect-button";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { isGroupBuyConfigured } from "@/lib/group-buy/db";
+import { readVendorPayout, refreshVendorPayout, stripeConnectConfigured } from "@/lib/group-buy/connect";
 import { listAllCampaigns, listGroups, listVendors } from "@/lib/group-buy/service";
 import type { Vendor } from "@/lib/group-buy/types";
 
@@ -26,7 +28,18 @@ function vendorLine(vendor: Vendor) {
   return bits.join(" · ");
 }
 
-export default async function BuyingGroupPage() {
+function payoutLabel(vendor: Vendor) {
+  const payout = readVendorPayout(vendor);
+  if (payout.payoutsEnabled) return "payouts ready";
+  if (payout.accountId) return "Stripe started";
+  return "no Stripe payouts";
+}
+
+export default async function BuyingGroupPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ connect?: string; vendor?: string }>;
+}) {
   if (!(await canAccessEngineAdmin())) {
     redirect("/");
   }
@@ -46,7 +59,20 @@ export default async function BuyingGroupPage() {
     );
   }
 
-  const [vendors, campaigns, groups] = await Promise.all([listVendors(), listAllCampaigns(), listGroups()]);
+  const params = searchParams ? await searchParams : {};
+  let vendors = await listVendors();
+
+  if (params.vendor && (params.connect === "done" || params.connect === "refresh")) {
+    const returning = vendors.find((row) => row.id === params.vendor);
+    if (returning) {
+      const refreshed = await refreshVendorPayout(returning).catch(() => null);
+      if (refreshed) {
+        vendors = vendors.map((row) => (row.id === refreshed.vendor.id ? refreshed.vendor : row));
+      }
+    }
+  }
+
+  const [campaigns, groups] = await Promise.all([listAllCampaigns(), listGroups()]);
 
   const dropShip = vendors.filter((v) => v.ships_to_member_addresses);
   const gpos = vendors.filter((v) => v.kind === "gpo");
@@ -66,6 +92,13 @@ export default async function BuyingGroupPage() {
           Members across the community apps enter their own orders. Those orders pool against one vendor account
           so the group clears a bulk threshold nobody clears alone, then the vendor ships each member direct.
           {totalSavings > 0 ? ` ${usd(totalSavings)} saved so far.` : ""}
+        </p>
+        <p className="dx-note">
+          Payouts run on the verified United Under God Stripe account. Invite a vendor below — they finish Stripe&rsquo;s
+          form, then a member can pay once: we keep the campaign commission, they receive the rest.
+          {!stripeConnectConfigured()
+            ? " This desk does not have STRIPE_SECRET_KEY yet, so the invite button will say so instead of opening Stripe."
+            : ""}
         </p>
       </section>
 
@@ -144,6 +177,14 @@ export default async function BuyingGroupPage() {
               <span className="dx-note"> {vendorLine(vendor)}</span>
             </span>
             <span className="dx-note">{vendor.discount_summary}</span>
+            <span className={readVendorPayout(vendor).payoutsEnabled ? "dx-tag" : "dx-tag dx-tag--alert"}>
+              {payoutLabel(vendor)}
+            </span>
+            <VendorConnectButton
+              vendorId={vendor.id}
+              ready={readVendorPayout(vendor).payoutsEnabled}
+              started={Boolean(readVendorPayout(vendor).accountId)}
+            />
             <span className={vendor.status === "active" ? "dx-tag" : "dx-tag dx-tag--alert"}>{vendor.status}</span>
           </p>
         ))}

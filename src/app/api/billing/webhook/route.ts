@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   let event: {
     id?: string;
     type?: string;
-    data?: { object?: { payment_status?: string; client_reference_id?: string; metadata?: Record<string, string> } };
+    data?: { object?: { id?: string; payment_status?: string; client_reference_id?: string; metadata?: Record<string, string> } };
   };
   try {
     event = JSON.parse(raw);
@@ -29,8 +29,23 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed" && event.id) {
     const object = event.data?.object || {};
-    const userKey = object.client_reference_id || object.metadata?.user_key;
-    const creditCents = Number(object.metadata?.credit_cents);
+    const metadata = object.metadata || {};
+
+    if (metadata.stream === "group-buy") {
+      try {
+        const { markOrderPaidFromCheckout } = await import("@/lib/group-buy/connect");
+        const sessionId = (object as { id?: string }).id;
+        if (sessionId) {
+          await markOrderPaidFromCheckout(sessionId);
+        }
+      } catch {
+        return new NextResponse("group-buy update failed", { status: 500 });
+      }
+      return NextResponse.json({ received: true });
+    }
+
+    const userKey = object.client_reference_id || metadata.user_key;
+    const creditCents = Number(metadata.credit_cents);
 
     if (object.payment_status === "paid" && userKey && Number.isFinite(creditCents) && creditCents > 0) {
       try {
