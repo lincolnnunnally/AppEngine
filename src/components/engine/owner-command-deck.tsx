@@ -99,13 +99,9 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
                 {stripe.streams.map((stream) => (
                   <tr key={stream.id}>
                     <td>
-                      {stream.slug ? (
-                        <a className="biz-name" href={`/apps/${stream.slug}`}>
-                          {stream.label}
-                        </a>
-                      ) : (
-                        <b>{stream.label}</b>
-                      )}
+                      <a className="biz-name" href={`/reports/money?stream=${stream.id}`}>
+                        {stream.label}
+                      </a>
                     </td>
                     <td className="dx-mono">
                       {stream.charges30d ? dollars(stream.revenue30d) : "no labeled charges"}
@@ -118,11 +114,11 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
             </table>
             <p className="dx-note" style={{ marginTop: 8 }}>
               Only charges this Stripe key can read. A stream with no labeled charges is not $0 — it means the
-              charge did not name that app. Full table on{" "}
-              <a className="account-link" href="/reports">
-                Money
-              </a>
-              .
+              charge did not name that app.{" "}
+              <a className="account-link" href="/reports/money">
+                Open the money report
+              </a>{" "}
+              for each service and Stripe account.
             </p>
           </div>
         ) : null}

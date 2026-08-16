@@ -121,6 +121,20 @@ const KNOWN: Array<{
   }
 ];
 
+export function listKnownStreams(): Array<{ id: Exclude<RevenueStreamId, "unattributed">; slug: string; label: string }> {
+  return KNOWN.map((stream) => ({ id: stream.id, slug: stream.slug, label: stream.label }));
+}
+
+export function serviceLabel(charge: StripeChargeHint): string {
+  const meta = metaOf(charge);
+  const named =
+    charge.description?.trim() ||
+    [meta.product, meta.plan_type, meta.type, meta.kind, meta.stream].filter(Boolean).join(" · ") ||
+    charge.statement_descriptor_suffix?.trim() ||
+    charge.statement_descriptor?.trim();
+  return named || "Unlabeled charge";
+}
+
 function blobOf(charge: StripeChargeHint): string {
   return [
     charge.description,

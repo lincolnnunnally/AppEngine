@@ -93,8 +93,13 @@ export default async function ReportsPage({
           What the portfolio is <em>doing</em>.
         </h1>
         <p className="dx-lede">
-          Money, usage, and cost — real numbers only. Anything that can't report yet says exactly what would unlock
-          it, so reporting grows app by app instead of pretending.
+          Money, usage, and cost — real numbers only. Anything that can&apos;t report yet says exactly what would unlock
+          it, so reporting grows app by app instead of pretending. To see which service was bought and which Stripe
+          account it landed in, open the{" "}
+          <a className="account-link" href="/reports/money">
+            money report
+          </a>
+          .
         </p>
       </section>
 
@@ -179,7 +184,11 @@ export default async function ReportsPage({
                 {stripe.streams.map((stream) => (
                   <tr key={stream.id}>
                     <td>
-                      {stream.slug ? (
+                      {stream.charges30d ? (
+                        <a className="account-link" href={`/reports/money?stream=${stream.id}`}>
+                          {stream.label}
+                        </a>
+                      ) : stream.slug ? (
                         <a className="account-link" href={`/apps/${stream.slug}`}>
                           {stream.label}
                         </a>
@@ -200,8 +209,11 @@ export default async function ReportsPage({
         ) : null}
         <p className="dx-note" style={{ marginTop: 10 }}>
           This is the Stripe account this key can read. A stream is labeled only when the charge names the app
-          (product, description, or metadata). Anything else stays in &quot;not labeled.&quot; Other apps may bill
-          on a different Stripe account — those would say so here, not appear as $0.
+          (product, description, or metadata). Anything else stays in &quot;not labeled.&quot;{" "}
+          <a className="account-link" href="/reports/money">
+            Open the money report
+          </a>{" "}
+          for each service bought and every Stripe account this desk can reach.
         </p>
       </section>
 

@@ -48,6 +48,9 @@ export default async function AppDossierPage({
           <a className="dx-btn" href={`/inbox?app=${encodeURIComponent(app.slug)}`}>
             Inbox{openTickets.length ? ` (${openTickets.length})` : ""}
           </a>
+          <a className="dx-btn" href={`/reports/money?stream=${encodeURIComponent(app.slug)}`}>
+            Money
+          </a>
           <a className="dx-btn" href={dossier.helpUrl} target="_blank" rel="noreferrer">
             Public help form ↗
           </a>

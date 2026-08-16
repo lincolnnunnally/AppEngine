@@ -74,6 +74,7 @@ export default function proxy(request: NextRequest) {
       pathname === "/inbox" ||
       pathname.startsWith("/inbox/") ||
       pathname === "/reports" ||
+      pathname.startsWith("/reports/") ||
       pathname === "/domains" ||
       pathname === "/integrations" ||
       pathname === "/apps" ||
