@@ -84,6 +84,48 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
           drill in. Each app still has its own admin for staff.
         </p>
         <MoneyStrip stripe={stripe} />
+        {stripe.state === "ok" ? (
+          <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+            <table className="dx-table">
+              <thead>
+                <tr>
+                  <th>Revenue stream</th>
+                  <th>30 days</th>
+                  <th>Payments</th>
+                  <th>How we knew</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stripe.streams.map((stream) => (
+                  <tr key={stream.id}>
+                    <td>
+                      {stream.slug ? (
+                        <a className="biz-name" href={`/apps/${stream.slug}`}>
+                          {stream.label}
+                        </a>
+                      ) : (
+                        <b>{stream.label}</b>
+                      )}
+                    </td>
+                    <td className="dx-mono">
+                      {stream.charges30d ? dollars(stream.revenue30d) : "no labeled charges"}
+                    </td>
+                    <td className="dx-mono">{stream.charges30d || "—"}</td>
+                    <td className="dx-note">{stream.evidence}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="dx-note" style={{ marginTop: 8 }}>
+              Only charges this Stripe key can read. A stream with no labeled charges is not $0 — it means the
+              charge did not name that app. Full table on{" "}
+              <a className="account-link" href="/reports">
+                Money
+              </a>
+              .
+            </p>
+          </div>
+        ) : null}
         <div className="dx-stat-grid" style={{ marginTop: 14 }}>
           <a className="dx-stat dx-stat--cyan" href="#explore">
             <strong>{deck.usersAcrossApps ?? "—"}</strong>

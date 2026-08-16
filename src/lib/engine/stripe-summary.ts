@@ -1,7 +1,10 @@
 // Shared Stripe money read for the owner business desk and /reports.
-// Real charges only. Per-app splits are not invented here.
+// Real charges only. Streams are labeled only when the charge names an app.
 import { stripeGet } from "@/lib/engine/stripe";
 import { resolveEnvForApp } from "@/lib/engine/env-vault";
+import { groupRevenueStreams, type RevenueStream } from "@/lib/engine/revenue-streams";
+
+export type { RevenueStream };
 
 export type StripeSummary =
   | {
@@ -13,6 +16,7 @@ export type StripeSummary =
       revenue30d: number;
       truncated: boolean;
       otherCurrencies: string[];
+      streams: RevenueStream[];
     }
   | { state: "no_key" }
   | { state: "denied"; message: string }
@@ -31,7 +35,17 @@ export async function loadStripeSummary(ownerEmail: string | null): Promise<Stri
       pending?: Array<{ amount: number; currency: string }>;
     }>("/v1/balance", key);
     const since = Math.floor(Date.now() / 1000) - 30 * 86_400;
-    type Charge = { id?: string; amount: number; currency?: string; refunded?: boolean; paid?: boolean };
+    type Charge = {
+      id?: string;
+      amount: number;
+      currency?: string;
+      refunded?: boolean;
+      paid?: boolean;
+      description?: string | null;
+      statement_descriptor?: string | null;
+      statement_descriptor_suffix?: string | null;
+      metadata?: Record<string, string> | null;
+    };
     const all: Charge[] = [];
     let startingAfter = "";
     let truncated = false;
@@ -61,7 +75,8 @@ export async function loadStripeSummary(ownerEmail: string | null): Promise<Stri
       charges30d: usd.length,
       revenue30d: usd.reduce((sum, charge) => sum + charge.amount, 0),
       truncated,
-      otherCurrencies
+      otherCurrencies,
+      streams: groupRevenueStreams(usd)
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stripe didn't answer.";

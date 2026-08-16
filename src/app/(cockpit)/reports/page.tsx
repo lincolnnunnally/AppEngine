@@ -164,9 +164,44 @@ export default async function ReportsPage({
         ) : (
           <p className="dx-note">Stripe couldn't be read just now: {stripe.message}</p>
         )}
+        {stripe.state === "ok" ? (
+          <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+            <table className="dx-table">
+              <thead>
+                <tr>
+                  <th>Stream</th>
+                  <th>30 days</th>
+                  <th>Payments</th>
+                  <th>How we knew</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stripe.streams.map((stream) => (
+                  <tr key={stream.id}>
+                    <td>
+                      {stream.slug ? (
+                        <a className="account-link" href={`/apps/${stream.slug}`}>
+                          {stream.label}
+                        </a>
+                      ) : (
+                        <b>{stream.label}</b>
+                      )}
+                    </td>
+                    <td className="dx-mono">
+                      {stream.charges30d ? dollars(stream.revenue30d) : "no labeled charges"}
+                    </td>
+                    <td className="dx-mono">{stream.charges30d || "—"}</td>
+                    <td className="dx-note">{stream.evidence}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
         <p className="dx-note" style={{ marginTop: 10 }}>
-          Per-app revenue: each app charges through its own keys/webhooks, so per-app splits land here as each app's
-          reporting is wired — the same path as usage below.
+          This is the Stripe account this key can read. A stream is labeled only when the charge names the app
+          (product, description, or metadata). Anything else stays in &quot;not labeled.&quot; Other apps may bill
+          on a different Stripe account — those would say so here, not appear as $0.
         </p>
       </section>
 
