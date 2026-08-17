@@ -17,8 +17,17 @@ A page-view beacon fires before any session exists, so `verify_jwt` is off. Acce
 gated instead by two checks the function performs itself:
 
 1. `app` must be a row in `lpl_app_registry` with `is_active = true`.
-2. `Origin` must be one the app declared in `allowed_origins` — plus `*.vercel.app`
-   and localhost, so changes can be verified on a preview deploy first.
+2. `Origin` must be one the app declared in `allowed_origins` — plus any host under
+   `unitedundergod.org`, plus `*.vercel.app` and localhost, so changes can be verified
+   on a preview deploy first.
+
+`allowed_origins` entries are matched on hostname and may use one leading wildcard
+label — `https://*.churchconnect.cloud` covers `gracechapel9399.churchconnect.cloud`
+and every other per-customer subdomain. The `unitedundergod.org` suffix is trusted
+outright because every app's subdomain there is created automatically on deploy; it is
+there so that shipping a custom domain can never silently switch an app's telemetry
+off. That is exactly how `immerse`, `presence` and `speaktome` reported nothing from
+production for weeks while their preview URLs kept working (fixed 2026-08-17).
 
 Payloads are capped (20 events/request, 4KB props). Raw IP and the full user-agent
 string are never persisted — only a country code and a coarse device class.

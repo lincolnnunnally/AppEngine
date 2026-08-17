@@ -41,21 +41,57 @@ async function getRegistry(): Promise<Map<string, AppRow>> {
   return rows;
 }
 
+// Every app in the fleet is reachable at <app>.unitedundergod.org — that subdomain is
+// created automatically when the app deploys. Trusting the suffix is what stops a new
+// app, or a renamed subdomain, from silently going dark: `allowed_origins` stays the
+// record of intent, but forgetting to update it is no longer a production outage.
+const ECOSYSTEM_DOMAIN = 'unitedundergod.org';
+
 /**
- * An origin is trusted if the app declared it, or if it is a Vercel preview /
- * localhost dev origin. Preview origins are allowed so a change can be verified
- * on a preview deploy before it reaches production.
+ * Reduce a declared allowlist entry to a bare hostname pattern. Entries are stored as
+ * origins ("https://furfriend.pet") and may carry a single leading wildcard label
+ * ("https://*.churchconnect.cloud") for the apps that mint a subdomain per customer.
+ * Parsed by hand rather than with URL(), which rejects the "*".
+ */
+function hostPattern(declared: string): string {
+  return declared.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/[:/].*$/, '');
+}
+
+function hostMatches(host: string, pattern: string): boolean {
+  if (pattern.startsWith('*.')) {
+    const base = pattern.slice(2);
+    return host === base || host.endsWith('.' + base);
+  }
+  return host === pattern;
+}
+
+/**
+ * An origin is trusted if the app declared it, if it sits under the ecosystem's own
+ * domain, or if it is a Vercel preview / localhost dev origin. Preview origins are
+ * allowed so a change can be verified on a preview deploy before it reaches production.
+ *
+ * Matching is on hostname, not the raw origin string, so a declared entry covers its
+ * port variants; the scheme is still pinned to https outside local dev.
  */
 function originAllowed(origin: string | null, app: AppRow): boolean {
   if (!origin) return false;
-  if (app.allowed_origins?.includes(origin)) return true;
-  let host: string;
+
+  let url: URL;
   try {
-    host = new URL(origin).hostname;
+    url = new URL(origin);
   } catch {
     return false;
   }
+  const host = url.hostname.toLowerCase();
+
   if (host === 'localhost' || host === '127.0.0.1') return true;
+  if (url.protocol !== 'https:') return false;
+
+  for (const declared of app.allowed_origins ?? []) {
+    if (hostMatches(host, hostPattern(declared))) return true;
+  }
+
+  if (host === ECOSYSTEM_DOMAIN || host.endsWith('.' + ECOSYSTEM_DOMAIN)) return true;
   return host.endsWith('.vercel.app');
 }
 
