@@ -188,7 +188,7 @@ const KIDS_NEED_DADS: CredentialAppGroup = {
 const EASY_PEAZY: CredentialAppGroup = {
   slug: "easy-peasy-website",
   name: "Easy Peazy Website",
-  summary: "LIVE on our infra — Render backend + Vercel frontend on the shared LPL Supabase (ep_* tables), payments LIVE; E2E-proven 2026-07-09. easypeazy.site cutover staged pending the nameserver swap. Nothing below needs entering.",
+  summary: "LIVE at easypeazy.site — Vercel frontend + Vercel Python API on the shared LPL Supabase (ep_* tables). Delivered its first customer website on 2026-08-21: describe a business, and about 85 seconds later it is designed, photographed, published and on its own address. Nothing below needs entering.",
   vercelProjectId: "prj_TvIKmnbeYR9ZzqSLysPeDfoCgVbU",
   keys: [
     { displayName: "Easy Peazy — envs (live stack)", envVar: "REACT_APP_BACKEND_URL", host: "vercel", location: "Its Vercel + Render env (set during the 2026-07-09 port)", scope: "config", secret: false, whoProvides: "already-set", purpose: "Superseded question — the app went live on our stack 2026-07-09 with its envs installed at deploy. Nothing to enter.", statusMode: "manual" },
@@ -197,17 +197,40 @@ const EASY_PEAZY: CredentialAppGroup = {
 };
 
 // ─── Easy Peazy — provisioning API ───────────────────────────────────────────
-// The Python backend that actually builds customer sites (backend/provisioner.py:
-// Spaceship domain → cPanel/SSH → WP-CLI install → Divi). It is a SEPARATE Vercel
-// project from the Easy Peazy frontend, so its keys need their own group — the
-// registry pushes to one project id per group.
+// The Python backend that builds customer sites. It is a SEPARATE Vercel project
+// from the Easy Peazy frontend, so its keys need their own group — the registry
+// pushes to one project id per group.
+//
+// This group used to describe a cPanel/SSH/WP-CLI provisioner and say none of it
+// was set. That path cannot run on serverless (no ssh binary, no key file on
+// disk) and never delivered a site. Websites are built by AI Website Design over
+// HTTPS; WordPress + Divi is an optional upgrade for customers who want to own
+// their hosting. The keys below are ordered accordingly.
 const EASY_PEAZY_API: CredentialAppGroup = {
   slug: "easy-peazy-api",
   name: "Easy Peazy — provisioning API",
   summary:
-    "Builds each customer's WordPress + Divi site over SSH/WP-CLI. Everything below is needed before it can provision a real site; none of it is set yet.",
+    "Builds each customer's website by calling AI Website Design over HTTPS — no hosting account, no WordPress, about 85 seconds. The shared service token below is the one that matters; the Divi keys only affect the optional WordPress upgrade.",
   vercelProjectId: "prj_gKqKW3PZ99M7hKHNAf9qyrVrGpBD",
   keys: [
+    {
+      displayName: "Easy Peazy — service token (shared with AI Website Design)",
+      envVar: "AWD_SERVICE_TOKEN",
+      host: "vercel",
+      location: "Vercel project easy-peazy-api · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "The other half of the shared secret: what Easy Peazy presents to POST /api/provision to have a customer's website built. MUST be the identical value held by the ai-website-design project — if they drift, every customer's website fails with a 401 that reads like an outage. Declared here so entering it once lands on BOTH projects; it had no slot in this group at all, so a stored value could only ever reach one side.",
+      statusMode: "vercel_env",
+      attention: {
+        when: "missing",
+        priority: "blocker",
+        action:
+          "Push the same AWD_SERVICE_TOKEN to easy-peazy-api and ai-website-design — without it Easy Peazy cannot build a customer a website.",
+      },
+    },
     {
       displayName: "Elegant Themes — account username",
       envVar: "ELEGANT_THEMES_USERNAME",
@@ -217,13 +240,13 @@ const EASY_PEAZY_API: CredentialAppGroup = {
       secret: false,
       whoProvides: "lincoln",
       purpose:
-        "Half of the Divi licence activation written into each new site (wp option update et_automatic_updates_options). Your elegantthemes.com username — NOT your password, which is never needed.",
+        "Half of the Divi licence activation, used ONLY by the optional WordPress upgrade — a customer gets a finished website without it. Your elegantthemes.com username, NOT your password.",
       statusMode: "vercel_env",
       attention: {
         when: "missing",
         priority: "recommended",
         action:
-          "Add your Elegant Themes username so newly provisioned sites activate Divi and receive updates.",
+          "Optional: add your Elegant Themes username so a customer who upgrades to WordPress gets Divi activated. Websites are delivered without it.",
       },
     },
     {
@@ -235,13 +258,13 @@ const EASY_PEAZY_API: CredentialAppGroup = {
       secret: true,
       whoProvides: "lincoln",
       purpose:
-        "The other half of Divi licence activation. From elegantthemes.com → Account → API Key. This is a per-account update token, not your login password — an unlimited lifetime membership covers unlimited client sites.",
+        "The other half of Divi licence activation, for the optional WordPress upgrade only. From elegantthemes.com → Account → API Key — a per-account update token, not your login password.",
       statusMode: "vercel_env",
       attention: {
         when: "missing",
         priority: "recommended",
         action:
-          "Copy the API Key from your Elegant Themes members area so provisioned sites can activate Divi and auto-update.",
+          "Optional: copy the API Key from your Elegant Themes members area so WordPress upgrades activate Divi. Not needed for a customer to get a website.",
       },
     },
   ],
