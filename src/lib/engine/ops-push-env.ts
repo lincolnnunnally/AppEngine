@@ -68,10 +68,13 @@ export async function pushVaultValueToVercel(ownerEmail: string, slug: string, e
   // satisfy a PEXELS_API_KEY slot — an exact lookup reported "not in your vault"
   // for a key that was demonstrably sitting right there, which is the whole
   // reason the vault felt like it wasn't doing its job.
-  const sourceKey = matchVaultKey(Object.keys(vaultEnv), envVar);
+  // The slot may be fed by a differently-named vault entry — one canonical
+  // value, mapped to whatever each app is forced to call it.
+  const lookupName = known.vaultKey || envVar;
+  const sourceKey = matchVaultKey(Object.keys(vaultEnv), lookupName);
   const value = sourceKey ? vaultEnv[sourceKey] : "";
   if (!value) {
-    return { ok: false, message: `Add ${envVar} to your key vault first (Your keys, top of Integrations & secrets), then push it here.` };
+    return { ok: false, message: `Add ${lookupName} to your key vault first (Your keys, top of Integrations & secrets), then push it here.` };
   }
 
   return upsertVercelEnv(group.vercelProjectId, envVar, value);
@@ -114,7 +117,7 @@ export async function propagateVaultKey(
       if (key.host !== "vercel") continue;
       // Would this stored name satisfy this slot? Same shape-matching the push
       // path uses, so PEXEL_API_KEY lands in a PEXELS_API_KEY slot.
-      if (matchVaultKey([vaultKeyName], key.envVar) !== vaultKeyName) continue;
+      if (matchVaultKey([vaultKeyName], key.vaultKey || key.envVar) !== vaultKeyName) continue;
 
       const result = await pushVaultValueToVercel(ownerEmail, group.slug, key.envVar).catch(
         () => ({ ok: false, message: "Push failed." })
@@ -154,7 +157,7 @@ export async function pushAllVaultValuesToVercel(ownerEmail: string, slug: strin
   let missing = 0;
   const vaultNames = Object.keys(vaultEnv);
   for (const key of vercelKeys) {
-    const sourceKey = matchVaultKey(vaultNames, key.envVar);
+    const sourceKey = matchVaultKey(vaultNames, key.vaultKey || key.envVar);
     const value = sourceKey ? vaultEnv[sourceKey] : "";
     if (!value) { missing += 1; continue; }
     const result = await upsertVercelEnv(group.vercelProjectId, key.envVar, value);

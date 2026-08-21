@@ -54,6 +54,22 @@ export type CredentialAttention = {
 export type CredentialEntry = {
   displayName: string; // uniquely-named, unambiguous label
   envVar: string; // EXACT variable the app reads
+  /**
+   * The name this value is stored under in the owner's vault, when it differs
+   * from `envVar`.
+   *
+   * The vault matcher requires the app's variable name to be a token PREFIX of
+   * the stored name, so a vault entry called `VERCEL_TOKEN` can never satisfy a
+   * slot called `AWD_VERCEL_TOKEN` — the qualifier is on the wrong end. Apps
+   * genuinely need those prefixes (Vercel reserves the whole `VERCEL_*`
+   * namespace for its own system variables and silently shadows anything we put
+   * there), so the mapping has to live here.
+   *
+   * Without this, one credential has to be pasted once per app under a
+   * different name each time, which is exactly the "enter it once" promise the
+   * vault exists to keep.
+   */
+  vaultKey?: string;
   host: CredentialHost;
   location: string; // the precise slot the value goes in
   scope: CredentialScope;
@@ -256,6 +272,62 @@ const AI_WEBSITE_DESIGN: CredentialAppGroup = {
         action:
           "Create a free key at pexels.com/api and store it as PEXELS_API_KEY for AI Website Design — it turns ~15 empty photo slots per generated site into filled ones with no other change.",
       },
+    },
+    {
+      displayName: "AI Website Design — Vercel API token (customer web addresses)",
+      envVar: "AWD_VERCEL_TOKEN",
+      vaultKey: "VERCEL_TOKEN",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Attaches each customer's web address to the project so a certificate is issued. Without it a customer's address gets a DNS record and no HTTPS, and their browser shows a security warning on their own site. Must be a DASHBOARD token (Account Settings → Tokens) — a Vercel CLI token expires in about 12 hours, which is exactly how this broke silently once already. Named AWD_* because Vercel reserves the whole VERCEL_* namespace for its own system variables and shadows anything we put there.",
+      statusMode: "vercel_env",
+      attention: {
+        when: "missing",
+        priority: "blocker",
+        action:
+          "Create a non-expiring Vercel API token (Account Settings → Tokens, scoped to the life-produces-life team) and save it as VERCEL_TOKEN in Your keys. Until it is set, no ChurchConnect or Easy Peazy customer can get a working branded web address.",
+      },
+    },
+    {
+      displayName: "AI Website Design — Vercel team id",
+      envVar: "AWD_VERCEL_TEAM_ID",
+      vaultKey: "VERCEL_TEAM_ID",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Scopes the domain-attach call to the right Vercel team. Without it the token is applied to a personal scope and the project isn't found.",
+      statusMode: "vercel_env",
+    },
+    {
+      displayName: "AI Website Design — Cloudflare API token (customer DNS)",
+      envVar: "CLOUDFLARE_API_TOKEN",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Creates the DNS record for each customer's web address. Same universal token as the rest of the ecosystem — one token covers every zone in the account.",
+      statusMode: "vercel_env",
+    },
+    {
+      displayName: "AI Website Design — service token (shared with Easy Peazy)",
+      envVar: "AWD_SERVICE_TOKEN",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "The shared secret Easy Peazy and ChurchConnect present to POST /api/provision to have a customer's website built. MUST be the identical value on the easy-peazy-api project — if they drift, every partner build fails with a 401 that looks like an outage.",
+      statusMode: "vercel_env",
     },
   ],
 };
