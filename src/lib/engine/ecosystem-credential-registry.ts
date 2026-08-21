@@ -341,6 +341,72 @@ const AI_WEBSITE_DESIGN: CredentialAppGroup = {
       statusMode: "vercel_env",
     },
     {
+      displayName: "AI Website Design — WordPress Multisite network URL",
+      envVar: "WORDPRESS_URL",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: false,
+      whoProvides: "lincoln",
+      purpose:
+        "The WordPress Multisite install that customer sites are created on, e.g. https://sites.easypeazy.site. This is the HANDOFF target: the AI builds the site once, pushes every page in as an editable Divi layout, and from then on the customer edits it in Divi's visual builder (and Divi AI) — we never regenerate it. Without this the Divi handoff is download-a-layout-file only. Set-up is a one-time ~20 minute owner job: docs/wordpress-multisite-setup.md in the ai-website-design repo. Sub-DIRECTORIES, not sub-domains — sub-domains need a second-level wildcard certificate Cloudflare's free SSL does not cover.",
+      statusMode: "vercel_env",
+      attention: {
+        when: "missing",
+        priority: "blocker",
+        action:
+          "Stand up one WordPress Multisite install with Divi (Spaceship cPanel → Softaculous → WordPress, then Tools → Network Setup, sub-directories) and save its URL as WORDPRESS_URL. Until it exists, customers cannot be handed off to Divi to edit their own site — which is the product's whole editing story.",
+      },
+    },
+    {
+      displayName: "AI Website Design — WordPress admin username",
+      envVar: "WORDPRESS_USER",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Network-admin account the push authenticates as. Needs to be a Super Admin so it can create customer subsites.",
+      statusMode: "vercel_env",
+    },
+    {
+      displayName: "AI Website Design — WordPress application password",
+      envVar: "WORDPRESS_APP_PASSWORD",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "WordPress → Users → your profile → Application Passwords. NOT the login password. WordPress prints it with spaces for readability and strips them internally — leaving the spaces in is the single most common cause of a 401 here, so the code removes them either way.",
+      statusMode: "vercel_env",
+    },
+    {
+      displayName: "AI Website Design — Elegant Themes username (Divi licence)",
+      envVar: "ELEGANT_THEMES_USERNAME",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Licences and updates Divi on the network. ONE Elegant Themes membership covers unlimited client sites — what the licence bars is reselling Divi itself, not handing a customer a layout. Same value already set on easy-peazy-api.",
+      statusMode: "vercel_env",
+    },
+    {
+      displayName: "AI Website Design — Elegant Themes API key (Divi licence)",
+      envVar: "ELEGANT_THEMES_API_KEY",
+      host: "vercel",
+      location: "Vercel project ai-website-design · production",
+      scope: "server",
+      secret: true,
+      whoProvides: "lincoln",
+      purpose:
+        "Paired with the username above. elegantthemes.com → Account → API Key. Same value already set on easy-peazy-api.",
+      statusMode: "vercel_env",
+    },
+    {
       displayName: "AI Website Design — service token (shared with Easy Peazy)",
       envVar: "AWD_SERVICE_TOKEN",
       host: "vercel",
