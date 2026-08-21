@@ -67,6 +67,7 @@ const API_PROBES = {
   'aligned-souls': { apiPath: '/api/health' },
   'laser-engrave-market': { apiPath: '/api/health' },
   'easy-peasy-website': { apiPath: '/api/health' },
+  'ai-website-design': { apiPath: '/api/health' },
   'toner-management': { apiPath: '/api/health' },
   appengine: { apiPath: '/api/health' },
   'live-on-mission': { dataless: true },
@@ -79,6 +80,84 @@ const API_PROBES = {
   sandlot: { dataless: true },
   ideas: { dataless: true },
 };
+
+// Credentials that are SET but no longer WORK.
+//
+// The same false assurance as a 200 from a CDN, one layer down. AWD_VERCEL_TOKEN
+// was configured for four days while every customer web address quietly failed to
+// get a certificate: a Vercel CLI token expires in about 12 hours, and every
+// is-it-configured check said yes the whole time. Easy Peazy sent its email from
+// an unverified domain for months — valid Resend key, every message rejected,
+// nobody told.
+//
+// So each app exposes a read-only self-check that CALLS its providers and reports
+// status only, never a value. That is what makes these safe to run from a public
+// repo with no secrets, the same rule the rest of this script follows.
+//
+// A failure here is DEGRADED, not DOWN: the app is up and serving, one capability
+// behind it is not. Saying "down" for these would train everyone to ignore both.
+const CREDENTIAL_PROBES = [
+  {
+    name: 'Easy Peazy — build & billing credentials',
+    url: 'https://easy-peazy-api.vercel.app/api/health?deep=1',
+    read: (j) => ({
+      ok: j?.credentials?.ok !== false,
+      detail: j?.credentials?.detail
+        ?? Object.entries(j?.credentials ?? {})
+             .filter(([k, v]) => k !== 'ok' && v !== 'ok' && v !== 'missing')
+             .map(([k, v]) => `${k}: ${v}`).join(', '),
+    }),
+  },
+  {
+    name: 'AI Website Design — customer address credentials',
+    url: 'https://ai-website.design/api/health?deep=1',
+    read: (j) => ({
+      ok: j?.hostingCredentials?.ok !== false,
+      detail: j?.hostingCredentials?.detail
+        ?? `cloudflare: ${j?.hostingCredentials?.cloudflare}, vercel: ${j?.hostingCredentials?.vercel}`,
+    }),
+  },
+  {
+    name: 'Ecosystem password reset — sending domain',
+    url: 'https://uqhqulrqcygsmmzdzemx.supabase.co/functions/v1/ecosystem-auth-reset?selfcheck=1',
+    read: (j) => ({
+      ok: j?.ok !== false && j?.domainVerified !== false,
+      // One function is the reset path for the whole fleet, so a bad sender here
+      // breaks every app's password reset at once.
+      detail: `sender ${j?.sender ?? 'unknown'} · verified ${j?.domainVerified}`,
+    }),
+  },
+];
+
+async function probeCredentials() {
+  const out = [];
+  for (const check of CREDENTIAL_PROBES) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetch(check.url, {
+        signal: controller.signal,
+        headers: { 'user-agent': 'appengine-fleet-health' },
+      });
+      const text = await response.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch { /* not JSON — handled below */ }
+      if (!json) {
+        // Unreachable or not answering JSON is UNKNOWN, not a credential failure.
+        // The app probes above already judge whether the app itself is down.
+        out.push({ name: check.name, state: 'unknown', detail: `no JSON from ${check.url} (HTTP ${response.status})` });
+        continue;
+      }
+      const { ok, detail } = check.read(json);
+      out.push({ name: check.name, state: ok ? 'ok' : 'broken', detail });
+    } catch (error) {
+      out.push({ name: check.name, state: 'unknown', detail: error.name === 'AbortError' ? `no response in ${TIMEOUT_MS}ms` : error.message });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return out;
+}
 
 function loadApps() {
   const registry = JSON.parse(readFileSync(REGISTRY, 'utf8'));
@@ -189,6 +268,8 @@ function judge(root, api, shared, apiPath) {
 
 const apps = loadApps();
 const shared = await probeSharedData();
+const credentials = await probeCredentials();
+const brokenCredentials = credentials.filter((c) => c.state === 'broken');
 const results = [];
 
 for (const app of apps) {
@@ -211,7 +292,7 @@ const unverified = results.filter((r) => r.state === 'unverified');
 const healthy = results.filter((r) => r.state === 'healthy');
 
 if (AS_JSON) {
-  console.log(JSON.stringify({ checkedAt: new Date().toISOString(), results }, null, 2));
+  console.log(JSON.stringify({ checkedAt: new Date().toISOString(), results, credentials }, null, 2));
 } else {
   console.log(`\nFleet health — ${results.length} apps\n`);
   for (const r of results) {
@@ -223,6 +304,12 @@ if (AS_JSON) {
     for (const p of r.problems) console.log(`         ${p}`);
   }
   console.log(`\n  ${healthy.length} healthy · ${degraded.length} degraded · ${down.length} down · ${unverified.length} unverified`);
+  console.log(`\nCredentials — set is not the same as works\n`);
+  for (const c of credentials) {
+    const mark = { ok: ' ok ', broken: 'FAIL', unknown: '  ? ' }[c.state];
+    console.log(`  [${mark}] ${c.name}`);
+    if (c.state !== 'ok' && c.detail) console.log(`         ${c.detail}`);
+  }
   if (unverified.length) {
     console.log(`\n  Unverified means this monitor could not prove the data layer answers.`);
     console.log(`  That is a gap in scripts/fleet-health.mjs (API_PROBES), not a pass:`);
@@ -241,6 +328,13 @@ function body() {
     lines.push(`### ${r.name}`);
     lines.push(`${r.url} — root \`${r.root.status}\`${r.api ? `, API \`${r.api.status}\` (${r.api.contentType.split(';')[0] || 'no content-type'})` : ''}`);
     for (const p of r.problems) lines.push(`- ${p}`);
+    lines.push('');
+  }
+  if (brokenCredentials.length) {
+    lines.push('---');
+    lines.push('### Credentials that are set but rejected');
+    lines.push('These apps are UP. A capability behind them is not — and every "is it configured?" check says yes.');
+    for (const c of brokenCredentials) lines.push(`- **${c.name}** — ${c.detail}`);
     lines.push('');
   }
   if (unverified.length) {
@@ -280,7 +374,7 @@ if (APPLY) {
   );
   const openIssue = existing[0]?.number;
 
-  if (down.length || degraded.length) {
+  if (down.length || degraded.length || brokenCredentials.length) {
     if (openIssue) {
       gh(['issue', 'edit', String(openIssue), '--repo', SLUG, '--body-file', '-'], body());
       console.log(`\nUpdated issue #${openIssue}`);
