@@ -34,6 +34,13 @@ const APP_CONFIG: Record<string, { name: string; loginUrl: string }> = {
   'aligned-souls': { name: 'Aligned Souls', loginUrl: 'https://alignedsouls.unitedundergod.org' },
   'kindred': { name: 'Kindred', loginUrl: 'https://kindred.unitedundergod.org' },
   'laser': { name: 'Laser Engraving', loginUrl: 'https://laser.unitedundergod.org' },
+  // Website builder. One app, three front doors — the key picks which brand the
+  // customer sees, because a church must never receive an email or a sign-in
+  // link that says "AI Website Design".
+  'ai-website-design': { name: 'AI Website Design', loginUrl: 'https://ai-website.design/signin' },
+  'easypeazy-website': { name: 'Easy Peazy', loginUrl: 'https://my.easypeazy.site/signin' },
+  'churchconnect-website': { name: 'ChurchConnect', loginUrl: 'https://my.churchconnect.cloud/signin' },
+  'uug-website': { name: 'United Under God', loginUrl: 'https://my.unitedundergod.org/signin' },
 };
 
 const corsHeaders = {
@@ -93,6 +100,59 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const sb = admin();
+
+  // ---- GET ?selfcheck=1: can this function actually SEND? ----
+  //
+  // A Resend key that works is not enough — the FROM address's domain must also
+  // be verified on the account, and when it isn't, Resend rejects every single
+  // message at the API. That failure is completely silent from outside: this
+  // function still returns {ok:true} (deliberately, so it can't be used to
+  // enumerate accounts), the token row is still written, and the customer just
+  // never receives anything. Easy Peazy sent NOTHING for its entire life that
+  // way, password resets included, because its sender was on an unverified
+  // domain.
+  //
+  // Since this one function is the reset path for the whole fleet, a bad sender
+  // here breaks every app at once. So it checks itself, and reports only
+  // status — no key, no secret — which means the PUBLIC fleet-health monitor
+  // can probe real credential health without ever holding a credential.
+  if (req.method === 'GET' && url.searchParams.get('selfcheck') === '1') {
+    const key = Deno.env.get('RESEND_API_KEY') || '';
+    const sender = (FROM.match(/<([^>]+)>/)?.[1] || FROM).trim();
+    const senderDomain = sender.split('@')[1] || '';
+    const out: Record<string, unknown> = {
+      ok: false,
+      sender,
+      senderDomain,
+      resendKey: key ? 'set' : 'missing',
+      domainVerified: 'unknown',
+      apps: Object.keys(APP_CONFIG),
+    };
+    if (!key) return json(out, 200);
+    try {
+      const res = await fetch('https://api.resend.com/domains', {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) {
+        out.domainVerified = 'unknown';
+        out.detail = `resend ${res.status}`;
+        return json(out, 200);
+      }
+      const body = await res.json();
+      const rows: Array<{ name?: string; status?: string }> = body?.data ?? body ?? [];
+      const match = rows.find((d) => (d.name || '').toLowerCase() === senderDomain.toLowerCase());
+      out.domainVerified = match?.status === 'verified';
+      out.ok = out.domainVerified === true;
+      if (!out.ok) {
+        out.detail = match
+          ? `${senderDomain} is ${match.status}, not verified`
+          : `${senderDomain} is not on the Resend account — every email from this function is being rejected`;
+      }
+    } catch (e) {
+      out.detail = String((e as Error)?.message || e).slice(0, 200);
+    }
+    return json(out, 200);
+  }
 
   // ---- GET: render the reset-password form from the email link ----
   if (req.method === 'GET') {
