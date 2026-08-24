@@ -58,6 +58,7 @@ Stop and reconcile before editing when:
 - A generated app has no Deployment Environment plan with frontend, backend if needed, database, env var inventory, preview/production URLs, custom domain/subdomain, logs, health checks, and rollback notes.
 - A generated app UI task has no `design_intent_profile` capturing audience, user sophistication, desired emotional experience, brand personality, trust needs, accessibility needs, visual style preference, things to avoid, and output guidance.
 - A generated app has no Design Quality Gate with Designer and Customer Perspective review before Release Gate approval.
+- A CTA is wired and deployed but the journey does not complete (GATCA / DC-12). HTTP 200 and a handler that exists are not a probe. Failures must be visible. The path the user hits must be the path that actually runs. Catalog: LPL `13_GATCA__WIRED_IS_NOT_WORKING.md`.
 - A generated app is technically working but ugly, confusing, unreadable, inaccessible, emotionally mismatched, or missing mobile, empty, error, onboarding, or admin states.
 - A generated app has no Compatibility Test Plan covering Safari, mobile, common browsers, viewports, touch targets, forms, auth flows, uploads/payments if used, and admin screens.
 - A generated app has unresolved Safari, mobile, touch-target, form, auth, upload, payment, admin, or common browser issues before release approval.
