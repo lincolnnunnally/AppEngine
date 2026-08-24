@@ -13,6 +13,21 @@ Every feature, app, workflow, ministry, service, website, business, or project m
 
 If these questions cannot be answered, challenge or reject the feature.
 
+## GATCA gate (wired ≠ working)
+
+A feature that is written, routed, and deployed is still not done if the person
+cannot finish the labeled job. See LPL `13_GATCA__WIRED_IS_NOT_WORKING.md` (DC-12).
+
+Release is blocked when:
+
+- The only evidence of done is HTTP 200, a passing build, or an `onClick` that exists.
+- A primary CTA swallows errors (`except: pass`, empty `catch`, "no results" on failure).
+- Success is shown for work that did not finish (send, provision, pay, publish).
+- The live path is a dead alternate (e.g. SSH on serverless) while a working path sits unused.
+
+New App Engine modules must fail loud and prove the customer URL/action before
+the UI may say it worked.
+
 Agents may also clarify, reduce, or postpone the work when the answers are weak but the intent appears valuable.
 
 ## Planning Expectations
