@@ -64,6 +64,10 @@ export default function proxy(request: NextRequest) {
     if (FACTORY_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
       return NextResponse.redirect(`${COCKPIT_ORIGIN}${pathname}${request.nextUrl.search}`, 308);
     }
+    // /apps/<slug> is the dossier. Bare /apps is the same glance as home.
+    if (pathname === "/apps") {
+      return NextResponse.redirect(`${DASHBOARD_ORIGIN}/${request.nextUrl.search}`, 308);
+    }
     return NextResponse.next();
   }
 

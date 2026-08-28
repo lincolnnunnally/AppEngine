@@ -127,6 +127,17 @@ const SOURCES: Record<string, Source> = {
   churchconnect: {
     users: { table: "cc_people" },
     newUsers: { table: "cc_people", created: "created_at" }
+  },
+  "easy-peasy-website": {
+    users: { table: "ep_users" },
+    newUsers: { table: "ep_users", created: "created_at" },
+    tickets: { table: "ep_support_tickets", openQuery: "select=id&status=in.(open,in_progress)" },
+    orders: { table: "ep_websites", recentQuery: "select=id&created_at=gte." }
+  },
+  "ai-website-design": {
+    users: { table: "awd_accounts" },
+    newUsers: { table: "awd_accounts", created: "created_at" },
+    orders: { table: "awd_subscriptions", recentQuery: "select=id&created_at=gte." }
   }
 };
 
