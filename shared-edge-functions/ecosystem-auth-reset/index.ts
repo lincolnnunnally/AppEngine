@@ -34,6 +34,8 @@ const APP_CONFIG: Record<string, { name: string; loginUrl: string }> = {
   'aligned-souls': { name: 'Aligned Souls', loginUrl: 'https://alignedsouls.unitedundergod.org' },
   'kindred': { name: 'Kindred', loginUrl: 'https://kindred.unitedundergod.org' },
   'laser': { name: 'Laser Engraving', loginUrl: 'https://laser.unitedundergod.org' },
+  'childfirst': { name: 'ChildFirst', loginUrl: 'https://childfirst.unitedundergod.org/login' },
+  'live-on-mission': { name: 'Live On Mission', loginUrl: 'https://liveonmission.unitedundergod.org/sign-in' },
   // Website builder. One app, three front doors — the key picks which brand the
   // customer sees, because a church must never receive an email or a sign-in
   // link that says "AI Website Design".
@@ -229,7 +231,10 @@ Deno.serve(async (req: Request) => {
       });
       if (!insErr) {
         const link = `${Deno.env.get('SUPABASE_URL')}${FUNCTION_PATH}?token=${raw}&app=${encodeURIComponent(app)}`;
-        await sendResetEmail(cfg.name, email, link);
+        const sent = await sendResetEmail(cfg.name, email, link);
+        if (!sent) return json({ error: 'reset_unavailable', message: "We couldn't send a reset email right now. Try again in a few minutes." }, 503);
+      } else {
+        return json({ error: 'reset_unavailable', message: "We couldn't start a password reset right now." }, 503);
       }
     }
   }
@@ -249,9 +254,9 @@ async function validToken(sb: ReturnType<typeof admin>, rawToken: string, app: s
   return data as { id: string; user_id: string; email: string };
 }
 
-async function sendResetEmail(appName: string, to: string, link: string) {
+async function sendResetEmail(appName: string, to: string, link: string): Promise<boolean> {
   const key = Deno.env.get('RESEND_API_KEY');
-  if (!key) { console.error('RESEND_API_KEY missing'); return; }
+  if (!key) { console.error('RESEND_API_KEY missing'); return false; }
   const subject = `Reset your ${appName} password`;
   const body = `<!doctype html><html><body style="margin:0;background:#f1f5f9;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">
 <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px;border:1px solid #e2e8f0">
@@ -265,5 +270,9 @@ async function sendResetEmail(appName: string, to: string, link: string) {
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from: FROM, to, subject, html: body, reply_to: REPLY_TO }),
   });
-  if (!res.ok) console.error('Resend send failed', res.status, await res.text());
+  if (!res.ok) {
+    console.error('Resend send failed', res.status, await res.text());
+    return false;
+  }
+  return true;
 }

@@ -49,7 +49,7 @@ Works from any frontend (Next, Vite, CRA) or backend proxy; no supabase-js neede
 
 ## Wired apps (2026-07-24)
 
-`kids-need-dads`, `best-life`, `aligned-souls`, `kindred`, `laser`.
+`kids-need-dads`, `best-life`, `aligned-souls`, `kindred`, `laser`, `childfirst`, `live-on-mission`.
 
 ## Related standing pattern — confirmed signup
 
