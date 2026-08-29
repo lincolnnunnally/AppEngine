@@ -29,10 +29,11 @@ const FUNCTION_PATH = '/functions/v1/ecosystem-auth-reset';
 // The ONLY per-app config. name = shown in email + reset page; loginUrl = where the
 // "back to sign in" button goes after a successful reset.
 const APP_CONFIG: Record<string, { name: string; loginUrl: string }> = {
-  'kids-need-dads': { name: 'Kids Need Dads', loginUrl: 'https://kidsneeddad.com' },
+  'kids-need-dads': { name: 'Kids Need Dads', loginUrl: 'https://dads.unitedundergod.org' },
   'best-life': { name: 'Best Life', loginUrl: 'https://bestlife.unitedundergod.org' },
   'aligned-souls': { name: 'Aligned Souls', loginUrl: 'https://alignedsouls.unitedundergod.org' },
   'kindred': { name: 'Kindred', loginUrl: 'https://kindred.unitedundergod.org' },
+  'presence': { name: 'Presence', loginUrl: 'https://presence.unitedundergod.org' },
   'laser': { name: 'Laser Engraving', loginUrl: 'https://laser.unitedundergod.org' },
   // Website builder. One app, three front doors — the key picks which brand the
   // customer sees, because a church must never receive an email or a sign-in
