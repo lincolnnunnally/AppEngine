@@ -145,6 +145,9 @@ Lincoln at the stage of placing real keys: the vault was "not specific" (no Supa
 
 ---
 
+### OWNER ROADMAP — Presence Coins: laser-engraved encouragement / meetup tokens (Lincoln-directed 2026-09-02, Vidalia GA first)
+- 🟡 **Presence Coins v1 — Laser Engrave Market manages coin batches; Presence Moments hosts the coin landing page + scheduled coin meetups + venue notice** — CLAIMED by Claude Code, 2026-09-02 21:35 UTC (session 01BccGnHu3x1y88z6boaNXjK). Branches: `LaserEngraving` → `claude/presence-coins`, `presence-moments` → `claude/presence-coins`, `appengine-workspace` → `claude/geocaching-laser-coins-sootyo` (design + operator guide). Owner ask (verbatim intent): laser-engrave small coins — one side an encouragement ("You're awesome. Look up and see how amazing God has made this world for you"), other side a prompt (notice a sunset at a place / dinner at a restaurant at 7 to meet someone new / a small treasure hunt); an agent helps draft messages + real Vidalia places; a schedule of coin meetups so he remembers where/when; a way to tell the restaurant coin-holders may come and need help finding each other. Build rule: extend Laser (admin tab + `/api/coins` router on the existing FastAPI/Vercel function) and Presence (`/c/[code]` public landing + coin meetups as normal `presence_moments` rows); additive `presence_coin_*` / `presence_places` tables on shared LPL, RLS default-deny, service-role only; curated Vidalia places stored `source='curated'` and owner-approved before shown (DC-1); no scores/streaks (11_GROWTH §8). Prior-work verdict: **extend_existing** (Laser launch pack + Presence Moments both live; nothing coin-shaped exists in any repo — verified 2026-09-02).
+
 ## ACTIVATION — without this, the board is just a doc nobody honors
 For the check-out protocol to actually prevent collisions, each agent's project instructions must say:
 > *"Before any build task: pull BUILD-LEDGER.md from the repo, claim the first 🟢 item per its
