@@ -24,6 +24,48 @@ runStep("catalog records verified admin doors only", () => {
   ]);
 });
 
+// A layout rewrite once removed every Admin door from the deck and nothing
+// caught it: the suite only asserted the doors existed in the catalog and on
+// the dossier, never that the deck actually renders one. Guard the render.
+runStep("the deck itself renders each app's own admin door", () => {
+  assertFileIncludes("src/components/engine/business-explorer.tsx", [
+    "app.adminUrl",
+    "dx-doorlink--admin",
+    "app.adminReason"
+  ]);
+  assertFileIncludes("src/lib/engine/owner-deck.ts", ["adminState", "adminReason"]);
+  // Operate is a live business with its own owner surface; it must be on the
+  // deck, and its door is /desk — never a guessed /admin.
+  assertFileIncludes("src/lib/engine/app-ops-catalog.ts", ["operate", 'adminPath: "/desk"']);
+  const registry = read("source-of-truth/ecosystem-portfolio-registry.json");
+  if (!registry.includes('"slug": "operate"')) {
+    throw new Error("Operate must be in the portfolio registry or the desk cannot see it");
+  }
+});
+
+// Every number on the deck states where it came from. A figure with no
+// destination is the dead end this desk exists to remove.
+runStep("deck numbers drill into their source", () => {
+  assertFileIncludes("src/components/engine/owner-command-deck.tsx", [
+    "dx-cell-link",
+    "/?apps=",
+    "appsFilter"
+  ]);
+  const deck = read("src/components/engine/owner-command-deck.tsx");
+  // dx-stat-grid is the container and is legitimately a div; a dx-stat tile
+  // itself must be an anchor.
+  if (/<div className="dx-stat(?!-grid)/.test(deck)) {
+    throw new Error("A dx-stat tile on the deck must be a link, not a dead div");
+  }
+});
+
+// A missing classifier is not $0. Showing a dollar figure for an app whose
+// charges cannot be attributed misreports its revenue as nothing.
+runStep("unattributable revenue is never rendered as zero", () => {
+  assertFileIncludes("src/lib/engine/revenue-streams.ts", ["streamSlugForApp", "isRevenueWired"]);
+  assertFileIncludes("src/app/(cockpit)/reports/money/page.tsx", ["unknownStream", "not wired"]);
+});
+
 runStep("shared-database fallback exists for apps that do not poll yet", () => {
   assertFileIncludes("src/lib/engine/lpl-ops-stats.ts", [
     "readLplOpsStats",

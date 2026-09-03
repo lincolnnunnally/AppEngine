@@ -20,6 +20,8 @@ export type AppDossier = {
   familyLabel: string;
   familyBlurb: string;
   adminNote: string;
+  adminReason: string; // why there is no door to click, when there is none
+  revenueStreamSlug: string | null; // null = this app's charges cannot be told apart
   siblings: Array<{ slug: string; name: string }>;
   tickets: InboxTicket[];
   attention: DeckAttention[];
@@ -45,7 +47,9 @@ export async function loadAppDossier(slug: string): Promise<AppDossier | null> {
     family,
     familyLabel: APP_FAMILIES[family].label,
     familyBlurb: APP_FAMILIES[family].blurb,
-    adminNote: door?.note || catalog?.adminNote || "",
+    adminNote: door.note || catalog?.adminNote || "",
+    adminReason: app.adminReason,
+    revenueStreamSlug: app.revenueStreamSlug,
     siblings: siblingSlugs
       .map((sibling) => {
         const match = deck.apps.find((entry) => entry.slug === sibling);
@@ -53,7 +57,7 @@ export async function loadAppDossier(slug: string): Promise<AppDossier | null> {
       })
       .filter((entry): entry is { slug: string; name: string } => Boolean(entry)),
     tickets,
-    attention: deck.attention.filter((item) => item.appName === app.name),
+    attention: deck.attention.filter((item) => (item.slug ? item.slug === slug : item.appName === app.name)),
     insights: deriveAppInsights(app, inboxOpen),
     helpUrl: `/help?app=${encodeURIComponent(slug)}`
   };

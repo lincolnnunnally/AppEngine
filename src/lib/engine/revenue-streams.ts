@@ -22,6 +22,7 @@ export type RevenueStreamId =
   | "united-under-god"
   | "toner"
   | "ai-website-design"
+  | "operate"
   | "unattributed";
 
 export type RevenueStream = {
@@ -118,8 +119,38 @@ const KNOWN: Array<{
       meta.app_slug === "ai-website-design" ||
       meta.app === "ai-website-design" ||
       /ai website design/.test(blob)
+  },
+  {
+    id: "operate",
+    slug: "operate",
+    label: "Operate plans",
+    evidence: "Operate app metadata, or an Operate plan name on the charge",
+    match: (blob, meta) =>
+      meta.app_slug === "operate" || meta.app === "operate" || /operate plan|operate \$?(55|99)/.test(blob)
   }
 ];
+
+// Some apps are front doors on a platform whose charges are labeled with the
+// platform's name. Their money is real — it is attributed to the sibling that
+// owns the stream. Without this, filtering by the front door's slug matched
+// nothing and printed $0.00 over revenue that exists.
+const STREAM_SLUG_ALIASES: Record<string, string> = {
+  "toner-connect": "toner-management",
+  "printer-protector-monitoring": "toner-management"
+};
+
+// The revenue stream that carries this app's money, or null when no classifier
+// exists for it. Null means "we cannot attribute this app's revenue" — it never
+// means zero.
+export function streamSlugForApp(appSlug: string): string | null {
+  const target = STREAM_SLUG_ALIASES[appSlug] ?? appSlug;
+  return KNOWN.some((stream) => stream.slug === target) ? target : null;
+}
+
+// True when charges for this app can be told apart from everyone else's.
+export function isRevenueWired(appSlug: string): boolean {
+  return streamSlugForApp(appSlug) !== null;
+}
 
 export function listKnownStreams(): Array<{ id: Exclude<RevenueStreamId, "unattributed">; slug: string; label: string }> {
   return KNOWN.map((stream) => ({ id: stream.id, slug: stream.slug, label: stream.label }));

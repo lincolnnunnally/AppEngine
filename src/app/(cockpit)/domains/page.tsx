@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
+import { isKnownAppSlug } from "@/lib/engine/app-ops-catalog";
 import type { DomainRecord } from "@/lib/engine/domain-inventory";
 import {
   domainInventoryAvailable,
@@ -235,7 +236,17 @@ export default async function DomainsPage({
                     </td>
                     <td>{row.registrar || "—"}</td>
                     <td>{row.dnsHost || "—"}</td>
-                    <td className="dx-mono">{row.appSlug || "—"}</td>
+                    <td className="dx-mono">
+                      {/* The ledger already knows which app a domain belongs to;
+                          make that the way into the app rather than a label. */}
+                      {row.appSlug && isKnownAppSlug(row.appSlug) ? (
+                        <a className="dx-cell-link" href={`/apps/${row.appSlug}`}>
+                          {row.appSlug}
+                        </a>
+                      ) : (
+                        row.appSlug || "—"
+                      )}
+                    </td>
                     <td>{row.status || "—"}</td>
                     <td className="dx-mono">{row.expiresOn || "—"}</td>
                     <td className="dx-mono">{row.nameServers ? row.nameServers.split(",").map((ns) => ns.trim()).join(" · ") : "—"}</td>
