@@ -39,12 +39,22 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
   {
     name: "Easy Peasy Website (EasyPeazy)",
     slug: "easy-peasy-website",
-    status: "live — Codex building Spaceship domain search/buy/manage",
+    status: "live — serverless builder on Vercel; ChurchConnect + standalone",
     productionUrl: "https://easypeazy.site",
     deploymentState: "production_live",
     buildState: "ready_for_vnext",
     nextSafeAction: "create_vnext_packet",
-    blockers: ["Provider credentials and provisioning safety per Launch Pack before backend changes."]
+    blockers: []
+  },
+  {
+    name: "AI Website Design",
+    slug: "ai-website-design",
+    status: "live — serverless describe→publish; engine behind Easy Peazy",
+    productionUrl: "https://ai-website.design",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: []
   },
   {
     name: "Kindred Connections",

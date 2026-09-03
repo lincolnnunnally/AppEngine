@@ -518,18 +518,18 @@
     {
       "name": "Easy Peasy Website (EasyPeazy)",
       "slug": "easy-peasy-website",
-      "reviewUrl": "https://easypeazy.unitedundergod.org",
-      "productionUrl": "https://easypeazy.unitedundergod.org",
+      "reviewUrl": "https://easypeazy.site",
+      "productionUrl": "https://easypeazy.site",
       "currentVersion": "live-easypeazy-site",
       "deploymentState": "production_live",
       "buildState": "ready_for_vnext",
       "nextSafeAction": "create_vnext_packet",
       "domain": {
-        "intendedDomain": "easypeazy.unitedundergod.org",
+        "intendedDomain": "easypeazy.site",
         "urlStatus": "live",
-        "nextStep": "Nothing needed \u2014 live at easypeazy.site.",
-        "note": "",
-        "factsFrom": "owner-2026-07-03"
+        "nextStep": "Nothing needed \u2014 live at easypeazy.site and easypeazy.unitedundergod.org. Admin at /admin.",
+        "note": "Serverless builder (AI Website Design). Not WordPress.",
+        "factsFrom": "owner-2026-08-28"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -543,9 +543,7 @@
         }
       ],
       "linkedPRs": [],
-      "blockers": [
-        "Provider credentials and provisioning safety per Launch Pack before backend changes (Codex track: Spaceship domain search/buy/manage)."
-      ],
+      "blockers": [],
       "evidenceLinks": [
         {
           "label": "Live app",
@@ -1368,9 +1366,9 @@
         "intendedDomain": "ai-website.design",
         "urlStatus": "live",
         "servingUrl": "https://ai-website.design",
-        "nextStep": "None — live. Free describe→publish path is the product today.",
-        "note": "Admin at /admin.",
-        "factsFrom": "ecosystem-map-2026-08-15"
+        "nextStep": "None — live. Describe→publish on Vercel is the product. Admin at /admin.",
+        "note": "Design engine for Easy Peazy. Not WordPress.",
+        "factsFrom": "owner-2026-08-28"
       },
       "sourceOfTruthFiles": [],
       "linkedIssues": [],
