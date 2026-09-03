@@ -5931,17 +5931,7 @@ a.dx-stat:hover {
   border-color: var(--teal);
 }
 
-.dx-app-link {
-  color: inherit;
-  text-decoration: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
-.dx-app-link:hover h3 {
-  color: var(--lime);
-}
 
 .dx-stat span {
   display: block;
@@ -6028,41 +6018,10 @@ a.dx-stat:hover {
   font-size: 0.86rem;
 }
 
-.dx-app-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 14px;
-  margin-top: 14px;
-}
 
-.dx-family {
-  margin-top: 28px;
-  padding-top: 8px;
-}
 
-.dx-family-label {
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.72rem;
-  color: var(--lime);
-  margin: 0 0 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid color-mix(in srgb, var(--lime) 28%, transparent);
-}
 
-.dx-app {
-  position: relative;
-  overflow: hidden;
-}
 
-.dx-app::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: color-mix(in srgb, var(--lime) 55%, transparent);
-}
 
 .dx-metrics {
   display: grid;
@@ -6170,26 +6129,9 @@ a.dx-stat:hover {
   margin-top: 12px;
 }
 
-.dx-app {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-  background: var(--panel);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
-.dx-app h3 { margin: 0; font-size: 1.02rem; }
 
-.dx-app .dx-domain {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
 
-.dx-app .dx-note { font-size: 0.82rem; }
 
 .dx-app-actions {
   display: flex;
@@ -6761,4 +6703,326 @@ a.signin-secondary:hover {
     border-right: none;
     border-bottom: 1px solid #1e293b;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Desk polish — the EasyPeazy language applied consistently.
+
+   Three things this section fixes, all of which the desk was missing rather
+   than getting wrong:
+     1. Utilities that were only ever defined inside a card wrapper that no
+        page renders any more, so ~50 muted captions shipped as body text.
+     2. Page rhythm. Every desk page hand-wrote `marginTop: 16` between
+        sections because nothing supplied the gap; panels touched borders
+        wherever someone forgot.
+     3. Affordance. Clickable and static looked identical, and nothing on the
+        desk had a transition or a single focus treatment.
+   --------------------------------------------------------------------------- */
+
+/* 1 — utilities that must stand on their own, not inside a dead wrapper. */
+.dx-note {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.dx-domain {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.dx-table td.dx-note {
+  font-size: 0.82rem;
+}
+
+.dx-subhead {
+  margin: 2px 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* 2 — one rhythm for every desk page, so no section has to space itself. */
+.app-content .shell,
+.app-content .wide-shell {
+  width: 100%;
+  margin: 0;
+  display: grid;
+  gap: clamp(16px, 2vw, 24px);
+  align-content: start;
+}
+
+/* The rail already bounds the content column, but a 4K screen still stretched
+   the widest pages edge to edge. Cap the measure so tables stay readable. */
+.desk .app-content .wide-shell {
+  max-width: 1440px;
+}
+
+/* Spacing *inside* a card, where the grid gap does not reach. */
+.dx-inset {
+  margin-top: 16px;
+}
+
+.dx-inset-note {
+  margin-top: 8px;
+}
+
+/* 3 — affordance: if it moves, it moves the same way everywhere. */
+.dx-stat,
+.dx-chip,
+.dx-btn,
+.dx-doorlink,
+.dx-cell-link,
+.dx-linkish,
+.biz-name,
+.account-link,
+.biz-row,
+.desk-btn {
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-stat,
+  .dx-chip,
+  .dx-btn,
+  .dx-doorlink,
+  .dx-cell-link,
+  .dx-linkish,
+  .biz-name,
+  .account-link,
+  .biz-row,
+  .desk-btn {
+    transition: none;
+  }
+}
+
+/* One focus ring for the whole desk, on keyboard focus only. */
+.desk :focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* A stat you can open says so before you hover it. */
+a.dx-stat {
+  cursor: pointer;
+}
+
+a.dx-stat {
+  position: relative;
+}
+
+a.dx-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  pointer-events: none;
+}
+
+.desk a.dx-stat:hover::after {
+  border-color: rgba(99, 102, 241, 0.45);
+}
+
+/* A number inside a table that opens where it came from. Underlined on hover
+   only, so a dense table does not read as a wall of links. */
+.dx-cell-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.dx-cell-link:hover,
+.dx-cell-link:focus-visible {
+  color: var(--teal);
+  border-bottom-color: currentColor;
+}
+
+/* A button that filters in place rather than navigating. */
+.dx-linkish {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-bottom: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.dx-linkish:hover {
+  color: var(--teal);
+}
+
+/* The doors column: open the app, or step into its own admin. */
+.dx-doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.dx-doorlink {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: var(--muted);
+}
+
+.dx-doorlink:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--teal) 55%, transparent);
+}
+
+/* The app's own admin is the door the owner reaches for most — give it weight
+   rather than making it the fourth identical micro-chip in the row. */
+.dx-doorlink--admin {
+  color: var(--teal);
+  border-color: color-mix(in srgb, var(--indigo) 45%, transparent);
+  background: color-mix(in srgb, var(--indigo) 10%, transparent);
+  font-weight: 700;
+}
+
+.dx-doorlink--admin:hover {
+  color: #c7d2fe;
+  border-color: var(--indigo);
+  background: color-mix(in srgb, var(--indigo) 18%, transparent);
+}
+
+/* Collapsible section, styled like the rest of the desk rather than the
+   browser default triangle-and-serif. */
+.dx-fold > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.dx-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dx-fold > summary::before {
+  content: "▸ ";
+  color: var(--teal);
+}
+
+.dx-fold[open] > summary::before {
+  content: "▾ ";
+}
+
+/* 4 — the pages that never got the restyle. These render legacy cockpit
+   classes; give them the desk's card recipe instead of a second card system
+   sitting next to the first. */
+.desk .metric-card,
+.desk .detail-grid section,
+.desk .empty-state,
+.desk .next-action-band,
+.desk .feedback-list article,
+.desk .portfolio-url-board,
+.desk .saved-project,
+.desk .inbox-card {
+  border-radius: 0.9rem;
+  border-color: rgba(51, 65, 85, 0.55);
+  background: rgba(2, 6, 23, 0.45);
+}
+
+/* Two panels carried a hardcoded gold wash from the light theme, which on
+   slate-950 reads as a stain rather than an accent. */
+.desk .owner-portfolio-dashboard,
+.desk .next-action-band {
+  background: color-mix(in srgb, var(--indigo) 8%, transparent);
+}
+
+.desk .eyebrow,
+.desk .rail-group-label,
+.desk .portfolio-url-group-title,
+.desk .portfolio-attention-heading span {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.desk .portfolio-url-group-title {
+  color: var(--teal);
+}
+
+/* An empty state is a sentence, not a box inside a box. */
+.desk .panel > .empty-state,
+.desk .card > .empty-state {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--muted);
+}
+
+/* 5 — the sign-in screen's button and input vocabulary, now that the desk
+   itself uses them (the search field, the dossier actions). */
+.desk .biz-search,
+.desk .biz-select {
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.desk .dx-btn {
+  min-height: 36px;
+}
+
+/* Rows that open something get the same hover as the business table. */
+.desk .dx-table tbody tr.biz-row:hover {
+  background: rgba(99, 102, 241, 0.06);
+}
+
+@media (max-width: 720px) {
+  .dx-doors {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* A dx-row is index · subject · explanation · action. Flex let a long
+   explanation shove the action onto its own line, so a list of 26 findings
+   read as ragged paragraphs. Give it columns and the action always lands on
+   the right, on the same line as what it acts on. */
+@media (min-width: 900px) {
+  .desk .dx-row {
+    display: grid;
+    /* Fixed tracks, not auto: each row is its own grid, so an auto column
+       sizes to that row's content and the list reads as ragged steps. */
+    grid-template-columns: 2.25rem minmax(0, 15rem) minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 16px;
+  }
+
+  /* A row with no leading index still lines up with the ones that have one. */
+  .desk .dx-row > .dx-tag:first-child {
+    grid-column: 1 / span 2;
+  }
+
+  /* Rows without a leading index (the task graph, insight rows) keep the same
+     columns by letting the first child occupy the index slot. */
+  .desk .dx-row > .account-link:last-child,
+  .desk .dx-row > .dx-btn:last-child {
+    justify-self: end;
+    white-space: nowrap;
+  }
+}
+
+.desk .dx-row .dx-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Chips are links here as often as buttons; keep both looking the same. */
+a.dx-chip {
+  text-decoration: none;
 }

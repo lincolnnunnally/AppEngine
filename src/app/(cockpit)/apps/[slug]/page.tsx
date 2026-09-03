@@ -18,8 +18,8 @@ export default async function AppDossierPage({
   const openTickets = dossier.tickets.filter((ticket) => ticket.status !== "resolved");
 
   return (
-    <main className="shell">
-      <section className="panel">
+    <main className="shell wide-shell">
+      <section className="panel biz-hero" id="status">
         <div className="dx-dossier-hero">
           <div>
             <p className="dx-label">
@@ -34,7 +34,7 @@ export default async function AppDossierPage({
             <p className="dx-domain">{app.domain || app.url || "no address yet"}</p>
           </div>
         </div>
-        <div className="dx-app-actions" style={{ marginTop: 16 }}>
+        <div className="dx-app-actions dx-inset">
           {app.url ? (
             <a className="dx-btn dx-btn--primary" href={app.url} target="_blank" rel="noreferrer">
               Open app ↗
@@ -48,17 +48,30 @@ export default async function AppDossierPage({
           <a className="dx-btn" href={`/inbox?app=${encodeURIComponent(app.slug)}`}>
             Inbox{openTickets.length ? ` (${openTickets.length})` : ""}
           </a>
-          <a className="dx-btn" href={`/reports/money?stream=${encodeURIComponent(app.slug)}`}>
-            Money
-          </a>
+          {dossier.revenueStreamSlug ? (
+            <a className="dx-btn" href={`/reports/money?stream=${encodeURIComponent(dossier.revenueStreamSlug)}`}>
+              Money
+            </a>
+          ) : null}
           <a className="dx-btn" href={dossier.helpUrl} target="_blank" rel="noreferrer">
             Public help form ↗
           </a>
         </div>
-        {dossier.adminNote ? <p className="dx-note" style={{ marginTop: 12 }}>{dossier.adminNote}</p> : null}
+        {dossier.adminNote ? <p className="dx-note">{dossier.adminNote}</p> : null}
+        {!app.adminUrl && dossier.adminReason ? <p className="dx-note">{dossier.adminReason}</p> : null}
+        {!dossier.revenueStreamSlug ? (
+          <p className="dx-note">
+            Revenue is not wired for this app: no classifier tells its charges apart, so we show nothing rather than a
+            misleading $0. Charges from it, if any, sit in &ldquo;this Stripe account — not labeled&rdquo; on the{" "}
+            <a className="account-link" href="/reports/money">
+              money report
+            </a>
+            .
+          </p>
+        ) : null}
       </section>
 
-      <section className="panel">
+      <section className="panel" id="doing">
         <p className="dx-label">How it is doing</p>
         <div className="dx-stat-grid">
           <div className="dx-stat dx-stat--cyan">
@@ -73,15 +86,24 @@ export default async function AppDossierPage({
               {app.growth === "up" ? "growing this week" : app.growth === "down" ? "slowing this week" : "trend needs two weeks of numbers"}
             </p>
           </div>
-          <div className={`dx-stat ${openTickets.length ? "dx-stat--pink" : ""}`}>
-            <strong>{openTickets.length || app.ticketsOpen || 0}</strong>
+          <a className={`dx-stat ${openTickets.length ? "dx-stat--pink" : ""}`} href={`/inbox?app=${encodeURIComponent(app.slug)}`}>
+            <strong>{openTickets.length}</strong>
             <span>open help requests</span>
-            <p>central inbox{typeof app.ticketsOpen === "number" ? ` · app also reports ${app.ticketsOpen}` : ""}</p>
-          </div>
+            <p>
+              central inbox →
+              {typeof app.ticketsOpen === "number" ? ` · the app's own queue reports ${app.ticketsOpen}` : ""}
+            </p>
+          </a>
           <div className="dx-stat dx-stat--lime">
             <strong>{app.ordersRecent ?? "—"}</strong>
             <span>orders (30d)</span>
-            <p>silent on free/ministry apps — that is expected</p>
+            <p>
+              {typeof app.ordersRecent === "number"
+                ? "reported by the app"
+                : app.reporting
+                  ? "this app reports usage but not orders yet"
+                  : "not reporting yet — not a zero"}
+            </p>
           </div>
         </div>
         {!app.reporting && app.status === "live" ? (
@@ -101,6 +123,11 @@ export default async function AppDossierPage({
                 {insight.kind === "challenge" ? "Challenge" : "Opportunity"}
               </span>
               <b>{insight.text}</b>
+              {insight.href ? (
+                <a className="account-link" href={insight.href}>
+                  Look →
+                </a>
+              ) : null}
             </p>
           ))}
         </section>
@@ -114,7 +141,7 @@ export default async function AppDossierPage({
       )}
 
       {dossier.attention.length > 0 ? (
-        <section className="panel">
+        <section className="panel" id="needs">
           <p className="dx-label">Needs you</p>
           {dossier.attention.map((item, index) => (
             <p className="dx-row" key={`${item.finding}-${index}`}>
@@ -134,7 +161,13 @@ export default async function AppDossierPage({
       <section className="panel">
         <p className="dx-label">Help requests for this app</p>
         {openTickets.length === 0 ? (
-          <p className="dx-note">No one is waiting. The public form is {dossier.helpUrl} if you want to point someone here.</p>
+          <p className="dx-note">
+            No one is waiting.{" "}
+            <a className="account-link" href={dossier.helpUrl} target="_blank" rel="noreferrer">
+              The public help form
+            </a>{" "}
+            is where someone would reach you.
+          </p>
         ) : (
           openTickets.map((ticket) => (
             <article className="inbox-card" key={ticket.id}>
@@ -159,13 +192,13 @@ export default async function AppDossierPage({
           <p className="dx-note" style={{ marginBottom: 10 }}>
             {dossier.familyBlurb}
           </p>
-          {dossier.siblings.map((sibling) => (
-            <p className="dx-row" key={sibling.slug}>
-              <a className="account-link" href={`/apps/${sibling.slug}`}>
-                <b>{sibling.name}</b>
+          <div className="dx-chips">
+            {dossier.siblings.map((sibling) => (
+              <a className="dx-chip" key={sibling.slug} href={`/apps/${sibling.slug}`}>
+                {sibling.name}
               </a>
-            </p>
-          ))}
+            ))}
+          </div>
         </section>
       ) : null}
     </main>

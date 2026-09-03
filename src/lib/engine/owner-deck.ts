@@ -16,12 +16,15 @@ import {
   type CredentialAttentionItem
 } from "@/lib/engine/ecosystem-credential-registry";
 import {
+  ADMIN_DOOR_REASON,
   APP_FAMILIES,
   familyForSlug,
   familyLabel,
   resolveAdminDoor,
+  type AdminDoorState,
   type AppFamilyId
 } from "@/lib/engine/app-ops-catalog";
+import { streamSlugForApp } from "@/lib/engine/revenue-streams";
 import { getInboxCounts } from "@/lib/engine/ecosystem-inbox";
 
 export type DeckGrowth = "up" | "down" | "steady" | null;
@@ -34,6 +37,10 @@ export type DeckApp = {
   url: string | null; // the door that answers today
   domain: string; // intended domain ("" when undecided)
   adminUrl: string | null;
+  adminState: AdminDoorState; // why there is (or is not) a door to click
+  adminNote: string; // the catalog's caveat about that door
+  adminReason: string; // owner-readable explanation when there is nothing to click
+  revenueStreamSlug: string | null; // the stream carrying this app's money (null = unattributable)
   users: number | null;
   activeUsers30d: number | null;
   newUsers7d: number | null;
@@ -59,6 +66,7 @@ export type DeckInsight = {
 
 export type DeckAttention = {
   appName: string;
+  slug: string | null; // the app this is about, so the row can open its dossier
   severity: "act" | "watch";
   finding: string;
   action: string;
@@ -189,7 +197,7 @@ export function deriveAppInsights(app: DeckApp, inboxOpen: number): DeckInsight[
 // as "appengine-core". Alias them so AppEngine's own card reflects its own stats.
 const SLUG_ALIASES: Record<string, string> = { appengine: "appengine-core" };
 
-function canonicalSlug(slug: string): string {
+export function canonicalSlug(slug: string): string {
   const aliased = Object.entries(SLUG_ALIASES).find(([, opsSlug]) => opsSlug === slug);
   return aliased ? aliased[0] : slug;
 }
@@ -248,7 +256,11 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
       statusLabel: URL_STATUS_LABEL[entry.status],
       url: entry.servingUrl || null,
       domain: entry.intendedDomain,
-      adminUrl: door?.url || null,
+      adminUrl: door.url || null,
+      adminState: door.state,
+      adminNote: door.note,
+      adminReason: ADMIN_DOOR_REASON[door.state],
+      revenueStreamSlug: streamSlugForApp(entry.slug),
       users: ops?.stats.users ?? null,
       activeUsers30d: ops?.stats.activeUsers30d ?? null,
       newUsers7d,
@@ -275,6 +287,19 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
   };
   apps.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name));
 
+  // Attention items carry their own slugs: ops-stats registers AppEngine as
+  // "appengine-core", and credential items are keyed by registry group. Resolve
+  // each back to a deck app so the row can open it — null when it genuinely is
+  // not one of our apps, rather than a link that 404s.
+  const appSlugs = new Set(apps.map((app) => app.slug));
+  const appSlugByName = new Map(apps.map((app) => [app.name.toLowerCase(), app.slug] as const));
+  const resolveAttentionSlug = (slug: string, appName: string): string | null => {
+    const canonical = canonicalSlug(slug);
+    if (appSlugs.has(canonical)) return canonical;
+    if (appSlugs.has(slug)) return slug;
+    return appSlugByName.get(appName.toLowerCase()) ?? null;
+  };
+
   // One merged attention list, act-first: the ops queue already carries live
   // findings (unreachable, deploy failing, missing env); credential blockers
   // join it so the owner has ONE list to clear, not two.
@@ -282,6 +307,7 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
     .filter((app) => app.inboxOpen > 0)
     .map((app) => ({
       appName: app.name,
+      slug: app.slug,
       severity: "act" as const,
       finding: `${app.inboxOpen} open ${app.inboxOpen === 1 ? "request" : "requests"} for help`,
       action: "Read it and reply — someone on this app is waiting.",
@@ -292,6 +318,7 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
     ...inboxAttention,
     ...opsAttention.map((item: OpsAttentionItem) => ({
       appName: item.appName,
+      slug: resolveAttentionSlug(item.slug, item.appName),
       severity: item.severity === "action_needed" ? ("act" as const) : ("watch" as const),
       finding: item.finding,
       action: item.action,
@@ -299,6 +326,7 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
     })),
     ...credentialItems.map((item) => ({
       appName: item.appName,
+      slug: resolveAttentionSlug(item.slug, item.appName),
       severity: item.priority === "blocker" ? ("act" as const) : ("watch" as const),
       finding: item.displayName,
       action: item.action,

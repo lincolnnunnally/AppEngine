@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { canonicalSlug } from "@/lib/engine/owner-deck";
+import { isKnownAppSlug } from "@/lib/engine/app-ops-catalog";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { getOpsSnapshot, type OpsStatsRecord } from "@/lib/engine/ops-stats";
@@ -108,10 +110,14 @@ export default async function ReportsPage({
           <p className="dx-label">Each app in one line</p>
           {leadApps.map((record) => {
             const actNeeds = record.needs.filter((need) => need.severity === "action_needed").length;
+            // ops-stats registers AppEngine as "appengine-core"; the dossier
+            // route is keyed on the portfolio slug, so map before linking.
+            const dossierSlug = record.slug ? canonicalSlug(record.slug) : "";
+            const hasDossier = Boolean(dossierSlug) && isKnownAppSlug(dossierSlug);
             return (
               <p className="dx-row" key={record.key}>
-                {record.slug ? (
-                  <a className="account-link" href={`/apps/${record.slug}`}><b>{record.name}</b></a>
+                {hasDossier ? (
+                  <a className="account-link" href={`/apps/${dossierSlug}`}><b>{record.name}</b></a>
                 ) : record.url ? (
                   <a className="account-link" href={record.url} target="_blank" rel="noreferrer"><b>{record.name}</b></a>
                 ) : (
@@ -119,7 +125,11 @@ export default async function ReportsPage({
                 )}
                 <span className="dx-note">{record.reporting ? usageLine(record) : record.note || "not reporting yet"}</span>
                 {actNeeds > 0 ? (
-                  <a className="dx-tag dx-tag--alert" href="/#attention">{actNeeds} to fix →</a>
+                  // Straight to this app's own "Needs you" list, not a
+                  // portfolio-wide anchor that drops which app it was about.
+                  <a className="dx-tag dx-tag--alert" href={hasDossier ? `/apps/${dossierSlug}#needs` : "/#attention"}>
+                    {actNeeds} to fix →
+                  </a>
                 ) : null}
               </p>
             );

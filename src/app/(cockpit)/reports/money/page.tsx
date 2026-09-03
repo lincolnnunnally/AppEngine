@@ -4,6 +4,7 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { dollars } from "@/lib/engine/stripe-summary";
 import { loadRevenueDetail, stripePaymentUrl } from "@/lib/engine/revenue-detail";
+import { listKnownStreams, streamSlugForApp } from "@/lib/engine/revenue-streams";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,13 @@ export default async function MoneyReportPage({
   const params = await searchParams;
   const detail = await loadRevenueDetail(ownerEmail);
 
-  const streamFilter = params.stream || "";
+  // A front door whose charges are labeled with its platform's name (Toner
+  // Connect, Printer Protector) resolves to the stream that actually carries
+  // its money, so arriving here by that app's slug shows real revenue rather
+  // than an empty filter.
+  const requestedStream = params.stream || "";
+  const streamFilter = requestedStream ? (streamSlugForApp(requestedStream) ?? requestedStream) : "";
+  const aliasedFrom = streamFilter && streamFilter !== requestedStream ? requestedStream : "";
   const accountFilter = params.account || "";
   const charges = detail.charges.filter((charge) => {
     if (streamFilter && charge.streamId !== streamFilter && charge.streamSlug !== streamFilter) return false;
@@ -44,6 +51,16 @@ export default async function MoneyReportPage({
     return true;
   });
   const filteredCents = charges.reduce((sum, charge) => sum + charge.amount, 0);
+  // A ?stream= that matches no classifier used to render $0.00 as if that app
+  // had earned nothing. It has not earned nothing — we simply cannot tell its
+  // charges apart. Say that instead.
+  const knownStreams = listKnownStreams();
+  const unknownStream = Boolean(
+    streamFilter && !knownStreams.some((stream) => stream.id === streamFilter || stream.slug === streamFilter)
+  );
+  const aliasNote = aliasedFrom
+    ? knownStreams.find((stream) => stream.id === streamFilter || stream.slug === streamFilter)?.label || ""
+    : "";
 
   return (
     <main className="shell wide-shell">
@@ -63,13 +80,14 @@ export default async function MoneyReportPage({
         <div className="dx-stat-grid">
           <div className="dx-stat dx-stat--lime">
             <strong>
-              {dollars(streamFilter || accountFilter ? filteredCents : detail.revenue30d)}
-              {detail.truncated ? "+" : ""}
+              {unknownStream ? "not wired" : dollars(streamFilter || accountFilter ? filteredCents : detail.revenue30d)}
+              {unknownStream || !detail.truncated ? "" : "+"}
             </strong>
             <span>{streamFilter || accountFilter ? "this filter" : "readable, 30 days"}</span>
             <p>
-              {charges.length} payment{charges.length === 1 ? "" : "s"}
-              {detail.truncated ? " · over 500 charges on at least one account" : ""}
+              {unknownStream
+                ? `No classifier attributes charges to "${streamFilter}" — this is not $0`
+                : `${charges.length} payment${charges.length === 1 ? "" : "s"}${detail.truncated ? " · over 500 charges on at least one account" : ""}`}
             </p>
           </div>
           <div className="dx-stat dx-stat--cyan">
@@ -85,7 +103,34 @@ export default async function MoneyReportPage({
         </div>
       </section>
 
-      <section className="panel">
+      {aliasNote ? (
+        <section className="panel">
+          <div className="dx-callout">
+            <b>{aliasedFrom}</b>{" "}
+            <span className="dx-note">
+              bills on the same platform as its siblings, so its charges are labeled{" "}
+              <b>{aliasNote}</b> — that is the stream shown here. This is one business with several front doors, not a
+              missing number.
+            </span>
+          </div>
+        </section>
+      ) : null}
+
+      {unknownStream ? (
+        <section className="panel">
+          <div className="dx-callout">
+            <b>Revenue for &ldquo;{streamFilter}&rdquo; is not wired.</b>{" "}
+            <span className="dx-note">
+              No rule in <code className="dx-mono">src/lib/engine/revenue-streams.ts</code> tells this app&apos;s charges
+              apart from everyone else&apos;s, so its money cannot be shown. Any charges it did take are sitting in
+              &ldquo;this Stripe account — not labeled&rdquo; below. The reliable hook is{" "}
+              <code className="dx-mono">metadata.app_slug</code> on the charge.
+            </span>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="panel" id="accounts">
         <p className="dx-label">Stripe accounts</p>
         <div className="dx-table-wrap">
           <table className="dx-table">
@@ -126,7 +171,7 @@ export default async function MoneyReportPage({
             </tbody>
           </table>
         </div>
-        <p className="dx-note" style={{ marginTop: 10 }}>
+        <p className="dx-note">
           Laser often bills from a Render key, Kids Need Dads from Supabase. If those keys are not in this desk&apos;s
           env or vault, the account row says so — it is not $0.
         </p>

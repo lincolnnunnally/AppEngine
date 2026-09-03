@@ -43,12 +43,26 @@ export async function stripeRequest<T = Record<string, unknown>>(path: string, p
 // overrides process.env so the owner's vault-stored key can be used server-side
 // without ever entering the engine's env. A 403 means the restricted key lacks
 // read permission on that resource — callers surface that honestly.
+// The desk loads money alongside everything else, so a Stripe connection that
+// hangs must not hang the whole page. Bounded, and the timeout surfaces as an
+// ordinary error the money strip already knows how to report.
+const STRIPE_GET_TIMEOUT_MS = 8000;
+
 export async function stripeGet<T = Record<string, unknown>>(pathAndQuery: string, apiKey?: string): Promise<T> {
   const key = (apiKey || process.env.STRIPE_SECRET_KEY || "").trim();
   if (!key) throw new Error("No Stripe key available.");
-  const response = await fetch(`${STRIPE_API}${pathAndQuery}`, {
-    headers: { authorization: `Bearer ${key}` }
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${STRIPE_API}${pathAndQuery}`, {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(STRIPE_GET_TIMEOUT_MS)
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new Error(`Stripe did not answer within ${STRIPE_GET_TIMEOUT_MS / 1000}s.`);
+    }
+    throw error;
+  }
   const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
   if (!response.ok) {
     throw new Error(data?.error?.message || `Stripe request failed (${response.status})`);

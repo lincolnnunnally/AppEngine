@@ -4,31 +4,31 @@
   "generatedAt": "2026-08-07T20:42:54.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 36,
+    "totalApps": 37,
     "reviewReadyApps": 1,
-    "productionLiveApps": 18,
+    "productionLiveApps": 19,
     "blockedApps": 15,
     "byDeploymentState": {
-      "production_live": 18,
+      "production_live": 19,
       "production_blocked": 15,
       "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 15,
+      "ready_for_vnext": 16,
       "review_blocked": 1,
       "ready_for_build": 2,
       "planned": 15,
       "preview_verified": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 15,
+      "create_vnext_packet": 16,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 15,
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 25,
+      "live": 26,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -1378,6 +1378,38 @@
       "blockers": [],
       "evidenceLinks": ["https://ai-website.design"],
       "lastUpdated": "2026-08-15T16:00:00.000Z"
+    },
+    {
+      "name": "Operate",
+      "slug": "operate",
+      "reviewUrl": "https://operate.unitedundergod.org",
+      "productionUrl": "https://operate.unitedundergod.org",
+      "currentVersion": "v1-live-2026-08-28",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "operate.unitedundergod.org",
+        "urlStatus": "live",
+        "nextStep": "None \u2014 live. Billing stays off until fulfillment is proven (owner 2026-08-21).",
+        "note": "Complete shop system for shops already running: people, money, sales, inventory, orders, deliveries, facilities, goals, own suppliers, leftover/look, custom desk workflows. Owner surface is /desk. Website tool is Easy Peazy only; printers go to the Toner family; marketing materials go to Laser. Plans $55/$99 are intended prices with checkout off. GitHub: lincolnnunnally/operate.",
+        "factsFrom": "operate-repo-readme-2026-08-28"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        {
+          "label": "Live production",
+          "url": "https://operate.unitedundergod.org"
+        },
+        {
+          "label": "GitHub source",
+          "url": "https://github.com/lincolnnunnally/operate"
+        }
+      ],
+      "lastUpdated": "2026-08-28T18:44:43.000Z"
     }
   ],
   "guardrails": {

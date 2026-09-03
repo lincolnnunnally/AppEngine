@@ -13,7 +13,8 @@ export type AppFamilyId =
   | "family"
   | "transformation"
   | "commerce"
-  | "parked";
+  | "parked"
+  | "unfiled";
 
 export type AppOpsCatalogEntry = {
   slug: string;
@@ -58,6 +59,10 @@ export const APP_FAMILIES: Record<AppFamilyId, { label: string; blurb: string }>
   parked: {
     label: "Parked / historical",
     blurb: "Superseded or parked entries kept so the record stays honest."
+  },
+  unfiled: {
+    label: "Not filed yet",
+    blurb: "On the deck but not yet placed in a family. Give it one in app-ops-catalog.ts so it rolls up with its siblings."
   }
 };
 
@@ -274,6 +279,13 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     family: "commerce",
     purpose: "Describe a business, get a real website.",
     adminPath: "/admin"
+  },
+  operate: {
+    slug: "operate",
+    family: "commerce",
+    purpose: "Run the shop and keep more of the money \u2014 people, money, inventory, orders, own suppliers.",
+    adminPath: "/desk",
+    adminNote: "Operate calls its owner surface the desk, not /admin. Website goes to Easy Peazy, printers to the Toner family, marketing to Laser \u2014 it never rebuilds those."
   }
 };
 
@@ -281,8 +293,15 @@ export function getAppOpsCatalogEntry(slug: string): AppOpsCatalogEntry | null {
   return CATALOG[slug] ?? null;
 }
 
+// True when /apps/<slug> will resolve. Link guards use this so a ticket filed
+// under "other" (or any slug that is not one of our apps) never renders a link
+// into a 404.
+export function isKnownAppSlug(slug: string): boolean {
+  return Boolean(CATALOG[slug]);
+}
+
 export function familyForSlug(slug: string): AppFamilyId {
-  return CATALOG[slug]?.family ?? "commerce";
+  return CATALOG[slug]?.family ?? "unfiled";
 }
 
 export function familyLabel(id: AppFamilyId): string {
@@ -291,7 +310,7 @@ export function familyLabel(id: AppFamilyId): string {
 
 export function listHelpApps(): Array<{ slug: string; nameHint: string; family: AppFamilyId }> {
   return Object.values(CATALOG)
-    .filter((entry) => entry.family !== "parked")
+    .filter((entry) => entry.family !== "parked" && entry.family !== "unfiled")
     .map((entry) => ({
       slug: entry.slug,
       nameHint: entry.slug,
@@ -299,29 +318,45 @@ export function listHelpApps(): Array<{ slug: string; nameHint: string; family: 
     }));
 }
 
+// Why a door is or is not clickable. The desk shows the reason instead of an
+// unexplained blank, so "no admin here" is never confused with "we forgot".
+export type AdminDoorState =
+  | "open" // there is a URL to click
+  | "no_address" // the app records an admin path but has no address to attach it to
+  | "none"; // no admin door recorded for this app at all
+
+export type AdminDoor = {
+  url: string; // "" unless state is "open"
+  note: string;
+  state: AdminDoorState;
+};
+
+export const ADMIN_DOOR_REASON: Record<AdminDoorState, string> = {
+  open: "",
+  no_address: "Its admin exists, but this app has no address yet — the door opens once it is serving.",
+  none: "No admin door recorded. We never guess an /admin that would 404."
+};
+
 // Resolve a real admin door. Relative paths attach to the app's serving URL.
 // App Engine's own admin stays on this origin. Never invent a path.
-export function resolveAdminDoor(
-  slug: string,
-  servingUrl: string | null
-): { url: string; note: string } | null {
+export function resolveAdminDoor(slug: string, servingUrl: string | null): AdminDoor {
   const entry = CATALOG[slug];
-  if (!entry) return null;
+  if (!entry) return { url: "", note: "", state: "none" };
+  const note = entry.adminNote ?? "";
   if (entry.adminUrl) {
-    return { url: entry.adminUrl, note: entry.adminNote ?? "" };
+    return { url: entry.adminUrl, note, state: "open" };
   }
   if (entry.adminPath) {
     if (slug === "appengine") {
-      return { url: entry.adminPath, note: entry.adminNote ?? "" };
+      return { url: entry.adminPath, note, state: "open" };
     }
     if (servingUrl && /^https?:\/\//.test(servingUrl)) {
-      return {
-        url: `${servingUrl.replace(/\/+$/, "")}${entry.adminPath}`,
-        note: entry.adminNote ?? ""
-      };
+      return { url: `${servingUrl.replace(/\/+$/, "")}${entry.adminPath}`, note, state: "open" };
     }
+    // The app has an admin; we just have nowhere to point it yet.
+    return { url: "", note, state: "no_address" };
   }
-  return entry.adminNote ? { url: "", note: entry.adminNote } : null;
+  return { url: "", note, state: "none" };
 }
 
 export function siblingsInFamily(slug: string): string[] {
