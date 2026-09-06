@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { hasEmailSignInConfig } from "./email";
 import { canAccessAdmin, canAccessConsumerSurfaceForRole, canAccessCustomerArea, canAccessOwner } from "./roles";
 
 export function hasGoogleProvider() {
@@ -11,7 +12,7 @@ export function hasGithubProvider() {
 
 // Email magic-link also needs a database (verification tokens) to function.
 export function hasEmailSignIn() {
-  return Boolean(process.env.AUTH_RESEND_KEY && process.env.EMAIL_FROM);
+  return hasEmailSignInConfig();
 }
 
 export function hasAuthProvider() {

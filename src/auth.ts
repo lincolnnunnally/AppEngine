@@ -1,11 +1,13 @@
 import NextAuth from "next-auth";
 import PostgresAdapter from "@auth/pg-adapter";
 import { Pool } from "@neondatabase/serverless";
+import { headers } from "next/headers";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
 import { getAuthSecret } from "@/lib/auth/config";
-import { isAllowedAuthOrigin } from "@/lib/auth/hosts";
+import { normalizeSignInEmail, resolveAuthEmailFrom } from "@/lib/auth/email";
+import { hostFromHeader, isAllowedAuthOrigin, sessionCookieDomainForHost } from "@/lib/auth/hosts";
 import { resolveRoleForSessionUser } from "@/lib/auth/roles";
 import { toClientSession } from "@/lib/auth/session";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
@@ -37,8 +39,17 @@ function buildProviders(databaseUrl?: string) {
 
   // Passwordless email magic-link. Requires the database adapter (it stores the
   // verification token), so it only activates when a database URL is also present.
-  if (databaseUrl && process.env.AUTH_RESEND_KEY && process.env.EMAIL_FROM) {
-    providers.push(Resend({ apiKey: process.env.AUTH_RESEND_KEY, from: process.env.EMAIL_FROM }));
+  const emailFrom = resolveAuthEmailFrom();
+  if (databaseUrl && process.env.AUTH_RESEND_KEY && emailFrom) {
+    providers.push(
+      Resend({
+        apiKey: process.env.AUTH_RESEND_KEY,
+        from: emailFrom,
+        normalizeIdentifier(identifier) {
+          return normalizeSignInEmail(identifier) ?? identifier;
+        }
+      })
+    );
   }
 
   if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
@@ -50,26 +61,43 @@ function buildProviders(databaseUrl?: string) {
   return providers;
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth(() => {
+async function sessionCookies() {
+  if (process.env.NODE_ENV !== "production") {
+    return undefined;
+  }
+
+  let host = "";
+
+  try {
+    host = hostFromHeader((await headers()).get("host"));
+  } catch {
+    host = "";
+  }
+
+  // Share the session across factory + desk on unitedundergod.org. Leftover-preview
+  // and other Vercel hosts must stay host-only — a pinned .unitedundergod.org
+  // Domain is rejected by the browser on *.vercel.app and the magic-link session
+  // never sticks.
+  const domain = sessionCookieDomainForHost(host);
+
+  return {
+    sessionToken: {
+      name: "__Secure-authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: true,
+        ...(domain ? { domain } : {})
+      }
+    }
+  };
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   unpinAuthUrl();
   const databaseUrl = getConfiguredDatabaseUrl();
-  const production = process.env.NODE_ENV === "production";
-  // Share the session across factory + desk. CSRF / PKCE stay host-only —
-  // those cookies must never carry a Domain (and CSRF uses the __Host- prefix).
-  const sessionCookie = production
-    ? {
-        sessionToken: {
-          name: "__Secure-authjs.session-token",
-          options: {
-            httpOnly: true,
-            sameSite: "lax" as const,
-            path: "/",
-            secure: true,
-            domain: ".unitedundergod.org"
-          }
-        }
-      }
-    : undefined;
+  const sessionCookie = await sessionCookies();
 
   return {
     adapter: databaseUrl ? PostgresAdapter(new Pool({ connectionString: databaseUrl })) : undefined,

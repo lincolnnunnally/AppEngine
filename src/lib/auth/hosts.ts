@@ -21,16 +21,46 @@ export function isFactoryHostName(host: string): boolean {
   return host === FACTORY_HOST || LEGACY_FACTORY_HOSTS.has(host);
 }
 
-export function isAllowedAuthOrigin(origin: string): boolean {
+type RuntimeEnv = Record<string, string | undefined>;
+
+export function isAppEngineVercelHost(host: string): boolean {
+  const normalized = hostFromHeader(host);
+  return normalized.endsWith(".vercel.app") && normalized.startsWith("app-engine");
+}
+
+export function sessionCookieDomainForHost(host: string): string | undefined {
+  const normalized = hostFromHeader(host);
+
+  if (normalized === "unitedundergod.org" || normalized.endsWith(".unitedundergod.org")) {
+    return ".unitedundergod.org";
+  }
+
+  return undefined;
+}
+
+function vercelDeploymentHosts(env: RuntimeEnv): string[] {
+  return [env.VERCEL_URL, env.VERCEL_BRANCH_URL, env.VERCEL_PROJECT_PRODUCTION_URL]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => value.replace(/^https?:\/\//i, "").toLowerCase().split(":")[0]);
+}
+
+export function isAllowedAuthHost(host: string, env: RuntimeEnv = process.env): boolean {
+  const normalized = hostFromHeader(host);
+
+  return (
+    normalized === DASHBOARD_HOST ||
+    normalized === FACTORY_HOST ||
+    LEGACY_FACTORY_HOSTS.has(normalized) ||
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    isAppEngineVercelHost(normalized) ||
+    vercelDeploymentHosts(env).includes(normalized)
+  );
+}
+
+export function isAllowedAuthOrigin(origin: string, env: RuntimeEnv = process.env): boolean {
   try {
-    const host = new URL(origin).hostname.toLowerCase();
-    return (
-      host === DASHBOARD_HOST ||
-      host === FACTORY_HOST ||
-      LEGACY_FACTORY_HOSTS.has(host) ||
-      host === "localhost" ||
-      host === "127.0.0.1"
-    );
+    return isAllowedAuthHost(new URL(origin).hostname, env);
   } catch {
     return false;
   }

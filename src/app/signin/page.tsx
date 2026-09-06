@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth/access";
+import { isReservedTestEmail, normalizeSignInEmail } from "@/lib/auth/email";
 import { DASHBOARD_ORIGIN, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
 
 async function afterSignIn(): Promise<string> {
@@ -24,6 +26,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   Verification: "That sign-in link expired or was already used. Request a fresh one.",
   MissingCSRF: "Your session expired mid-sign-in. Please try again.",
   Configuration: "Sign-in isn't configured correctly right now. Please try again shortly.",
+  InvalidEmail: "Use a real email address — we'll send the sign-in link there.",
+  EmailSignin: "We couldn't send the sign-in email. Try again, or use another sign-in option.",
   Default: "Something went wrong signing you in. Please try again."
 };
 
@@ -102,7 +106,10 @@ export default async function SignInPage({
               className="signin-email"
               action={async (formData: FormData) => {
                 "use server";
-                const address = String(formData.get("email") || "").trim();
+                const address = normalizeSignInEmail(formData.get("email"));
+                if (!address || isReservedTestEmail(address)) {
+                  redirect("/signin?error=InvalidEmail");
+                }
                 await signIn("resend", { email: address, redirectTo: await afterSignIn() });
               }}
             >
@@ -115,7 +122,7 @@ export default async function SignInPage({
                 type="email"
                 name="email"
                 required
-                placeholder="you@example.com"
+                placeholder="you@your-email.com"
                 autoComplete="email"
               />
               <button className={desk ? "desk-btn desk-btn-primary signin-full" : "soft-launch-action signin-full"} type="submit">
