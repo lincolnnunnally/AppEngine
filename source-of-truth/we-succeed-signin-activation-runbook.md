@@ -45,10 +45,25 @@ add both vars to Vercel Production and redeploy. `buildProviders` gates the
 Resend provider on `databaseUrl && AUTH_RESEND_KEY && EMAIL_FROM` — all three
 will then be true.
 
+## GitHub OAuth (already live — callback URLs)
+
+GitHub stays the existing OAuth App (`AUTH_GITHUB_ID`). Do not create a second
+app. Auth.js is host-aware, so each production host sends its own
+`redirect_uri`. The GitHub Developer settings for that app must include:
+
+```
+https://dashboard.unitedundergod.org/api/auth/callback/github
+https://appengine.unitedundergod.org/api/auth/callback/github
+https://www.we-succeed.org/api/auth/callback/github
+```
+
+Full list and leftover-preview notes:
+`source-of-truth/github-oauth-soft-launch-callbacks.md`.
+
 ## What does NOT need doing
 
-- No code change: both providers are already coded and gated on their env vars.
-- No `AUTH_SECRET` / `AUTH_URL` / GitHub work: those are already set in prod.
+- No code change: Google and email providers are already coded and gated on their env vars.
+- No second GitHub OAuth App, password product, or `AUTH_URL` pin.
 - No database work for Google (JWT-less DB sessions already run on Neon).
 
 ## After activation — verify

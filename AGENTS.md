@@ -35,7 +35,7 @@ Important runtime values:
 - `GENERATED_APP_DATABASE_URL`: optional manual fallback for generated app schema and seed setup.
 - `APP_ENGINE_LOCAL_MODE`: keep `true` for local JSON fallback, set `false` when `DATABASE_URL` is ready.
 - `AUTH_SECRET`: Auth.js secret.
-- `AUTH_URL`: local or deployed app URL.
+- `AUTH_URL`: local only. Production/leftover-preview must not pin it — Auth.js is host-aware across `dashboard.unitedundergod.org` and `appengine.unitedundergod.org`. GitHub callbacks: `source-of-truth/github-oauth-soft-launch-callbacks.md`.
 - `APP_ENGINE_OWNER_EMAIL`: bootstrap owner/admin email.
 - `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`: optional GitHub OAuth.
 - `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`: optional Google OAuth.

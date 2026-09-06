@@ -1,5 +1,6 @@
 // Which host is this request on? App Engine stays the customer builder.
 // dashboard.unitedundergod.org is the private internal desk.
+// GitHub OAuth callback URLs for these hosts live in github-oauth.ts.
 import { headers } from "next/headers";
 
 export const FACTORY_HOST = "appengine.unitedundergod.org";

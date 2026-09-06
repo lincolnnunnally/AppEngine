@@ -18,8 +18,9 @@ import { NextResponse, type NextRequest } from "next/server";
 const SHOWCASE_HOST = "apps.unitedundergod.org";
 const SHOWCASE_PATH = "/apps-showcase";
 
-// The factory's canonical home (owner directive 2026-07-09; the GitHub OAuth
-// app's callback URL lives here). The
+// The factory's canonical home (owner directive 2026-07-09). GitHub OAuth is
+// host-aware: each production host emits its own
+// /api/auth/callback/github (see PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS). The
 // old we-succeed.org addresses forward PAGE traffic to the new home so no
 // bookmark dead-ends — but /api/* keeps answering on the old host too (Stripe
 // webhooks and stats pollers don't follow redirects). When we-succeed.org is

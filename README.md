@@ -117,7 +117,6 @@ APP_ENGINE_LOCAL_MODE="false"
 APP_ENGINE_DEV_ADMIN_BYPASS="false"
 APP_ENGINE_SETUP_ADMIN_BYPASS="false"
 AUTH_SECRET
-AUTH_URL="https://your-vercel-app-url"
 APP_ENGINE_OWNER_EMAIL
 AUTH_GITHUB_ID
 AUTH_GITHUB_SECRET
@@ -177,6 +176,16 @@ AUTH_GOOGLE_SECRET
 ```
 
 `AUTH_SECRET` has no production fallback. Missing production secrets fail startup instead of silently using a development value. The local development fallback is only allowed when `NODE_ENV !== "production"`.
+
+Do not pin `AUTH_URL` on the Vercel production or leftover-preview deploy. Dashboard and factory share one project; Auth.js uses the request host (`trustHost`). A pinned `AUTH_URL` sends every OAuth/`redirect_uri` to one origin and drops the PKCE cookie on the other. The existing GitHub OAuth App must list these Authorization callback URLs (do not create a second app):
+
+```text
+https://dashboard.unitedundergod.org/api/auth/callback/github
+https://appengine.unitedundergod.org/api/auth/callback/github
+https://www.we-succeed.org/api/auth/callback/github
+```
+
+See `source-of-truth/github-oauth-soft-launch-callbacks.md`.
 
 AppEngine currently pins `next-auth` to `5.0.0-beta.31` because that is the version in the lockfile and runtime path. Do not float this dependency with `latest`; plan and test a dedicated upgrade before moving to a future stable Auth.js/NextAuth release.
 
