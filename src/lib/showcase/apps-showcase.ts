@@ -240,6 +240,24 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Hope & transformation",
     liveUrl: "https://dreamstand.unitedundergod.org"
   },
+  porchlight: {
+    publicName: "Porchlight",
+    tagline: "Find off-market houses in Vidalia and Toombs — buy, repair with your hands, live, rent, or sell.",
+    group: "Everyday services",
+    liveUrl: "https://porchlight.unitedundergod.org"
+  },
+  rally: {
+    publicName: "Rally",
+    tagline: "Vidalia tennis and pickleball — find a hitting partner, book a lesson, start a league.",
+    group: "Hope & transformation",
+    liveUrl: "https://rally.unitedundergod.org"
+  },
+  selah: {
+    publicName: "Selah",
+    tagline: "A cinematic mind-movie studio for the futures you are hoping for.",
+    group: "Hope & transformation",
+    liveUrl: "https://selah.unitedundergod.org"
+  },
   // Registry entries that the registry itself marks as not standalone public
   // products — hidden from the outward-facing page, with the registry reason.
   "milstead-church": {
