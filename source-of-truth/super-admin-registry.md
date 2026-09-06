@@ -133,3 +133,94 @@ Agents should produce registry artifacts with this shape:
   }
 }
 ```
+
+## Lincoln lock — every app door
+
+The Super Admin registry is the central / ecosystem operating map for **every app door**. It does not invent a parallel admin UI inside AppEngine.
+
+- **Continuity home** is the owning product surface (the app that already runs the door).
+- **Admin / user-management** links open that product's existing Super Admin — never a guessed AppEngine `/admin` for a door that lives elsewhere.
+- The **United Under God apps directory** (`uug-website`) is a separate public listing. Registering a door here does not add, hide, or rewrite that directory.
+
+When a door is a path on another live app (ChurchConnect Association, a tenant, a Toner family brand), say so. Pointing at another app's repo, health, logs, or admin is allowed only with that documented integration reason.
+
+## Registered doors
+
+### Vidalia / Toombs Pastors Circle
+
+ChurchConnect Association door — **not a new app brand**. Continuity home = ChurchConnect Association. UUG apps directory listing is separate (`uug-website`).
+
+- Name: Vidalia / Toombs Pastors Circle
+- Slug: `vidalia-toombs-pastors-circle`
+- Live URL: [https://churchconnect.unitedundergod.org/association](https://churchconnect.unitedundergod.org/association) (`www.churchconnect.cloud/association` equivalent until a Pastors Circle deep link exists)
+- Admin / user-management: ChurchConnect Super Admin — [https://churchconnect.unitedundergod.org/admin](https://churchconnect.unitedundergod.org/admin) (`www.churchconnect.cloud/admin` equivalent)
+
+```json
+{
+  "kind": "super_admin_registry_entry",
+  "schemaVersion": 1,
+  "app": {
+    "name": "Vidalia / Toombs Pastors Circle",
+    "slug": "vidalia-toombs-pastors-circle",
+    "status": "production",
+    "owner": "APP_ENGINE_OWNER_EMAIL",
+    "repo": "lincolnnunnally/ChurchConnect",
+    "charterPath": "source-of-truth/super-admin-registry.md",
+    "packetPath": "not-a-new-app — ChurchConnect Association door",
+    "environment": "production",
+    "doorKind": "churchconnect_association_door",
+    "continuityHome": "ChurchConnect Association",
+    "publicDirectory": "separate — uug-website apps listing is not this registry"
+  },
+  "release": {
+    "version": "association-door",
+    "gateStatus": "inherited_from_churchconnect",
+    "productionApproval": "inherited — ChurchConnect Association is already live; this entry registers the door, it does not launch a new app"
+  },
+  "deployment": {
+    "provider": "ChurchConnect (Vercel + Render)",
+    "previewUrl": "https://churchconnect.unitedundergod.org/association",
+    "productionUrl": "https://churchconnect.unitedundergod.org/association",
+    "productionApprovalRequired": false,
+    "alternateLiveUrl": "https://www.churchconnect.cloud/association",
+    "deepLink": "planned — use Association door until a Pastors Circle deep link exists"
+  },
+  "operations": {
+    "healthUrl": "https://churchconnect.unitedundergod.org/api/health",
+    "healthStatus": "shared_with_churchconnect",
+    "logsProvider": "Vercel / Render (ChurchConnect)",
+    "logsUrl": "ChurchConnect provider logs — same as churchconnect",
+    "adminUrl": "https://churchconnect.unitedundergod.org/admin",
+    "userManagement": "https://churchconnect.unitedundergod.org/admin",
+    "billingStatus": "not_applicable — billed/managed as ChurchConnect Association"
+  },
+  "auth": {
+    "provider": "ChurchConnect Super Admin",
+    "roles": ["owner", "super_admin", "association_admin"]
+  },
+  "superAdminActions": [
+    "open app",
+    "open admin",
+    "view health",
+    "view logs",
+    "manage users"
+  ],
+  "guardrails": {
+    "noSecretsInRegistry": true,
+    "requiresIdentityAuthPlan": true,
+    "requiresReleaseGateForProduction": true,
+    "notANewAppBrand": true,
+    "noParallelAppEngineAdminUi": true,
+    "documentedIntegrationReason": "ChurchConnect Association door for Vidalia / Toombs Pastors Circle. Health, logs, admin, users, and billing stay on ChurchConnect."
+  }
+}
+```
+
+## Leftover-preview notes
+
+Registering this door updates the owner desk (soft-launch `appengine.unitedundergod.org` and leftover-preview of this AppEngine branch). It does **not** change ChurchConnect leftover-preview walks.
+
+- Owner desk leftover-preview: a Church & ministry card for **Vidalia / Toombs Pastors Circle** appears. Live opens ChurchConnect `/association`. Admin opens ChurchConnect Super Admin (`/admin`) — association management stays there. No new AppEngine admin route.
+- Public apps showcase leftover-preview (`apps.unitedundergod.org` / factory showcase): this slug is **hidden**. It is not a standalone product card. Do not treat leftover-preview of the showcase as a new brand launch.
+- Auth leftover-preview: AppEngine email/cookie hosts are unchanged. ChurchConnect Super Admin leftover-preview still uses ChurchConnect's own preview origin. Do not invent an AppEngine login for this door.
+- ChurchConnect PRs 221 / 222 / 287 / 293 are out of scope. Do not retarget leftover-preview of those branches from this registry lock.

@@ -6,6 +6,21 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 
+runStep("pastors circle is a ChurchConnect Association door, not a public brand card", () => {
+  assertFileIncludes("source-of-truth/super-admin-registry.md", [
+    "vidalia-toombs-pastors-circle",
+    "Continuity home = ChurchConnect Association",
+    "uug-website",
+    "https://churchconnect.unitedundergod.org/association",
+    "https://churchconnect.unitedundergod.org/admin",
+    "noParallelAppEngineAdminUi"
+  ]);
+  assertFileIncludes("src/lib/showcase/apps-showcase.ts", [
+    '"vidalia-toombs-pastors-circle"',
+    "ChurchConnect Association door, not a new app brand"
+  ]);
+});
+
 runStep("catalog records verified admin doors only", () => {
   assertFileIncludes("src/lib/engine/app-ops-catalog.ts", [
     "toner-management",
@@ -35,6 +50,12 @@ runStep("shared-database fallback exists for apps that do not poll yet", () => {
   const catalog = read("src/lib/engine/app-ops-catalog.ts");
   if (catalog.includes('churchconnect') === false) {
     throw new Error("ChurchConnect must have a catalog entry");
+  }
+  if (catalog.includes("vidalia-toombs-pastors-circle") === false) {
+    throw new Error("Vidalia / Toombs Pastors Circle must have a catalog entry");
+  }
+  if (catalog.includes("https://churchconnect.unitedundergod.org/admin") === false) {
+    throw new Error("Pastors Circle admin must be ChurchConnect Super Admin, not a new AppEngine admin");
   }
 });
 

@@ -265,6 +265,11 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Church & community",
     hide: "ChurchConnect tenant config, not a standalone app (registry blocker)."
   },
+  "vidalia-toombs-pastors-circle": {
+    tagline: "",
+    group: "Church & community",
+    hide: "ChurchConnect Association door, not a new app brand. Continuity home = ChurchConnect Association; UUG apps directory listing is separate (uug-website)."
+  },
   "churchconnect-bridge": {
     tagline: "",
     group: "Church & community",
