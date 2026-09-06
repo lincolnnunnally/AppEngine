@@ -1,34 +1,34 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-08-07T20:42:54.000Z",
+  "generatedAt": "2026-09-06T20:40:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 36,
+    "totalApps": 37,
     "reviewReadyApps": 1,
-    "productionLiveApps": 18,
+    "productionLiveApps": 19,
     "blockedApps": 15,
     "byDeploymentState": {
-      "production_live": 18,
+      "production_live": 19,
       "production_blocked": 15,
       "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 15,
+      "ready_for_vnext": 16,
       "review_blocked": 1,
       "ready_for_build": 2,
       "planned": 15,
       "preview_verified": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 15,
+      "create_vnext_packet": 16,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 15,
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 25,
+      "live": 26,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -1376,6 +1376,48 @@
       "blockers": [],
       "evidenceLinks": ["https://ai-website.design"],
       "lastUpdated": "2026-08-15T16:00:00.000Z"
+    },
+    {
+      "name": "Vidalia / Toombs Pastors Circle",
+      "slug": "vidalia-toombs-pastors-circle",
+      "reviewUrl": "https://churchconnect.unitedundergod.org/association",
+      "productionUrl": "https://churchconnect.unitedundergod.org/association",
+      "currentVersion": "churchconnect-association-door",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "churchconnect.unitedundergod.org/association",
+        "urlStatus": "live",
+        "servingUrl": "https://churchconnect.unitedundergod.org/association",
+        "nextStep": "Keep this door on ChurchConnect Association until a Pastors Circle deep link exists. Do not stand up a separate Pastors Circle app, domain, or AppEngine admin.",
+        "note": "ChurchConnect Association door, not a new app brand. Continuity home = ChurchConnect Association. UUG apps directory listing is separate (uug-website). www.churchconnect.cloud/association is the equivalent host until a Pastors Circle deep link exists.",
+        "factsFrom": "lincoln-lock-2026-09-06"
+      },
+      "sourceOfTruthFiles": [
+        "source-of-truth/super-admin-registry.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Not a standalone app: Vidalia / Toombs Pastors Circle is a ChurchConnect Association door. Pastors Circle deep link does not exist yet — live URL stays on /association.",
+        "Admin and user-management stay in ChurchConnect Super Admin. Do not invent a parallel AppEngine admin UI."
+      ],
+      "evidenceLinks": [
+        {
+          "label": "Association door",
+          "url": "https://churchconnect.unitedundergod.org/association"
+        },
+        {
+          "label": "ChurchConnect Super Admin",
+          "url": "https://churchconnect.unitedundergod.org/admin"
+        },
+        {
+          "label": "churchconnect.cloud equivalent",
+          "url": "https://www.churchconnect.cloud/association"
+        }
+      ],
+      "lastUpdated": "2026-09-06T20:40:00.000Z"
     }
   ],
   "guardrails": {

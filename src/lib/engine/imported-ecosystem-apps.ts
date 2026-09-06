@@ -171,6 +171,19 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     blockers: ["Queue verdict: merge unique association features into ChurchConnect rather than deploy separately."]
   },
   {
+    name: "Vidalia / Toombs Pastors Circle",
+    slug: "vidalia-toombs-pastors-circle",
+    status: "live — ChurchConnect Association door (not a new app brand); Continuity home = ChurchConnect Association; UUG apps directory is separate (uug-website)",
+    productionUrl: "https://churchconnect.unitedundergod.org/association",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: [
+      "Pastors Circle deep link does not exist yet — keep the live URL on ChurchConnect /association.",
+      "Admin and users stay in ChurchConnect Super Admin. Do not invent a parallel AppEngine admin UI."
+    ]
+  },
+  {
     name: "JeepFix",
     slug: "jeepfix",
     status: "decision: becomes a config of the shared troubleshooting engine",

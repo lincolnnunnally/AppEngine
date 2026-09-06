@@ -105,6 +105,30 @@ check(
   `milstead.us (${milsteadUs}) and milstead.church (${milsteadChurch}) are different apps`
 );
 
+// Vidalia / Toombs Pastors Circle is a ChurchConnect Association door, not a new brand.
+const pastorsCircle = apps.find((app) => app.slug === "vidalia-toombs-pastors-circle");
+check(Boolean(pastorsCircle), "vidalia-toombs-pastors-circle is registered");
+if (pastorsCircle) {
+  check(
+    pastorsCircle.productionUrl === "https://churchconnect.unitedundergod.org/association",
+    "pastors-circle live URL is the ChurchConnect Association door"
+  );
+  check(
+    String(pastorsCircle.domain?.note || "").includes("Continuity home = ChurchConnect Association"),
+    "pastors-circle notes Continuity home = ChurchConnect Association"
+  );
+  check(
+    String(pastorsCircle.domain?.note || "").includes("uug-website"),
+    "pastors-circle notes UUG apps directory is separate (uug-website)"
+  );
+  check(
+    pastorsCircle.domain?.intendedDomain !== "churchconnect.unitedundergod.org" &&
+      pastorsCircle.domain?.intendedDomain !== "churchconnect.cloud" &&
+      pastorsCircle.domain?.intendedDomain !== "www.churchconnect.cloud",
+    "pastors-circle does not steal ChurchConnect's host as its own domain"
+  );
+}
+
 // Summary rollup stays honest when present.
 if (registry.summary?.byUrlStatus) {
   for (const [status, count] of Object.entries(statusCounts)) {
