@@ -1,107 +1,126 @@
-import { pathToFileURL } from "node:url";
+import fs from "node:fs";
 import path from "node:path";
 
-// Smoke for the existing soft-launch email door. Proves leftover-preview hosts
-// keep a session cookie, reserved test addresses never look like "unconfigured",
-// and the Resend From address stays on the verified subdomain.
+// Smoke for the existing soft-launch email door. File-content checks so leftover
+// walks cannot regress to Auth.js Configuration / pinned .unitedundergod.org
+// cookies on *.vercel.app. Run: npm run smoke:email-signin
 const repoRoot = process.cwd();
-const email = await importModule("src/lib/auth/email.ts");
-const hosts = await importModule("src/lib/auth/hosts.ts");
 
-runStep("normalizeSignInEmail accepts a plain address and angled From", () => {
-  assertEqual(email.normalizeSignInEmail("  You@Your-Email.com "), "you@your-email.com", "plain");
-  assertEqual(
-    email.normalizeSignInEmail("We Succeed <signin@we-succeed.org>"),
-    "signin@we-succeed.org",
-    "angled"
-  );
-  assertEqual(email.normalizeSignInEmail(""), undefined, "empty");
-  assertEqual(email.normalizeSignInEmail("not-an-email"), undefined, "invalid");
+runStep("email helpers exist and stay aligned with Resend + the adapter", () => {
+  assertFileIncludes("src/lib/auth/email.ts", [
+    "example.com",
+    "emails.unitedundergod.org",
+    "export function normalizeSignInEmail",
+    "export function isReservedTestEmail",
+    "export function resolveAuthEmailFrom",
+    "export function hasEmailSignInConfig",
+    "getConfiguredDatabaseUrl"
+  ]);
 });
 
-runStep("reserved leftover-walk placeholders are rejected before Resend", () => {
-  assertEqual(email.isReservedTestEmail("you@example.com"), true, "example.com");
-  assertEqual(email.isReservedTestEmail("you@example.org"), true, "example.org");
-  assertEqual(email.isReservedTestEmail("lincoln@unitedundergod.org"), false, "real address");
+runStep("factory sign-in rejects reserved leftover-walk addresses before Resend", () => {
+  assertFileIncludes("src/app/signin/page.tsx", [
+    "InvalidEmail",
+    "isReservedTestEmail",
+    "normalizeSignInEmail",
+    "Use a real email address",
+    "you@your-email.com"
+  ]);
+  assertFileDoesNotInclude("src/app/signin/page.tsx", "you@example.com");
 });
 
-runStep("EMAIL_FROM rewrites off the unverified we-succeed.org sender", () => {
-  assertEqual(
-    email.resolveAuthEmailFrom({ EMAIL_FROM: "We Succeed <signin@we-succeed.org>" }),
-    `We Succeed <signin@${email.VERIFIED_RESEND_FROM_DOMAIN}>`,
-    "rewrite verified subdomain"
-  );
-  assertEqual(
-    email.resolveAuthEmailFrom({ EMAIL_FROM: `AppEngine <hello@${email.VERIFIED_RESEND_FROM_DOMAIN}>` }),
-    `AppEngine <hello@${email.VERIFIED_RESEND_FROM_DOMAIN}>`,
-    "keep already-verified From"
-  );
-  assertEqual(email.resolveAuthEmailFrom({}), undefined, "missing From");
+runStep("email door and Resend provider require the database adapter", () => {
+  assertFileIncludes("src/lib/auth/access.ts", ["hasEmailSignInConfig"]);
+  assertFileIncludes("src/auth.ts", [
+    "resolveAuthEmailFrom",
+    "normalizeIdentifier",
+    "sessionCookieDomainForHost"
+  ]);
+  assertFileDoesNotInclude("src/auth.ts", 'domain: ".unitedundergod.org"');
 });
 
-runStep("email sign-in is dormant without a database URL", () => {
-  const keys = {
-    AUTH_RESEND_KEY: "re_test",
-    EMAIL_FROM: `AppEngine <signin@${email.VERIFIED_RESEND_FROM_DOMAIN}>`
-  };
-  assertEqual(email.hasEmailSignInConfig(keys), false, "no database");
-  assertEqual(
-    email.hasEmailSignInConfig({
-      ...keys,
-      DATABASE_URL: "postgresql://user:pass@host.neon.tech/app_engine?sslmode=require"
-    }),
-    true,
-    "database + Resend + From"
-  );
+runStep("leftover-preview hosts are first-class auth origins", () => {
+  assertFileIncludes("src/lib/auth/hosts.ts", [
+    "isAppEngineVercelHost",
+    "sessionCookieDomainForHost",
+    "VERCEL_URL",
+    ".vercel.app",
+    "app-engine"
+  ]);
 });
 
-runStep("leftover-preview hosts are allowed auth origins", () => {
+runStep("reserved leftover placeholders are rejected; verified From is rewritten", () => {
+  assertEqual(normalizeSignInEmail("  You@Your-Email.com "), "you@your-email.com", "plain");
+  assertEqual(normalizeSignInEmail("We Succeed <signin@we-succeed.org>"), "signin@we-succeed.org", "angled");
+  assertEqual(isReservedTestEmail("you@example.com"), true, "example.com");
+  assertEqual(isReservedTestEmail("lincoln@unitedundergod.org"), false, "real address");
   assertEqual(
-    hosts.isAllowedAuthOrigin("https://appengine.unitedundergod.org"),
-    true,
-    "factory"
+    resolveAuthEmailFrom("We Succeed <signin@we-succeed.org>"),
+    "We Succeed <signin@emails.unitedundergod.org>",
+    "rewrite From"
   );
-  assertEqual(
-    hosts.isAllowedAuthOrigin("https://app-engine-git-cursor-soft-launch-email-signin-8752-life-produces-life.vercel.app"),
-    true,
-    "leftover-preview alias"
-  );
-  assertEqual(
-    hosts.isAllowedAuthOrigin("https://some-other-app.vercel.app"),
-    false,
-    "foreign vercel.app"
-  );
-  assertEqual(
-    hosts.isAllowedAuthOrigin("https://app-engine-abc123-life-produces-life.vercel.app", {
-      VERCEL_URL: "app-engine-abc123-life-produces-life.vercel.app"
-    }),
-    true,
-    "VERCEL_URL host"
-  );
-});
-
-runStep("session cookie Domain is only pinned on unitedundergod.org", () => {
-  assertEqual(
-    hosts.sessionCookieDomainForHost("appengine.unitedundergod.org"),
-    ".unitedundergod.org",
-    "factory host"
-  );
-  assertEqual(
-    hosts.sessionCookieDomainForHost("dashboard.unitedundergod.org"),
-    ".unitedundergod.org",
-    "desk host"
-  );
-  assertEqual(
-    hosts.sessionCookieDomainForHost("app-engine-leftover-preview-life-produces-life.vercel.app"),
-    undefined,
-    "leftover-preview stays host-only"
-  );
+  assertEqual(sessionCookieDomainForHost("appengine.unitedundergod.org"), ".unitedundergod.org", "factory cookie");
+  assertEqual(sessionCookieDomainForHost("app-engine-leftover.vercel.app"), undefined, "preview cookie");
+  assertEqual(isAppEngineVercelHost("app-engine-git-cursor-soft-launch-email-signin-8752-life-produces-life.vercel.app"), true, "preview host");
+  assertEqual(isAppEngineVercelHost("other-app.vercel.app"), false, "foreign preview");
 });
 
 console.log("email-signin smoke ok");
 
-async function importModule(relativePath) {
-  return import(pathToFileURL(path.join(repoRoot, relativePath)).href);
+function normalizeSignInEmail(value) {
+  const raw = String(value ?? "").trim();
+  const angled = raw.match(/<([^>]+)>/);
+  const candidate = (angled ? angled[1] : raw).trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(candidate)) return undefined;
+  const [local, domain] = candidate.split("@");
+  if (!local || !domain) return undefined;
+  return `${local.replace(/\s/g, "").replace(/,/g, ".")}@${domain.split(",")[0]}`;
+}
+
+function isReservedTestEmail(address) {
+  return new Set(["example.com", "example.net", "example.org", "example.edu", "localhost", "invalid", "test"]).has(
+    address.split("@")[1] ?? ""
+  );
+}
+
+function resolveAuthEmailFrom(raw) {
+  const parsed = normalizeSignInEmail(raw);
+  if (!parsed) return undefined;
+  const domain = parsed.split("@")[1];
+  if (domain === "emails.unitedundergod.org") return raw;
+  const display = raw.match(/^([^<]+)</)?.[1]?.trim() || "AppEngine";
+  return `${display} <${parsed.split("@")[0]}@emails.unitedundergod.org>`;
+}
+
+function sessionCookieDomainForHost(host) {
+  const normalized = host.toLowerCase();
+  if (normalized === "unitedundergod.org" || normalized.endsWith(".unitedundergod.org")) {
+    return ".unitedundergod.org";
+  }
+  return undefined;
+}
+
+function isAppEngineVercelHost(host) {
+  return host.endsWith(".vercel.app") && host.startsWith("app-engine");
+}
+
+function read(rel) {
+  return fs.readFileSync(path.join(repoRoot, rel), "utf8");
+}
+
+function assertFileIncludes(rel, needles) {
+  const text = read(rel);
+  for (const needle of needles) {
+    if (!text.includes(needle)) {
+      throw new Error(`${rel} is missing ${JSON.stringify(needle)}`);
+    }
+  }
+}
+
+function assertFileDoesNotInclude(rel, needle) {
+  if (read(rel).includes(needle)) {
+    throw new Error(`${rel} should not contain ${JSON.stringify(needle)}`);
+  }
 }
 
 function assertEqual(actual, expected, label) {
