@@ -219,5 +219,35 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     buildState: "ready_for_vnext",
     nextSafeAction: "create_vnext_packet",
     blockers: ["RESEND_API_KEY not set — password-reset/notification emails dormant until configured."]
+  },
+  {
+    name: "Porchlight",
+    slug: "porchlight",
+    status: "live — off-market house finder (hunt / houses / letters) at porchlight.unitedundergod.org",
+    productionUrl: "https://porchlight.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: []
+  },
+  {
+    name: "Rally",
+    slug: "rally",
+    status: "live — Vidalia tennis + pickleball placeholder at rally.unitedundergod.org; brand work still to port",
+    productionUrl: "https://rally.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: ["Brand work not yet ported — placeholder is intentional until that lands."]
+  },
+  {
+    name: "Selah",
+    slug: "selah",
+    status: "live — cinematic mind-movie studio placeholder at selah.unitedundergod.org; brand work still to port",
+    productionUrl: "https://selah.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: ["Brand work not yet ported — placeholder is intentional until that lands."]
   }
 ];
