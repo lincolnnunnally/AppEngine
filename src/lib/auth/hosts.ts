@@ -1,6 +1,8 @@
 // Which host is this request on? App Engine stays the customer builder.
 // dashboard.unitedundergod.org is the private internal desk.
-// GitHub OAuth callback URLs for these hosts live in github-oauth.ts.
+// Soft-launch GitHub OAuth OWNER STEP callbacks are only factory + desk
+// (see github-oauth.ts). Legacy we-succeed hosts below are historical
+// routing/allowlist — not App Engine soft-launch OAuth registration.
 import { headers } from "next/headers";
 
 export const FACTORY_HOST = "appengine.unitedundergod.org";

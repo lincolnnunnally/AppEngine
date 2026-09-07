@@ -53,7 +53,8 @@ function buildProviders(databaseUrl?: string) {
   }
 
   // Existing GitHub OAuth App only. redirect_uri is host +
-  // /api/auth/callback/github — see PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS.
+  // /api/auth/callback/github. OWNER STEP registers factory + desk only —
+  // see PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS. we-succeed is not soft-launch.
   if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
     providers.push(
       GitHub({ clientId: process.env.AUTH_GITHUB_ID, clientSecret: process.env.AUTH_GITHUB_SECRET })

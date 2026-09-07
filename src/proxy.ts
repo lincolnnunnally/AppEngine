@@ -19,12 +19,12 @@ const SHOWCASE_HOST = "apps.unitedundergod.org";
 const SHOWCASE_PATH = "/apps-showcase";
 
 // The factory's canonical home (owner directive 2026-07-09). GitHub OAuth is
-// host-aware: each production host emits its own
-// /api/auth/callback/github (see PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS). The
-// old we-succeed.org addresses forward PAGE traffic to the new home so no
-// bookmark dead-ends — but /api/* keeps answering on the old host too (Stripe
-// webhooks and stats pollers don't follow redirects). When we-succeed.org is
-// repurposed, detach those domains from this project and drop this block.
+// host-aware: soft-launch hosts emit their own /api/auth/callback/github
+// (OWNER STEP list: PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS — factory + desk
+// only). we-succeed.org is reserved for a different future use and is not
+// App Engine soft-launch — do not register its GitHub callback. Page traffic
+// on those hosts still 307s here so bookmarks do not dead-end; /api/* may
+// still answer historically (webhooks/pollers). Do not invent a product there.
 const COCKPIT_ORIGIN = "https://appengine.unitedundergod.org";
 const DASHBOARD_HOST = "dashboard.unitedundergod.org";
 const DASHBOARD_ORIGIN = `https://${DASHBOARD_HOST}`;

@@ -7,10 +7,11 @@ import path from "node:path";
 const repoRoot = process.cwd();
 
 const expected = [
-  "https://dashboard.unitedundergod.org/api/auth/callback/github",
   "https://appengine.unitedundergod.org/api/auth/callback/github",
-  "https://www.we-succeed.org/api/auth/callback/github"
+  "https://dashboard.unitedundergod.org/api/auth/callback/github"
 ];
+
+const weSucceedGithubCallback = "https://www.we-succeed.org/api/auth/callback/github";
 
 runStep("Auth.js GitHub callback path is the catch-all route + provider id", () => {
   assertFileIncludes("src/app/api/auth/[...nextauth]/route.ts", [
@@ -34,16 +35,16 @@ runStep("canonical production callback URLs stay host-aware on the existing app"
   assertFileIncludes("src/lib/auth/github-oauth.ts", [
     "DASHBOARD_ORIGIN",
     "FACTORY_ORIGIN",
-    "https://www.we-succeed.org",
-    "Do not create a second app"
+    "do not create a second app",
+    "do not register"
   ]);
+  assertFileExcludes("src/lib/auth/github-oauth.ts", [weSucceedGithubCallback]);
   assertFileIncludes("src/lib/auth/hosts.ts", [
     'export const FACTORY_HOST = "appengine.unitedundergod.org"',
     'export const DASHBOARD_HOST = "dashboard.unitedundergod.org"'
   ]);
-  assertEqual(githubOAuthCallbackUrl("https://dashboard.unitedundergod.org"), expected[0], "desk");
-  assertEqual(githubOAuthCallbackUrl("https://appengine.unitedundergod.org/"), expected[1], "factory");
-  assertEqual(githubOAuthCallbackUrl("https://www.we-succeed.org"), expected[2], "legacy www");
+  assertEqual(githubOAuthCallbackUrl("https://appengine.unitedundergod.org/"), expected[0], "factory");
+  assertEqual(githubOAuthCallbackUrl("https://dashboard.unitedundergod.org"), expected[1], "desk");
   assertDeepEqual(productionCallbacks(), expected, "registered list");
 });
 
@@ -53,11 +54,25 @@ runStep("docs and env contract name the same callback strings", () => {
     "do **not**",
     "create a second app",
     "is unpinned at runtime",
-    "ChurchConnect PRs 221 / 222 / 287 / 293"
+    "ChurchConnect PRs 221 / 222 / 287 / 293",
+    "do not register",
+    "not an App Engine soft-launch"
+  ]);
+  assertFileIncludes("source-of-truth/we-succeed-signin-activation-runbook.md", [
+    "not App Engine soft-launch",
+    "Do **not** register",
+    ...expected
   ]);
   assertFileIncludes(".env.vercel.example", [
     "/api/auth/callback/github",
-    "Do not pin AUTH_URL"
+    "Do not pin AUTH_URL",
+    "do not register"
+  ]);
+  assertFileExcludes(".env.vercel.example", [weSucceedGithubCallback]);
+  assertFileExcludes(".env.example", [weSucceedGithubCallback]);
+  assertFileExcludes("README.md", [weSucceedGithubCallback]);
+  assertFileExcludes("src/lib/engine/ecosystem-credential-registry.ts", [
+    "www.we-succeed.org /api/auth/callback/github"
   ]);
   assertFileIncludes("src/proxy.ts", ["PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS"]);
 });
@@ -70,9 +85,8 @@ function githubOAuthCallbackUrl(origin) {
 
 function productionCallbacks() {
   return [
-    githubOAuthCallbackUrl("https://dashboard.unitedundergod.org"),
     githubOAuthCallbackUrl("https://appengine.unitedundergod.org"),
-    githubOAuthCallbackUrl("https://www.we-succeed.org")
+    githubOAuthCallbackUrl("https://dashboard.unitedundergod.org")
   ];
 }
 
@@ -85,6 +99,15 @@ function assertFileIncludes(rel, needles) {
   for (const needle of needles) {
     if (!text.includes(needle)) {
       throw new Error(`${rel} is missing ${JSON.stringify(needle)}`);
+    }
+  }
+}
+
+function assertFileExcludes(rel, needles) {
+  const text = read(rel);
+  for (const needle of needles) {
+    if (text.includes(needle)) {
+      throw new Error(`${rel} must not include ${JSON.stringify(needle)}`);
     }
   }
 }

@@ -6,16 +6,15 @@ import { DASHBOARD_ORIGIN, FACTORY_ORIGIN } from "./hosts";
 export const GITHUB_PROVIDER_ID = "github";
 export const GITHUB_OAUTH_CALLBACK_PATH = `/api/auth/callback/${GITHUB_PROVIDER_ID}`;
 
-const LEGACY_WWW_FACTORY_ORIGIN = "https://www.we-succeed.org";
-
 // Existing AppEngine GitHub OAuth App (AUTH_GITHUB_ID / AUTH_GITHUB_SECRET).
-// Auth.js is host-aware (trustHost, AUTH_URL unpinned). Each production host
-// therefore emits its own redirect_uri. Register ALL of these on that one app
-// (GitHub Developer settings — owner credential). Do not create a second app.
+// Auth.js is host-aware (trustHost, AUTH_URL unpinned). Soft-launch hosts
+// therefore emit their own redirect_uri. OWNER STEP: ADD these two URLs on
+// that one app (do not replace localhost; do not create a second app).
+// we-succeed.org is reserved for a different future use — not App Engine
+// soft-launch — do not register its callback.
 export const PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS = [
-  `${DASHBOARD_ORIGIN}${GITHUB_OAUTH_CALLBACK_PATH}`,
   `${FACTORY_ORIGIN}${GITHUB_OAUTH_CALLBACK_PATH}`,
-  `${LEGACY_WWW_FACTORY_ORIGIN}${GITHUB_OAUTH_CALLBACK_PATH}`
+  `${DASHBOARD_ORIGIN}${GITHUB_OAUTH_CALLBACK_PATH}`
 ] as const;
 
 export function githubOAuthCallbackUrl(origin: string): string {
