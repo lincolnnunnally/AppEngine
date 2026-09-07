@@ -48,7 +48,7 @@ runStep("complete evidence allows controlled deployment inside limits", () => {
     "approved_for_first_controlled_use",
     "ready_for_controlled_deploy",
     "Controlled production release evidence is complete for the Step 4 deploy path.",
-    "Run the existing controlled deploy path, then verify we-succeed.org, both doors, owner login, and /api/health.",
+    "Run the existing controlled deploy path, then verify appengine.unitedundergod.org, both doors, owner login, and /api/health.",
     "Known critical blockers accepted for controlled soft launch",
     "providerSpendMustStayWithinLimits: true"
   ]);

@@ -1,5 +1,12 @@
+import { FACTORY_ORIGIN } from "@/lib/auth/hosts";
 import { createControlledProductionReleaseGate, type ControlledProductionReleaseGateInput } from "./controlled-production-release-gate";
 import { createProductionAuthReadinessReport } from "./production-auth-readiness";
+
+// Historical identifier `we_succeed_soft_launch_readiness` is Continuity-only
+// for App Engine Step 4 soft-launch readiness. App Engine is not we-succeed.org.
+// we-succeed.org is reserved for a different future use — do not invent that
+// product and do not put an App Engine brand on we-succeed.
+export const APP_ENGINE_STEP4_SOFT_LAUNCH_ORIGIN = "https://appengine.unitedundergod.org" as const;
 
 export type WeSucceedSoftLaunchReadinessStatus = "ready_for_controlled_deploy" | "blocked_pending_evidence";
 
@@ -29,7 +36,7 @@ export type WeSucceedSoftLaunchReadiness = {
   generatedAt: string;
   status: WeSucceedSoftLaunchReadinessStatus;
   target: {
-    productionOrigin: "https://we-succeed.org";
+    productionOrigin: typeof APP_ENGINE_STEP4_SOFT_LAUNCH_ORIGIN;
     healthPath: "/api/health";
     problemDoorPath: "/problem-intake-lite";
     buildDoorPath: "/opportunity-intake";
@@ -70,8 +77,8 @@ export async function createWeSucceedSoftLaunchReadiness(
   const checks = [
     check(
       "target_url_is_locked",
-      "Target URL is we-succeed.org",
-      productionOrigin === "https://we-succeed.org",
+      "Target URL is appengine.unitedundergod.org",
+      productionOrigin === APP_ENGINE_STEP4_SOFT_LAUNCH_ORIGIN,
       `productionOrigin=${productionOrigin}`
     ),
     check(
@@ -156,7 +163,7 @@ export async function createWeSucceedSoftLaunchReadiness(
     generatedAt: now.toISOString(),
     status,
     target: {
-      productionOrigin: "https://we-succeed.org",
+      productionOrigin: APP_ENGINE_STEP4_SOFT_LAUNCH_ORIGIN,
       healthPath: "/api/health",
       problemDoorPath: "/problem-intake-lite",
       buildDoorPath: "/opportunity-intake",
@@ -170,10 +177,10 @@ export async function createWeSucceedSoftLaunchReadiness(
     },
     ownerReadableSummary: blockedReasons.length
       ? "Step 4 is not ready for controlled deploy yet. Missing live evidence or guardrail proof must be resolved first."
-      : "Step 4 evidence is complete for a controlled deploy attempt to we-succeed.org within configured limits.",
+      : "Step 4 evidence is complete for a controlled deploy attempt to appengine.unitedundergod.org within configured limits.",
     nextSafeAction: blockedReasons.length
       ? `Resolve Step 4 blocker: ${blockedReasons[0]}`
-      : "Run the controlled deploy path, then verify we-succeed.org, both doors, owner login, and /api/health.",
+      : "Run the controlled deploy path, then verify appengine.unitedundergod.org, both doors, owner login, and /api/health.",
     deploymentAction: blockedReasons.length ? "blocked_until_all_checks_pass" : "ready_for_controlled_deploy",
     guardrails: {
       step4Only: true,
@@ -191,7 +198,7 @@ export async function createWeSucceedSoftLaunchReadiness(
 }
 
 function normalizeProductionOrigin(value: string | undefined): string {
-  return (value || "https://we-succeed.org").replace(/\/+$/, "");
+  return (value || FACTORY_ORIGIN || APP_ENGINE_STEP4_SOFT_LAUNCH_ORIGIN).replace(/\/+$/, "");
 }
 
 function check(id: string, label: string, passed: boolean, evidence: string): WeSucceedSoftLaunchReadinessCheck {
