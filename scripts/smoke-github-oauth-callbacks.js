@@ -56,7 +56,7 @@ runStep("docs and env contract name the same callback strings", () => {
     "is unpinned at runtime",
     "ChurchConnect PRs 221 / 222 / 287 / 293",
     "do not register",
-    "not an App Engine soft-launch"
+    "not** an App Engine soft-launch"
   ]);
   assertFileIncludes("source-of-truth/we-succeed-signin-activation-runbook.md", [
     "not App Engine soft-launch",
