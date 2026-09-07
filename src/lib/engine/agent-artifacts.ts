@@ -41,7 +41,7 @@ export type AgentArtifactKind =
   | "phase_start_approval"
   | "execution_label_dry_run"
   | "production_readiness_snapshot"
-  | "we_succeed_soft_launch_readiness"
+  | "we_succeed_soft_launch_readiness" // historical Continuity kind: App Engine Step 4 soft-launch readiness at appengine.unitedundergod.org — not a We Succeed product
   | "intake_packet"
   | "pilot_app_build"
   | "build_completion_plan"

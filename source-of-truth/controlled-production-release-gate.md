@@ -4,7 +4,7 @@
 
 The Controlled Production Release Gate decides whether AppEngine has enough evidence for first controlled production use.
 
-This is the evidence gate for the Step 4 controlled deploy path. When the gate passes, AppEngine may use the existing provider project within configured limits, then verify the live target.
+This is the evidence gate for the Step 4 controlled deploy path. When the gate passes, AppEngine may use the existing provider project within configured limits, then verify the live App Engine target at `https://appengine.unitedundergod.org` (not we-succeed.org).
 
 Use artifact kind:
 

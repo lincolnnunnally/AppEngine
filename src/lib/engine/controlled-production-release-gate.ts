@@ -135,7 +135,7 @@ export async function createControlledProductionReleaseGate(
     blockedReasons,
     nextSafeAction: blockedReasons.length
       ? "Resolve the first blocked evidence item before requesting controlled production approval."
-      : "Run the existing controlled deploy path, then verify we-succeed.org, both doors, owner login, and /api/health.",
+      : "Run the existing controlled deploy path, then verify appengine.unitedundergod.org, both doors, owner login, and /api/health.",
     productionAction: blockedReasons.length ? "blocked" : "ready_for_controlled_deploy",
     guardrails: {
       releaseGateOnly: true,
