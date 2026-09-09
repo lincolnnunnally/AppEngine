@@ -47,6 +47,13 @@ function isLocalHost(host: string) {
   return host === "localhost" || host === "127.0.0.1" || host.endsWith(".localhost");
 }
 
+// Leftover-preview of this App Engine project (app-engine-*.vercel.app).
+// CoS walks /apps-showcase on leftover-preview; do not 308 those hosts to
+// production apps.unitedundergod.org or the leftover cannot be confirmed.
+function isAppEngineLeftoverPreviewHost(host: string) {
+  return host.endsWith(".vercel.app") && host.startsWith("app-engine");
+}
+
 export default function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").toLowerCase().split(":")[0];
   const { pathname } = request.nextUrl;
@@ -113,7 +120,12 @@ export default function proxy(request: NextRequest) {
   }
 
   // One canonical home for the showcase: factory hosts send it to the apps host.
-  if ((pathname === SHOWCASE_PATH || pathname.startsWith(`${SHOWCASE_PATH}/`)) && !isLocalHost(host)) {
+  // Leftover-preview keeps /apps-showcase so CoS can walk this branch.
+  if (
+    (pathname === SHOWCASE_PATH || pathname.startsWith(`${SHOWCASE_PATH}/`)) &&
+    !isLocalHost(host) &&
+    !isAppEngineLeftoverPreviewHost(host)
+  ) {
     return NextResponse.redirect(`https://${SHOWCASE_HOST}/`, 308);
   }
 

@@ -73,6 +73,10 @@ runStep("UUG apps directory: Operate live, Rally+Selah coming soon, App Engine s
   if (read("src/app/apps-showcase/page.tsx").includes("https://www.we-succeed.org")) {
     throw new Error("apps-showcase page must not href we-succeed.org");
   }
+  assertFileIncludes("src/proxy.ts", [
+    "isAppEngineLeftoverPreviewHost",
+    "host.startsWith(\"app-engine\")"
+  ]);
 });
 
 runStep("shared-database fallback exists for apps that do not poll yet", () => {
