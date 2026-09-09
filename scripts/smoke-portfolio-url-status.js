@@ -105,6 +105,21 @@ check(
   `milstead.us (${milsteadUs}) and milstead.church (${milsteadChurch}) are different apps`
 );
 
+// Opened doors that belong on the owner map. Admin user-management stays HOLD
+// invent until a verified /admin door exists in that app's source.
+const porchlight = apps.find((app) => app.slug === "porchlight");
+check(Boolean(porchlight), "porchlight is registered");
+if (porchlight) {
+  check(porchlight.productionUrl === "https://porchlight.unitedundergod.org", "porchlight live URL");
+  check(String(porchlight.domain?.note || "").includes("HOLD invent"), "porchlight notes HOLD invent for admin");
+}
+const operate = apps.find((app) => app.slug === "operate");
+check(Boolean(operate), "operate is registered");
+if (operate) {
+  check(operate.productionUrl === "https://operate.unitedundergod.org", "operate live URL");
+  check(String(operate.domain?.note || "").includes("HOLD invent"), "operate notes HOLD invent for admin");
+}
+
 // Vidalia / Toombs Pastors Circle is a ChurchConnect Association door, not a new brand.
 const pastorsCircle = apps.find((app) => app.slug === "vidalia-toombs-pastors-circle");
 check(Boolean(pastorsCircle), "vidalia-toombs-pastors-circle is registered");

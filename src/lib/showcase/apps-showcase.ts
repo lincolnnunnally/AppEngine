@@ -45,6 +45,7 @@ export type ShowcaseApp = {
   group: ShowcaseGroup;
   liveUrl: string; // "" when not live
   liveHost: string; // display form of liveUrl ("" when not live)
+  reservedHost: string; // name-stub host shown on Coming soon; never makes the card Live
 };
 
 export type AppsShowcase = {
@@ -57,6 +58,8 @@ type DisplayMeta = {
   tagline: string;
   group: ShowcaseGroup;
   liveUrl?: string; // preferred public URL (UUG subdomain directive); overrides registry servingUrl
+  comingSoon?: boolean; // honesty demotion — placeholder holds the name; do not list under Live
+  reservedUrl?: string; // reserved host for a name stub; shown on Coming soon only
   hide?: string; // registry-grounded reason this entry is not a public product card
 };
 
@@ -74,7 +77,9 @@ const DISPLAY: Record<string, DisplayMeta> = {
     tagline:
       "Describe a problem you want solved or a tool you want to build, and App Engine builds you a real, working app for it.",
     group: "The builder",
-    liveUrl: "https://www.we-succeed.org"
+    // Lock 2026-09-07: App Engine is not we-succeed.org. Soft-launch door is
+    // appengine.unitedundergod.org. we-succeed is reserved for a different future use.
+    liveUrl: "https://appengine.unitedundergod.org/soft-launch"
   },
   "united-under-god": {
     publicName: "United Under God",
@@ -246,17 +251,26 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Everyday services",
     liveUrl: "https://porchlight.unitedundergod.org"
   },
+  operate: {
+    publicName: "Operate",
+    tagline:
+      "Nonprofit desk for pantry, thrift, clothing, and furniture — intake, what's available this distribution, pickup or a delivery box.",
+    group: "Everyday services",
+    liveUrl: "https://operate.unitedundergod.org"
+  },
   rally: {
     publicName: "Rally",
     tagline: "Vidalia tennis and pickleball — find a hitting partner, book a lesson, start a league.",
     group: "Hope & transformation",
-    liveUrl: "https://rally.unitedundergod.org"
+    comingSoon: true,
+    reservedUrl: "https://rally.unitedundergod.org"
   },
   selah: {
     publicName: "Selah",
     tagline: "A cinematic mind-movie studio for the futures you are hoping for.",
     group: "Hope & transformation",
-    liveUrl: "https://selah.unitedundergod.org"
+    comingSoon: true,
+    reservedUrl: "https://selah.unitedundergod.org"
   },
   // Registry entries that the registry itself marks as not standalone public
   // products — hidden from the outward-facing page, with the registry reason.
@@ -349,7 +363,10 @@ export function getAppsShowcase(): AppsShowcase {
 
     // Live = a preferred public URL is directed (owner directive, verified), or
     // the owner registry marks the URL live with a serving address.
-    const liveUrl = meta?.liveUrl ?? (urlStatusLive && servingUrl ? servingUrl : "");
+    // comingSoon is an honesty override for name stubs that hold a host but
+    // are not a live product (Rally / Selah — placeholder holds the name).
+    const liveUrl = meta?.comingSoon ? "" : (meta?.liveUrl ?? (urlStatusLive && servingUrl ? servingUrl : ""));
+    const reservedUrl = meta?.reservedUrl ?? "";
 
     const app: ShowcaseApp = {
       slug,
@@ -359,7 +376,8 @@ export function getAppsShowcase(): AppsShowcase {
       tagline: meta?.tagline ?? "",
       group: meta?.group ?? "Everyday services",
       liveUrl,
-      liveHost: liveUrl ? hostLabel(liveUrl) : ""
+      liveHost: liveUrl ? hostLabel(liveUrl) : "",
+      reservedHost: reservedUrl ? hostLabel(reservedUrl) : ""
     };
 
     (liveUrl ? live : comingSoon).push(app);

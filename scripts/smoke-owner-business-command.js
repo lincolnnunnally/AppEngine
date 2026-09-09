@@ -35,8 +35,44 @@ runStep("catalog records verified admin doors only", () => {
     "furfriend",
     "ai-website-design",
     "spark-of-hope",
-    "snip-show"
+    "snip-show",
+    "operate",
+    "porchlight",
+    "HOLD invent — Operate has /desk and /people",
+    "HOLD invent — no verified /admin user-management door in app-porchlight",
+    "Neighborly Tools is /app/tools"
   ]);
+});
+
+runStep("UUG apps directory: Operate live, Rally+Selah coming soon, App Engine soft-launch href", () => {
+  assertFileIncludes("src/lib/showcase/apps-showcase.ts", [
+    "operate",
+    "https://operate.unitedundergod.org",
+    'comingSoon: true',
+    "https://rally.unitedundergod.org",
+    "https://selah.unitedundergod.org",
+    "https://appengine.unitedundergod.org/soft-launch"
+  ]);
+  const showcase = read("src/lib/showcase/apps-showcase.ts");
+  if (showcase.includes('liveUrl: "https://www.we-succeed.org"')) {
+    throw new Error("App Engine showcase card must not point at we-succeed.org");
+  }
+  const rallyBlock = showcase.slice(showcase.indexOf("rally:"), showcase.indexOf("selah:"));
+  if (rallyBlock.includes("liveUrl:")) {
+    throw new Error("Rally must not have a liveUrl — Coming soon honesty");
+  }
+  const selahBlock = showcase.slice(showcase.indexOf("selah:"), showcase.indexOf("// Registry entries"));
+  if (selahBlock.includes("liveUrl:")) {
+    throw new Error("Selah must not have a liveUrl — Coming soon honesty");
+  }
+  assertFileIncludes("src/app/apps-showcase/page.tsx", [
+    "https://appengine.unitedundergod.org/soft-launch",
+    "Coming soon",
+    "app.reservedHost"
+  ]);
+  if (read("src/app/apps-showcase/page.tsx").includes("https://www.we-succeed.org")) {
+    throw new Error("apps-showcase page must not href we-succeed.org");
+  }
 });
 
 runStep("shared-database fallback exists for apps that do not poll yet", () => {

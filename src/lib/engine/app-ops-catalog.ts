@@ -140,7 +140,9 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     slug: "neighborly",
     family: "belonging",
     purpose: "Canonical Community Connections — Milstead first.",
-    adminPath: "/admin"
+    adminPath: "/admin",
+    adminNote:
+      "Neighborly Tools is /app/tools on this app — not a separate product. User-management stays Neighborly /admin. Do not invent a Neighborly Tools admin row."
   },
   milstead: {
     slug: "milstead",
@@ -263,6 +265,20 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     family: "commerce",
     purpose: "Kids selling lemonade-stand style — already in real use.",
     adminPath: "/admin"
+  },
+  porchlight: {
+    slug: "porchlight",
+    family: "commerce",
+    purpose: "Off-market house finder for Vidalia and Toombs.",
+    adminNote:
+      "HOLD invent — no verified /admin user-management door in app-porchlight. Do not invent an AppEngine admin product."
+  },
+  operate: {
+    slug: "operate",
+    family: "commerce",
+    purpose: "Nonprofit / shop desk — pantry, thrift, clothing, furniture kinds on the existing Operate desk.",
+    adminNote:
+      "HOLD invent — Operate has /desk and /people (shop people), not a verified /admin user-management door. Do not invent an AppEngine admin product."
   },
   sandlot: {
     slug: "sandlot",
