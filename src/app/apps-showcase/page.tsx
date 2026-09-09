@@ -41,6 +41,7 @@ function SoonCard({ app }: { app: ShowcaseApp }) {
         <span className="uug-badge">Coming soon</span>
       </h3>
       {app.tagline ? <p>{app.tagline}</p> : null}
+      {app.reservedHost ? <span className="uug-reserved">{app.reservedHost}</span> : null}
     </div>
   );
 }
@@ -113,7 +114,7 @@ export default function AppsShowcasePage() {
 
       <footer className="uug-foot">
         <p>
-          Built with <a href="https://www.we-succeed.org" target="_blank" rel="noopener noreferrer">We Succeed</a> — the app builder behind this family.
+          Built with <a href="https://appengine.unitedundergod.org/soft-launch" target="_blank" rel="noopener noreferrer">App Engine</a> — the app builder behind this family.
         </p>
         <p className="uug-foot-sub">
           Part of the <a href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">United Under God</a> ecosystem.
@@ -203,6 +204,10 @@ const CSS = `
 }
 .uug-grid-soon { margin-top: 18px; }
 .uug-soon { border-style: dashed; }
+.uug-reserved {
+  margin-top: auto; padding-top: 6px;
+  color: var(--muted); font-size: 0.82rem;
+}
 .uug-badge {
   background: var(--badge-bg); color: var(--muted);
   border-radius: 999px; padding: 3px 10px;

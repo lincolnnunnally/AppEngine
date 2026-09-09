@@ -1,34 +1,34 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-09-06T20:40:00.000Z",
+  "generatedAt": "2026-09-09T09:50:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 37,
+    "totalApps": 39,
     "reviewReadyApps": 1,
-    "productionLiveApps": 19,
+    "productionLiveApps": 23,
     "blockedApps": 15,
     "byDeploymentState": {
-      "production_live": 19,
+      "production_live": 23,
       "production_blocked": 15,
       "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 16,
+      "ready_for_vnext": 20,
       "review_blocked": 1,
       "ready_for_build": 2,
       "planned": 15,
       "preview_verified": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 16,
+      "create_vnext_packet": 20,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 15,
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 26,
+      "live": 28,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -1376,6 +1376,76 @@
       "blockers": [],
       "evidenceLinks": ["https://ai-website.design"],
       "lastUpdated": "2026-08-15T16:00:00.000Z"
+    },
+    {
+      "name": "Porchlight",
+      "slug": "porchlight",
+      "reviewUrl": "https://porchlight.unitedundergod.org",
+      "productionUrl": "https://porchlight.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "porchlight.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://porchlight.unitedundergod.org",
+        "nextStep": "None — live. Off-market house finder (hunt / houses / letters).",
+        "note": "Opened door from roster PR 339. Central admin user-management: HOLD invent — no verified /admin door in app-porchlight.",
+        "factsFrom": "continuity-2026-09-09"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 339,
+          "title": "Roster: add Porchlight, Rally, and Selah",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/339",
+          "state": "merged"
+        }
+      ],
+      "blockers": [
+        "HOLD invent: no verified /admin user-management door in app-porchlight. Do not invent an AppEngine admin product."
+      ],
+      "evidenceLinks": [
+        "https://porchlight.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-09-09T09:50:00.000Z"
+    },
+    {
+      "name": "Operate",
+      "slug": "operate",
+      "reviewUrl": "https://operate.unitedundergod.org",
+      "productionUrl": "https://operate.unitedundergod.org",
+      "currentVersion": "charity-desk-pr8",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "operate.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://operate.unitedundergod.org",
+        "nextStep": "None — live. Nonprofit / shop desk (pantry, thrift, clothing, furniture kinds).",
+        "note": "Opened door Continuity from Operate PR 8. Central admin user-management: HOLD invent — Operate has /desk and /people, not a verified /admin door.",
+        "factsFrom": "continuity-2026-09-09"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 8,
+          "title": "Charity desk: pantry, thrift, furniture, and clothing on Operate",
+          "url": "https://github.com/lincolnnunnally/operate/pull/8",
+          "state": "merged"
+        }
+      ],
+      "blockers": [
+        "HOLD invent: Operate has /desk and /people (shop people), not a verified /admin user-management door. Do not invent an AppEngine admin product."
+      ],
+      "evidenceLinks": [
+        "https://operate.unitedundergod.org"
+      ],
+      "lastUpdated": "2026-09-09T09:50:00.000Z"
     },
     {
       "name": "Vidalia / Toombs Pastors Circle",

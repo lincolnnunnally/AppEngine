@@ -244,23 +244,36 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
     blockers: []
   },
   {
-    name: "Rally",
-    slug: "rally",
-    status: "live — Vidalia tennis + pickleball placeholder at rally.unitedundergod.org; brand work still to port",
-    productionUrl: "https://rally.unitedundergod.org",
+    name: "Operate",
+    slug: "operate",
+    status:
+      "live — nonprofit / shop desk (pantry, thrift, clothing, furniture kinds) at operate.unitedundergod.org; charity desk Continuity from Operate PR 8",
+    productionUrl: "https://operate.unitedundergod.org",
     deploymentState: "production_live",
     buildState: "ready_for_vnext",
     nextSafeAction: "create_vnext_packet",
-    blockers: ["Brand work not yet ported — placeholder is intentional until that lands."]
+    blockers: []
+  },
+  {
+    name: "Rally",
+    slug: "rally",
+    status:
+      "name stub — placeholder holds the name at rally.unitedundergod.org; not a live product yet. Do not build Rally here.",
+    productionUrl: "https://rally.unitedundergod.org",
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Placeholder holds the name. Brand work not yet ported — do not invent Rally features."]
   },
   {
     name: "Selah",
     slug: "selah",
-    status: "live — cinematic mind-movie studio placeholder at selah.unitedundergod.org; brand work still to port",
+    status:
+      "name stub — placeholder holds the name at selah.unitedundergod.org; not a live product yet. Do not build Selah here.",
     productionUrl: "https://selah.unitedundergod.org",
-    deploymentState: "production_live",
-    buildState: "ready_for_vnext",
-    nextSafeAction: "create_vnext_packet",
-    blockers: ["Brand work not yet ported — placeholder is intentional until that lands."]
+    deploymentState: "production_blocked",
+    buildState: "planned",
+    nextSafeAction: "create_planning_issue",
+    blockers: ["Placeholder holds the name. Brand work not yet ported — do not invent Selah features."]
   }
 ];
