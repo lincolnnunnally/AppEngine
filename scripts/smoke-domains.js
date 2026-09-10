@@ -32,6 +32,8 @@ runStep("purchase is NOT automatic; only availability + attach are wired", () =>
   const text = read("src/lib/engine/domains.ts");
   assertIncludes(text, "checkDomainAvailability", "availability");
   assertIncludes(text, "attachDomainToVercelProject", "attach owned domain");
+  assertIncludes(text, "vercelTeamId", "team id is resolved, not taken raw from VERCEL_ORG_ID");
+  assertIncludes(text, "team_iwReH8IpDY3Fvt0BITPC4F80", "Life Produces Life team is the fallback");
   assertIncludes(text, "NEVER done automatically", "purchase is gated");
   if (/register|purchase|buyDomain/i.test(text.replace(/PURCHASE \(registering[^.]+\./i, "").replace(/gated purchase flow/gi, ""))) {
     // ok — references in comments only; ensure no live register call
