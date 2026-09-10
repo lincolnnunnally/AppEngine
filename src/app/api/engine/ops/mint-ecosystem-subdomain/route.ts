@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cloudflareDnsConfigured, publishEcosystemSubdomain } from "@/lib/engine/cloudflare-dns";
+import { vercelTeamId } from "@/lib/engine/domains";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,13 +9,13 @@ export const maxDuration = 60;
 // One-shot allowlist mint used by the AppEngine adapter path
 // (publishEcosystemSubdomain = attach domain + add-only CNAME).
 // Add-only: existing DNS records are never updated or deleted.
-// `project` is the Vercel project name; `label` is the UUG hostname.
+// `project` is the Vercel project id (stable); `name` is the project name.
 const APPS = [
-  { project: "porchlight", label: "porchlight" },
-  { project: "rally", label: "rally" },
-  { project: "selah", label: "selah" },
-  { project: "singtrue-vocal-coach", label: "singtrue" },
-  { project: "lincoln-nunnally-resume", label: "resume" },
+  { project: "prj_2TvscItZmLyq2jvPD0W1Ce9n5Exb", name: "porchlight", label: "porchlight" },
+  { project: "prj_xnPf03EadncVsDu8UpE8fwecstnl", name: "rally", label: "rally" },
+  { project: "prj_jbtscxIKC8hiq1speVWPg0ernaDq", name: "selah", label: "selah" },
+  { project: "prj_jIygvY1T7B5C738lK4Eb4w4VLrWY", name: "singtrue-vocal-coach", label: "singtrue" },
+  { project: "prj_YZbZrN4jfL5SrUndRjOr5hYpmH8d", name: "lincoln-nunnally-resume", label: "resume" }
 ] as const;
 const NONCE = "uug-mint-2026-09-06-prs";
 
@@ -26,18 +27,9 @@ function vercelToken() {
   return process.env.VERCEL_TOKEN?.trim() || "";
 }
 
-function teamQuery() {
-  const team = process.env.VERCEL_ORG_ID?.trim();
-  return team ? `teamId=${encodeURIComponent(team)}` : "";
-}
-
 async function vercel(path: string, init?: RequestInit) {
   const url = new URL(`https://api.vercel.com${path}`);
-  const team = teamQuery();
-  if (team && !url.searchParams.has("teamId")) {
-    const [k, v] = team.split("=");
-    url.searchParams.set(k, decodeURIComponent(v));
-  }
+  url.searchParams.set("teamId", vercelTeamId());
   return fetch(url, {
     ...init,
     headers: {
@@ -83,12 +75,26 @@ export async function POST(request: Request) {
     );
   }
 
+  const probeProject = APPS[3].project;
+  const probe = await vercel(`/v9/projects/${encodeURIComponent(probeProject)}`);
+  const probeBody = (await probe.json().catch(() => ({}))) as { name?: string; error?: { message?: string } };
+
   const results = [];
   for (const app of APPS) {
     const dns = await publishEcosystemSubdomain(app.project, app.label);
     const fqdn = `${app.label}.unitedundergod.org`;
     const cert = dns.ok ? await ensureCert(fqdn) : { ok: false, issued: false, message: "skipped cert (DNS/attach failed)" };
-    results.push({ slug: app.label, project: app.project, fqdn, dns, cert });
+    results.push({ slug: app.label, project: app.name, fqdn, dns, cert });
   }
-  return NextResponse.json({ ok: results.every((row) => row.dns.ok && row.cert.ok), results });
+  return NextResponse.json({
+    ok: results.every((row) => row.dns.ok && row.cert.ok),
+    teamLooksLikeTeamId: vercelTeamId().startsWith("team_"),
+    probe: {
+      project: probeProject,
+      status: probe.status,
+      name: probeBody.name || null,
+      message: probeBody.error?.message || null
+    },
+    results
+  });
 }
