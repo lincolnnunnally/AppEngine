@@ -29,6 +29,12 @@ Before an agent plans, builds, reviews, fixes, monitors, or creates follow-up wo
 
 Core principles, product direction, and completed decisions should be stored in repo files, issues, pull requests, or agent outputs. Chat can clarify, but repo state decides what future agents inherit.
 
+## Grok Build / isolated sandbox sessions
+
+Grok Build sandboxes are a workbench, not a source of truth. A blank preview is not permission to start from scratch.
+
+Owner directive (2026-09-10): check GitHub (`user:lincolnnunnally`) first, including private repos and naming variations. Read `source-of-truth/app-selection-standard.md` and the ecosystem SOT. When Lincoln names an existing app, add to that canonical repo. Start from scratch only when he explicitly asks. Detail: `source-of-truth/github-first-for-agents.md` and `lincolnnunnally/life-produces-life-source-of-truth` `_SOURCE_OF_TRUTH/GROK_BUILD_GITHUB_FIRST.md`.
+
 ## Required Context Set
 
 Every agent workflow must load:
