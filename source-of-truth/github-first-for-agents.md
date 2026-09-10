@@ -15,3 +15,24 @@ Before any agent plans, scaffolds, or ships an app:
 
 Existing-app improvements use `app-improvement-vnext-packet.md`.
 Do not restart an existing app as a new sandbox product.
+
+## Land unique work before the session ends
+
+A live preview is not durable. Isolated Grok Build sandboxes are discarded.
+That is why unique work has vanished from GitHub and from
+`*.unitedundergod.org`, and later sessions had to hunt or rebuild.
+
+Before ending a session that produced unique work:
+
+1. **Unique new app** (GitHub + SOT prove no match) → create the canonical
+   `lincolnnunnally/<app>` repo and **push the source**. Do not leave it only
+   in the sandbox or only on an unlinked Vercel project.
+2. **Unique improvement** to an existing app → branch + PR on the canonical
+   repo. Match that repo's stack.
+3. **Ecosystem apps** also ship on `https://<label>.unitedundergod.org`.
+   Personal sites (resume) stay off UUG.
+4. Do **not** create a second Vercel project for an app that already has one.
+   `create_git_project` does not reconnect an existing unlinked project.
+5. If you cannot push, say so and leave recovered files + the repo/branch.
+   Do not silently drop the work.
+
