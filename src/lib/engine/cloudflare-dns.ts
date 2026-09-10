@@ -141,12 +141,13 @@ export async function ensureEcosystemSubdomain(labelOrSlug: string): Promise<Sub
 // domain to the app's Vercel project, then mint the CNAME. Best-effort by design —
 // callers treat a failure as "no subdomain yet", never as a failed deploy.
 export async function publishEcosystemSubdomain(
-  projectName: string
+  projectName: string,
+  labelOverride?: string
 ): Promise<SubdomainDnsResult & { url?: string }> {
   if (!cloudflareDnsConfigured()) {
     return { ok: false, message: "DNS isn't configured (CLOUDFLARE_API_TOKEN)." };
   }
-  const label = subdomainLabelFromProjectName(projectName);
+  const label = labelOverride || subdomainLabelFromProjectName(projectName);
   const fqdn = `${label}.${ECOSYSTEM_ZONE_NAME}`;
 
   // Attach on the host first (same order as the manual runbook flow). An

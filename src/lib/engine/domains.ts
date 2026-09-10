@@ -72,7 +72,9 @@ export async function attachDomainToVercelProject(projectName: string, input: st
   }
   const domain = normalizeDomain(input);
   try {
-    const response = await fetch(`https://api.vercel.com/v10/projects/${encodeURIComponent(projectName)}/domains`, {
+    const team = process.env.VERCEL_ORG_ID?.trim();
+    const qs = team ? `?teamId=${encodeURIComponent(team)}` : "";
+    const response = await fetch(`https://api.vercel.com/v10/projects/${encodeURIComponent(projectName)}/domains${qs}`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ name: domain })

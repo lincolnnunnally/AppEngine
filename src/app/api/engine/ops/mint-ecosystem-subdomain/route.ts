@@ -7,9 +7,15 @@ export const maxDuration = 60;
 
 // One-shot allowlist mint used by the AppEngine adapter path
 // (publishEcosystemSubdomain = attach domain + add-only CNAME).
-// Hard-locked to the three UUG hosts Lincoln asked to mint. Add-only:
-// existing DNS records are never updated or deleted.
-const ALLOWED = ["porchlight", "rally", "selah"] as const;
+// Add-only: existing DNS records are never updated or deleted.
+// `project` is the Vercel project name; `label` is the UUG hostname.
+const APPS = [
+  { project: "porchlight", label: "porchlight" },
+  { project: "rally", label: "rally" },
+  { project: "selah", label: "selah" },
+  { project: "singtrue-vocal-coach", label: "singtrue" },
+  { project: "lincoln-nunnally-resume", label: "resume" },
+] as const;
 const NONCE = "uug-mint-2026-09-06-prs";
 
 function authorized(request: Request) {
@@ -78,11 +84,11 @@ export async function POST(request: Request) {
   }
 
   const results = [];
-  for (const slug of ALLOWED) {
-    const dns = await publishEcosystemSubdomain(slug);
-    const fqdn = `${slug}.unitedundergod.org`;
+  for (const app of APPS) {
+    const dns = await publishEcosystemSubdomain(app.project, app.label);
+    const fqdn = `${app.label}.unitedundergod.org`;
     const cert = dns.ok ? await ensureCert(fqdn) : { ok: false, issued: false, message: "skipped cert (DNS/attach failed)" };
-    results.push({ slug, fqdn, dns, cert });
+    results.push({ slug: app.label, project: app.project, fqdn, dns, cert });
   }
   return NextResponse.json({ ok: results.every((row) => row.dns.ok && row.cert.ok), results });
 }
