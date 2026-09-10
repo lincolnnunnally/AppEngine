@@ -8,18 +8,25 @@ import { isDashboardRequest } from "@/lib/auth/hosts";
 const deskSans = Inter({ subsets: ["latin"], variable: "--font-desk-sans" });
 const deskDisplay = Outfit({ subsets: ["latin"], variable: "--font-desk-display" });
 
+const SEAL_ICONS: Metadata["icons"] = {
+  icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  shortcut: "/favicon.svg",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   if (await isDashboardRequest()) {
     return {
       title: "The businesses — United Under God",
       description: "Private desk for the live apps: money, people, and who needs a hand.",
-      robots: { index: false, follow: false }
+      robots: { index: false, follow: false },
+      icons: SEAL_ICONS,
     };
   }
   return {
     title: "AppEngine",
     description:
-      "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it — live, online, ready to sign into."
+      "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it — live, online, ready to sign into.",
+    icons: SEAL_ICONS,
   };
 }
 
