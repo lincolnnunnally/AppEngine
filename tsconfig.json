@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
+    "**/*.test.ts",
     // Deno sources: they import jsr:/npm: specifiers and reference the Deno
     // global, none of which resolve under Next's TypeScript config. They are
     // deployed to Supabase, never bundled here, and are typechecked by the

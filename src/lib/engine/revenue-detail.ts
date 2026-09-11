@@ -43,6 +43,7 @@ export type RevenueChargeRow = {
   email?: string;
   last4?: string;
   paymentIntent?: string;
+  invoice?: string;
 };
 
 export type ServiceRollup = {
@@ -74,6 +75,7 @@ type RawCharge = StripeChargeHint & {
   billing_details?: { email?: string | null } | null;
   payment_method_details?: { card?: { last4?: string | null } | null } | null;
   payment_intent?: string | { id?: string } | null;
+  invoice?: string | { id?: string } | null;
 };
 
 const KNOWN_SLOTS: Array<{ sourceId: string; label: string; livesAt: string; slug: string; keys: string[] }> = [
@@ -247,6 +249,8 @@ export async function loadRevenueDetail(ownerEmail: string | null): Promise<Reve
         typeof charge.payment_intent === "string"
           ? charge.payment_intent
           : charge.payment_intent?.id || undefined;
+      const invoice =
+        typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id || undefined;
       const row: RevenueChargeRow = {
         id: charge.id || `${source.sourceId}-${charge.created}-${charge.amount}`,
         created: charge.created || 0,
@@ -261,7 +265,8 @@ export async function loadRevenueDetail(ownerEmail: string | null): Promise<Reve
         accountId: read.account.accountId,
         email: charge.receipt_email || charge.billing_details?.email || undefined,
         last4: charge.payment_method_details?.card?.last4 || undefined,
-        paymentIntent: intent
+        paymentIntent: intent,
+        invoice
       };
       charges.push(row);
       const serviceKey = `${row.accountSourceId}::${row.streamId}::${row.service}`;
