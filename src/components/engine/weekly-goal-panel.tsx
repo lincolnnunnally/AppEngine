@@ -1,5 +1,5 @@
 import { dollars } from "@/lib/engine/stripe-summary";
-import { dollarsPlain, type Opportunity, type WeeklyGoalReport } from "@/lib/engine/weekly-revenue-goal";
+import { MIX_STREAM_IDS, dollarsPlain, type Opportunity, type WeeklyGoalReport } from "@/lib/engine/weekly-revenue-goal";
 
 function meterClass(report: WeeklyGoalReport): string {
   if (!report.goalStarted) return "dx-goal-meter";
@@ -46,7 +46,7 @@ export function WeeklyGoalGlance({ report }: { report: WeeklyGoalReport }) {
 
 export function WeeklyGoalPanel({ report }: { report: WeeklyGoalReport }) {
   const mix = report.thisWeek.byStream.filter(
-    (stream) => stream.charges > 0 || ["churchconnect", "laser", "easypeazy", "ai-website-design", "appengine"].includes(stream.id)
+    (stream) => stream.charges > 0 || MIX_STREAM_IDS.includes(stream.id)
   );
   const act = report.opportunities.filter((item) => item.severity === "act");
   const watch = report.opportunities.filter((item) => item.severity === "watch");
@@ -66,9 +66,9 @@ export function WeeklyGoalPanel({ report }: { report: WeeklyGoalReport }) {
         )}
       </h2>
       <p className="dx-lede">
-        Apps, websites, laser, and services — Stripe this desk can actually read. Recurring (invoice or subscription
-        wording) is split from one-off. After the first $1,000 week, the target is the higher of the 25% ladder and
-        last week × 1.25, so a good week does not step the goal down.
+        ChurchConnect, EasyPeazy, websites, laser, toner, Rally coaching, App Engine, Operate — Stripe this desk can
+        actually read. Recurring (invoice or subscription wording) is split from one-off. After the first $1,000 week,
+        the target is the higher of the 25% ladder and last week × 1.25, so a good week does not step the goal down.
       </p>
       <div className={meterClass(report)}>
         <span style={{ width: meterWidth(report) }} />

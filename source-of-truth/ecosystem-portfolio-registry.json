@@ -607,9 +607,9 @@
         "intendedDomain": "toner.unitedundergod.org",
         "urlStatus": "live",
         "servingUrl": "https://toner.management",
-        "nextStep": "None \u2014 managed toner service live at toner.management / toner.unitedundergod.org.",
-        "note": "Canonical product TotalTonerManagement; multi-brand front doors include Toner Connect.",
-        "factsFrom": "verified-2026-08-07"
+        "nextStep": "None — managed toner live at toner.management, toner-management.com, and toner.unitedundergod.org.",
+        "note": "Canonical product TotalTonerManagement. Front doors: toner.management, toner-management.com, toner.unitedundergod.org. Toner Connect is the same family at tonerconnect.io.",
+        "factsFrom": "verified-2026-09-11"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -637,15 +637,16 @@
       "reviewUrl": "https://laser.unitedundergod.org",
       "productionUrl": "https://laser.unitedundergod.org",
       "currentVersion": "supabase-pivot-2026-07-03",
-      "deploymentState": "review_ready",
-      "buildState": "preview_verified",
-      "nextSafeAction": "await_owner_review",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
-        "intendedDomain": "laser.unitedundergod.org",
+        "intendedDomain": "laser.engrave.market",
         "urlStatus": "live",
-        "nextStep": "After owner review, add laser.engrave.market to the laser-engrave-market Vercel project so the already-set DNS starts serving (backend activation still gated on RENDER_API_KEY).",
-        "note": "engrave.market owned on DreamHost; the laser subdomain's DNS is set but nothing serves it yet \u2014 the preview lives on a *.vercel.app address (owner, 2026-07-03).",
-        "factsFrom": "owner-2026-07-03"
+        "servingUrl": "https://laser.engrave.market",
+        "nextStep": "None — both hosts serve the same shop.",
+        "note": "Same product at laser.unitedundergod.org and laser.engrave.market. Search doors (gifts, promotional, home signs, nameplates, wall signs) live on both.",
+        "factsFrom": "verified-2026-09-11"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -1488,6 +1489,63 @@
         }
       ],
       "lastUpdated": "2026-09-06T20:40:00.000Z"
+    },
+    {
+      "name": "Rally",
+      "slug": "rally",
+      "reviewUrl": "https://rally.unitedundergod.org",
+      "productionUrl": "https://rally.unitedundergod.org",
+      "currentVersion": "lessons-2026-09-11",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "rally.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://rally.unitedundergod.org",
+        "nextStep": "Take next week's tennis/pickleball bookings on this host. Do not stand up a second coaching app.",
+        "note": "Vidalia tennis and pickleball. Lessons, hitting partners, court time. Placeholder replaced with a bookable page so coaching can earn this week.",
+        "factsFrom": "owner-2026-09-11"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 339,
+          "title": "Roster: add Porchlight, Rally, and Selah",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/339",
+          "state": "merged"
+        }
+      ],
+      "blockers": [],
+      "evidenceLinks": ["https://rally.unitedundergod.org"],
+      "lastUpdated": "2026-09-11T00:00:00.000Z"
+    },
+    {
+      "name": "Backoffice.works",
+      "slug": "backoffice",
+      "reviewUrl": "https://backoffice.works",
+      "productionUrl": "https://www.backoffice.works",
+      "currentVersion": "wordpress-live",
+      "deploymentState": "production_live",
+      "buildState": "planned",
+      "nextSafeAction": "await_owner_review",
+      "domain": {
+        "intendedDomain": "backoffice.works",
+        "urlStatus": "live",
+        "servingUrl": "https://www.backoffice.works",
+        "nextStep": "Owner decides what backoffice.works becomes. Do not rebuild it as a parallel Operate.",
+        "note": "WordPress is live. Operate is the shop desk. Product direction for this domain is still open.",
+        "factsFrom": "verified-2026-09-11"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [
+        "Product direction open. Do not invent a second backoffice app inside App Engine."
+      ],
+      "evidenceLinks": ["https://www.backoffice.works"],
+      "lastUpdated": "2026-09-11T00:00:00.000Z"
     }
   ],
   "guardrails": {

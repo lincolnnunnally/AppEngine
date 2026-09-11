@@ -3,20 +3,15 @@
 // grow weekly income by at least 25%. This board only counts Stripe this desk
 // can actually read. Unread keys and unlabeled charges are gaps, never $0.
 
-import type { RevenueStreamId } from "./revenue-streams";
+import { primaryMixStreamIds } from "./income-doors.ts";
+import { streamMeta, type RevenueStreamId } from "./revenue-streams.ts";
 
 export const WEEKLY_GOAL_TZ = "America/New_York";
 export const WEEKLY_GOAL_START_ISO = "2026-09-14";
 export const WEEKLY_GOAL_START_CENTS = 100_000;
 export const WEEKLY_GROWTH_RATE = 1.25;
 
-export const MIX_STREAM_IDS: RevenueStreamId[] = [
-  "churchconnect",
-  "appengine",
-  "easypeazy",
-  "ai-website-design",
-  "laser"
-];
+export const MIX_STREAM_IDS: RevenueStreamId[] = primaryMixStreamIds();
 
 export type WeeklyCharge = {
   created: number;
@@ -188,27 +183,18 @@ function formatWeekLabel(startUnix: number, endUnix: number): string {
   return `${start} – ${end}`;
 }
 
-const MIX_LABELS: Record<RevenueStreamId, { label: string; slug: string | null }> = {
-  churchconnect: { label: "ChurchConnect Pro", slug: "churchconnect" },
-  appengine: { label: "App Engine credits", slug: "appengine" },
-  easypeazy: { label: "EasyPeazy", slug: "easy-peasy-website" },
-  "ai-website-design": { label: "AI Website Design", slug: "ai-website-design" },
-  laser: { label: "Laser Engrave Market", slug: "laser-engrave-market" },
-  "kids-need-dads": { label: "Kids Need Dads", slug: "kids-need-dads" },
-  "united-under-god": { label: "United Under God gifts", slug: "united-under-god" },
-  toner: { label: "Toner family", slug: "toner-management" },
-  unattributed: { label: "This Stripe account — not labeled", slug: null }
-};
-
 function emptyStreams(): StreamWeek[] {
-  return MIX_STREAM_IDS.map((id) => ({
-    id,
-    label: MIX_LABELS[id].label,
-    slug: MIX_LABELS[id].slug,
-    cents: 0,
-    charges: 0,
-    recurringCents: 0
-  }));
+  return MIX_STREAM_IDS.map((id) => {
+    const meta = streamMeta(id);
+    return {
+      id,
+      label: meta.label,
+      slug: meta.slug,
+      cents: 0,
+      charges: 0,
+      recurringCents: 0
+    };
+  });
 }
 
 function bucketCharges(charges: WeeklyCharge[], startUnix: number, endUnix: number, weekIndex: number, lastWeekActualCents: number): WeekBucket {
@@ -322,8 +308,8 @@ function buildOpportunities(args: {
       id: "laser-zero",
       severity: "act",
       title: "No labeled laser charges this week",
-      detail: "Church and community samples start at $20 (coaster). A $1,000 week is about 50 coaster-level orders, or fewer larger pieces. In-person cash does not show here.",
-      href: "https://laser.unitedundergod.org/s/church"
+      detail: "Church and community samples start at $20 (coaster). Search door: laser.engrave.market (same shop as laser.unitedundergod.org). In-person cash does not show here.",
+      href: "https://laser.engrave.market/gifts"
     });
   }
 
@@ -346,6 +332,39 @@ function buildOpportunities(args: {
       title: "No labeled App Engine charges this week",
       detail: "App and service work counts when the charge is on a readable Stripe and named. Selling the app is one lever of the mix.",
       href: "/apps/appengine"
+    });
+  }
+
+  const rally = thisWeek.byStream.find((stream) => stream.id === "rally");
+  if (!rally?.cents) {
+    out.push({
+      id: "rally-zero",
+      severity: "act",
+      title: "No Rally coaching charges this week",
+      detail: "Tennis and pickleball lessons in Vidalia. Book on Rally. Cash or a later card link does not move this bar until Stripe here can see it.",
+      href: "https://rally.unitedundergod.org"
+    });
+  }
+
+  const toner = thisWeek.byStream.find((stream) => stream.id === "toner");
+  if (!toner?.cents) {
+    out.push({
+      id: "toner-zero",
+      severity: "act",
+      title: "No labeled toner charges this week",
+      detail: "Toner Connect (tonerconnect.io), Toner Management (toner.management / toner-management.com). Same family. $5/printer/month is the known Management fee when billed.",
+      href: "https://toner.management"
+    });
+  }
+
+  const operate = thisWeek.byStream.find((stream) => stream.id === "operate");
+  if (!operate?.cents) {
+    out.push({
+      id: "operate-zero",
+      severity: "watch",
+      title: "Operate / backoffice.works is silent this week",
+      detail: "Operate is live as a shop desk. backoffice.works is still WordPress. We will not invent a second product. Money counts when a Stripe key for those slugs is on this desk.",
+      href: "https://operate.unitedundergod.org"
     });
   }
 
@@ -391,7 +410,6 @@ export function buildWeeklyGoal(input: {
   const thisMonday = mondayUnixContaining(now);
   const lastMonday = addDaysUnix(thisMonday, -7);
   const nextMonday = addDaysUnix(thisMonday, 7);
-  const weekAfter = addDaysUnix(nextMonday, 7);
   const thisIndex = weekIndexForMonday(thisMonday);
   const lastIndex = weekIndexForMonday(lastMonday);
 

@@ -11,6 +11,8 @@ import {
   type RevenueStreamId,
   type StripeChargeHint
 } from "@/lib/engine/revenue-streams";
+import { vaultSlotsFromIncomeDoors } from "@/lib/engine/income-doors";
+import { listOpsSlugs } from "@/lib/engine/app-ops-catalog";
 
 export type StripeAccountRow = {
   sourceId: string;
@@ -81,15 +83,21 @@ type RawCharge = StripeChargeHint & {
 const KNOWN_SLOTS: Array<{ sourceId: string; label: string; livesAt: string; slug: string; keys: string[] }> = [
   { sourceId: "desk-env", label: "Desk environment", livesAt: "Vercel app-engine · STRIPE_SECRET_KEY", slug: "", keys: ["STRIPE_SECRET_KEY"] },
   { sourceId: "vault-shared", label: "Vault — shared", livesAt: "Owner vault, every app", slug: "", keys: ["STRIPE_SECRET_KEY"] },
-  { sourceId: "vault-toner", label: "Vault — Toner", livesAt: "Owner vault · toner-management", slug: "toner-management", keys: ["STRIPE_SECRET_KEY", "STRIPE_API_KEY"] },
-  { sourceId: "vault-laser", label: "Vault — Laser", livesAt: "Owner vault · laser-engrave-market (live key is often on Render)", slug: "laser-engrave-market", keys: ["STRIPE_API_KEY", "STRIPE_SECRET_KEY"] },
-  { sourceId: "vault-churchconnect", label: "Vault — ChurchConnect", livesAt: "Owner vault · churchconnect", slug: "churchconnect", keys: ["STRIPE_SECRET_KEY"] },
-  { sourceId: "vault-easypeazy", label: "Vault — EasyPeazy", livesAt: "Owner vault · easy-peasy-website", slug: "easy-peasy-website", keys: ["STRIPE_SECRET_KEY", "STRIPE_API_KEY"] },
-  { sourceId: "vault-knd", label: "Vault — Kids Need Dads", livesAt: "Owner vault (live key is often on Supabase)", slug: "kids-need-dads", keys: ["STRIPE_SECRET_KEY"] },
-  { sourceId: "vault-uug", label: "Vault — United Under God", livesAt: "Owner vault · united-under-god", slug: "united-under-god", keys: ["STRIPE_SECRET_KEY"] },
-  { sourceId: "vault-awd", label: "Vault — AI Website Design", livesAt: "Owner vault · ai-website-design", slug: "ai-website-design", keys: ["STRIPE_SECRET_KEY"] },
-  { sourceId: "vault-furfriend", label: "Vault — FurFriend", livesAt: "Owner vault · furfriend", slug: "furfriend", keys: ["STRIPE_SECRET_KEY"] }
+  ...vaultSlotsFromIncomeDoors()
 ];
+
+function extraCatalogSlots(): Array<{ sourceId: string; label: string; livesAt: string; slug: string; keys: string[] }> {
+  const known = new Set(KNOWN_SLOTS.map((slot) => slot.slug).filter(Boolean));
+  return listOpsSlugs()
+    .filter((slug) => !known.has(slug))
+    .map((slug) => ({
+      sourceId: `vault-${slug}`,
+      label: `Vault — ${slug}`,
+      livesAt: `Owner vault · ${slug}`,
+      slug,
+      keys: ["STRIPE_SECRET_KEY", "STRIPE_API_KEY"]
+    }));
+}
 
 function keyHint(secret: string): string {
   const trimmed = secret.trim();
@@ -122,8 +130,8 @@ async function collectSecrets(ownerEmail: string | null): Promise<Array<{ source
     });
   }
 
-  for (const slot of KNOWN_SLOTS) {
-    if (!slot.slug) continue;
+  const slots = [...KNOWN_SLOTS.filter((slot) => slot.slug), ...extraCatalogSlots()];
+  for (const slot of slots) {
     const env = await resolveEnvForApp(ownerEmail, slot.slug).catch(() => ({} as Record<string, string>));
     let secret = "";
     for (const name of slot.keys) {
