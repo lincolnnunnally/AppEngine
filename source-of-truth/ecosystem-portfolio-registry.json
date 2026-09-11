@@ -1524,28 +1524,31 @@
     {
       "name": "Backoffice.works",
       "slug": "backoffice",
-      "reviewUrl": "https://backoffice.works",
-      "productionUrl": "https://www.backoffice.works",
-      "currentVersion": "wordpress-live",
+      "reviewUrl": "https://backoffice-works.vercel.app",
+      "productionUrl": "https://backoffice-works.vercel.app",
+      "currentVersion": "door-2026-09-11",
       "deploymentState": "production_live",
-      "buildState": "planned",
-      "nextSafeAction": "await_owner_review",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "backoffice.works",
-        "urlStatus": "live",
-        "servingUrl": "https://www.backoffice.works",
-        "nextStep": "Owner decides what backoffice.works becomes. Do not rebuild it as a parallel Operate.",
-        "note": "WordPress is live. Operate is the shop desk. Product direction for this domain is still open.",
-        "factsFrom": "verified-2026-09-11"
+        "urlStatus": "domain_owned_not_serving",
+        "servingUrl": "https://backoffice-works.vercel.app",
+        "nextStep": "At DreamHost, point backoffice.works A records to 216.150.1.1 and 216.150.16.1 (and www CNAME to cname.vercel-dns.com) so the branded door replaces the WordPress placeholder.",
+        "note": "Uniquely branded customer door (owner 2026-09-11) to Operate, toner, websites, group buying, and laser. Not a fourth toner price and not a second Operate. 20% leftover is an aim, not a promise. Vercel project backoffice-works is live; DreamHost still serves the old WordPress until DNS moves.",
+        "factsFrom": "owner-2026-09-11"
       },
       "sourceOfTruthFiles": [],
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [
-        "Product direction open. Do not invent a second backoffice app inside App Engine."
+        "DreamHost DNS still points at WordPress (67.205.20.0). Registrar change is owner-only until a DreamHost API key is in the vault."
       ],
-      "evidenceLinks": ["https://www.backoffice.works"],
-      "lastUpdated": "2026-09-11T00:00:00.000Z"
+      "evidenceLinks": [
+        "https://backoffice-works.vercel.app",
+        "https://github.com/lincolnnunnally/backoffice-works"
+      ],
+      "lastUpdated": "2026-09-11T15:30:00.000Z"
     }
   ],
   "guardrails": {
