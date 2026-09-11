@@ -297,8 +297,26 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     family: "commerce",
     purpose: "Describe a business, get a real website.",
     adminPath: "/admin"
+  },
+  rally: {
+    slug: "rally",
+    family: "commerce",
+    purpose: "Vidalia tennis and pickleball — lessons, hitting partners, court time.",
+    adminNote: "No staff admin yet. Bookings land on rally.unitedundergod.org. Do not invent a second coaching app."
+  },
+  backoffice: {
+    slug: "backoffice",
+    family: "commerce",
+    purpose: "backoffice.works — existing WordPress door. Product direction still open; do not rebuild it here.",
+    adminNote: "WordPress at backoffice.works. Not an App Engine admin. Money only counts if a Stripe key for this slug is on the desk."
   }
 };
+
+export function listOpsSlugs(): string[] {
+  return Object.values(CATALOG)
+    .filter((entry) => entry.family !== "parked")
+    .map((entry) => entry.slug);
+}
 
 export function getAppOpsCatalogEntry(slug: string): AppOpsCatalogEntry | null {
   return CATALOG[slug] ?? null;
