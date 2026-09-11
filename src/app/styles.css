@@ -5959,6 +5959,24 @@ a.dx-stat:hover {
   color: var(--muted);
 }
 
+.dx-goal-meter {
+  height: 8px;
+  background: color-mix(in srgb, var(--line) 85%, transparent);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 12px 0 6px;
+}
+
+.dx-goal-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--lime);
+}
+
+.dx-goal-meter.is-behind > span { background: var(--pink); }
+.dx-goal-meter.is-pace > span { background: var(--cyan); }
+.dx-goal-meter.is-ahead > span { background: var(--lime); }
+
 .dx-badge {
   display: inline-flex;
   align-items: center;

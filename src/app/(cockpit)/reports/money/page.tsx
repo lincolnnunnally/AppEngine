@@ -4,6 +4,8 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { dollars } from "@/lib/engine/stripe-summary";
 import { loadRevenueDetail, stripePaymentUrl } from "@/lib/engine/revenue-detail";
+import { buildWeeklyGoal } from "@/lib/engine/weekly-revenue-goal";
+import { WeeklyGoalPanel } from "@/components/engine/weekly-goal-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,7 @@ export default async function MoneyReportPage({
   const ownerEmail = normalizeUserKey(session?.user?.email) || null;
   const params = await searchParams;
   const detail = await loadRevenueDetail(ownerEmail);
+  const weekly = buildWeeklyGoal(detail);
 
   const streamFilter = params.stream || "";
   const accountFilter = params.account || "";
@@ -58,9 +61,23 @@ export default async function MoneyReportPage({
         </h1>
         <p className="dx-lede">
           Last 30 days, from every Stripe account this desk can actually read. The home page stays a glance. This page
-          is the books: account, service, and each charge.
+          is the books: weekly goal, account, service, and each charge.
         </p>
         <div className="dx-stat-grid">
+          <a className="dx-stat dx-stat--lime" href="#weekly-goal">
+            <strong>
+              {dollars(weekly.thisWeek.actualCents)}
+              {weekly.goalStarted ? ` / ${dollars(weekly.thisWeek.goalCents)}` : ""}
+            </strong>
+            <span>{weekly.goalStarted ? "this week vs goal" : "this week"}</span>
+            <p>
+              {weekly.goalStarted
+                ? weekly.gapCents
+                  ? `${dollars(weekly.gapCents)} to go`
+                  : `ahead ${dollars(weekly.aheadCents)}`
+                : `$1,000 starts ${weekly.startLabel}`}
+            </p>
+          </a>
           <div className="dx-stat dx-stat--lime">
             <strong>
               {dollars(streamFilter || accountFilter ? filteredCents : detail.revenue30d)}
@@ -84,6 +101,8 @@ export default async function MoneyReportPage({
           </div>
         </div>
       </section>
+
+      <WeeklyGoalPanel report={weekly} />
 
       <section className="panel">
         <p className="dx-label">Stripe accounts</p>

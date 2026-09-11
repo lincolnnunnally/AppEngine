@@ -1,15 +1,19 @@
 import { loadOwnerDeck } from "@/lib/engine/owner-deck";
 import { dollars, loadStripeSummary, type StripeSummary } from "@/lib/engine/stripe-summary";
+import { loadRevenueDetail } from "@/lib/engine/revenue-detail";
+import { buildWeeklyGoal, type WeeklyGoalReport } from "@/lib/engine/weekly-revenue-goal";
 import { BusinessExplorer } from "@/components/engine/business-explorer";
+import { WeeklyGoalGlance } from "@/components/engine/weekly-goal-panel";
 
 // Internal business desk. Money, people, help, and a table you can search
 // and sort. Factory language stays on /start.
 
-function MoneyStrip({ stripe }: { stripe: StripeSummary }) {
+function MoneyStrip({ stripe, weekly }: { stripe: StripeSummary; weekly: WeeklyGoalReport }) {
   if (stripe.state === "ok") {
     return (
       <div className="dx-stat-grid">
-        <a className="dx-stat dx-stat--lime" href="/reports">
+        <WeeklyGoalGlance report={weekly} />
+        <a className="dx-stat dx-stat--lime" href="/reports/money">
           <strong>
             {dollars(stripe.revenue30d)}
             {stripe.truncated ? "+" : ""}
@@ -36,13 +40,18 @@ function MoneyStrip({ stripe }: { stripe: StripeSummary }) {
   }
   if (stripe.state === "no_key") {
     return (
-      <p className="dx-note">
-        Money is dark until a Stripe key is in{" "}
-        <a className="account-link" href="/integrations">
-          Keys
-        </a>
-        . We will not invent a revenue number.
-      </p>
+      <>
+        <div className="dx-stat-grid">
+          <WeeklyGoalGlance report={weekly} />
+        </div>
+        <p className="dx-note">
+          Money is dark until a Stripe key is in{" "}
+          <a className="account-link" href="/integrations">
+            Keys
+          </a>
+          . We will not invent a revenue number.
+        </p>
+      </>
     );
   }
   if (stripe.state === "denied") {
@@ -56,7 +65,12 @@ function MoneyStrip({ stripe }: { stripe: StripeSummary }) {
 }
 
 export async function OwnerCommandDeck({ userKey }: { userKey: string | null; appsFilter?: string }) {
-  const [deck, stripe] = await Promise.all([loadOwnerDeck(), loadStripeSummary(userKey)]);
+  const [deck, stripe, detail] = await Promise.all([
+    loadOwnerDeck(),
+    loadStripeSummary(userKey),
+    loadRevenueDetail(userKey)
+  ]);
+  const weekly = buildWeeklyGoal(detail);
   const actItems = deck.attention.filter((item) => item.severity === "act");
   const ordersAcross = deck.apps.reduce((sum, app) => sum + (app.ordersRecent ?? 0), 0);
   const growing = deck.apps.filter((app) => app.growth === "up").length;
@@ -83,7 +97,7 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
           Money, people, and who needs a hand — across every live expression. Search and sort the table. Open a row to
           drill in. Each app still has its own admin for staff.
         </p>
-        <MoneyStrip stripe={stripe} />
+        <MoneyStrip stripe={stripe} weekly={weekly} />
         {stripe.state === "ok" ? (
           <div className="dx-table-wrap" style={{ marginTop: 16 }}>
             <table className="dx-table">
