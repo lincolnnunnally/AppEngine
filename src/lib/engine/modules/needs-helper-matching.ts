@@ -137,15 +137,9 @@ function needsLibFile(): GeneratedModuleFile {
     "  return value.split(/[,\\n;]+/).map((v) => v.trim()).filter(Boolean);",
     "}",
     "",
-    "const fallbackNeeds: Need[] = [",
-    '  { id: "need-sample-1", requesterId: null, requesterName: "Marta H.", title: "Ride to a medical appointment", description: "I need a lift to a follow-up on Thursday morning and back home after.", category: "transportation", urgency: "high", city: "Riverside", dateNeeded: "", recurring: false, status: "open", matchedHelperId: null, createdAt: "" },',
-    '  { id: "need-sample-2", requesterId: null, requesterName: "Dev P.", title: "Help carrying groceries up the stairs", description: "A hand once a week would mean the world — third-floor walk-up.", category: "groceries", urgency: "normal", city: "Riverside", dateNeeded: "", recurring: true, status: "open", matchedHelperId: null, createdAt: "" }',
-    "];",
+    "const fallbackNeeds: Need[] = [];",
     "",
-    "const fallbackHelpers: Helper[] = [",
-    '  { id: "helper-sample-1", userId: null, name: "Sam Rivera", city: "Riverside", abilities: ["driving", "errands"], availability: ["weekend", "weekday_evening"], hasVehicle: true, hasBackgroundCheck: true, vouched: true, completedVisits: 12 },',
-    '  { id: "helper-sample-2", userId: null, name: "Jordan Lee", city: "Riverside", abilities: ["companionship", "tech_help"], availability: ["weekday_afternoon"], hasVehicle: false, hasBackgroundCheck: false, vouched: false, completedVisits: 3 }',
-    "];",
+    "const fallbackHelpers: Helper[] = [];",
     "",
     "function rowToNeed(row: Record<string, unknown>): Need {",
     "  return {",
@@ -1097,14 +1091,7 @@ export const needsHelperMatchingModule: AppModule = {
       ");",
       "create index if not exists needs_reports_status_idx on needs_reports (status, created_at desc);"
     ].join("\n"),
-  seedSql: () =>
-    [
-      "",
-      "insert into needs_requests (requester_name, title, description, category, urgency, city, recurring) values",
-      "  ('Marta H.', 'Ride to a medical appointment', 'A lift to a follow-up and back home after would be a huge help.', 'transportation', 'high', 'Riverside', false),",
-      "  ('Dev P.', 'Help carrying groceries up the stairs', 'A hand once a week would mean the world — third-floor walk-up.', 'groceries', 'normal', 'Riverside', true)",
-      "on conflict do nothing;"
-    ].join("\n"),
+  seedSql: () => "",
   envLines: () => [
     "",
     "# Needs & Helper Matching — set to false to switch the needs board + hand-offs off.",

@@ -50,10 +50,7 @@ function directoryLibFile(): GeneratedModuleFile {
     "  return Math.min(100, score);",
     "}",
     "",
-    "const fallbackPeople: DirectoryPerson[] = [",
-    '  { id: "sample-1", firstName: "Ada", lastName: "Lovelace", email: "ada@example.com", phone: "555-0100", title: "Founding member", city: "London", state: "", bio: "First to see where the work could go.", dataQualityScore: 100 },',
-    '  { id: "sample-2", firstName: "Grace", lastName: "Hopper", email: "grace@example.com", phone: "", title: "Volunteer lead", city: "New York", state: "NY", bio: "", dataQualityScore: 70 }',
-    "];",
+    "const fallbackPeople: DirectoryPerson[] = [];",
     "",
     "function rowToPerson(row: Record<string, unknown>): DirectoryPerson {",
     "  return {",
@@ -333,13 +330,7 @@ export const directoryCommunityModule: AppModule = {
       "create index if not exists directory_people_name_idx on directory_people (lower(last_name), lower(first_name));",
       "create index if not exists directory_people_email_idx on directory_people (lower(email));"
     ].join("\n"),
-  seedSql: () =>
-    [
-      "",
-      "insert into directory_people (first_name, last_name, email, phone, title, city, state, bio, data_quality_score) values",
-      "  ('Ada', 'Lovelace', 'ada@example.com', '555-0100', 'Founding member', 'London', '', 'First to see where the work could go.', 100)",
-      "on conflict do nothing;"
-    ].join("\n"),
+  seedSql: () => "",
   envLines: () => [
     "",
     "# Directory & Community — set to false to switch the people directory off.",
