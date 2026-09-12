@@ -115,7 +115,7 @@ if (typeFamily(baseParsed.tables.get("users")?.get("id") ?? "") !== "uuid") {
   bad("users.id is uuid (T12 identity decision)", `parsed type: ${baseParsed.tables.get("users")?.get("id")}`);
 }
 
-const files = fs.readdirSync(modulesDir).filter((f) => f.endsWith(".ts") && !["types.ts", "registry.ts"].includes(f));
+const files = fs.readdirSync(modulesDir).filter((f) => f.endsWith(".ts") && !["types.ts", "registry.ts", "simple-list.ts"].includes(f));
 const allPaths = new Map(); // emitted path -> module slug
 const allFiles = new Map(); // emitted path -> { slug, content } for the client-bundle check
 const allTables = new Map(); // table name -> module slug

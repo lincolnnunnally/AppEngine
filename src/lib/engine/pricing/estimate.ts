@@ -303,6 +303,13 @@ export function suggestFeaturesFromText(text: string): SellableFeature[] {
     if (/knowledge|how.?to|playbook|faq|docs/.test(t) && f.id === "knowledge") score += 4;
     if (/brand|logo|colors|look and feel/.test(t) && f.id === "branding") score += 3;
     if (/\bai\b|assistant|helper bot/.test(t) && f.id === "ai-helper") score += 3;
+    if (/pantry|shelf|inventory|stock|use-by|food bank/.test(t) && f.id === "shelf") score += 5;
+    if (/donor|receipt|write-?off|in-kind/.test(t) && f.id === "receipts") score += 5;
+    if (/waitlist|waiting list|invite when/.test(t) && f.id === "waitlist") score += 4;
+    if (/pulse|unheard|issue board|leaders flying/.test(t) && f.id === "pulse") score += 5;
+    if (/group buy|buy together|lock order/.test(t) && f.id === "group-buy") score += 5;
+    if (/intake|capture the problem/.test(t) && f.id === "intake") score += 3;
+    if (/next step|navigator|where they are/.test(t) && f.id === "navigator") score += 3;
     return { f, score };
   })
     .filter((x) => x.score > 0)

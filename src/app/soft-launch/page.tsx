@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { FactoryWelcome } from "@/components/intake/factory-welcome";
 import { getPublicAccessMode, type PublicAccessMode } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,9 @@ type SoftLaunchCopy = {
 
 const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   owner: {
-    kicker: "AppEngine",
-    title: "Owner-only preview",
-    body: "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app. Sign in to start. The internal business desk lives at dashboard.unitedundergod.org.",
+    kicker: "App Engine",
+    title: "Snap together a working app",
+    body: "Describe a problem you want solved or a tool you want to build. We recommend a starter combination, show the cost up front, and publish a live website. Sign in to start.",
     cta: "Sign in"
   },
   allowlist: {
@@ -29,9 +29,9 @@ const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
     cta: "Sign in"
   },
   public: {
-    kicker: "AppEngine — app builder",
-    title: "Describe it. We build the app.",
-    body: "Tell us a problem you want solved or a tool you want to build, and we build you a real, working app for it — live, online, ready to sign into. The first version is a working starter you then improve with us.",
+    kicker: "App Engine — app builder",
+    title: "Describe it. We snap it together.",
+    body: "Tell us a problem you want solved or a tool you want to build. We pick a starter pack of modules, show the price, and publish a live website you can open. The first version is a working starter you then improve with us.",
     cta: "Sign in to start"
   }
 };
@@ -40,15 +40,8 @@ export default function SoftLaunchPage() {
   const copy = COPY[getPublicAccessMode()];
 
   return (
-    <main className="soft-launch">
-      <section className="soft-launch-panel">
-        <p className="soft-launch-kicker">{copy.kicker}</p>
-        <h1>{copy.title}</h1>
-        <p>{copy.body}</p>
-        <Link className="soft-launch-action" href="/signin">
-          {copy.cta}
-        </Link>
-      </section>
-    </main>
+    <div className="soft-launch">
+      <FactoryWelcome kicker={copy.kicker} title={copy.title} body={copy.body} cta={copy.cta} />
+    </div>
   );
 }
