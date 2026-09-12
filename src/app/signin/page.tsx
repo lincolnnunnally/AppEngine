@@ -4,6 +4,7 @@ import { signIn } from "@/auth";
 import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth/access";
 import { isReservedTestEmail, normalizeSignInEmail } from "@/lib/auth/email";
 import { DASHBOARD_ORIGIN, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
+import { noOrphan } from "@/lib/ui/no-orphan";
 
 async function afterSignIn(): Promise<string> {
   const host = hostFromHeader((await headers()).get("host"));
@@ -76,8 +77,12 @@ export default async function SignInPage({
         ) : (
           <>
             <p className="soft-launch-kicker">AppEngine — app builder</p>
-            <h1>Sign in to start</h1>
-            <p>Describe a problem you want solved or a tool you want to build, and we&apos;ll build you a real, working app. Sign in to begin.</p>
+            <h1>{noOrphan("Sign in to start")}</h1>
+            <p>
+              {noOrphan(
+                "Describe a problem you want solved or a tool you want to build, and we'll build you a real, working app. Sign in to begin."
+              )}
+            </p>
           </>
         )}
 

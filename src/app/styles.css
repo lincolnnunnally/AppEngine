@@ -24,6 +24,16 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--paper);
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3,
+.convo-title,
+.factory-hero h1,
+.balanced-title {
+  text-wrap: balance;
 }
 
 a {
@@ -4597,32 +4607,65 @@ label {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 3rem;
 }
 
 .factory-hero {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.9rem;
   max-width: 40rem;
+  margin-inline: auto;
+  text-align: center;
+  justify-items: center;
+}
+
+.balanced-title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08em;
+}
+
+.balanced-title span {
+  display: block;
 }
 
 .factory-hero h1 {
-  margin: 0;
-  font-size: clamp(2rem, 5vw, 3rem);
+  align-items: center;
+  font-size: clamp(1.45rem, 5.8vw, 2.65rem);
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.12;
+}
+
+.convo-head .balanced-title {
+  align-items: center;
+  text-align: center;
 }
 
 .factory-lede,
 .factory-how {
   margin: 0;
+  max-width: 36rem;
   color: var(--muted);
   font-size: 1.08rem;
   line-height: 1.55;
 }
 
-.factory-packs h2 {
+.factory-packs {
+  text-align: center;
+}
+
+.factory-packs h2,
+.factory-packs .balanced-title {
   margin: 0.2rem 0 0.4rem;
+  align-items: center;
+  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+  letter-spacing: -0.02em;
+}
+
+.factory-packs .note {
+  max-width: 34rem;
+  margin-inline: auto;
 }
 
 .soft-launch-panel {
@@ -4840,8 +4883,9 @@ label {
 }
 
 .theme-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
   margin-top: 8px;
 }
@@ -4856,6 +4900,9 @@ label {
   background: var(--green-soft);
   color: var(--ink);
   cursor: pointer;
+  flex: 1 1 10.5rem;
+  max-width: 14rem;
+  min-width: min(100%, 10.5rem);
 }
 
 .theme-card--selected {
@@ -6081,8 +6128,9 @@ a.dx-stat:hover {
 }
 
 .dx-app-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 14px;
   margin-top: 14px;
 }
@@ -6106,6 +6154,9 @@ a.dx-stat:hover {
 .dx-app {
   position: relative;
   overflow: hidden;
+  flex: 1 1 16.5rem;
+  max-width: 22rem;
+  min-width: min(100%, 16.5rem);
 }
 
 .dx-app::before {
@@ -6855,10 +6906,12 @@ a.signin-secondary:hover {
   color: var(--ink);
 }
 
-.compose-arch-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+.compose-arch-grid,
+.balanced-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
 .compose-arch {
@@ -6868,22 +6921,36 @@ a.signin-secondary:hover {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 12px;
-  cursor: pointer;
+  padding: 14px 16px;
+  cursor: default;
   display: flex;
   flex-direction: column;
+  flex: 1 1 15.5rem;
+  max-width: 20rem;
+  min-width: min(100%, 15.5rem);
   gap: 6px;
 }
 
-.compose-arch span,
-.compose-arch em {
+.compose-arch span {
   color: var(--muted);
   font-style: normal;
   font-size: 0.9rem;
 }
 
+.compose-arch em {
+  color: var(--gold);
+  font-style: normal;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: auto;
+}
+
+button.compose-arch {
+  cursor: pointer;
+}
+
 .compose-arch--selected,
-.compose-arch:hover {
+button.compose-arch:hover {
   border-color: var(--teal);
 }
 

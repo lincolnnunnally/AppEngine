@@ -25,6 +25,7 @@ import {
 } from "./foundation-modules";
 import { baseSchemaSql } from "./base-schema";
 import { applyBrand, buildThemedCss, monogramFor, resolveTheme, type Brand } from "./themes";
+import { noOrphan, splitTitleLines } from "@/lib/ui/no-orphan";
 
 type GeneratorProject = {
   id: string;
@@ -494,11 +495,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `import { selectedModules } from "@/lib/app-data";\n\nexport default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${escapeText(plan.appType)}</p>\n      <h1>${escapeText(projectName)}</h1>\n      <p>${escapeText(plan.valueProposition)}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/sign-in">Open the app</a>\n        <a className="button" href="/app">Go to workspace</a>\n      </div>\n      <section className="grid">\n        {selectedModules.map((item) => (\n          <article className="card" key={item.name}>\n            <span>Included</span>\n            <strong>{item.name}</strong>\n            <p>{item.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { selectedModules } from "@/lib/app-data";\n\nexport default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${escapeText(plan.appType)}</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${escapeText(noOrphan(plan.valueProposition))}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/sign-in">Open the app</a>\n        <a className="button" href="/app">Go to workspace</a>\n      </div>\n      <section className="grid">\n        {selectedModules.map((item) => (\n          <article className="card" key={item.name}>\n            <span>Included</span>\n            <strong>{item.name}</strong>\n            <p>{item.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/app/page.tsx",
-      content: `import { customerMetrics, customerWorkflows, selectedModules } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1>${escapeText(projectName)}</h1>\n      <p>${customer} can manage the workflow for ${problem}.</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="metric-grid">\n        {customerMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {selectedModules.map((template) => (\n          <article className="card" key={template.name}>\n            <span>Module</span>\n            <strong>{template.name}</strong>\n            <p>{template.description}</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { customerMetrics, customerWorkflows, selectedModules } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${customer} can manage the workflow for ${problem}.</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="metric-grid">\n        {customerMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {selectedModules.map((template) => (\n          <article className="card" key={template.name}>\n            <span>Module</span>\n            <strong>{template.name}</strong>\n            <p>{template.description}</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/account/page.tsx",
@@ -1132,6 +1133,12 @@ function slugify(input: string) {
 
 function escapeText(input: string) {
   return input.replace(/[<>]/g, "");
+}
+
+function balancedHeadingHtml(input: string) {
+  return splitTitleLines(input)
+    .map((line) => `<span>${escapeText(line)}</span>`)
+    .join("");
 }
 
 function sqlString(input: string) {

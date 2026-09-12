@@ -55,6 +55,7 @@
     "orchestration:followups": "node scripts/create-follow-up-issues.js",
     "smoke:conversational-intake": "node scripts/smoke-conversational-intake.js",
     "smoke:consumer-access": "node scripts/smoke-consumer-access.js",
+    "smoke:balanced-layout": "node scripts/smoke-balanced-layout.js",
     "smoke:llm-usage": "node scripts/smoke-llm-usage.js",
     "smoke:integrations-config": "node scripts/smoke-integrations-config.js",
     "smoke:location-proximity": "node scripts/smoke-location-proximity.js",

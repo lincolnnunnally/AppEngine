@@ -69,7 +69,10 @@ export default function AppsShowcasePage() {
       <main>
         <section className="uug-hero">
           <p className="uug-eyebrow">Our apps</p>
-          <h1>One family of apps, built to serve real life.</h1>
+          <h1 className="balanced-title">
+            <span>One family of apps.</span>
+            <span>Built to serve real life.</span>
+          </h1>
           <p className="uug-lead">
             Everything here exists for one reason: helping people experience the personal truth about God in
             practical, everyday ways — moving from being consumed by problems to seeing those problems as
@@ -172,9 +175,14 @@ const CSS = `
   color: var(--accent); font-weight: 800; text-transform: uppercase;
   letter-spacing: 0.14em; font-size: 0.78rem; margin-bottom: 14px;
 }
-.uug-hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.06; letter-spacing: -0.02em; }
-.uug-lead { margin-top: 18px; font-size: 1.08rem; line-height: 1.65; }
-.uug-sub { margin-top: 12px; color: var(--muted); line-height: 1.6; }
+.uug-hero h1, .uug .balanced-title {
+  display: flex; flex-direction: column; gap: 0.08em;
+  font-size: clamp(1.7rem, 4.6vw, 2.85rem); line-height: 1.08; letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.uug .balanced-title span { display: block; }
+.uug-lead { margin-top: 18px; font-size: 1.08rem; line-height: 1.65; text-wrap: pretty; }
+.uug-sub { margin-top: 12px; color: var(--muted); line-height: 1.6; text-wrap: pretty; }
 
 .uug-section { padding-top: 44px; }
 .uug-section-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -186,12 +194,15 @@ const CSS = `
   color: var(--muted); font-size: 0.78rem; font-weight: 800;
   text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px;
 }
-.uug-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.uug-grid {
+  display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 14px;
+}
 
 .uug-card {
   display: flex; flex-direction: column; gap: 8px;
   background: var(--card); border: 1px solid var(--line); border-radius: 12px;
   padding: 18px;
+  flex: 1 1 16rem; max-width: 22rem; min-width: min(100%, 16rem);
 }
 .uug-card h3 { font-size: 1.05rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .uug-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
