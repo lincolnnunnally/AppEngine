@@ -15,6 +15,7 @@ codex.patch
 # Local agent workspaces — never commit
 .claude/
 .codex-worktrees/
+.worktrees/
 .vercel
 .env*
 

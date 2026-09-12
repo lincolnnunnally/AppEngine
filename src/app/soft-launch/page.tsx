@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // No infrastructure jargon — consumer-facing brand is "AppEngine".
 type SoftLaunchCopy = {
   kicker: string;
-  title: string;
+  titleLines: string[];
   body: string;
   cta: string;
 };
@@ -18,19 +18,19 @@ type SoftLaunchCopy = {
 const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   owner: {
     kicker: "App Engine",
-    title: "Snap together a working app",
+    titleLines: ["Snap pieces together.", "Get a working app."],
     body: "Describe a problem you want solved or a tool you want to build. We recommend a starter combination, show the cost up front, and publish a live website. Sign in to start.",
     cta: "Sign in"
   },
   allowlist: {
-    kicker: "AppEngine — app builder",
-    title: "You're invited in early",
-    body: "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it. If your email is on the early-access list, sign in to start.",
+    kicker: "App Engine — app builder",
+    titleLines: ["You're invited.", "Come start early."],
+    body: "Describe a problem you want solved or a tool you want to build, and we build you a real, working app for it. If your email is on the early-access list, sign in to start.",
     cta: "Sign in"
   },
   public: {
     kicker: "App Engine — app builder",
-    title: "Describe it. We snap it together.",
+    titleLines: ["Describe it.", "We snap it together."],
     body: "Tell us a problem you want solved or a tool you want to build. We pick a starter pack of modules, show the price, and publish a live website you can open. The first version is a working starter you then improve with us.",
     cta: "Sign in to start"
   }
@@ -41,7 +41,7 @@ export default function SoftLaunchPage() {
 
   return (
     <div className="soft-launch">
-      <FactoryWelcome kicker={copy.kicker} title={copy.title} body={copy.body} cta={copy.cta} />
+      <FactoryWelcome kicker={copy.kicker} titleLines={copy.titleLines} body={copy.body} cta={copy.cta} />
     </div>
   );
 }

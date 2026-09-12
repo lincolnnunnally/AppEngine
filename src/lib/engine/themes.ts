@@ -229,17 +229,22 @@ export function buildThemedCss(theme: Theme): string {
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; color: var(--ink); background: var(--paper); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; text-wrap: pretty; }
 a { color: inherit; }
 img { max-width: 100%; height: auto; }
 .shell { width: min(1120px, 100%); margin: 0 auto; padding: 20px 16px 40px; }
 .hero { min-height: 58vh; display: grid; align-content: center; }
 .eyebrow, .card span { margin: 0 0 6px; color: var(--muted); font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-h1 { margin: 0 0 14px; font-size: clamp(1.7rem, 5vw, 3rem); line-height: 1.06; }
-h2 { margin: 0 0 12px; font-size: clamp(1.3rem, 3.5vw, 2rem); line-height: 1.15; }
+h1, h2, h3 { text-wrap: balance; }
+h1 { margin: 0 0 14px; font-size: clamp(1.55rem, 5vw, 2.7rem); line-height: 1.12; }
+h2 { margin: 0 0 12px; font-size: clamp(1.25rem, 3.5vw, 1.85rem); line-height: 1.2; }
 h3 { margin: 0; }
+.balanced-title { display: flex; flex-direction: column; gap: .08em; }
+.balanced-title span { display: block; }
 p, small { color: var(--ink); line-height: 1.6; }
-.grid, .metric-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 18px; }
+.grid, .balanced-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 18px; }
+.grid > *, .balanced-cards > * { flex: 1 1 16.5rem; max-width: 22rem; min-width: min(100%, 16.5rem); }
+.metric-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 18px; }
 .panel-list { display: grid; gap: 10px; margin-top: 18px; }
 .card, .metric-card, .wide-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: var(--panel); }
 .card strong, .metric-card strong, .wide-card strong { display: block; }
@@ -270,12 +275,10 @@ textarea.input { min-height: 96px; resize: vertical; }
 .app-nav a:hover { background: var(--paper); }
 .app-nav a.app-nav-cta { background: var(--accent); color: var(--accent-ink); }
 @media (min-width: 640px) {
-  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 960px) {
   .shell { padding: 32px 24px 48px; }
-  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 `;

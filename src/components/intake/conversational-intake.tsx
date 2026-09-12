@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ComposeAndBuild } from "@/components/intake/compose-and-build";
+import { noOrphan } from "@/lib/ui/no-orphan";
 import {
   buildIntakeSubmission,
   conversationSteps,
@@ -126,11 +127,15 @@ export function ConversationalIntake() {
     <section className="convo" aria-label="Start building an app">
       <header className="convo-head">
         <p className="convo-eyebrow">We snap the app together for you</p>
-        <h1 className="convo-title">What should this app help someone do?</h1>
+        <h1 className="convo-title balanced-title">
+          <span>What should this app</span>
+          <span>help someone do?</span>
+        </h1>
         {atStart ? (
           <p className="convo-sub">
-            Describe a problem you want solved or a tool you already have in mind — I&apos;ll ask a few quick questions,
-            then we build you a real, working app for it. No long form.
+            {noOrphan(
+              "Describe a problem you want solved or a tool you already have in mind — I'll ask a few quick questions, then we build you a real, working app for it. No long form."
+            )}
           </p>
         ) : null}
       </header>

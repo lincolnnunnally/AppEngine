@@ -5,6 +5,7 @@ import { ApproveApp } from "@/components/account/approve-app";
 import { BrandStep } from "@/components/build/brand-step";
 import { DomainStep } from "@/components/build/domain-step";
 import { ThemePicker } from "@/components/build/theme-picker";
+import { noOrphan } from "@/lib/ui/no-orphan";
 
 type FeatureRow = {
   id: string;
@@ -216,8 +217,11 @@ export function ComposeAndBuild({
     <section className="compose" aria-label="Starter pack and price">
       <header className="convo-head">
         <p className="convo-eyebrow">Starter pack</p>
-        <h2 className="convo-title">Here&apos;s what we&apos;ll snap together</h2>
-        <p className="convo-sub">{summary}</p>
+        <h2 className="convo-title balanced-title">
+          <span>Here&apos;s the pack</span>
+          <span>we&apos;ll snap together</span>
+        </h2>
+        <p className="convo-sub">{noOrphan(summary)}</p>
       </header>
 
       {loadError ? <p className="convo-notice convo-notice--error" role="alert">{loadError}</p> : null}
