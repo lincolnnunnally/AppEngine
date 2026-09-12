@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ComposeAndBuild } from "@/components/intake/compose-and-build";
 import {
   buildIntakeSubmission,
   conversationSteps,
   isAnswerComplete,
+  needTextFromAnswers,
   reflectBack,
   type ConversationAnswers,
   type ConversationStep,
@@ -28,6 +30,7 @@ export function ConversationalIntake() {
   const [reviewing, setReviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [composing, setComposing] = useState(false);
 
   const steps = conversationSteps;
   const step: ConversationStep | undefined = steps[stepIndex];
@@ -84,25 +87,40 @@ export function ConversationalIntake() {
       if (!response.ok || result?.ok === false) {
         setNotice({
           type: "error",
-          title: "That didn't go through",
-          message: result?.message || "Something went wrong saving this. Please try again."
-        });
-      } else {
-        setNotice({
-          type: "success",
-          title: "Got it — this is in.",
-          message:
-            "You'll get a real, live starter app you can open and try — not the finished product yet. We review every idea, build the first working version, then improve it with you."
+          title: "We couldn't save the notes",
+          message: result?.message || "Something went wrong saving this. You can still see the starter pack and price."
         });
       }
+      // Intake save is bookkeeping. The product is the priced pack + live app —
+      // never a dead end after "take it in."
+      setComposing(true);
     } catch {
-      setNotice({ type: "error", title: "That didn't go through", message: "Network hiccup. Please try again." });
+      setNotice({
+        type: "error",
+        title: "We couldn't save the notes",
+        message: "Network hiccup. You can still see the starter pack and price."
+      });
+      setComposing(true);
     } finally {
       setSubmitting(false);
     }
   }
 
   const success = notice?.type === "success";
+
+  if (composing) {
+    return (
+      <section className="convo" aria-label="Starter pack">
+        {notice?.type === "error" ? (
+          <div className="convo-notice convo-notice--error" role="alert">
+            <strong>{notice.title}</strong>
+            <span>{notice.message}</span>
+          </div>
+        ) : null}
+        <ComposeAndBuild idea={needTextFromAnswers(answers)} summary={reflectBack(FRAME, answers)} />
+      </section>
+    );
+  }
 
   return (
     <section className="convo" aria-label="Start building an app">
@@ -134,7 +152,7 @@ export function ConversationalIntake() {
 
         {!success && reviewing ? (
           <div className="convo-turn convo-review">
-            <p className="convo-q">Here&apos;s what I heard — want me to take it in?</p>
+            <p className="convo-q">Here&apos;s what I heard — next I&apos;ll show a starter combination and what it costs.</p>
             <p className="convo-reflect">{reflectBack(FRAME, answers)}</p>
           </div>
         ) : null}
@@ -178,7 +196,7 @@ export function ConversationalIntake() {
 
           {reviewing ? (
             <button type="button" className="convo-go" onClick={submit} disabled={submitting}>
-              {submitting ? "Sending..." : "Yes — take it in"}
+              {submitting ? "Putting the pack together..." : "Show me the starter pack and price"}
             </button>
           ) : !chips ? (
             <div className="convo-advance">

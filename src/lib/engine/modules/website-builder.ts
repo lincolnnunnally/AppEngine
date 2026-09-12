@@ -439,6 +439,26 @@ function websiteLibFile(): GeneratedModuleFile {
     "  }",
     "}",
     "",
+    "// Public lookup: published pages only, by slug or id. This is the visitor URL.",
+    "export async function getPublishedLanding(slugOrId: string): Promise<LandingPage | null> {",
+    "  const key = slugOrId.trim();",
+    "  if (!key) return null;",
+    "  const fromFallback = fallbackLandingPages.find((p) => p.published && (p.slug === key || p.id === key)) || null;",
+    "  if (!hasDatabase()) return fromFallback;",
+    "  try {",
+    "    const sql = getDatabase();",
+    "    const rows = await sql`",
+    "      select id, owner_id, website_id, slug, brand_name, headline, subheadline,",
+    "        cta_label, price_line, features, published, created_at",
+    "      from website_builder_landing_pages",
+    "      where published = true and (slug = ${key} or id::text = ${key})",
+    "      limit 1`;",
+    "    return rows[0] ? rowToLanding(rows[0]) : fromFallback;",
+    "  } catch {",
+    "    return fromFallback;",
+    "  }",
+    "}",
+    "",
     "export type CreateLandingInput = {",
     "  ownerId: string | null;",
     "  websiteId?: string | null;",
@@ -1182,6 +1202,7 @@ function landingDetailPageFile(): GeneratedModuleFile {
     "          <li key={index}>{feature}</li>",
     "        ))}",
     "      </ul>",
+    '      {page.published ? <p className="note">Live at <a href={"/s/" + (page.slug || page.id)}>{"/s/" + (page.slug || page.id)}</a> — anyone can open this without signing in.</p> : <p className="note">Draft — publish to give people a public page they can open.</p>}',
     "      {canManage ? <PublishToggle id={page.id} published={page.published} /> : null}",
     '      <p><Link className="button" href="/website/landing">Back to landing pages</Link></p>',
     "    </main>",
@@ -1191,6 +1212,41 @@ function landingDetailPageFile(): GeneratedModuleFile {
 }
 
 // ---- src/app/website/landing/[id]/publish-toggle.tsx (client) ---------------
+
+function publicLandingFile(): GeneratedModuleFile {
+  return file("src/app/s/[slug]/page.tsx", [
+    'import { notFound } from "next/navigation";',
+    'import { getPublishedLanding, DEFAULT_LANDING_FEATURES, websiteEnabled } from "@/lib/db/website";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function PublicLandingPage({ params }: { params: Promise<{ slug: string }> }) {",
+    "  if (!websiteEnabled()) notFound();",
+    "  const { slug } = await params;",
+    "  const page = await getPublishedLanding(slug);",
+    "  if (!page) notFound();",
+    "  const features = page.features.length ? page.features : DEFAULT_LANDING_FEATURES;",
+    "",
+    "  return (",
+    '    <main className="shell hero">',
+    '      <p className="eyebrow">{page.brandName}</p>',
+    "      <h1>{page.headline}</h1>",
+    "      {page.subheadline ? <p>{page.subheadline}</p> : null}",
+    '      <div className="action-row">',
+    '        <a className="button primary" href="/sign-in">{page.ctaLabel || "Get started"}</a>',
+    "        {page.priceLine ? <span className=\"note\">{page.priceLine}</span> : null}",
+    "      </div>",
+    "      <h2>What&apos;s included</h2>",
+    '      <ul className="feature-list">',
+    "        {features.map((feature, index) => (",
+    "          <li key={index}>{feature}</li>",
+    "        ))}",
+    "      </ul>",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
 
 function publishToggleFile(): GeneratedModuleFile {
   return file("src/app/website/landing/[id]/publish-toggle.tsx", [
@@ -1257,7 +1313,8 @@ export const websiteBuilderModule: AppModule = {
     landingPageFile(),
     landingBuilderFile(),
     landingDetailPageFile(),
-    publishToggleFile()
+    publishToggleFile(),
+    publicLandingFile()
   ],
   schemaSql: () =>
     [

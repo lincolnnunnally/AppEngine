@@ -28,6 +28,7 @@ import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 import { createPlannedProject } from "@/lib/engine/persistence";
 import { deployGeneratedAppToVercel, projectNameFromSlug, type DeployFile } from "@/lib/engine/vercel-deploy";
 import { resolveEnvForApp } from "@/lib/engine/env-vault";
+import { STANDARD_WEB_MODULE_SLUGS } from "@/lib/engine/pricing/module-pricing";
 
 export class BuildAffordabilityError extends Error {
   code = "INSUFFICIENT_CREDITS";
@@ -58,15 +59,28 @@ function customerGateClearance(userKey: string, at: string): BuildGateClearance 
 // Customer's described idea -> a project they own that's cleared to build -> a
 // billed build. Local/dev only until the production customer-projects migration
 // is applied (gate-clearance + owner columns); see db/customer-projects-migration.sql.
+function withStandardWebModules(moduleSlugs?: string[]): string[] {
+  const set = new Set((moduleSlugs || []).map((slug) => slug.trim()).filter(Boolean));
+  for (const slug of STANDARD_WEB_MODULE_SLUGS) set.add(slug);
+  return [...set];
+}
+
 export async function startCustomerBuild(
   userKey: string,
   idea: string,
   name?: string,
   themeId?: string,
-  brand?: Brand
+  brand?: Brand,
+  moduleSlugs?: string[]
 ): Promise<BilledBuildResult & { projectId: string }> {
   const at = new Date().toISOString();
-  const input = { idea, name, revenueModel: "Not sure yet", appType: "Auto detect" };
+  const input = {
+    idea,
+    name,
+    revenueModel: "Not sure yet",
+    appType: "Auto detect",
+    moduleSlugs: withStandardWebModules(moduleSlugs)
+  };
   const ownership = { customerEmail: userKey, gateClearance: customerGateClearance(userKey, at) };
 
   const created = isLocalMode()
@@ -107,9 +121,17 @@ async function readGeneratedBundle(projectId: string): Promise<DeployFile[]> {
 
 // The async build worker (run after the response): generate the real app, deploy
 // it live to its own Vercel project, and advance the job through its states.
-export async function runCustomerBuildJob(jobId: string, userKey: string, idea: string, name?: string, themeId?: string, brand?: Brand): Promise<void> {
+export async function runCustomerBuildJob(
+  jobId: string,
+  userKey: string,
+  idea: string,
+  name?: string,
+  themeId?: string,
+  brand?: Brand,
+  moduleSlugs?: string[]
+): Promise<void> {
   try {
-    const built = await startCustomerBuild(userKey, idea, name, themeId, brand);
+    const built = await startCustomerBuild(userKey, idea, name, themeId, brand, moduleSlugs);
     await updateBuildJob(jobId, { projectId: built.projectId, status: "deploying" });
 
     const files = await readGeneratedBundle(built.projectId);

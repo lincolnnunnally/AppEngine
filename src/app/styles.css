@@ -6780,3 +6780,109 @@ a.signin-secondary:hover {
     border-bottom: 1px solid #1e293b;
   }
 }
+
+.compose {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.compose-price {
+  padding: 1.1rem 1.2rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--gold);
+  background: var(--panel);
+}
+
+.compose-price-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.compose-price-total {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.compose-price-lines {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink);
+}
+
+.compose-starter {
+  margin: 0;
+  color: var(--ink);
+}
+
+.compose-arch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.compose-arch {
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compose-arch span,
+.compose-arch em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.9rem;
+}
+
+.compose-arch--selected,
+.compose-arch:hover {
+  border-color: var(--teal);
+}
+
+.compose-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compose-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.compose-check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compose-check small {
+  color: var(--muted);
+}
+
+.compose-more {
+  color: var(--muted);
+}
+
+.compose-more summary {
+  cursor: pointer;
+}

@@ -106,6 +106,17 @@ function profit(price, modules, custom) {
   if (!fs.existsSync(api)) bad("api route missing");
   else ok("GET/POST /api/pricing/estimate route present");
 
+  if (!pricingSrc.includes("STANDARD_WEB_MODULE_SLUGS") || !pricingSrc.includes("website-builder")) {
+    bad("standard web module included in core");
+  } else ok("live website is included in the $25 core, not a $10 add-on");
+  if (pricingSrc.includes('id: "website"')) bad("website should not be a paid add-on");
+  else ok("website is not sold again as a paid add-on");
+  const estimateSrc = fs.readFileSync(path.join(root, "src/lib/engine/pricing/estimate.ts"), "utf8");
+  if (!estimateSrc.includes("recommendedAddOns")) bad("estimate recommends add-ons");
+  else ok("estimate returns recommended add-ons from the need text");
+  if (!estimateSrc.includes("live website you can open")) bad("core line is a live website");
+  else ok("core price line is a live website, not a private-only URL");
+
   void registered;
 }
 

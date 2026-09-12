@@ -55,6 +55,7 @@ create table if not exists app_user_profiles (
   id uuid primary key default gen_random_uuid(),
   auth_user_id uuid not null references users(id) on delete cascade,
   role text not null default 'customer',
+  password_hash text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(auth_user_id)

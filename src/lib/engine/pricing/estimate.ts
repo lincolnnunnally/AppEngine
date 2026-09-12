@@ -21,6 +21,7 @@ import {
   PER_MODULE_COST,
   sellableFeaturesReady,
   SELLABLE_FEATURES,
+  STANDARD_WEB_MODULE_SLUGS,
   type SellableFeature
 } from "./module-pricing";
 
@@ -75,6 +76,8 @@ export type BuildEstimate = {
   suggestedArchetype: BusinessArchetype | null;
   cost: CostBreakdown;
   profit: ProfitBreakdown;
+  /** Add-ons that fit the need but are not in the starter pack yet. */
+  recommendedAddOns: { id: string; label: string; description: string; priceCents: number }[];
   /** Customer-safe summary (no cost/profit). */
   customerSummary: {
     total: string;
@@ -109,16 +112,26 @@ export function estimateBuild(input: EstimateInput): BuildEstimate | EstimateErr
     for (const f of featuresForArchetype(suggested)) {
       selectedFeatureIds.add(f.id);
     }
+    // Layer a few need-based add-ons on the starter pack so the first quote
+    // matches what they said the app must do — without dumping the whole catalog.
+    let extras = 0;
+    for (const f of suggestFeaturesFromText(input.needText || "")) {
+      if (selectedFeatureIds.has(f.id)) continue;
+      selectedFeatureIds.add(f.id);
+      extras += 1;
+      if (extras >= 3) break;
+    }
   }
 
-  // Base always
+  // Base always — a live website is included, never a private-only URL.
   lines.push({
     kind: "base",
     id: "core",
-    label: "Core private app / tool (one primary job, private URL)",
+    label: "Core app + live website you can open and share",
     priceCents: BASE_PRICE_CENTS,
-    moduleSlugs: [] // foundation modules always composed by generator
+    moduleSlugs: [...STANDARD_WEB_MODULE_SLUGS]
   });
+  for (const slug of STANDARD_WEB_MODULE_SLUGS) moduleSet.add(slug);
 
   // Features
   for (const id of selectedFeatureIds) {
@@ -213,6 +226,16 @@ export function estimateBuild(input: EstimateInput): BuildEstimate | EstimateErr
     description: f.description
   }));
 
+  const recommendedAddOns = suggestFeaturesFromText(input.needText || "")
+    .filter((f) => !selectedFeatureIds.has(f.id))
+    .slice(0, 6)
+    .map((f) => ({
+      id: f.id,
+      label: f.label,
+      description: f.description,
+      priceCents: f.priceCents
+    }));
+
   return {
     ok: true,
     priceCents,
@@ -221,6 +244,7 @@ export function estimateBuild(input: EstimateInput): BuildEstimate | EstimateErr
     moduleSlugs: [...moduleSet],
     missingModules,
     features: checklist,
+    recommendedAddOns,
     suggestedArchetype: suggested,
     cost: { expectedCents: expectedCostCents, p90Cents: p90CostCents, lines: costLines },
     profit: {
@@ -241,8 +265,8 @@ export function estimateBuild(input: EstimateInput): BuildEstimate | EstimateErr
         .filter((l) => l.kind === "feature" || l.kind === "custom" || l.kind === "module")
         .map((l) => ({ label: l.label, price: formatUsd(l.priceCents) })),
       note: customWork
-        ? "Includes custom work beyond standard modules. Catalog features are cheaper and faster."
-        : "Built from existing modules — not a from-scratch rebuild. Rebuilds may be limited by package."
+        ? "Includes custom work beyond standard modules. Catalog features are cheaper and faster. Every app includes a live website."
+        : "Built from existing modules — not a from-scratch rebuild. Every app includes a live website you can open and share."
     },
     opsSummary: {
       expectedCost: formatUsd(expectedCostCents),
@@ -264,10 +288,21 @@ export function suggestFeaturesFromText(text: string): SellableFeature[] {
       if (t.includes(word)) score += 1;
     }
     // strong signals
-    if (/public|website|share|page/.test(t) && (f.id === "public-page" || f.id === "website")) score += 4;
-    if (/pay|stripe|checkout|invoice/.test(t) && (f.id === "payments" || f.id === "finance")) score += 5;
-    if (/lead|crm|follow.?up|pipeline|customer/.test(t) && f.id === "crm") score += 5;
-    if (/schedule|book|appoint|calendar/.test(t) && f.id === "scheduling") score += 5;
+    if (/public|share|profile|page anyone/.test(t) && f.id === "public-page") score += 4;
+    if (/pay|stripe|checkout|invoice|charge|give/.test(t) && (f.id === "payments" || f.id === "finance")) score += 5;
+    if (/lead|crm|follow.?up|pipeline|customer|client/.test(t) && f.id === "crm") score += 5;
+    if (/schedule|book|appoint|calendar|rsvp|event/.test(t) && f.id === "scheduling") score += 5;
+    if (/notif|email|sms|text me|remind/.test(t) && f.id === "notify") score += 4;
+    if (/directory|member list|roster|people list/.test(t) && f.id === "directory") score += 5;
+    if (/need|volunteer|helper|match|benevolen/.test(t) && f.id === "needs-match") score += 5;
+    if (/goal|habit|streak|journal|growth|check.?in/.test(t) && f.id === "growth") score += 5;
+    if (/job|resume|application|case|paperwork/.test(t) && f.id === "cases") score += 4;
+    if (/shop|store|order|product|sell/.test(t) && f.id === "orders") score += 5;
+    if (/invite|share loop|bring a friend/.test(t) && f.id === "invites") score += 4;
+    if (/admin|moderate|staff console/.test(t) && f.id === "admin") score += 3;
+    if (/knowledge|how.?to|playbook|faq|docs/.test(t) && f.id === "knowledge") score += 4;
+    if (/brand|logo|colors|look and feel/.test(t) && f.id === "branding") score += 3;
+    if (/\bai\b|assistant|helper bot/.test(t) && f.id === "ai-helper") score += 3;
     return { f, score };
   })
     .filter((x) => x.score > 0)

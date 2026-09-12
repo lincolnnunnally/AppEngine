@@ -4,7 +4,7 @@
 // module goes into every app — apps pull the subset they need and combine them.
 // As catalog blocks are completed from their real source, they are registered here.
 
-import type { AppModule, AppModuleContext, GeneratedModuleFile } from "./types";
+import type { AppModule, AppModuleContext, GeneratedModuleFile, ModuleNavLink } from "./types";
 import { identityAuthModule } from "./identity-auth";
 import { directoryCommunityModule } from "./directory-community";
 import { connectionEngineModule } from "./connection-engine";
@@ -152,6 +152,19 @@ export function composeModuleEnvLines(selected?: Set<string>): string[] {
 
 export function composeModuleHomeLinks(selected?: Set<string>): string {
   return modulesFor(selected).flatMap((module) => module.homeLinks?.() ?? []).join("\n");
+}
+
+export function composeModuleNavLinks(selected?: Set<string>): ModuleNavLink[] {
+  const seen = new Set<string>();
+  const links: ModuleNavLink[] = [];
+  for (const module of modulesFor(selected)) {
+    for (const link of module.navLinks?.() ?? []) {
+      if (!link.href || seen.has(link.href)) continue;
+      seen.add(link.href);
+      links.push(link);
+    }
+  }
+  return links;
 }
 
 export function composeModuleSchemaSql(selected?: Set<string>): string {

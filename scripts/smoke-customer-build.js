@@ -47,9 +47,13 @@ runStep("DB mode self-applies columns + reads gate clearance", () => {
   const persistence = read("src/lib/engine/persistence.ts");
   assertIncludes(persistence, "ADD COLUMN IF NOT EXISTS created_by_user_email", "idempotent owner column");
   assertIncludes(persistence, "ADD COLUMN IF NOT EXISTS gate_clearance", "idempotent clearance column");
+  assertIncludes(persistence, "ADD COLUMN IF NOT EXISTS module_slugs", "idempotent module composition column");
   assertIncludes(persistence, "gate_clearance", "clearance written on insert");
+  assertIncludes(persistence, "module_slugs", "composition written on insert");
   const gate = read("src/lib/engine/build-gate.ts");
   assertIncludes(gate, "select gate_clearance from app_projects", "gate reads clearance from DB");
+  const generator = read("src/lib/engine/app-generator.ts");
+  assertIncludes(generator, "module_slugs", "generator reads composition from DB");
 });
 
 runStep("build route is sign-in gated; guards surface via the async job", () => {
@@ -68,6 +72,16 @@ runStep("a reviewable prod migration exists and is additive/backward-compatible"
   const text = read("db/customer-projects-migration.sql");
   assertIncludes(text, "ADD COLUMN IF NOT EXISTS created_by_user_email", "owner column");
   assertIncludes(text, "ADD COLUMN IF NOT EXISTS gate_clearance", "gate clearance column");
+  assertIncludes(text, "ADD COLUMN IF NOT EXISTS module_slugs", "module composition column");
+});
+
+runStep("customer builds always include a live website module", () => {
+  const text = read("src/lib/engine/customer-build.ts");
+  assertIncludes(text, "STANDARD_WEB_MODULE_SLUGS", "standard web modules merged");
+  assertIncludes(text, "moduleSlugs: withStandardWebModules", "composition passed into the project");
+  const start = read("src/app/api/build/start/route.ts");
+  assertIncludes(start, "moduleSlugs", "build API accepts composition");
+  assertIncludes(start, "featureIds", "build API accepts checklist");
 });
 
 console.log("customer-build smoke ok");

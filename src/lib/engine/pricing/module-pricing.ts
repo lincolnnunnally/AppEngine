@@ -65,7 +65,11 @@ export type SellableFeature = {
  * Price is usually FEATURE_PRICE_CENTS; heavier bundles can be 2×.
  */
 // Note: identity-auth + growth-telemetry are foundation (included in $25 core).
-// Do not sell them again as $10 add-ons.
+// A live public website (website-builder) is also included in every customer
+// app — an app nobody can open is not an app. Do not sell those again as add-ons.
+
+/** Modules every customer-composed app gets, included in the $25 core. */
+export const STANDARD_WEB_MODULE_SLUGS = ["website-builder"] as const;
 
 export const SELLABLE_FEATURES: SellableFeature[] = [
   {
@@ -75,15 +79,6 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
     moduleSlugs: ["public-profile-og-sharing"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
-    category: "public"
-  },
-  {
-    id: "website",
-    label: "Simple website front door",
-    description: "Multi-section site for what you offer.",
-    moduleSlugs: ["website-builder"],
-    priceCents: FEATURE_PRICE_CENTS,
-    audience: "business",
     category: "public"
   },
   {

@@ -31,6 +31,7 @@ const get = (p) => { const c = files[p]; if (c == null) { bad(`emits ${p}`, "fil
 // 1) all files present
 const auth = get("src/auth.ts");
 const clientSession = get("src/lib/auth/client-session.ts");
+const password = get("src/lib/auth/password.ts");
 const roles = get("src/lib/auth/roles.ts");
 const permissions = get("src/lib/auth/permissions.ts");
 const session = get("src/lib/auth/session.ts");
@@ -40,6 +41,12 @@ const signin = get("src/app/sign-in/page.tsx");
 
 // 2) auth.ts — hardened config
 has(auth, "next-auth/providers/resend", "auth: email magic-link (Resend) provider");
+has(auth, "next-auth/providers/credentials", "auth: email+password so people can open the app without OAuth keys");
+has(auth, 'session: { strategy: "jwt" }', "auth: JWT sessions so credentials work");
+has(password, "registerWithPassword", "password: signup writes a hash");
+has(password, "findUserByEmailPassword", "password: sign-in verifies the hash");
+has(signin, "Sign in with email", "sign-in: email+password option");
+has(signin, "Create an account", "sign-in: create-account option");
 has(auth, "trustHost: true", "auth: trustHost set (OAuth callback works on any host)");
 has(auth, 'pages: { signIn: "/sign-in" }', "auth: custom sign-in page wired");
 has(auth, "resolveRole(", "auth: role resolved (not env-only)");

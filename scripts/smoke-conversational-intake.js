@@ -1,7 +1,9 @@
+import fs from "node:fs";
 import {
   buildIntakeSubmission,
   conversationSteps,
   isAnswerComplete,
+  needTextFromAnswers,
   reflectBack
 } from "../src/lib/engine/conversational-intake.ts";
 
@@ -68,6 +70,22 @@ runStep("answer completion enforces minimums and honors optional", () => {
 runStep("reflect-back is plain-language and non-empty for both frames", () => {
   assert(reflectBack("problem", sampleAnswers).length > 20, "problem reflect-back");
   assert(reflectBack("build", sampleAnswers).length > 20, "build reflect-back");
+});
+
+runStep("need text carries problem, who, outcome, and goal for the estimator", () => {
+  const text = needTextFromAnswers(sampleAnswers);
+  assert(text.includes(sampleAnswers.problem), "problem in need text");
+  assert(text.includes("Staff"), "who in need text");
+  assert(text.includes("Nobody falls"), "outcome in need text");
+  assert(text.includes("Would help soon"), "goal/timing in need text");
+});
+
+runStep("intake UI continues into starter pack + price (no dead-end 'got it')", () => {
+  const ui = fs.readFileSync(new URL("../src/components/intake/conversational-intake.tsx", import.meta.url), "utf8");
+  assert(ui.includes("ComposeAndBuild"), "wires ComposeAndBuild");
+  assert(ui.includes("setComposing(true)"), "opens compose after submit");
+  assert(ui.includes("Show me the starter pack and price"), "CTA promises the pack");
+  assert(!ui.includes("Got it — this is in."), "removed dead-end success copy");
 });
 
 console.log("conversational-intake smoke ok");
