@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ComposeAndBuild } from "@/components/intake/compose-and-build";
 import { noOrphan } from "@/lib/ui/no-orphan";
+import { readComposeDraft } from "@/lib/ui/compose-draft";
 import {
   buildIntakeSubmission,
   conversationSteps,
@@ -24,7 +24,14 @@ type Notice = { type: "success" | "error"; title: string; message: string };
 // shown to the user as a fork.
 const FRAME: IntakeFrame = "problem";
 
-export function ConversationalIntake() {
+export function ConversationalIntake({
+  embedded = false,
+  onJourney
+}: {
+  embedded?: boolean;
+  onJourney?: (phase: "sell" | "talk" | "pack") => void;
+} = {}) {
+  const restored = useRef<ReturnType<typeof readComposeDraft>>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<ConversationAnswers>({});
   const [draft, setDraft] = useState("");
@@ -33,11 +40,25 @@ export function ConversationalIntake() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [composing, setComposing] = useState(false);
 
+  useEffect(() => {
+    const saved = readComposeDraft();
+    if (saved?.idea) {
+      restored.current = saved;
+      setComposing(true);
+    }
+  }, []);
+
   const steps = conversationSteps;
   const step: ConversationStep | undefined = steps[stepIndex];
   const chips = step?.chips ? step.chips[FRAME] : undefined;
   const canContinue = step ? isAnswerComplete(step, draft) : false;
-  const atStart = stepIndex === 0 && !reviewing;
+  const atStart = stepIndex === 0 && !reviewing && !composing;
+
+  useEffect(() => {
+    if (composing) onJourney?.("pack");
+    else if (!atStart) onJourney?.("talk");
+    else onJourney?.("sell");
+  }, [composing, atStart, onJourney]);
 
   const transcript = useMemo(
     () =>
@@ -85,6 +106,10 @@ export function ConversationalIntake() {
         body: JSON.stringify(payload)
       });
       const result = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        setComposing(true);
+        return;
+      }
       if (!response.ok || result?.ok === false) {
         setNotice({
           type: "error",
@@ -118,7 +143,10 @@ export function ConversationalIntake() {
             <span>{notice.message}</span>
           </div>
         ) : null}
-        <ComposeAndBuild idea={needTextFromAnswers(answers)} summary={reflectBack(FRAME, answers)} />
+        <ComposeAndBuild
+          idea={needTextFromAnswers(answers) || restored.current?.idea || ""}
+          summary={reflectBack(FRAME, answers) || restored.current?.summary || ""}
+        />
       </section>
     );
   }
@@ -127,14 +155,21 @@ export function ConversationalIntake() {
     <section className="convo" aria-label="Start building an app">
       <header className="convo-head">
         <p className="convo-eyebrow">We snap the app together for you</p>
-        <h1 className="convo-title balanced-title">
-          <span>What should this app</span>
-          <span>help someone do?</span>
-        </h1>
+        {embedded ? (
+          <h2 className="convo-title balanced-title">
+            <span>What should this app</span>
+            <span>help someone do?</span>
+          </h2>
+        ) : (
+          <h1 className="convo-title balanced-title">
+            <span>What should this app</span>
+            <span>help someone do?</span>
+          </h1>
+        )}
         {atStart ? (
           <p className="convo-sub">
             {noOrphan(
-              "Describe a problem you want solved or a tool you already have in mind — I'll ask a few quick questions, then we build you a real, working app for it. No long form."
+              "Describe a problem you want solved or a tool you already have in mind. A few quick questions, then you see the pieces and the price — no account yet."
             )}
           </p>
         ) : null}
@@ -218,10 +253,6 @@ export function ConversationalIntake() {
         </div>
       ) : null}
 
-      <p className="convo-fallback">
-        Prefer to fill out a form instead?{" "}
-        <Link href="/problem-intake-lite">Use the form</Link>.
-      </p>
     </section>
   );
 }

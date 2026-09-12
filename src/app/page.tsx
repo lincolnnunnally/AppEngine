@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
+import { canAccessOwner } from "@/lib/auth/roles";
 import { isDashboardRequest } from "@/lib/auth/hosts";
 import { normalizeUserKey } from "@/lib/engine/billing";
-import { ConversationalIntake } from "@/components/intake/conversational-intake";
 import { OwnerCommandDeck } from "@/components/engine/owner-command-deck";
+import AppShell from "@/components/engine/app-shell";
+import { PublicFactoryHome } from "@/components/intake/public-factory-home";
 
-// Two hosts, one deploy. appengine.unitedundergod.org is the customer builder.
-// dashboard.unitedundergod.org is the private internal desk (owner only).
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
@@ -21,12 +21,18 @@ export default async function HomePage({
     }
     const session = await auth();
     const params = await searchParams;
-    return <OwnerCommandDeck userKey={normalizeUserKey(session?.user?.email) || null} appsFilter={params.apps} />;
+    return (
+      <AppShell isOperator>
+        <OwnerCommandDeck userKey={normalizeUserKey(session?.user?.email) || null} appsFilter={params.apps} />
+      </AppShell>
+    );
   }
 
+  const session = await auth();
   return (
-    <main className="entry">
-      <ConversationalIntake />
-    </main>
+    <PublicFactoryHome
+      signedInEmail={session?.user?.email || null}
+      isOwner={canAccessOwner(session?.user?.role)}
+    />
   );
 }

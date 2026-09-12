@@ -6,6 +6,7 @@ import { BrandStep } from "@/components/build/brand-step";
 import { DomainStep } from "@/components/build/domain-step";
 import { ThemePicker } from "@/components/build/theme-picker";
 import { noOrphan } from "@/lib/ui/no-orphan";
+import { clearComposeDraft, saveComposeDraft } from "@/lib/ui/compose-draft";
 
 type FeatureRow = {
   id: string;
@@ -77,8 +78,15 @@ export function ComposeAndBuild({
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connectionLost, setConnectionLost] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failStreak = useRef(0);
+
+  useEffect(() => {
+    fetch("/api/auth/whoami", { cache: "no-store" })
+      .then((res) => setSignedIn(res.ok))
+      .catch(() => setSignedIn(false));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,7 +109,19 @@ export function ComposeAndBuild({
         }
         setCatalog({ features: catalogJson.features || [], archetypes: catalogJson.archetypes || [] });
         setEstimate(estimateJson);
-        setFeatureIds(estimateJson.features.filter((f) => f.selected).map((f) => f.id));
+        const selected = estimateJson.features.filter((f) => f.selected).map((f) => f.id);
+        const draft = typeof window !== "undefined" ? sessionStorage.getItem("ae-compose-draft") : null;
+        let restoredIds: string[] | null = null;
+        try {
+          const parsed = draft ? (JSON.parse(draft) as { featureIds?: string[]; themeId?: string; accentColor?: string; logoUrl?: string }) : null;
+          if (parsed?.featureIds?.length) restoredIds = parsed.featureIds;
+          if (parsed?.themeId) setThemeId(parsed.themeId);
+          if (parsed?.accentColor) setAccentColor(parsed.accentColor);
+          if (parsed?.logoUrl) setLogoUrl(parsed.logoUrl);
+        } catch {
+          restoredIds = null;
+        }
+        setFeatureIds(restoredIds || selected);
       } catch {
         if (!cancelled) setLoadError("Couldn't reach pricing. Please try again.");
       }
@@ -177,7 +197,23 @@ export function ComposeAndBuild({
     tick();
   }
 
+  function persistDraft() {
+    saveComposeDraft({
+      idea,
+      summary,
+      featureIds: featureIds || undefined,
+      themeId,
+      accentColor,
+      logoUrl
+    });
+  }
+
   async function startBuild() {
+    if (signedIn === false) {
+      persistDraft();
+      window.location.href = "/signin?next=/";
+      return;
+    }
     setError(null);
     setUrl(null);
     setProject(null);
@@ -196,11 +232,17 @@ export function ComposeAndBuild({
         })
       });
       const data = (await response.json().catch(() => ({}))) as { ok?: boolean; jobId?: string; message?: string };
+      if (response.status === 401) {
+        persistDraft();
+        window.location.href = "/signin?next=/";
+        return;
+      }
       if (!data.ok || !data.jobId) {
         setPhase("failed");
         setError(data.message || "Couldn't start the build.");
         return;
       }
+      clearComposeDraft();
       setJobId(data.jobId);
       poll(data.jobId);
     } catch {
@@ -336,13 +378,25 @@ export function ComposeAndBuild({
           ) : null}
 
           <div className="convo-actions">
-            <button className="convo-go" type="button" onClick={startBuild} disabled={busy || idea.trim().length < 8}>
-              {busy ? "Building…" : `Build this app — ${estimate.priceLabel}`}
+            <button
+              className="convo-go"
+              type="button"
+              onClick={startBuild}
+              disabled={busy || idea.trim().length < 8 || signedIn === null}
+            >
+              {busy
+                ? "Building…"
+                : signedIn
+                  ? `Build this app — ${estimate.priceLabel}`
+                  : `Create an account to save this — ${estimate.priceLabel}`}
             </button>
           </div>
           <p className="note">
-            The first version is a real, live starter you can open and try — not the finished product. After it&apos;s up, we
-            verify it, then improve it with you. Billing stays off until fulfillment is proven; this is the price of the pack.
+            {noOrphan(
+              signedIn
+                ? "The first version is a live starter you can open — not the finished product. After it's up, we verify it, then improve it with you. You don't pay until that starter is actually up."
+                : "Create an account to save this pack, publish the live starter, and use it. You don't pay until that starter is actually up."
+            )}
           </p>
         </>
       ) : null}
