@@ -90,6 +90,12 @@ function profit(price, modules, custom) {
   if (featureIds.length < 10) bad("feature catalog size", String(featureIds.length));
   else ok(`sellable feature ids parsed: ${featureIds.length}`);
 
+  const comboLabels = [...pricingSrc.matchAll(/label:\s*"([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((label) => / & | \/ /.test(label));
+  if (comboLabels.length) bad("add-on labels mix two jobs", comboLabels.join(", "));
+  else ok("each add-on label is one job");
+
   const missing = slugsInFeatures.filter((s) => !modFiles.has(s) && s !== "identity-auth");
   // identity-auth exists as file
   if (!modFiles.has("crm-follow-up")) bad("crm-follow-up module file missing");

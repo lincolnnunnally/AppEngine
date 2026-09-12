@@ -61,7 +61,8 @@ export type SellableFeature = {
 };
 
 /**
- * Customer-facing checklist. Each row maps to 1+ installable modules.
+ * Customer-facing checklist. Each row is ONE job a person can finish.
+ * Combinations belong in starter packs, not inside a single add-on.
  * Price is usually FEATURE_PRICE_CENTS; heavier bundles can be 2×.
  */
 // Note: identity-auth + growth-telemetry are foundation (included in $25 core).
@@ -74,8 +75,8 @@ export const STANDARD_WEB_MODULE_SLUGS = ["website-builder"] as const;
 export const SELLABLE_FEATURES: SellableFeature[] = [
   {
     id: "public-page",
-    label: "Public page / profile",
-    description: "A page anyone can open — shareable link, not private-only.",
+    label: "Public page",
+    description: "A page anyone can open with a shareable link.",
     moduleSlugs: ["public-profile-og-sharing"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -83,8 +84,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "invites",
-    label: "Invite & share loop",
-    description: "Invite codes and share messages so others can join.",
+    label: "Invites",
+    description: "Invite codes and a share message so others can join.",
     moduleSlugs: ["public-invite-loop"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -92,8 +93,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "notify",
-    label: "Email / SMS notifications",
-    description: "Get notified when something important happens (uses your keys).",
+    label: "Notifications",
+    description: "Get a message when something important happens.",
     moduleSlugs: ["communication"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -101,8 +102,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "crm",
-    label: "CRM / follow-up pipeline",
-    description: "Leads or customers, stages, next actions — nothing falls through.",
+    label: "Follow-up pipeline",
+    description: "People, stages, and the next action so nothing falls through.",
     moduleSlugs: ["crm-follow-up"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "business",
@@ -110,8 +111,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "scheduling",
-    label: "Events & scheduling",
-    description: "Bookings, events, RSVP-style scheduling.",
+    label: "Events",
+    description: "Publish events and let people RSVP.",
     moduleSlugs: ["events-scheduling"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -119,8 +120,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "payments",
-    label: "Payments / checkout",
-    description: "Take money via your own Stripe account.",
+    label: "Checkout",
+    description: "Take a payment with your own Stripe account.",
     moduleSlugs: ["payments-billing"],
     priceCents: FEATURE_PRICE_CENTS * 2, // $20 — higher trust surface
     audience: "business",
@@ -137,8 +138,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "orders",
-    label: "Orders / marketplace",
-    description: "Catalog, orders, fulfillment tracking.",
+    label: "Orders",
+    description: "What you sell and who ordered it.",
     moduleSlugs: ["marketplace-orders"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "business",
@@ -155,8 +156,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "cases",
-    label: "Case / paperwork tracker",
-    description: "Track open cases, documents, and status.",
+    label: "Case tracker",
+    description: "Open cases, documents, and status in one place.",
     moduleSlugs: ["case-management"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -173,8 +174,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "growth",
-    label: "Goals & check-ins",
-    description: "Personal growth dashboard, goals, streaks.",
+    label: "Goals",
+    description: "Goals and a simple check-in so the week has a next step.",
     moduleSlugs: ["becoming-growth-dashboard"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "personal",
@@ -182,8 +183,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "knowledge",
-    label: "Knowledge base / how-to",
-    description: "Your playbooks and troubleshooting in one place.",
+    label: "How-to library",
+    description: "Playbooks and troubleshooting in one place.",
     moduleSlugs: ["knowledge-base"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -209,8 +210,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "needs-match",
-    label: "Needs ↔ helpers matching",
-    description: "Match requests with people who can help.",
+    label: "Needs matching",
+    description: "A request on one side, a helper on the other.",
     moduleSlugs: ["needs-helper-matching"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "business",
@@ -218,8 +219,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "proof",
-    label: "Proof / approval artifacts",
-    description: "Approvals and signed-off work products.",
+    label: "Approvals",
+    description: "A signed-off record of work that was approved.",
     moduleSlugs: ["proof-approval-artifact"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "business",
@@ -272,8 +273,8 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "waitlist",
-    label: "Waitlist & invites",
-    description: "Keep people waiting, invite them when a door opens.",
+    label: "Waitlist",
+    description: "Keep people waiting until a door opens.",
     moduleSlugs: ["waitlist-invites"],
     priceCents: FEATURE_PRICE_CENTS,
     audience: "both",
@@ -281,7 +282,7 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
   },
   {
     id: "pulse",
-    label: "Pulse / issues",
+    label: "Pulse",
     description: "Let people name a real issue so leaders can see it.",
     moduleSlugs: ["feedback-pulse"],
     priceCents: FEATURE_PRICE_CENTS,
