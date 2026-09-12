@@ -1,5 +1,6 @@
-// events-scheduling — events, RSVPs/registrations, facilities, and facility
-// booking/scheduling, ported from ChurchConnect's real code:
+// events-scheduling — one job: create the event, including booking the room.
+// RSVP, calendar, and facilities are stages of that same flow, not a second brick.
+// Ported from ChurchConnect's real code:
 //   - backend/routes/events.py — the event model (title/description/start_date/
 //     end_date/location/location_type/category/capacity/registration_required/
 //     cost/is_free/status/is_published…), church-scoped listing with status /
