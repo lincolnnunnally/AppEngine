@@ -4668,7 +4668,16 @@ label {
 .factory-how,
 .factory-packs .note,
 .convo-sub {
-  text-wrap: balance;
+  text-wrap: pretty;
+}
+
+@media (min-width: 641px) {
+  .factory-lede,
+  .factory-how,
+  .factory-packs .note,
+  .convo-sub {
+    text-wrap: balance;
+  }
 }
 
 .factory-lede,
