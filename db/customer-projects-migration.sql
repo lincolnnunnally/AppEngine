@@ -12,5 +12,6 @@
 
 ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS created_by_user_email text;
 ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS gate_clearance jsonb;
+ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS module_slugs jsonb;
 
 CREATE INDEX IF NOT EXISTS app_projects_owner_idx ON app_projects (created_by_user_email);

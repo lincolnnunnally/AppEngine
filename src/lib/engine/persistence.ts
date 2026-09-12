@@ -17,6 +17,7 @@ export async function ensureCustomerProjectColumns(sql: ReturnType<typeof getDat
     customerColumnsReady = (async () => {
       await sql`ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS created_by_user_email text`;
       await sql`ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS gate_clearance jsonb`;
+      await sql`ALTER TABLE app_projects ADD COLUMN IF NOT EXISTS module_slugs jsonb`;
     })().catch((error) => {
       customerColumnsReady = null;
       throw error;
@@ -88,7 +89,8 @@ export async function createPlannedProject(input: CreateProjectInput, ownership?
       readiness_score,
       created_by_user_id,
       created_by_user_email,
-      gate_clearance
+      gate_clearance,
+      module_slugs
     )
     values (
       ${projectName},
@@ -103,7 +105,8 @@ export async function createPlannedProject(input: CreateProjectInput, ownership?
       25,
       null,
       ${ownership?.customerEmail ?? null},
-      ${gateClearanceJson}::jsonb
+      ${gateClearanceJson}::jsonb,
+      ${input.moduleSlugs ? JSON.stringify(input.moduleSlugs) : null}::jsonb
     )
     returning *
   `;

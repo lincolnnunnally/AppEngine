@@ -10,6 +10,7 @@ import {
   composeModuleEnvLines,
   composeModuleFiles,
   composeModuleHomeLinks,
+  composeModuleNavLinks,
   buildReadyModuleSlugs,
   composeModuleSchemaSql,
   composeModuleSeedSql
@@ -18,7 +19,6 @@ import { findModulesForNeed } from "./module-catalog";
 import { analyzeIdea } from "./planner";
 import {
   foundationEnvLines,
-  foundationHomeLinks,
   foundationModuleFiles,
   foundationSchemaSql,
   foundationSeedSql
@@ -95,7 +95,7 @@ export async function generateProjectApp(projectId: string, options: { themeId?:
 
   const sql = getDatabase();
   const [project] = await sql`
-    select id, name, idea, target_customer, problem_statement, revenue_model, app_type
+    select id, name, idea, target_customer, problem_statement, revenue_model, app_type, module_slugs
     from app_projects
     where id = ${projectId}
     limit 1
@@ -105,7 +105,12 @@ export async function generateProjectApp(projectId: string, options: { themeId?:
     throw new Error("Project not found");
   }
 
-  const exportResult = await writeGeneratedBundle(project as GeneratorProject, await getLatestAgentOutputs(projectId), options.themeId, options.brand);
+  const exportResult = await writeGeneratedBundle(
+    normalizeGeneratorProject(project),
+    await getLatestAgentOutputs(projectId),
+    options.themeId,
+    options.brand
+  );
   const [artifact] = await sql`
     insert into artifacts (project_id, artifact_type, title, uri, metadata, content)
     values (
@@ -135,6 +140,31 @@ export async function generateProjectApp(projectId: string, options: { themeId?:
   return {
     export: artifact,
     storage: "neon" as const
+  };
+}
+
+function normalizeGeneratorProject(row: Record<string, unknown>): GeneratorProject {
+  let moduleSlugs: string[] | null = null;
+  const raw = row.module_slugs;
+  if (Array.isArray(raw)) {
+    moduleSlugs = raw.map((slug) => String(slug)).filter(Boolean);
+  } else if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) moduleSlugs = parsed.map((slug) => String(slug)).filter(Boolean);
+    } catch {
+      moduleSlugs = null;
+    }
+  }
+  return {
+    id: String(row.id),
+    name: String(row.name || ""),
+    idea: String(row.idea || ""),
+    target_customer: row.target_customer == null ? null : String(row.target_customer),
+    problem_statement: row.problem_statement == null ? null : String(row.problem_statement),
+    revenue_model: row.revenue_model == null ? null : String(row.revenue_model),
+    app_type: row.app_type == null ? null : String(row.app_type),
+    module_slugs: moduleSlugs
   };
 }
 
@@ -427,7 +457,15 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/components/app-shell.tsx",
-      content: `import { appBrand } from "@/lib/app-brand";\n\nconst NAV = [\n  { href: "/app", label: "App" },\n  { href: "/products", label: "Products" },\n  { href: "/support", label: "Support" },\n  { href: "/billing", label: "Billing" },\n  { href: "/account", label: "Account" },\n  { href: "/admin", label: "Admin" }\n];\n\nexport function AppShell({ children }: { children: React.ReactNode }) {\n  return (\n    <>\n      <header className="app-header">\n        <div className="app-header-inner">\n          <a className="app-brand" href="/">\n            {appBrand.logoUrl ? (\n              <img className="app-logo" src={appBrand.logoUrl} alt={appBrand.name} />\n            ) : (\n              <span className="app-logo-mark">{appBrand.monogram}</span>\n            )}\n            <span>{appBrand.name}</span>\n          </a>\n          <nav className="app-nav">\n            {NAV.map((item) => (\n              <a key={item.href} href={item.href}>{item.label}</a>\n            ))}\n            <a className="app-nav-cta" href="/sign-in">Sign in</a>\n          </nav>\n        </div>\n      </header>\n      {children}\n    </>\n  );\n}\n`
+      content: `import { appBrand } from "@/lib/app-brand";\n\nconst NAV = ${JSON.stringify(
+        [
+          { href: "/app", label: "Open app" },
+          ...composeModuleNavLinks(selectedModuleSlugs).slice(0, 5),
+          { href: "/account", label: "Account" }
+        ],
+        null,
+        2
+      )};\n\nexport function AppShell({ children }: { children: React.ReactNode }) {\n  return (\n    <>\n      <header className="app-header">\n        <div className="app-header-inner">\n          <a className="app-brand" href="/">\n            {appBrand.logoUrl ? (\n              <img className="app-logo" src={appBrand.logoUrl} alt={appBrand.name} />\n            ) : (\n              <span className="app-logo-mark">{appBrand.monogram}</span>\n            )}\n            <span>{appBrand.name}</span>\n          </a>\n          <nav className="app-nav">\n            {NAV.map((item) => (\n              <a key={item.href} href={item.href}>{item.label}</a>\n            ))}\n            <a className="app-nav-cta" href="/sign-in">Sign in</a>\n          </nav>\n        </div>\n      </header>\n      {children}\n    </>\n  );\n}\n`
     },
     {
       path: "public/favicon.svg",
@@ -456,11 +494,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `export default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${plan.appType}</p>\n      <h1>${projectName}</h1>\n      <p>${plan.valueProposition}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/app">Get started</a>\n        <a className="button" href="/onboarding">Onboarding</a>\n        <a className="button" href="/billing">Billing</a>\n${foundationHomeLinks()}\n${composeModuleHomeLinks(selectedModuleSlugs)}\n        <a className="button" href="/admin">Admin</a>\n      </div>\n    </main>\n  );\n}\n`
+      content: `import { selectedModules } from "@/lib/app-data";\n\nexport default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${escapeText(plan.appType)}</p>\n      <h1>${escapeText(projectName)}</h1>\n      <p>${escapeText(plan.valueProposition)}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/sign-in">Open the app</a>\n        <a className="button" href="/app">Go to workspace</a>\n      </div>\n      <section className="grid">\n        {selectedModules.map((item) => (\n          <article className="card" key={item.name}>\n            <span>Included</span>\n            <strong>{item.name}</strong>\n            <p>{item.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/app/page.tsx",
-      content: `import { customerMetrics, customerWorkflows, selectedModules } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Customer Workspace</p>\n      <h1>${projectName}</h1>\n      <p>${customer} can manage the workflow for ${problem}.</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <section className="metric-grid">\n        {customerMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {selectedModules.map((template) => (\n          <article className="card" key={template.name}>\n            <span>Module</span>\n            <strong>{template.name}</strong>\n            <p>{template.description}</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { customerMetrics, customerWorkflows, selectedModules } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1>${escapeText(projectName)}</h1>\n      <p>${customer} can manage the workflow for ${problem}.</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="metric-grid">\n        {customerMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {selectedModules.map((template) => (\n          <article className="card" key={template.name}>\n            <span>Module</span>\n            <strong>{template.name}</strong>\n            <p>{template.description}</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/account/page.tsx",

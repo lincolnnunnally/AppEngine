@@ -5,6 +5,7 @@ import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { createBuildJob } from "@/lib/engine/build-jobs";
 import { runCustomerBuildJob } from "@/lib/engine/customer-build";
+import { estimateBuild } from "@/lib/engine/pricing/estimate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,9 +27,16 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "We couldn't find your account email." }, 400);
   }
 
-  let body: { idea?: unknown; name?: unknown; themeId?: unknown; brand?: unknown };
+  let body: {
+    idea?: unknown;
+    name?: unknown;
+    themeId?: unknown;
+    brand?: unknown;
+    moduleSlugs?: unknown;
+    featureIds?: unknown;
+  };
   try {
-    body = (await request.json()) as { idea?: unknown; name?: unknown; themeId?: unknown; brand?: unknown };
+    body = (await request.json()) as typeof body;
   } catch {
     return json({ ok: false, message: "Invalid request." }, 400);
   }
@@ -41,13 +49,26 @@ export async function POST(request: Request) {
     accentColor: typeof rawBrand.accentColor === "string" ? rawBrand.accentColor : undefined,
     logoUrl: typeof rawBrand.logoUrl === "string" ? rawBrand.logoUrl : undefined
   };
+  const featureIds = Array.isArray(body.featureIds)
+    ? body.featureIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
+  let moduleSlugs = Array.isArray(body.moduleSlugs)
+    ? body.moduleSlugs.filter((slug): slug is string => typeof slug === "string" && slug.trim().length > 0)
+    : [];
+  if (!moduleSlugs.length) {
+    const estimate = estimateBuild({
+      featureIds: featureIds.length ? featureIds : undefined,
+      needText: idea
+    });
+    if (estimate.ok) moduleSlugs = estimate.moduleSlugs;
+  }
   if (idea.length < 8) {
     return json({ ok: false, message: "Describe what you want built (a sentence or two)." }, 400);
   }
 
   const job = await createBuildJob(userKey, idea);
   after(async () => {
-    await runCustomerBuildJob(job.id, userKey, idea, name, themeId, brand);
+    await runCustomerBuildJob(job.id, userKey, idea, name, themeId, brand, moduleSlugs);
   });
 
   return json({ ok: true, jobId: job.id, status: "building" });

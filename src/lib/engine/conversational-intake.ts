@@ -191,3 +191,16 @@ export function isAnswerComplete(step: ConversationStep, value: string | undefin
   if (step.optional && trimmed.length === 0) return true;
   return trimmed.length >= (step.minLength ?? 1);
 }
+
+/** One blob the estimator / generator can read: problem, who, what it must do, goal. */
+export function needTextFromAnswers(answers: ConversationAnswers): string {
+  const parts = [
+    answers.problem,
+    answers.affected ? `For: ${answers.affected}` : "",
+    answers.outcome ? `So they can: ${answers.outcome}` : "",
+    answers.barriers ? `Today: ${answers.barriers}` : "",
+    answers.fifth ? `Goal / timing: ${answers.fifth}` : "",
+    answers.idea ? `How it should work: ${answers.idea}` : ""
+  ];
+  return parts.map((part) => (part || "").trim()).filter(Boolean).join("\n");
+}
