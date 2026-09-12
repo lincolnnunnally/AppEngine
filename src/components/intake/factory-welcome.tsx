@@ -55,7 +55,7 @@ export function FactoryWelcome({
         </h1>
         <p className="factory-lede">{noOrphan(body)}</p>
         <p className="factory-how">
-          {noOrphan("Tell us the problem and the goal. We snap starter modules together like Legos, show the price first, then publish a live website you can open.")}
+          {noOrphan("Starter modules snap together like Legos. You confirm the pack, then open a live website.")}
         </p>
         <Link className="soft-launch-action" href="/signin">
           {cta}
