@@ -38,6 +38,7 @@ import { mediatedCommModule } from "./mediated-communication";
 import { ratingsReviewsModule } from "./ratings-reviews";
 import { brandKitModule } from "./brand-kit-generator";
 import { checkinModule } from "./checkin";
+import { staffingModule } from "./staffing";
 import { scriptureSermonModule } from "./scripture-sermon-tools";
 import { liveServiceModule } from "./live-service-streaming";
 import { growthTrackingModule } from "./growth-tracking";
@@ -100,6 +101,7 @@ const MODULES: AppModule[] = [
   ratingsReviewsModule,
   brandKitModule,
   checkinModule,
+  staffingModule,
   scriptureSermonModule,
   liveServiceModule,
   growthTrackingModule,

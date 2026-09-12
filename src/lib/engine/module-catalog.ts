@@ -190,7 +190,7 @@ const MODULES: ModuleCatalogEntry[] = [
     slug: "events-scheduling",
     name: "Events & Scheduling",
     category: "operations",
-    purpose: "Events, RSVPs, calendars, booking, and facilities.",
+    purpose: "Create an event, book the room, and take RSVPs — one flow, two stages, not two jobs.",
     capabilities: ["events", "rsvp", "calendar", "booking", "scheduling", "facilities"],
     usedByApps: ["churchconnect", "live-on-mission"],
     primarySource: "ChurchConnect backend/routes/events.py + event_management.py + facilities.py",
@@ -198,12 +198,22 @@ const MODULES: ModuleCatalogEntry[] = [
   },
   {
     slug: "checkin",
-    name: "Check-in & Staffing",
+    name: "Check-in",
     category: "operations",
-    purpose: "Secure check-in and staffing for events, kids, and services.",
-    capabilities: ["check-in", "childcare check-in", "staffing", "attendance"],
+    purpose: "Open a session, share a code, and record who arrived.",
+    capabilities: ["check-in", "childcare check-in", "attendance"],
     usedByApps: ["churchconnect"],
-    primarySource: "ChurchConnect backend/routes/checkin.py + childcare_staffing.py",
+    primarySource: "ChurchConnect backend/routes/checkin.py",
+    status: "extractable"
+  },
+  {
+    slug: "staffing",
+    name: "Staffing",
+    category: "operations",
+    purpose: "Define roles, post shifts, and let people sign up to serve.",
+    capabilities: ["staffing", "shifts", "volunteer sign-up", "ratios"],
+    usedByApps: ["churchconnect"],
+    primarySource: "ChurchConnect backend/routes/childcare_staffing.py",
     status: "extractable"
   },
   {

@@ -11,6 +11,10 @@
 //   usable       — real empty/loading/error states, plain copy, accessible
 //   composable   — emitted by the generator, not just listed as a card
 //   verified     — covered by a smoke test
+//   one job      — one function that can run the whole task alone. Combinations
+//                  belong in starter packs. Stages of the same job (create the
+//                  event → book the room) stay in one module. Two jobs
+//                  (check-in vs staffing) are two modules.
 
 export type GeneratedModuleFile = { path: string; content: string };
 

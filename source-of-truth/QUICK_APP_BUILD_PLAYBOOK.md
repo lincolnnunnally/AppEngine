@@ -54,12 +54,13 @@ module names its exact lineage.
 - `mediated-communication` — AI-assisted neutral, conflict-reducing co-parenting messaging.
 - `case-management` — case timelines, document center, court-ready summaries.
 
-**Church & events ops (9)**
+**Church & events ops (10)**
 - `scripture-sermon-tools` — personal scripture/reference library + sermon outline templates.
 - `discipleship-content` — reading plans, daily devotionals, daily motivation.
 - `live-service-streaming` — plan/run a live service, attach the stream.
-- `checkin` — secure check-in + staffing for events, kids, services.
-- `events-scheduling` — events, RSVPs/registrations, facilities + facility booking.
+- `checkin` — open a session and check people in (attendance). Staffing is a separate brick.
+- `staffing` — roles, shifts, and volunteer sign-up. Check-in is a separate brick.
+- `events-scheduling` — events, RSVPs, and booking the room (one flow, two stages).
 - `event-curation-service-loop` — activities & events with RSVP + attendance loop.
 - `volunteer-safety` — volunteer scheduling + background checks + waivers.
 - `mutual-aid-benevolence` — community aid fund with hardship applications.
