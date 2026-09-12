@@ -5,10 +5,11 @@ import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth
 import { isReservedTestEmail, normalizeSignInEmail } from "@/lib/auth/email";
 import { DASHBOARD_ORIGIN, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
 import { noOrphan } from "@/lib/ui/no-orphan";
+import { safeNextPath } from "@/lib/ui/compose-draft";
 
-async function afterSignIn(): Promise<string> {
+async function afterSignIn(nextPath = "/"): Promise<string> {
   const host = hostFromHeader((await headers()).get("host"));
-  return isDashboardHostName(host) ? `${DASHBOARD_ORIGIN}/` : "/";
+  return isDashboardHostName(host) ? `${DASHBOARD_ORIGIN}/` : nextPath;
 }
 
 // Public, branded sign-in. Consumer-friendly options first (Google, email link);
@@ -45,7 +46,7 @@ function errorMessage(code?: string | string[]) {
 export default async function SignInPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string | string[] }>;
+  searchParams?: Promise<{ error?: string | string[]; next?: string | string[] }>;
 }) {
   const google = hasGoogleProvider();
   const email = hasEmailSignIn();
@@ -53,6 +54,7 @@ export default async function SignInPage({
   const consumerOption = google || email;
   const params = searchParams ? await searchParams : undefined;
   const error = errorMessage(params?.error);
+  const nextPath = safeNextPath(params?.next);
   const desk = await isDashboardRequest();
 
   return (
@@ -97,7 +99,7 @@ export default async function SignInPage({
             <form
               action={async () => {
                 "use server";
-                await signIn("google", { redirectTo: await afterSignIn() });
+                await signIn("google", { redirectTo: await afterSignIn(nextPath) });
               }}
             >
               <button className={desk ? "desk-btn desk-btn-primary signin-full" : "soft-launch-action signin-full"} type="submit">
@@ -115,7 +117,7 @@ export default async function SignInPage({
                 if (!address || isReservedTestEmail(address)) {
                   redirect("/signin?error=InvalidEmail");
                 }
-                await signIn("resend", { email: address, redirectTo: await afterSignIn() });
+                await signIn("resend", { email: address, redirectTo: await afterSignIn(nextPath) });
               }}
             >
               <label className="signin-label" htmlFor="signin-email">
@@ -140,7 +142,7 @@ export default async function SignInPage({
             <form
               action={async () => {
                 "use server";
-                await signIn("github", { redirectTo: await afterSignIn() });
+                await signIn("github", { redirectTo: await afterSignIn(nextPath) });
               }}
             >
               <button className={desk || consumerOption ? "signin-secondary" : "soft-launch-action signin-full"} type="submit">

@@ -1,11 +1,7 @@
-import { ConversationalIntake } from "@/components/intake/conversational-intake";
+import { redirect } from "next/navigation";
 
-// Same conversational intake customers get at the factory "/". Also a
-// bookmark if the owner wants the builder from the desk.
+export const dynamic = "force-dynamic";
+
 export default function StartPage() {
-  return (
-    <main className="entry">
-      <ConversationalIntake />
-    </main>
-  );
+  redirect("/");
 }

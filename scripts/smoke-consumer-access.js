@@ -86,17 +86,21 @@ runStep("consumer rail shows no operator jargon", () => {
   }
 });
 
-runStep("soft-launch copy is mode-aware and dormant by default", () => {
-  const text = read("src/app/soft-launch/page.tsx");
-  assertIncludes(text, "getPublicAccessMode", "reads the access mode");
-  for (const mode of ["owner:", "allowlist:", "public:"]) {
-    assertIncludes(text, mode, `COPY has ${mode} variant`);
-  }
-  assertIncludes(text, "FactoryWelcome", "public landing shows starter packs");
-  assertIncludes(text, "starter combination", "copy names starter combinations");
+runStep("factory home is public: sell, describe, then account", () => {
+  assertFileIncludes("src/app/page.tsx", ["PublicFactoryHome"]);
+  assertFileIncludes("src/components/intake/public-factory-home.tsx", ["FactoryWelcome", "#describe"]);
+  const welcome = read("src/components/intake/factory-welcome.tsx");
+  assertIncludes(welcome, "not vibe building", "contrasts vibe building");
+  assertIncludes(welcome, "starter combination", "names starter combinations");
+  assertIncludes(welcome, "#describe", "next step is describe, not sign-in");
+  assertFileIncludes("src/app/soft-launch/page.tsx", ['redirect("/")']);
+  assertFileIncludes("src/components/intake/compose-and-build.tsx", [
+    "Create an account to save this",
+    "/signin?next=/"
+  ]);
   for (const jargon of ["Neon", "Supabase", "Vercel", "provider"]) {
-    if (text.includes(jargon)) {
-      throw new Error(`soft-launch leaks infrastructure/operator jargon "${jargon}"`);
+    if (welcome.includes(jargon)) {
+      throw new Error(`factory home leaks infrastructure/operator jargon "${jargon}"`);
     }
   }
 });

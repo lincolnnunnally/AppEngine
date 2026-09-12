@@ -4602,6 +4602,43 @@ label {
   color: var(--soft-text);
 }
 
+.factory-bar {
+  width: min(1040px, 100%);
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.factory-bar-mark {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.factory-bar-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.1rem;
+  align-items: center;
+}
+
+.factory-bar-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.factory-bar-nav a:hover {
+  color: var(--ink);
+}
+
+.factory-bar-desk {
+  color: var(--gold) !important;
+}
+
 .factory-home {
   width: min(1040px, 100%);
   max-width: 100%;
@@ -4689,6 +4726,52 @@ label {
   font-size: 1.05rem;
   line-height: 1.5;
   overflow-wrap: break-word;
+}
+
+.factory-steps,
+.factory-difference {
+  text-align: center;
+  min-width: 0;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.factory-steps h2,
+.factory-difference h2,
+.factory-steps .balanced-title,
+.factory-difference .balanced-title {
+  align-items: center;
+  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+  letter-spacing: -0.02em;
+  margin: 0.2rem 0 0.8rem;
+}
+
+.factory-step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+}
+
+.factory-step-list li {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.factory-step-list strong {
+  color: var(--ink);
+}
+
+.factory-step-list span {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .factory-packs {
@@ -6992,8 +7075,10 @@ a.signin-secondary:hover {
   margin-top: auto;
 }
 
-button.compose-arch {
+button.compose-arch,
+a.compose-arch {
   cursor: pointer;
+  text-decoration: none;
 }
 
 .compose-arch--selected,

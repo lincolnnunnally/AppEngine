@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "AppEngine",
     description:
-      "Describe a problem you want solved or a tool you want to build, and AppEngine builds you a real, working app for it — live, online, ready to sign into.",
+      "Not vibe building. Snap together pieces we already keep, see the price, then publish a live starter you can open.",
     icons: SEAL_ICONS,
   };
 }

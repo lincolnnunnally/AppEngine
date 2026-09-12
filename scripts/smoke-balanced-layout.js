@@ -21,33 +21,27 @@ runStep("splitTitleLines never leaves a leftover last word", () => {
 });
 
 runStep("factory landing copy is designed as two even lines", () => {
-  const text = read("src/app/soft-launch/page.tsx");
-  assertIncludes(text, "titleLines: string[]", "copy uses titleLines");
-  for (const mode of ["owner:", "allowlist:", "public:"]) {
-    assertIncludes(text, mode, `COPY has ${mode}`);
+  const text = read("src/components/intake/factory-welcome.tsx");
+  const blocks = [...text.matchAll(/<h[12] className="balanced-title">([\s\S]*?)<\/h[12]>/g)];
+  if (blocks.length < 3) {
+    throw new Error(`expected several balanced titles, found ${blocks.length}`);
   }
-  const matches = [...text.matchAll(/titleLines:\s*\[([^\]]+)\]/g)];
-  if (matches.length < 3) {
-    throw new Error(`expected 3 titleLines arrays, found ${matches.length}`);
-  }
-  for (const match of matches) {
-    const lines = [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+  for (const block of blocks) {
+    const lines = [...block[1].matchAll(/<span>([^<]+)<\/span>/g)].map((item) => item[1]);
     if (lines.length !== 2) {
-      throw new Error(`titleLines must be two phrases: ${match[1]}`);
+      throw new Error(`title must be two phrases: ${block[1]}`);
     }
     for (const line of lines) {
       if (line.trim().split(/\s+/).length < 2) {
         throw new Error(`lonely title line: "${line}"`);
       }
+      if (line.length > 24) {
+        throw new Error(`title line too long for a phone: "${line}"`);
+      }
     }
     const ratio = Math.max(lines[0].length, lines[1].length) / Math.max(1, Math.min(lines[0].length, lines[1].length));
     if (ratio > 2.2) {
       throw new Error(`title lines are uneven (${lines.join(" / ")})`);
-    }
-    for (const line of lines) {
-      if (line.length > 24) {
-        throw new Error(`title line too long for a phone: "${line}"`);
-      }
     }
   }
 });
@@ -55,7 +49,7 @@ runStep("factory landing copy is designed as two even lines", () => {
 runStep("consumer titles are two designed spans, not one wrapping sentence", () => {
   assertFileIncludes("src/components/intake/factory-welcome.tsx", [
     "balanced-title",
-    "titleLines.map",
+    "<span>Describe it.</span>",
     "noOrphan"
   ]);
   assertFileIncludes("src/components/intake/conversational-intake.tsx", [
