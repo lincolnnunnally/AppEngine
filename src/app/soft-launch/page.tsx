@@ -30,8 +30,8 @@ const COPY: Record<PublicAccessMode, SoftLaunchCopy> = {
   },
   public: {
     kicker: "App Engine — app builder",
-    titleLines: ["Describe it.", "We snap it together."],
-    body: "Tell us a problem you want solved or a tool you want to build. We pick a starter pack of modules, show the price, and publish a live website you can open. The first version is a working starter you then improve with us.",
+    titleLines: ["Describe it.", "Snap it together."],
+    body: "Tell us a problem you want solved or a tool you want to build. We pick a starter pack, show the price, and publish a live website you can open.",
     cta: "Sign in to start"
   }
 };

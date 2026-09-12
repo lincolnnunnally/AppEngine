@@ -44,6 +44,11 @@ runStep("factory landing copy is designed as two even lines", () => {
     if (ratio > 2.2) {
       throw new Error(`title lines are uneven (${lines.join(" / ")})`);
     }
+    for (const line of lines) {
+      if (line.length > 24) {
+        throw new Error(`title line too long for a phone: "${line}"`);
+      }
+    }
   }
 });
 
