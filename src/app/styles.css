@@ -4620,12 +4620,15 @@ label {
   min-width: 0;
   margin-inline: auto;
   text-align: center;
-  justify-items: center;
 }
 
 .factory-hero > * {
   min-width: 0;
   max-width: 100%;
+}
+
+.factory-hero .soft-launch-action {
+  justify-self: center;
 }
 
 .balanced-title {
