@@ -63,6 +63,8 @@
     "smoke:billing": "node scripts/smoke-billing.js",
     "smoke:pricing-estimate": "node scripts/smoke-pricing-estimate.js",
     "smoke:customer-build": "node scripts/smoke-customer-build.js",
+    "prove:starter-packs": "node scripts/prove-starter-packs.mjs",
+    "smoke:fulfillment-honesty": "node scripts/smoke-fulfillment-honesty.js",
     "smoke:autonomous-loop": "node scripts/smoke-autonomous-loop.js",
     "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
     "smoke:cloudflare-dns": "node scripts/smoke-cloudflare-dns.js",

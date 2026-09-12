@@ -107,10 +107,7 @@ function crmLibFile(): GeneratedModuleFile {
     "  };",
     "}",
     "",
-    "const fallbackLeads: Lead[] = [",
-    '  { id: "sample-1", name: "Riverstone Group", contactName: "Dana Cole", email: "dana@example.com", phone: "555-0134", city: "Austin", state: "TX", stage: "interested", priority: "high", priorityScore: 3, source: "referral", notes: "Warm intro from an existing customer.", nextAction: "Send proposal", nextActionDate: "2000-01-01", lastContact: "2000-01-01", followupCount: 2, createdAt: null },',
-    '  { id: "sample-2", name: "Maple & Co.", contactName: "Sam Ortiz", email: "sam@example.com", phone: "", city: "Denver", state: "CO", stage: "new", priority: "medium", priorityScore: 2, source: "website", notes: "", nextAction: "First call", nextActionDate: null, lastContact: null, followupCount: 0, createdAt: null }',
-    "];",
+    "const fallbackLeads: Lead[] = [];",
     "",
     "// List + filter leads, ported from church_crm.py get_church_leads: optional",
     "// stage/priority filters and a name/contact/email/city search, sorted by",
@@ -787,14 +784,7 @@ export const crmFollowUpModule: AppModule = {
       ");",
       "create index if not exists crm_lead_activities_lead_idx on crm_lead_activities (lead_id, created_at desc);"
     ].join("\n"),
-  seedSql: () =>
-    [
-      "",
-      "insert into crm_leads (name, contact_name, email, phone, city, state, stage, priority, source, notes, next_action) values",
-      "  ('Riverstone Group', 'Dana Cole', 'dana@example.com', '555-0134', 'Austin', 'TX', 'interested', 'high', 'referral', 'Warm intro from an existing customer.', 'Send proposal'),",
-      "  ('Maple & Co.', 'Sam Ortiz', 'sam@example.com', '', 'Denver', 'CO', 'new', 'medium', 'website', '', 'First call')",
-      "on conflict do nothing;"
-    ].join("\n"),
+  seedSql: () => "",
   envLines: () => [
     "",
     "# CRM & Follow-up — set to false to switch the pipeline + reminders off.",

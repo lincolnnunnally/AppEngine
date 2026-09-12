@@ -12,6 +12,7 @@ let failures = 0;
 function ok(l) { console.log(`ok - ${l}`); }
 function bad(l, d) { failures++; console.error(`not ok - ${l}${d ? " :: " + d : ""}`); }
 function has(h, n, l) { h.includes(n) ? ok(l) : bad(l, `missing: ${n}`); }
+function hasnt(h, n, l) { h.includes(n) ? bad(l, `should not contain: ${n}`) : ok(l); }
 
 const { directoryCommunityModule } = await import(pathToFileURL(path.join(root, "src/lib/engine/modules/directory-community.ts")).href);
 
@@ -31,7 +32,8 @@ has(lib, "export async function upsertPerson", "lib: admin upsert");
 has(lib, "calculateDataQuality", "lib: data-quality score (ported from people.py)");
 has(lib, "from directory_people", "lib: reads the directory table");
 has(lib, "order by data_quality_score desc", "lib: highest-quality first (matches source)");
-has(lib, "fallbackPeople", "lib: graceful sample-data fallback with no DB");
+has(lib, "fallbackPeople: DirectoryPerson[] = []", "lib: empty directory when there is no database");
+hasnt(lib, "Ada Lovelace", "lib: does not fabricate people");
 has(lib, 'process.env.FEATURE_DIRECTORY', "lib: honors the feature flag");
 
 // APIs — gated
