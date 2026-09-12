@@ -4604,6 +4604,8 @@ label {
 
 .factory-home {
   width: min(1040px, 100%);
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -4613,10 +4615,17 @@ label {
 .factory-hero {
   display: grid;
   gap: 0.9rem;
+  width: 100%;
   max-width: 40rem;
+  min-width: 0;
   margin-inline: auto;
   text-align: center;
   justify-items: center;
+}
+
+.factory-hero > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .balanced-title {
@@ -4662,14 +4671,23 @@ label {
 .factory-lede,
 .factory-how {
   margin: 0;
+  width: 100%;
   max-width: 34rem;
   color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.5;
+  overflow-wrap: break-word;
 }
 
 .factory-packs {
   text-align: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.factory-packs > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .factory-packs h2,
