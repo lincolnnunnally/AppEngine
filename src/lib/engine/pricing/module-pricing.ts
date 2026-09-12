@@ -224,6 +224,78 @@ export const SELLABLE_FEATURES: SellableFeature[] = [
     priceCents: FEATURE_PRICE_CENTS,
     audience: "business",
     category: "ops"
+  },
+  {
+    id: "intake",
+    label: "Guided intake",
+    description: "Capture the problem, who it is for, and the outcome in one place.",
+    moduleSlugs: ["intake"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "both",
+    category: "ops"
+  },
+  {
+    id: "navigator",
+    label: "Next-step navigator",
+    description: "Suggest the next faithful step from where someone is.",
+    moduleSlugs: ["recommendation-navigator"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "both",
+    category: "growth"
+  },
+  {
+    id: "domains",
+    label: "Custom web address",
+    description: "Request and track a public address people can type.",
+    moduleSlugs: ["domains-publishing"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "business",
+    category: "public"
+  },
+  {
+    id: "shelf",
+    label: "Inventory shelf",
+    description: "Stock with quantity and use-by dates.",
+    moduleSlugs: ["inventory-shelf"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "business",
+    category: "ops"
+  },
+  {
+    id: "receipts",
+    label: "Donor receipts",
+    description: "A plain record of what was given.",
+    moduleSlugs: ["donor-receipts"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "business",
+    category: "money"
+  },
+  {
+    id: "waitlist",
+    label: "Waitlist & invites",
+    description: "Keep people waiting, invite them when a door opens.",
+    moduleSlugs: ["waitlist-invites"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "both",
+    category: "growth"
+  },
+  {
+    id: "pulse",
+    label: "Pulse / issues",
+    description: "Let people name a real issue so leaders can see it.",
+    moduleSlugs: ["feedback-pulse"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "both",
+    category: "ops"
+  },
+  {
+    id: "group-buy",
+    label: "Group buy",
+    description: "Lock a shared order so a group can buy together.",
+    moduleSlugs: ["group-buy-campaigns"],
+    priceCents: FEATURE_PRICE_CENTS,
+    audience: "business",
+    category: "money"
   }
 ];
 

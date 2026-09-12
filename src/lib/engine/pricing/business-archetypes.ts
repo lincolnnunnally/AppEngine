@@ -111,6 +111,24 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     defaultFeatureIds: ["public-page", "invites"],
     triggers: ["creator", "youtube", "podcast", "teacher", "brand", "audience"],
     family: "creator"
+  },
+  {
+    id: "pantry",
+    name: "Pantry / giving shelf",
+    forWho: "Food pantries and giving rooms that need stock, receipts, and a waitlist",
+    coreJob: "What's on the shelf, who is waiting, and a receipt for what was given",
+    defaultFeatureIds: ["shelf", "receipts", "waitlist"],
+    triggers: ["pantry", "food bank", "hungry", "shelf", "donor", "grocer", "waitlist"],
+    family: "care"
+  },
+  {
+    id: "civic-pulse",
+    name: "Community pulse",
+    forWho: "Towns and groups whose people feel unheard",
+    coreJob: "Name the issue, keep a public page, follow up",
+    defaultFeatureIds: ["pulse", "public-page", "crm"],
+    triggers: ["pulse", "unheard", "leaders", "town", "issue board", "civic"],
+    family: "org"
   }
 ];
 

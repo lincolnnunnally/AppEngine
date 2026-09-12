@@ -212,8 +212,8 @@ const MODULES: ModuleCatalogEntry[] = [
     category: "intake",
     purpose: "Guided problem → structured profile. Opportunity is intake for people; AppEngine is intake for builders.",
     capabilities: ["intake", "clarification", "structured capture", "problem framing"],
-    usedByApps: ["churchconnect"],
-    primarySource: "AppEngine problem_intake_gate + opportunity-intake (canonical, in this repo)",
+    usedByApps: ["churchconnect", "appengine"],
+    primarySource: "AppEngine conversational intake + src/lib/engine/modules/guided-intake.ts",
     status: "in_use"
   },
   {
@@ -223,7 +223,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Suggest the next app, person, or resource for where someone is.",
     capabilities: ["recommendation", "routing", "next step", "navigator"],
     usedByApps: ["best-life"],
-    primarySource: "AppEngine opportunity-solution-path router + ChurchConnect purpose_discovery.py",
+    primarySource: "AppEngine opportunity-solution-path router + src/lib/engine/modules/recommendation-navigator.ts",
     status: "in_use"
   },
   {
@@ -343,8 +343,8 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Register domains and publish/hand off generated sites (incl. WordPress).",
     capabilities: ["domain registration", "publishing", "site handoff", "wordpress"],
     usedByApps: ["easy-peasy-website", "churchconnect"],
-    primarySource: "Website-friends (GitHub) src/components/admin/DomainSearchModal.tsx + client/Web3Domains.tsx + ChurchConnect backend/routes/spaceship_domains.py + website_handoff.py",
-    status: "extractable"
+    primarySource: "Website-friends DomainSearchModal + AppEngine src/lib/engine/modules/domains-publishing.ts",
+    status: "in_use"
   },
   {
     slug: "branding-design",
@@ -576,6 +576,96 @@ const MODULES: ModuleCatalogEntry[] = [
     usedByApps: ["churchconnect", "kindred-connections", "live-on-mission", "laser-engrave-market", "kids-need-dads"],
     primarySource: "AppEngine db/location-proximity-schema.sql + src/lib/geo/location-proximity.ts (PostGIS geo_places + RPCs); mined from ChurchConnect backend/utils/geo.py geocode-on-save + Kindred Connections frontend/src/pages/Settings.js device opt-in",
     status: "extractable"
+  },
+  {
+    slug: "content-edit",
+    name: "Click-to-edit content",
+    category: "design",
+    purpose: "Owner-gated inline edit of page text so a real person can fix copy without an agent round-trip.",
+    capabilities: ["inline edit", "content overrides", "reset to original"],
+    usedByApps: ["kids-need-dads", "united-under-god"],
+    primarySource: "AppEngine src/lib/engine/modules/content-edit.ts",
+    status: "in_use"
+  },
+  {
+    slug: "membership-registry",
+    name: "Membership registry",
+    category: "operations",
+    purpose: "Free membership statements, a public directory, and a verifiable badge.",
+    capabilities: ["join", "directory", "badge", "approval queue"],
+    usedByApps: ["united-under-god"],
+    primarySource: "AppEngine src/lib/engine/modules/membership-registry.ts + uug-website /join",
+    status: "in_use"
+  },
+  {
+    slug: "asset-claim",
+    name: "Asset claims",
+    category: "operations",
+    purpose: "Claim and track equipment or property so nothing is lost between people.",
+    capabilities: ["claims", "status", "assignment"],
+    usedByApps: ["toner-management"],
+    primarySource: "AppEngine src/lib/engine/modules/asset-claim.ts",
+    status: "in_use"
+  },
+  {
+    slug: "growth-telemetry",
+    name: "Growth telemetry",
+    category: "analytics",
+    purpose: "Honest, privacy-respecting usage so we can see if an app is actually helping.",
+    capabilities: ["page beacons", "origin allowlist", "no PII"],
+    usedByApps: ["appengine"],
+    primarySource: "AppEngine src/lib/engine/modules/growth-telemetry.ts",
+    status: "in_use"
+  },
+  {
+    slug: "inventory-shelf",
+    name: "Inventory shelf",
+    category: "commerce",
+    purpose: "Stock with quantity and use-by so short-dated goods go out first.",
+    capabilities: ["shelf", "quantity", "use-by"],
+    usedByApps: ["plenty"],
+    primarySource: "Plenty pantry shelf (photo, quantity, use-by)",
+    status: "in_use"
+  },
+  {
+    slug: "donor-receipts",
+    name: "Donor receipts",
+    category: "commerce",
+    purpose: "A plain record of what was given so donors can keep it — not tax advice.",
+    capabilities: ["receipts", "in-kind", "donor record"],
+    usedByApps: ["plenty", "churchconnect"],
+    primarySource: "Plenty grocery-donor flow + ChurchConnect giving records",
+    status: "in_use"
+  },
+  {
+    slug: "waitlist-invites",
+    name: "Waitlist invites",
+    category: "connection",
+    purpose: "Keep people who are waiting, then invite them when a door opens.",
+    capabilities: ["waitlist", "ZIP invite", "open a door"],
+    usedByApps: ["plenty"],
+    primarySource: "Plenty bulk invites by ZIP / family traits",
+    status: "in_use"
+  },
+  {
+    slug: "feedback-pulse",
+    name: "Pulse feedback",
+    category: "operations",
+    purpose: "Let people name a real issue so leaders are not flying blind.",
+    capabilities: ["issues", "voice to leaders", "status"],
+    usedByApps: ["pulse"],
+    primarySource: "Pulse (issues board / seats)",
+    status: "in_use"
+  },
+  {
+    slug: "group-buy-campaigns",
+    name: "Group buy",
+    category: "commerce",
+    purpose: "Lock a shared order so a group can buy together.",
+    capabilities: ["campaigns", "lock date", "shared order"],
+    usedByApps: ["united-under-god", "appengine"],
+    primarySource: "AppEngine src/lib/group-buy + United Under God Connect",
+    status: "in_use"
   }
 ];
 

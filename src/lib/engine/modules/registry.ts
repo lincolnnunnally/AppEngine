@@ -57,6 +57,14 @@ import { contentEditModule } from "./content-edit";
 import { membershipRegistryModule } from "./membership-registry";
 import { assetClaimModule } from "./asset-claim";
 import { growthTelemetryModule } from "./growth-telemetry";
+import { guidedIntakeModule } from "./intake";
+import { recommendationNavigatorModule } from "./recommendation-navigator";
+import { domainsPublishingModule } from "./domains-publishing";
+import { inventoryShelfModule } from "./inventory-shelf";
+import { donorReceiptsModule } from "./donor-receipts";
+import { waitlistInvitesModule } from "./waitlist-invites";
+import { feedbackPulseModule } from "./feedback-pulse";
+import { groupBuyCampaignsModule } from "./group-buy-campaigns";
 
 const MODULES: AppModule[] = [
   identityAuthModule,
@@ -110,7 +118,15 @@ const MODULES: AppModule[] = [
   contentEditModule,
   membershipRegistryModule,
   assetClaimModule,
-  growthTelemetryModule
+  growthTelemetryModule,
+  guidedIntakeModule,
+  recommendationNavigatorModule,
+  domainsPublishingModule,
+  inventoryShelfModule,
+  donorReceiptsModule,
+  waitlistInvitesModule,
+  feedbackPulseModule,
+  groupBuyCampaignsModule
 ];
 
 export function allModules(): AppModule[] {

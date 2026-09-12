@@ -23,7 +23,7 @@ const selected = new Set(selectedSlugs.length ? selectedSlugs : ["purpose-onboar
 // scripts/smoke-modules-registry.js, which also guarantees every discovered
 // module is registered, so this set matches the registry.
 const modulesDir = path.join(root, "src/lib/engine/modules");
-const moduleFileNames = fs.readdirSync(modulesDir).filter((f) => f.endsWith(".ts") && !["types.ts", "registry.ts"].includes(f));
+const moduleFileNames = fs.readdirSync(modulesDir).filter((f) => f.endsWith(".ts") && !["types.ts", "registry.ts", "simple-list.ts"].includes(f));
 const modules = [];
 for (const fileName of moduleFileNames) {
   const mod = await import(pathToFileURL(path.join(modulesDir, fileName)).href);

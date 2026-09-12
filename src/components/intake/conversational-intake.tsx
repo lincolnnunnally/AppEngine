@@ -125,8 +125,8 @@ export function ConversationalIntake() {
   return (
     <section className="convo" aria-label="Start building an app">
       <header className="convo-head">
-        <p className="convo-eyebrow">We build the app for you</p>
-        <h1 className="convo-title">What app should we build for you?</h1>
+        <p className="convo-eyebrow">We snap the app together for you</p>
+        <h1 className="convo-title">What should this app help someone do?</h1>
         {atStart ? (
           <p className="convo-sub">
             Describe a problem you want solved or a tool you already have in mind — I&apos;ll ask a few quick questions,
