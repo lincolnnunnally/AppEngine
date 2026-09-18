@@ -279,10 +279,15 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Church & community",
     hide: "ChurchConnect tenant config, not a standalone app (registry blocker)."
   },
+  // ChurchConnect Association door, not a new app brand. HOLD lifted:
+  // Operate + Porchlight are LIVE, so apps.unitedundergod.org lists this
+  // Continuity door (one LIVE card / listing-href only).
   "vidalia-toombs-pastors-circle": {
-    tagline: "",
+    publicName: "Pastors Circle",
+    tagline:
+      "A cross-denomination pastors meetup in Vidalia and Toombs — same ChurchConnect Association door, not a new app.",
     group: "Church & community",
-    hide: "ChurchConnect Association door, not a new app brand. Continuity home = ChurchConnect Association; UUG apps directory listing is separate (uug-website)."
+    liveUrl: "https://churchconnect.unitedundergod.org/association/pastors-circle"
   },
   "churchconnect-bridge": {
     tagline: "",
