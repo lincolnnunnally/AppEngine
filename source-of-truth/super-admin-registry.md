@@ -148,11 +148,11 @@ When a door is a path on another live app (ChurchConnect Association, a tenant, 
 
 ### Vidalia / Toombs Pastors Circle
 
-ChurchConnect Association door — **not a new app brand**. Continuity home = ChurchConnect Association. UUG apps directory listing is separate (`uug-website`).
+ChurchConnect Association door — **not a new app brand**. Continuity home = ChurchConnect Association. EXIST deep link is `/association/pastors-circle`. `apps.unitedundergod.org` lists this door (HOLD lifted — Operate + Porchlight are LIVE). Admin stays on ChurchConnect Super Admin — do not invent a parallel AppEngine admin.
 
 - Name: Vidalia / Toombs Pastors Circle
 - Slug: `vidalia-toombs-pastors-circle`
-- Live URL: [https://churchconnect.unitedundergod.org/association](https://churchconnect.unitedundergod.org/association) (`www.churchconnect.cloud/association` equivalent until a Pastors Circle deep link exists)
+- Live URL: [https://churchconnect.unitedundergod.org/association/pastors-circle](https://churchconnect.unitedundergod.org/association/pastors-circle) (`www.churchconnect.cloud/association/pastors-circle` equivalent)
 - Admin / user-management: ChurchConnect Super Admin — [https://churchconnect.unitedundergod.org/admin](https://churchconnect.unitedundergod.org/admin) (`www.churchconnect.cloud/admin` equivalent)
 
 ```json
@@ -170,7 +170,7 @@ ChurchConnect Association door — **not a new app brand**. Continuity home = Ch
     "environment": "production",
     "doorKind": "churchconnect_association_door",
     "continuityHome": "ChurchConnect Association",
-    "publicDirectory": "separate — uug-website apps listing is not this registry"
+    "publicDirectory": "apps.unitedundergod.org lists this Continuity door (listing/href only — not a new app)"
   },
   "release": {
     "version": "association-door",
@@ -179,11 +179,11 @@ ChurchConnect Association door — **not a new app brand**. Continuity home = Ch
   },
   "deployment": {
     "provider": "ChurchConnect (Vercel + Render)",
-    "previewUrl": "https://churchconnect.unitedundergod.org/association",
-    "productionUrl": "https://churchconnect.unitedundergod.org/association",
+    "previewUrl": "https://churchconnect.unitedundergod.org/association/pastors-circle",
+    "productionUrl": "https://churchconnect.unitedundergod.org/association/pastors-circle",
     "productionApprovalRequired": false,
-    "alternateLiveUrl": "https://www.churchconnect.cloud/association",
-    "deepLink": "planned — use Association door until a Pastors Circle deep link exists"
+    "alternateLiveUrl": "https://www.churchconnect.cloud/association/pastors-circle",
+    "deepLink": "EXIST — https://churchconnect.unitedundergod.org/association/pastors-circle"
   },
   "operations": {
     "healthUrl": "https://churchconnect.unitedundergod.org/api/health",
@@ -220,7 +220,7 @@ ChurchConnect Association door — **not a new app brand**. Continuity home = Ch
 
 Registering this door updates the owner desk (soft-launch `appengine.unitedundergod.org` and leftover-preview of this AppEngine branch). It does **not** change ChurchConnect leftover-preview walks.
 
-- Owner desk leftover-preview: a Church & ministry card for **Vidalia / Toombs Pastors Circle** appears. Live opens ChurchConnect `/association`. Admin opens ChurchConnect Super Admin (`/admin`) — association management stays there. No new AppEngine admin route.
-- Public apps showcase leftover-preview (`apps.unitedundergod.org` / factory showcase): this slug is **hidden**. It is not a standalone product card. Do not treat leftover-preview of the showcase as a new brand launch.
+- Owner desk leftover-preview: a Church & ministry card for **Vidalia / Toombs Pastors Circle** appears. Live opens the EXIST ChurchConnect Pastors Circle deep link (`/association/pastors-circle`). Admin opens ChurchConnect Super Admin (`/admin`) — association management stays there. No new AppEngine admin route.
+- Public apps showcase leftover-preview (`apps.unitedundergod.org` / factory showcase): one **LIVE** Pastors Circle card. It opens the same deep link. Listing/href only — not a new app brand.
 - Auth leftover-preview: AppEngine email/cookie hosts are unchanged. ChurchConnect Super Admin leftover-preview still uses ChurchConnect's own preview origin. Do not invent an AppEngine login for this door.
 - ChurchConnect PRs 221 / 222 / 287 / 293 are out of scope. Do not retarget leftover-preview of those branches from this registry lock.

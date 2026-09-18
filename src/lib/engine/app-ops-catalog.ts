@@ -78,7 +78,7 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   "vidalia-toombs-pastors-circle": {
     slug: "vidalia-toombs-pastors-circle",
     family: "church",
-    purpose: "Vidalia / Toombs Pastors Circle — a ChurchConnect Association door, not a new app brand. Continuity home = ChurchConnect Association; UUG apps directory listing is separate (uug-website).",
+    purpose: "Vidalia / Toombs Pastors Circle — a ChurchConnect Association door, not a new app brand. Continuity home = ChurchConnect Association. EXIST deep link /association/pastors-circle. apps.unitedundergod.org lists this door (listing/href only). Admin stays on ChurchConnect Super Admin.",
     adminUrl: "https://churchconnect.unitedundergod.org/admin",
     adminNote: "ChurchConnect Super Admin association management. Do not invent a parallel AppEngine admin for this door."
   },

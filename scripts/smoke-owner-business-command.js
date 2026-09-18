@@ -6,19 +6,30 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 
-runStep("pastors circle is a ChurchConnect Association door, not a public brand card", () => {
+runStep("pastors circle is a ChurchConnect Association door listed on apps.uug", () => {
   assertFileIncludes("source-of-truth/super-admin-registry.md", [
     "vidalia-toombs-pastors-circle",
     "Continuity home = ChurchConnect Association",
-    "uug-website",
-    "https://churchconnect.unitedundergod.org/association",
+    "https://churchconnect.unitedundergod.org/association/pastors-circle",
     "https://churchconnect.unitedundergod.org/admin",
     "noParallelAppEngineAdminUi"
   ]);
+  const registry = read("source-of-truth/super-admin-registry.md");
+  if (registry.includes("until a Pastors Circle deep link exists")) {
+    throw new Error("Pastors Circle registry must record the EXIST deep link, not a planned /association fallback");
+  }
   assertFileIncludes("src/lib/showcase/apps-showcase.ts", [
     '"vidalia-toombs-pastors-circle"',
+    "https://churchconnect.unitedundergod.org/association/pastors-circle",
     "ChurchConnect Association door, not a new app brand"
   ]);
+  const showcase = read("src/lib/showcase/apps-showcase.ts");
+  const start = showcase.indexOf('"vidalia-toombs-pastors-circle"');
+  const nextHidden = showcase.indexOf('"churchconnect-bridge"', start);
+  const pastorsBlock = showcase.slice(start, nextHidden === -1 ? undefined : nextHidden);
+  if (pastorsBlock.includes("hide:")) {
+    throw new Error("Pastors Circle must be a LIVE apps.uug card — HOLD listing-separate is lifted");
+  }
 });
 
 runStep("catalog records verified admin doors only", () => {
@@ -48,6 +59,7 @@ runStep("UUG apps directory: Operate live, Rally+Selah coming soon, App Engine s
   assertFileIncludes("src/lib/showcase/apps-showcase.ts", [
     "operate",
     "https://operate.unitedundergod.org",
+    "https://churchconnect.unitedundergod.org/association/pastors-circle",
     'comingSoon: true',
     "https://rally.unitedundergod.org",
     "https://selah.unitedundergod.org",

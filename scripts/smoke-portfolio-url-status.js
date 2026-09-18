@@ -125,16 +125,20 @@ const pastorsCircle = apps.find((app) => app.slug === "vidalia-toombs-pastors-ci
 check(Boolean(pastorsCircle), "vidalia-toombs-pastors-circle is registered");
 if (pastorsCircle) {
   check(
-    pastorsCircle.productionUrl === "https://churchconnect.unitedundergod.org/association",
-    "pastors-circle live URL is the ChurchConnect Association door"
+    pastorsCircle.productionUrl === "https://churchconnect.unitedundergod.org/association/pastors-circle",
+    "pastors-circle live URL is the EXIST Pastors Circle deep link"
   );
   check(
     String(pastorsCircle.domain?.note || "").includes("Continuity home = ChurchConnect Association"),
     "pastors-circle notes Continuity home = ChurchConnect Association"
   );
   check(
-    String(pastorsCircle.domain?.note || "").includes("uug-website"),
-    "pastors-circle notes UUG apps directory is separate (uug-website)"
+    String(pastorsCircle.domain?.note || "").includes("apps.unitedundergod.org"),
+    "pastors-circle notes apps.unitedundergod.org lists this door"
+  );
+  check(
+    String(pastorsCircle.domain?.note || "").includes("/association/pastors-circle"),
+    "pastors-circle notes the EXIST /association/pastors-circle deep link"
   );
   check(
     pastorsCircle.domain?.intendedDomain !== "churchconnect.unitedundergod.org" &&
