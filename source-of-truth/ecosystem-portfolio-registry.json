@@ -4,31 +4,31 @@
   "generatedAt": "2026-09-09T09:50:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 39,
+    "totalApps": 42,
     "reviewReadyApps": 1,
-    "productionLiveApps": 23,
+    "productionLiveApps": 24,
     "blockedApps": 15,
     "byDeploymentState": {
-      "production_live": 23,
+      "production_live": 24,
       "production_blocked": 15,
       "review_ready": 1
     },
     "byBuildState": {
-      "ready_for_vnext": 20,
+      "ready_for_vnext": 21,
       "review_blocked": 1,
       "ready_for_build": 2,
       "planned": 15,
       "preview_verified": 1
     },
     "nextSafeActions": {
-      "create_vnext_packet": 20,
+      "create_vnext_packet": 21,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 15,
       "await_owner_review": 1
     },
     "byUrlStatus": {
-      "live": 28,
+      "live": 31,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -1524,31 +1524,58 @@
     {
       "name": "Backoffice.works",
       "slug": "backoffice",
-      "reviewUrl": "https://backoffice-works.vercel.app",
-      "productionUrl": "https://backoffice-works.vercel.app",
+      "reviewUrl": "https://backoffice.works",
+      "productionUrl": "https://backoffice.works",
       "currentVersion": "door-2026-09-11",
       "deploymentState": "production_live",
       "buildState": "ready_for_vnext",
       "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "backoffice.works",
-        "urlStatus": "domain_owned_not_serving",
-        "servingUrl": "https://backoffice-works.vercel.app",
-        "nextStep": "At DreamHost, point backoffice.works A records to 216.150.1.1 and 216.150.16.1 (and www CNAME to cname.vercel-dns.com) so the branded door replaces the WordPress placeholder.",
-        "note": "Uniquely branded customer door (owner 2026-09-11) to Operate, toner, websites, group buying, and laser. Not a fourth toner price and not a second Operate. 20% leftover is an aim, not a promise. Vercel project backoffice-works is live; DreamHost still serves the old WordPress until DNS moves.",
-        "factsFrom": "owner-2026-09-11"
+        "urlStatus": "live",
+        "servingUrl": "https://backoffice.works",
+        "nextStep": "None — branded door is the opened customer face at backoffice.works.",
+        "note": "Uniquely branded customer door (owner 2026-09-11) to Operate, toner, websites, group buying, and laser. Opened customer face is https://backoffice.works (verified 2026-09-18). Not a fourth toner price and not a second Operate. 20% leftover is an aim, not a promise.",
+        "factsFrom": "continuity-unlock-2026-09-18"
       },
       "sourceOfTruthFiles": [],
       "linkedIssues": [],
       "linkedPRs": [],
-      "blockers": [
-        "DreamHost DNS still points at WordPress (67.205.20.0). Registrar change is owner-only until a DreamHost API key is in the vault."
-      ],
+      "blockers": [],
       "evidenceLinks": [
+        "https://backoffice.works",
         "https://backoffice-works.vercel.app",
         "https://github.com/lincolnnunnally/backoffice-works"
       ],
-      "lastUpdated": "2026-09-11T15:30:00.000Z"
+      "lastUpdated": "2026-09-18T17:30:00.000Z"
+    },
+    {
+      "name": "Plenty",
+      "slug": "plenty",
+      "reviewUrl": "https://plenty.unitedundergod.org",
+      "productionUrl": "https://plenty.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "plenty.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://plenty.unitedundergod.org",
+        "nextStep": "None — live. Vidalia food pantry (get food, volunteer, donate).",
+        "note": "Continuity-create for apps.unitedundergod.org gap fill. Already listed on www.unitedundergod.org/apps. Slug plenty from EXIST repo lincolnnunnally/plenty. Not a second Operate.",
+        "factsFrom": "continuity-unlock-2026-09-18"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": [
+        "https://plenty.unitedundergod.org",
+        "https://www.unitedundergod.org/apps",
+        "https://github.com/lincolnnunnally/plenty"
+      ],
+      "lastUpdated": "2026-09-18T17:30:00.000Z"
     }
   ],
   "guardrails": {
