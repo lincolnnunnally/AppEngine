@@ -55,13 +55,17 @@ runStep("catalog records verified admin doors only", () => {
   ]);
 });
 
-runStep("UUG apps directory: Operate live, Rally+Selah coming soon, App Engine soft-launch href", () => {
+runStep("UUG apps directory: unlocked Continuity doors live, Selah coming soon, App Engine soft-launch href", () => {
   assertFileIncludes("src/lib/showcase/apps-showcase.ts", [
     "operate",
     "https://operate.unitedundergod.org",
     "https://churchconnect.unitedundergod.org/association/pastors-circle",
     'comingSoon: true',
-    "https://rally.unitedundergod.org",
+    'liveUrl: "https://rally.unitedundergod.org"',
+    "https://plenty.unitedundergod.org",
+    "https://laser.engrave.market",
+    "https://sandlot.unitedundergod.org",
+    "https://backoffice.works",
     "https://selah.unitedundergod.org",
     "https://appengine.unitedundergod.org/soft-launch"
   ]);
@@ -69,9 +73,19 @@ runStep("UUG apps directory: Operate live, Rally+Selah coming soon, App Engine s
   if (showcase.includes('liveUrl: "https://www.we-succeed.org"')) {
     throw new Error("App Engine showcase card must not point at we-succeed.org");
   }
+  if (showcase.includes("https://swaparound.vercel.app")) {
+    throw new Error("Sandlot primary door must not be swaparound.vercel.app");
+  }
+  const laserBlock = showcase.slice(showcase.indexOf('"laser-engrave-market"'), showcase.indexOf('"kindred-connections"'));
+  if (laserBlock.includes('liveUrl: "https://laser.unitedundergod.org"')) {
+    throw new Error("Laser Engrave Market customer door is laser.engrave.market");
+  }
   const rallyBlock = showcase.slice(showcase.indexOf("rally:"), showcase.indexOf("selah:"));
-  if (rallyBlock.includes("liveUrl:")) {
-    throw new Error("Rally must not have a liveUrl — Coming soon honesty");
+  if (!rallyBlock.includes('liveUrl: "https://rally.unitedundergod.org"')) {
+    throw new Error("Rally must be Live at rally.unitedundergod.org");
+  }
+  if (rallyBlock.includes("comingSoon: true")) {
+    throw new Error("Rally comingSoon honesty override is lifted — /app/desk is LIVE");
   }
   const selahBlock = showcase.slice(showcase.indexOf("selah:"), showcase.indexOf("// Registry entries"));
   if (selahBlock.includes("liveUrl:")) {

@@ -168,7 +168,8 @@ const DISPLAY: Record<string, DisplayMeta> = {
     publicName: "Laser Engrave Market",
     tagline: "Custom laser engraving with design assistance — personalized products, gifts, and business branding.",
     group: "Everyday services",
-    liveUrl: "https://laser.unitedundergod.org"
+    // Customer door lock: laser.engrave.market. laser.unitedundergod.org may remain a redirect.
+    liveUrl: "https://laser.engrave.market"
   },
   "kindred-connections": {
     tagline:
@@ -188,7 +189,7 @@ const DISPLAY: Record<string, DisplayMeta> = {
     tagline:
       "Kids meetups, fidget and toy exchange, and supervised playdates — free, parent-run, in person.",
     group: "Hope & transformation",
-    liveUrl: "https://swaparound.vercel.app"
+    liveUrl: "https://sandlot.unitedundergod.org"
   },
   opportunity: {
     tagline: "Name the problem, find the opportunity hidden inside it, and take a practical next step.",
@@ -258,12 +259,25 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Everyday services",
     liveUrl: "https://operate.unitedundergod.org"
   },
+  plenty: {
+    publicName: "Plenty",
+    // Condensed from the owner's published www.unitedundergod.org/apps card.
+    tagline: "The Vidalia food pantry — get food, volunteer, or donate. Grocers can give here or through this site.",
+    group: "Church & community",
+    liveUrl: "https://plenty.unitedundergod.org"
+  },
+  backoffice: {
+    publicName: "Backoffice.works",
+    // Condensed from the owner-verified registry note (unique door, not a second Operate).
+    tagline: "A branded shop door to Operate, toner, websites, group buying, and laser — not a second Operate.",
+    group: "Everyday services",
+    liveUrl: "https://backoffice.works"
+  },
   rally: {
     publicName: "Rally",
     tagline: "Vidalia tennis and pickleball — find a hitting partner, book a lesson, start a league.",
     group: "Hope & transformation",
-    comingSoon: true,
-    reservedUrl: "https://rally.unitedundergod.org"
+    liveUrl: "https://rally.unitedundergod.org"
   },
   selah: {
     publicName: "Selah",
@@ -369,7 +383,7 @@ export function getAppsShowcase(): AppsShowcase {
     // Live = a preferred public URL is directed (owner directive, verified), or
     // the owner registry marks the URL live with a serving address.
     // comingSoon is an honesty override for name stubs that hold a host but
-    // are not a live product (Rally / Selah — placeholder holds the name).
+    // are not a live product (Selah — placeholder holds the name).
     const liveUrl = meta?.comingSoon ? "" : (meta?.liveUrl ?? (urlStatusLive && servingUrl ? servingUrl : ""));
     const reservedUrl = meta?.reservedUrl ?? "";
 

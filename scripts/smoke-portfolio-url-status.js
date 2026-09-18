@@ -120,6 +120,25 @@ if (operate) {
   check(String(operate.domain?.note || "").includes("HOLD invent"), "operate notes HOLD invent for admin");
 }
 
+const plenty = apps.find((app) => app.slug === "plenty");
+check(Boolean(plenty), "plenty is registered");
+if (plenty) {
+  check(plenty.productionUrl === "https://plenty.unitedundergod.org", "plenty live URL");
+  check(plenty.domain?.urlStatus === "live", "plenty urlStatus is live");
+}
+const backoffice = apps.find((app) => app.slug === "backoffice");
+check(Boolean(backoffice), "backoffice is registered");
+if (backoffice) {
+  check(backoffice.productionUrl === "https://backoffice.works", "backoffice branded door is the customer face");
+  check(backoffice.domain?.urlStatus === "live", "backoffice urlStatus is live");
+}
+const rally = apps.find((app) => app.slug === "rally");
+check(Boolean(rally), "rally is registered");
+if (rally) {
+  check(rally.productionUrl === "https://rally.unitedundergod.org", "rally live URL");
+  check(rally.deploymentState === "production_live", "rally deployment is production_live");
+}
+
 // Vidalia / Toombs Pastors Circle is a ChurchConnect Association door, not a new brand.
 const pastorsCircle = apps.find((app) => app.slug === "vidalia-toombs-pastors-circle");
 check(Boolean(pastorsCircle), "vidalia-toombs-pastors-circle is registered");
