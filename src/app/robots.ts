@@ -9,9 +9,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   }
 
   if (host === "apps.unitedundergod.org") {
+    // Human directory only. Do not rank the forest — send crawlers to each app.
     return {
-      rules: { userAgent: "*", allow: "/", disallow: ["/api/"] },
-      sitemap: "https://apps.unitedundergod.org/sitemap.xml",
+      rules: { userAgent: "*", allow: "/", disallow: [] },
     };
   }
 

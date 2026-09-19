@@ -15,7 +15,8 @@ export const dynamic = "force-static";
 export const metadata: Metadata = {
   title: "Our Apps — United Under God",
   description:
-    "Every app in the United Under God family — what each one does, what's live today, and what's coming next."
+    "A directory of live doors. Google should send people to each app, not this page.",
+  robots: { index: false, follow: true },
 };
 
 function LiveCard({ app }: { app: ShowcaseApp }) {
