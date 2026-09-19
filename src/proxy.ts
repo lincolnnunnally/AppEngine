@@ -66,7 +66,7 @@ export default function proxy(request: NextRequest) {
   }
 
   if (host === DASHBOARD_HOST) {
-    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico" || pathname === "/robots.txt") {
+    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico" || pathname === "/robots.txt" || pathname === "/sitemap.xml") {
       return NextResponse.next();
     }
     if (FACTORY_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
@@ -98,7 +98,12 @@ export default function proxy(request: NextRequest) {
 
   if (host === SHOWCASE_HOST) {
     // Framework internals and metadata files pass through so the page renders.
-    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico" || pathname === "/robots.txt") {
+    if (
+      pathname.startsWith("/_next/") ||
+      pathname === "/favicon.ico" ||
+      pathname === "/robots.txt" ||
+      pathname === "/sitemap.xml"
+    ) {
       return NextResponse.next();
     }
     // Public health only — fleet monitors and uptime probes need a real JSON
