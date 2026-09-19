@@ -15,7 +15,7 @@ export const dynamic = "force-static";
 export const metadata: Metadata = {
   title: "Our Apps — United Under God",
   description:
-    "A directory of live doors. Google should send people to each app, not this page.",
+    "A human directory of live United Under God apps. Visit each app’s own site to see what it does and sign up.",
   robots: { index: false, follow: true },
 };
 

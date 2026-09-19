@@ -13,7 +13,14 @@ const securityHeaders = [
 const nextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "apps.unitedundergod.org" }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }],
+      },
+    ];
   }
 };
 
