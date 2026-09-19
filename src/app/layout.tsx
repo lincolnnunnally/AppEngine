@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
   return {
-    title: "AppEngine",
+    title: "Describe a problem. Open a live starter.",
     description:
-      "Not vibe building. Snap together pieces we already keep, see the price, then publish a live starter you can open.",
+      "Tell us what's stuck. We snap together pieces we already keep, show you the price, and publish a starter you can open — usually in days.",
     icons: SEAL_ICONS,
   };
 }
