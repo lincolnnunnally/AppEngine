@@ -79,7 +79,7 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "The builder",
     // Lock 2026-09-07: App Engine is not we-succeed.org. Soft-launch door is
     // appengine.unitedundergod.org. we-succeed is reserved for a different future use.
-    liveUrl: "https://appengine.unitedundergod.org/soft-launch"
+    liveUrl: "https://appengine.unitedundergod.org"
   },
   "united-under-god": {
     publicName: "United Under God",
@@ -112,7 +112,7 @@ const DISPLAY: Record<string, DisplayMeta> = {
     publicName: "EasyPeazy",
     tagline: "Domains, hosting, websites, and launch support in one simple package — without the tech overwhelm.",
     group: "Everyday services",
-    liveUrl: "https://easypeazy.unitedundergod.org"
+    liveUrl: "https://easypeazy.site"
   },
   "toner-management": {
     publicName: "Toner Management",
@@ -193,7 +193,8 @@ const DISPLAY: Record<string, DisplayMeta> = {
   },
   opportunity: {
     tagline: "Name the problem, find the opportunity hidden inside it, and take a practical next step.",
-    group: "Hope & transformation"
+    group: "Hope & transformation",
+    liveUrl: "https://opportunity.unitedundergod.org"
   },
   "best-life": {
     tagline: "Growth pathways across every aspect of life — relational, financial, spiritual, mental, emotional, and physical.",
@@ -218,14 +219,9 @@ const DISPLAY: Record<string, DisplayMeta> = {
   },
   "snip-show": {
     publicName: "Snip.Show",
-    tagline: "AI-assisted clipping, publishing, and monetization support for content creators.",
-    // Deliberately no liveUrl. snip.unitedundergod.org does serve (HTTP 200), but
-    // what it serves is the Emergent prototype: zero backend calls, no form action,
-    // signup writes to localStorage — while the page offers "Create your Snip
-    // account" and promises "revenue share". In this file liveUrl is the
-    // live/coming-soon switch, so adding it would publish a clickable LIVE card on
-    // the public showcase for something that cannot do what it advertises.
-    group: "Everyday services"
+    tagline: "Turn long recordings into clips worth sharing — cut, publish, and keep what you earn.",
+    group: "Everyday services",
+    liveUrl: "https://snip.show"
   },
   iconium: {
     // Not in the ecosystem map; line condensed from the registry status text.
@@ -255,7 +251,7 @@ const DISPLAY: Record<string, DisplayMeta> = {
   operate: {
     publicName: "Operate",
     tagline:
-      "Nonprofit desk for pantry, thrift, clothing, and furniture — intake, what's available this distribution, pickup or a delivery box.",
+      "See the week. Run the desk. Keep more of what you earn — people, money, and stock on one shop desk.",
     group: "Everyday services",
     liveUrl: "https://operate.unitedundergod.org"
   },

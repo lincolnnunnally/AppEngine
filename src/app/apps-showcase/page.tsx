@@ -117,7 +117,7 @@ export default function AppsShowcasePage() {
 
       <footer className="uug-foot">
         <p>
-          Built with <a href="https://appengine.unitedundergod.org/soft-launch" target="_blank" rel="noopener noreferrer">App Engine</a> — the app builder behind this family.
+          Built with <a href="https://appengine.unitedundergod.org" target="_blank" rel="noopener noreferrer">App Engine</a> — the app builder behind this family.
         </p>
         <p className="uug-foot-sub">
           Part of the <a href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">United Under God</a> ecosystem.
