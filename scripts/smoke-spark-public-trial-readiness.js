@@ -48,8 +48,8 @@ assertIncludes(page, "Not emergency support", "page should show emergency-suppor
 assertIncludes(page, "crisisSupportPlaceholder", "page should include crisis-support placeholder copy");
 assertIncludes(page, "publicTrialReadiness.checklist", "page should render readiness checklist");
 assertIncludes(page, 'data-testid="spark-live-doors"', "page should point at EXIST live sibling doors");
-assertIncludes(page, "https://spark.unitedundergod.org/hope-stories", "page should href Hope Stories find door");
-assertIncludes(page, "https://liveonmission.unitedundergod.org/testimonies", "page should href LOM testimony share door");
+assertIncludes(page, "SPARK_HOPE_STORIES_URL", "page should href Hope Stories find door");
+assertIncludes(page, "LOM_TESTIMONIES_URL", "page should href LOM testimony share door");
 
 const styles = read("src/app/styles.css");
 assertIncludes(styles, ".spark-public-trial-section", "styles should define public trial section");

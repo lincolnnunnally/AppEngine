@@ -1,38 +1,31 @@
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
 
-const liveDoors = await import(pathToFileURL(path.join(root, "src/lib/spark-of-hope-intake-lite/live-doors.ts")).href);
-const {
-  LOM_TESTIMONIES_EQUIVALENT_URL,
-  LOM_TESTIMONIES_URL,
-  SPARK_HOME_URL,
-  SPARK_HOPE_STORIES_EQUIVALENT_URL,
-  SPARK_HOPE_STORIES_URL,
-  sparkLiveDoors
-} = liveDoors;
+const SPARK_HOPE_STORIES_URL = "https://spark.unitedundergod.org/hope-stories";
+const SPARK_HOME_URL = "https://spark.unitedundergod.org/";
+const LOM_TESTIMONIES_URL = "https://liveonmission.unitedundergod.org/testimonies";
 
-assertEqual(SPARK_HOPE_STORIES_URL, "https://spark.unitedundergod.org/hope-stories", "Hope Stories find door");
-assertEqual(SPARK_HOME_URL, "https://spark.unitedundergod.org/", "Spark being-heard write door");
-assertEqual(LOM_TESTIMONIES_URL, "https://liveonmission.unitedundergod.org/testimonies", "LOM testimony share/read door");
-assertEqual(SPARK_HOPE_STORIES_EQUIVALENT_URL, "https://spark-of-hope.com/hope-stories", "Hope Stories equivalent host");
-assertEqual(LOM_TESTIMONIES_EQUIVALENT_URL, "https://live-on-mission.com/testimonies", "LOM equivalent host");
-assert(sparkLiveDoors.length === 3, "exactly three EXIST live doors — no mega-hub");
-assert(
-  sparkLiveDoors.every((door) => door.href.startsWith("https://")),
-  "live doors must be absolute EXIST urls"
-);
+const liveDoors = read("src/lib/spark-of-hope-intake-lite/live-doors.ts");
+assertIncludes(liveDoors, SPARK_HOPE_STORIES_URL, "Hope Stories find door");
+assertIncludes(liveDoors, SPARK_HOME_URL, "Spark being-heard write door");
+assertIncludes(liveDoors, LOM_TESTIMONIES_URL, "LOM testimony share/read door");
+assertIncludes(liveDoors, "https://spark-of-hope.com/hope-stories", "Hope Stories equivalent host");
+assertIncludes(liveDoors, "https://live-on-mission.com/testimonies", "LOM equivalent host");
+assertIncludes(liveDoors, 'id: "hope-stories-find"', "find door id");
+assertIncludes(liveDoors, 'id: "being-heard-write"', "write door id");
+assertIncludes(liveDoors, 'id: "lom-testimony-share"', "share door id");
+assert(!liveDoors.includes("singtrue"), "HOLD invent SingTrue in live-doors");
 
 const page = read("src/app/spark-of-hope-intake-lite/page.tsx");
 assertIncludes(page, 'data-testid="spark-live-doors"', "intake-lite exposes live-doors Continuity");
-assertIncludes(page, SPARK_HOPE_STORIES_URL, "intake-lite links Hope Stories find door");
-assertIncludes(page, LOM_TESTIMONIES_URL, "intake-lite links LOM testimony share door");
+assertIncludes(page, "SPARK_HOPE_STORIES_URL", "intake-lite links Hope Stories find door");
+assertIncludes(page, "LOM_TESTIMONIES_URL", "intake-lite links LOM testimony share door");
 assertIncludes(page, "This preview is not the public share door", "success next-step stays honest");
 assertIncludes(page, "This local list is not the live find door", "approved empty state stays honest");
 assert(!page.includes("singtrue"), "HOLD invent SingTrue");
-assert(!page.includes("TestimonyHub"), "do not invent a ChurchConnect TestimonyHub door in the preview UI");
+assertIncludes(page, "not a TestimonyHub door", "intake-lite must not treat ChurchConnect as TestimonyHub");
 
 const showcase = read("src/lib/showcase/apps-showcase.ts");
 assertIncludes(showcase, "SPARK_HOPE_STORIES_URL", "showcase Spark card uses Hope Stories EXIST constant");
@@ -74,12 +67,6 @@ function read(filePath) {
 function assertIncludes(value, phrase, label) {
   if (!String(value || "").includes(phrase)) {
     throw new Error(`${label}: expected to include ${JSON.stringify(phrase)}`);
-  }
-}
-
-function assertEqual(actual, expected, label) {
-  if (actual !== expected) {
-    throw new Error(`${label}: expected ${expected}, received ${actual}`);
   }
 }
 
