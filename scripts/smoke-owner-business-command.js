@@ -67,7 +67,9 @@ runStep("UUG apps directory: unlocked Continuity doors live, Selah coming soon, 
     "https://sandlot.unitedundergod.org",
     "https://backoffice.works",
     "https://selah.unitedundergod.org",
-    "https://appengine.unitedundergod.org/soft-launch"
+    "https://appengine.unitedundergod.org/soft-launch",
+    "SPARK_HOPE_STORIES_URL",
+    "LOM_TESTIMONIES_URL"
   ]);
   const showcase = read("src/lib/showcase/apps-showcase.ts");
   if (showcase.includes('liveUrl: "https://www.we-succeed.org"')) {

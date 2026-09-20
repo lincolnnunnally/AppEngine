@@ -1190,6 +1190,51 @@ label {
   box-shadow: var(--shadow);
 }
 
+.spark-live-doors-section {
+  margin: 0 0 18px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.spark-live-doors-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.spark-live-door-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(108, 155, 214, 0.08);
+}
+
+.spark-live-door-card a {
+  font-weight: 800;
+  color: var(--teal);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.spark-live-door-card a:hover {
+  text-decoration: underline;
+}
+
+.spark-live-door-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .spark-approved-preview-section {
   display: grid;
   gap: 18px;
@@ -1353,6 +1398,12 @@ label {
 }
 
 .spark-review-card,
+.spark-review-empty a,
+.spark-status a {
+  color: var(--teal);
+  font-weight: 800;
+}
+
 .spark-review-empty,
 .spark-review-notes {
   border: 1px solid var(--line);
@@ -3794,6 +3845,7 @@ label {
     .spark-review-card-header,
     .spark-review-details,
     .spark-approved-preview-list,
+    .spark-live-doors-list,
     .spark-public-trial-grid,
     .problem-intake-layout,
     .opportunity-intake-layout,

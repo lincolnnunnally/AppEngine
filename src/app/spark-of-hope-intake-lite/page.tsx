@@ -27,6 +27,12 @@ import {
   type SparkReminderStatus
 } from "@/lib/spark-of-hope-intake-lite/reminder-queue";
 import { getSparkPublicTrialReadiness } from "@/lib/spark-of-hope-intake-lite/public-trial-readiness";
+import {
+  LOM_TESTIMONIES_URL,
+  SPARK_HOME_URL,
+  SPARK_HOPE_STORIES_URL,
+  sparkLiveDoors
+} from "@/lib/spark-of-hope-intake-lite/live-doors";
 
 type SubmitState =
   | { status: "idle" }
@@ -235,6 +241,7 @@ export default function SparkOfHopeIntakeLitePage() {
         </Link>
         <div>
           <a href="#approved-preview">Approved preview</a>
+          <a href="#live-doors">Live doors</a>
           <a href="#trial-readiness">Trial readiness</a>
           <a href="#review-queue">Review queue</a>
           <a href="#reminders">Reminders</a>
@@ -248,8 +255,8 @@ export default function SparkOfHopeIntakeLitePage() {
           <p className="eyebrow">Private preview</p>
           <h1>Share one hopeful story with care.</h1>
           <p>
-            This preview lets someone share a hopeful moment so an approved team can review it privately and prepare
-            encouragement without exposing the story publicly.
+            This AppEngine preview lets someone share a hopeful moment so an approved team can review it privately.
+            It does not publish to Spark Hope Stories or Live On Mission testimonies.
           </p>
           <div className="spark-pill-row" aria-label="Preview guardrails">
             <span>Private by default</span>
@@ -263,9 +270,9 @@ export default function SparkOfHopeIntakeLitePage() {
           <span>{statusText}</span>
           <strong>What happens next</strong>
           <ol>
-            <li>The story is checked for the preview only.</li>
-            <li>An approved person could review it in a later phase.</li>
-            <li>Encouragement can be prepared without public posting.</li>
+            <li>The story stays in this private preview unless an owner later approves local preview metadata.</li>
+            <li>It does not become a Spark Hope Story or a Live On Mission testimony.</li>
+            <li>To find encouragement now, open Hope Stories. To share a reviewed testimony, open Live On Mission Testimonies (sign-in).</li>
           </ol>
         </aside>
       </section>
@@ -363,6 +370,17 @@ export default function SparkOfHopeIntakeLitePage() {
               <strong>Story preview received</strong>
               <p>{submitState.message}</p>
               <span className="spark-reference">{submitState.reference}</span>
+              <p>
+                This preview is not the public share door. To share a reviewed testimony, use{" "}
+                <a href={LOM_TESTIMONIES_URL} target="_blank" rel="noopener noreferrer">
+                  Live On Mission Testimonies
+                </a>
+                . To find encouragement, use{" "}
+                <a href={SPARK_HOPE_STORIES_URL} target="_blank" rel="noopener noreferrer">
+                  Hope Stories
+                </a>
+                .
+              </p>
             </div>
           ) : null}
 
@@ -403,6 +421,32 @@ export default function SparkOfHopeIntakeLitePage() {
         </aside>
       </section>
 
+      <section className="spark-live-doors-section" id="live-doors" data-testid="spark-live-doors">
+        <div className="spark-review-header">
+          <div>
+            <p className="eyebrow">Live sibling doors</p>
+            <h2>This preview is not the public share or find wall.</h2>
+            <p>
+              Spark of Hope and Live On Mission share philosophy, not purpose. These EXIST links go to the live
+              doors. They do not move stories out of this browser preview.
+            </p>
+          </div>
+        </div>
+        <div className="spark-live-doors-list">
+          {sparkLiveDoors.map((door) => (
+            <article className="spark-live-door-card" key={door.id}>
+              <a href={door.href} target="_blank" rel="noopener noreferrer">
+                {door.label}
+              </a>
+              <p>{door.note}</p>
+            </article>
+          ))}
+        </div>
+        <p className="spark-helper">
+          Spark being-heard write is {SPARK_HOME_URL}. ChurchConnect public /testimonies is not a TestimonyHub door.
+        </p>
+      </section>
+
       <section className="spark-approved-preview-section" id="approved-preview" data-testid="spark-approved-preview">
         <div className="spark-review-header">
           <div>
@@ -431,8 +475,12 @@ export default function SparkOfHopeIntakeLitePage() {
           <div className="spark-review-empty">
             <strong>No approved preview stories yet.</strong>
             <p>
-              Submitted items stay private until the owner changes one to approved for preview. Nothing is publicly
-              promoted, shared, or matched automatically.
+              This local list is not the live find door. Submitted items stay private until the owner marks one
+              approved for preview. To read encouragement now, open{" "}
+              <a href={SPARK_HOPE_STORIES_URL} target="_blank" rel="noopener noreferrer">
+                Hope Stories
+              </a>{" "}
+              on Spark of Hope.
             </p>
           </div>
         )}

@@ -175,8 +175,9 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   "spark-of-hope": {
     slug: "spark-of-hope",
     family: "transformation",
-    purpose: "Real testimony for people ready to give up.",
-    adminPath: "/admin"
+    purpose:
+      "Being heard and Hope Stories — curated encouragement. Reviewed testimony share/read lives on Live On Mission /testimonies. ChurchConnect public /testimonies is not a TestimonyHub door.",
+    adminNote: "Spark /admin is not a live door (404 as of 2026-09-20). Do not invent a parallel AppEngine admin."
   },
   opportunity: {
     slug: "opportunity",

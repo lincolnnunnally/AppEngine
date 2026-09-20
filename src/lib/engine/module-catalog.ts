@@ -242,9 +242,10 @@ const MODULES: ModuleCatalogEntry[] = [
     category: "content",
     purpose: "Capture, store, surface, and review real stories — and close the loop from solved problem back to testimony.",
     capabilities: ["testimony", "stories", "encouragement", "review queue", "approval"],
-    usedByApps: ["spark-of-hope", "churchconnect"],
-    primarySource: "ChurchConnect backend/routes/testimonies.py + Spark of Hope testimony intake",
-    status: "extractable"
+    usedByApps: ["live-on-mission", "spark-of-hope", "churchconnect"],
+    primarySource:
+      "Live On Mission /testimonies (live factory composition) + ChurchConnect backend/routes/testimonies.py (lineage). Spark public find door is /hope-stories — not this module. ChurchConnect public /testimonies is not TestimonyHub.",
+    status: "in_use"
   },
   {
     slug: "scripture-sermon-tools",

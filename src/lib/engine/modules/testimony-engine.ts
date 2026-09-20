@@ -19,6 +19,16 @@
 // app. Runs on the app owner's own database with graceful sample-data fallback,
 // feature-flagged (FEATURE_TESTIMONY); customers read approved stories + submit,
 // admins review/approve/feature.
+//
+// EXIST Continuity (verified 2026-09-20) — this file is a factory brick.
+// AppEngine does not host a public testimony wall. Live composition is
+// Live On Mission: https://liveonmission.unitedundergod.org/testimonies
+// (share + read; /testimonies/review requires sign-in).
+// Spark of Hope find door is https://spark.unitedundergod.org/hope-stories
+// (curated Hope Stories — not this module's /testimonies).
+// ChurchConnect public /testimonies is the generic homepage, not TestimonyHub.
+// Do not bake sibling URLs into generated app files. Apps share philosophy,
+// not purpose. See source-of-truth/testimony-continuity.md.
 
 import type { AppModule, GeneratedModuleFile } from "./types";
 

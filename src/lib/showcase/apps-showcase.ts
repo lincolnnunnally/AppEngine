@@ -30,6 +30,7 @@
 
 import { IMPORTED_ECOSYSTEM_APPS } from "@/lib/engine/imported-ecosystem-apps";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
+import { LOM_TESTIMONIES_URL, SPARK_HOPE_STORIES_URL } from "@/lib/spark-of-hope-intake-lite/live-doors";
 
 export type ShowcaseGroup =
   | "Hope & transformation"
@@ -37,6 +38,11 @@ export type ShowcaseGroup =
   | "Everyday services"
   | "The builder"
   | "The movement";
+
+export type ShowcaseDoorLink = {
+  label: string;
+  href: string;
+};
 
 export type ShowcaseApp = {
   slug: string;
@@ -46,6 +52,7 @@ export type ShowcaseApp = {
   liveUrl: string; // "" when not live
   liveHost: string; // display form of liveUrl ("" when not live)
   reservedHost: string; // name-stub host shown on Coming soon; never makes the card Live
+  doorLinks: ShowcaseDoorLink[]; // EXIST path Continuity on this app — not a new product
 };
 
 export type AppsShowcase = {
@@ -61,6 +68,7 @@ type DisplayMeta = {
   comingSoon?: boolean; // honesty demotion — placeholder holds the name; do not list under Live
   reservedUrl?: string; // reserved host for a name stub; shown on Coming soon only
   hide?: string; // registry-grounded reason this entry is not a public product card
+  doorLinks?: ShowcaseDoorLink[]; // quiet EXIST doors on this app (Hope Stories, /testimonies)
 };
 
 // Slug aliases between the JSON registry and the code registry.
@@ -96,12 +104,14 @@ const DISPLAY: Record<string, DisplayMeta> = {
   "spark-of-hope": {
     tagline: "Real, living testimony — stories of what God is doing, with daily encouragement for anyone ready to give up.",
     group: "Hope & transformation",
-    liveUrl: "https://spark.unitedundergod.org"
+    liveUrl: "https://spark.unitedundergod.org",
+    doorLinks: [{ label: "Hope Stories", href: SPARK_HOPE_STORIES_URL }]
   },
   "live-on-mission": {
     tagline: "Small, practical acts of service — local opportunities to put hope into practice.",
     group: "Hope & transformation",
-    liveUrl: "https://liveonmission.unitedundergod.org"
+    liveUrl: "https://liveonmission.unitedundergod.org",
+    doorLinks: [{ label: "Testimonies", href: LOM_TESTIMONIES_URL }]
   },
   "kids-need-dads": {
     tagline: "Support, mentorship, encouragement, and restoration for fathers — because children need their dads.",
@@ -392,7 +402,8 @@ export function getAppsShowcase(): AppsShowcase {
       group: meta?.group ?? "Everyday services",
       liveUrl,
       liveHost: liveUrl ? hostLabel(liveUrl) : "",
-      reservedHost: reservedUrl ? hostLabel(reservedUrl) : ""
+      reservedHost: reservedUrl ? hostLabel(reservedUrl) : "",
+      doorLinks: liveUrl ? (meta?.doorLinks ?? []) : []
     };
 
     (liveUrl ? live : comingSoon).push(app);

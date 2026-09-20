@@ -91,6 +91,16 @@ build flow).
 - `loadModuleCatalog()` returns the full set; the owner sees it at `/module-catalog`.
 - `findModulesForNeed(need)` matches a described need to the blocks that already cover it, so planning/building reuses them.
 
+## Testimony Engine Continuity (EXIST, 2026-09-20)
+
+`testimony-engine` is a factory brick. AppEngine does not host the public wall.
+
+- Live composition: Live On Mission `https://liveonmission.unitedundergod.org/testimonies` (share + read; review requires sign-in).
+- Spark find door is `https://spark.unitedundergod.org/hope-stories` (Hope Stories — not this module).
+- ChurchConnect public `/testimonies` is the generic homepage, not TestimonyHub.
+- Apps share philosophy, not purpose. Do not bake sibling URLs into generated files.
+- Map: `source-of-truth/testimony-continuity.md`.
+
 ## Guardrails
 
 - Reuse, never rebuild. One home per block.
