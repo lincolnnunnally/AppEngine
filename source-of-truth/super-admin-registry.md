@@ -216,6 +216,15 @@ ChurchConnect Association door — **not a new app brand**. Continuity home = Ch
 }
 ```
 
+### Testimony doors (EXIST paths — not new apps)
+
+Quiet directory/SSO Continuity. Apps share philosophy, not purpose. Do not invent a mega-hub, SingTrue, or a ChurchConnect TestimonyHub door. Do not deploy from `spark-of-hope-vercel-recovery`. Full map: `source-of-truth/testimony-continuity.md`.
+
+- Spark of Hope Continuity home = Spark. Being-heard write: [https://spark.unitedundergod.org/](https://spark.unitedundergod.org/). Find door (Hope Stories): [https://spark.unitedundergod.org/hope-stories](https://spark.unitedundergod.org/hope-stories). Equivalent host `spark-of-hope.com`. Spark `/admin` is not a live door.
+- Live On Mission Continuity home = Live On Mission. Reviewed testimony share/read: [https://liveonmission.unitedundergod.org/testimonies](https://liveonmission.unitedundergod.org/testimonies). Review is `/testimonies/review` (sign-in). Equivalent host `live-on-mission.com`.
+- AppEngine intake-lite is a private preview only: [https://appengine.unitedundergod.org/spark-of-hope-intake-lite](https://appengine.unitedundergod.org/spark-of-hope-intake-lite). It does not publish to Spark or Live On Mission.
+- ChurchConnect public `/testimonies` and `/testimony-hub` are the generic homepage — **not** a live TestimonyHub door. Testimony lineage stays in `lincolnnunnally/ChurchConnect` until a public path is verified.
+
 ## Leftover-preview notes
 
 Registering this door updates the owner desk (soft-launch `appengine.unitedundergod.org` and leftover-preview of this AppEngine branch). It does **not** change ChurchConnect leftover-preview walks.

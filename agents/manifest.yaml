@@ -86,6 +86,7 @@ shared_context_files:
   - source-of-truth/app-build-packet.md
   - source-of-truth/identity-auth-standard.md
   - source-of-truth/super-admin-registry.md
+  - source-of-truth/testimony-continuity.md
   - source-of-truth/app-portfolio-registry.md
   - source-of-truth/operations-cost-provider-strategy.md
   - source-of-truth/deployment-environment-standard.md

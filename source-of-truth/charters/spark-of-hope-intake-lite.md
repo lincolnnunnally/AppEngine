@@ -218,6 +218,7 @@ This scope should proceed to design and architecture before build. It should not
 - Related system: AppEngine Super Admin, for management and status only.
 - Allowed integrations: AppEngine issue workflow, Super Admin registry/status, Auth.js, Neon, Vercel preview planning.
 - Boundary guardrail: do not import ChurchConnect, Live On Mission, United Under God, Kids Need Dads, Toner Management, or other ecosystem app workflows unless a future packet documents the integration reason and data boundary.
+- Continuity (EXIST hrefs only — not importing those workflows): this preview may point people at live sibling doors. Hope Stories find = `https://spark.unitedundergod.org/hope-stories`. Being-heard write = `https://spark.unitedundergod.org/`. Reviewed testimony share/read = `https://liveonmission.unitedundergod.org/testimonies` (sign-in). ChurchConnect public `/testimonies` is not a TestimonyHub door. Do not deploy from `spark-of-hope-vercel-recovery`. Map: `source-of-truth/testimony-continuity.md`.
 
 ## Required Integrations
 

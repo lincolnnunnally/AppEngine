@@ -47,6 +47,8 @@ assert(page.includes('data-testid="spark-approved-preview"'), "Spark page should
 assert(page.includes("approvedPreviewItems"), "Spark page should render approved preview items");
 assert(page.includes("getApprovedSparkPreviewItems"), "Spark page should use approved-only filter helper");
 assert(page.includes("No approved preview stories yet."), "Spark page should include approved preview empty state");
+assert(page.includes("This local list is not the live find door"), "approved empty state should not pretend to be Hope Stories");
+assert(page.includes("SPARK_HOPE_STORIES_URL"), "approved empty state should link the EXIST Hope Stories find door");
 assert(page.includes("New, hidden"), "Spark page should explain non-approved statuses stay out of public preview");
 
 const source = fs.readFileSync(path.join(root, "source-of-truth/vnext/spark-approved-preview-safety.md"), "utf8");

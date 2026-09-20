@@ -40,7 +40,7 @@ export const KNOWN_DOMAIN_SEEDS: ReadonlyArray<Omit<DomainRecord, "updatedAt" | 
   { domain: "snip.show", registrar: "Spaceship", dnsHost: "—", appSlug: "snip-show", status: "owned, nothing serving", expiresOn: null, notes: "" },
   { domain: "toner.management", registrar: "Spaceship", dnsHost: "Vercel", appSlug: "toner-management", status: "live", expiresOn: null, notes: "" },
   { domain: "engrave.market", registrar: "DreamHost", dnsHost: "DreamHost", appSlug: "laser-engrave-market", status: "owned, DNS set, nothing serving", expiresOn: null, notes: "laser.engrave.market is the intended app host" },
-  { domain: "spark-of-hope.com", registrar: "Spaceship", dnsHost: "—", appSlug: "spark-of-hope", status: "owned, zero DNS", expiresOn: null, notes: "Registrar per D9 decision doc" }
+  { domain: "spark-of-hope.com", registrar: "Spaceship", dnsHost: "Vercel", appSlug: "spark-of-hope", status: "live", expiresOn: null, notes: "Serves the same Spark app as spark.unitedundergod.org (verified 2026-09-20). Hope Stories find door is /hope-stories." }
 ];
 
 let ensured = false;

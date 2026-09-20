@@ -21,16 +21,27 @@ export const metadata: Metadata = {
 
 function LiveCard({ app }: { app: ShowcaseApp }) {
   return (
-    <a className="uug-card uug-live" href={app.liveUrl} target="_blank" rel="noopener noreferrer">
-      <h3>{app.name}</h3>
-      {app.tagline ? <p>{app.tagline}</p> : null}
-      <span className="uug-visit">
-        {app.liveHost}
-        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12h14M13 6l6 6-6 6" />
-        </svg>
-      </span>
-    </a>
+    <article className="uug-card uug-live">
+      <a className="uug-card-main" href={app.liveUrl} target="_blank" rel="noopener noreferrer">
+        <h3>{app.name}</h3>
+        {app.tagline ? <p>{app.tagline}</p> : null}
+        <span className="uug-visit">
+          {app.liveHost}
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </span>
+      </a>
+      {app.doorLinks.length > 0 ? (
+        <p className="uug-doors">
+          {app.doorLinks.map((door) => (
+            <a key={door.href} href={door.href} target="_blank" rel="noopener noreferrer">
+              {door.label}
+            </a>
+          ))}
+        </p>
+      ) : null}
+    </article>
   );
 }
 
@@ -207,8 +218,18 @@ const CSS = `
 }
 .uug-card h3 { font-size: 1.05rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .uug-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
-.uug-live { text-decoration: none; transition: border-color 120ms ease, transform 120ms ease; }
+.uug-live { transition: border-color 120ms ease, transform 120ms ease; }
 .uug-live:hover { border-color: var(--accent); transform: translateY(-2px); }
+.uug-card-main { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit; flex: 1; }
+.uug-doors {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin: 0; padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.uug-doors a {
+  color: var(--accent); font-weight: 700; font-size: 0.82rem; text-decoration: none;
+}
+.uug-doors a:hover { text-decoration: underline; }
 .uug-visit {
   margin-top: auto; padding-top: 6px;
   display: inline-flex; align-items: center; gap: 6px;
