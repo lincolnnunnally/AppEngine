@@ -43,7 +43,11 @@ const APP_CONFIG: Record<string, AppCfg> = {
   'kindred': { name: 'Kindred', loginUrl: 'https://kindred.unitedundergod.org' },
   'presence': { name: 'Presence', loginUrl: 'https://presence.unitedundergod.org' },
   'laser': { name: 'Laser Engraving', loginUrl: 'https://laser.unitedundergod.org' },
-  'live-on-mission': { name: 'Live On Mission', loginUrl: 'https://liveonmission.unitedundergod.org/sign-in?mode=signin' },
+  'live-on-mission': {
+    name: 'Live On Mission',
+    loginUrl: 'https://liveonmission.unitedundergod.org/sign-in?mode=signin',
+    resetPage: 'https://liveonmission.unitedundergod.org/reset-password',
+  },
   // Website builder. One app, three front doors — the key picks which brand the
   // customer sees, because a church must never receive an email or a sign-in
   // link that says "AI Website Design".
