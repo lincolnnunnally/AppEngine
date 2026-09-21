@@ -33,6 +33,7 @@ const ENGINE_ROOM_GROUP: RailGroup = {
     { label: "Orchestrator", href: "/orchestrator" },
     { label: "Module catalog", href: "/module-catalog" },
     { label: "Life Core", href: "/life-core" },
+    { label: "Buying group", href: "/buying-group" },
     { label: "Canonical status", href: "/canonical-status" },
     { label: "Intake form", href: "/problem-intake-lite" },
     { label: "Build an app (customer view)", href: "/build" },
