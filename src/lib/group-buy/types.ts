@@ -13,7 +13,18 @@ export type VendorKind =
   | "marketplace"
   | "print_on_demand";
 
+export const VENDOR_KINDS: VendorKind[] = [
+  "gpo",
+  "distributor",
+  "retailer",
+  "manufacturer",
+  "marketplace",
+  "print_on_demand"
+];
+
 export type VendorStatus = "prospect" | "applied" | "active" | "declined" | "inactive";
+
+export const VENDOR_STATUSES: VendorStatus[] = ["prospect", "applied", "active", "declined", "inactive"];
 
 export type Vendor = {
   id: string;
@@ -55,6 +66,16 @@ export type GroupKind =
   | "ecosystem"
   | "other";
 
+export const GROUP_KINDS: GroupKind[] = [
+  "church",
+  "neighborhood",
+  "club",
+  "association",
+  "school",
+  "ecosystem",
+  "other"
+];
+
 export type BuyingGroup = {
   id: string;
   slug: string;
@@ -92,7 +113,11 @@ export type GroupVendorAccount = {
 //   the DB enforces this (gb_guard_po_tax_exemption).
 export type PurchaseMode = "org_use" | "member_benefit";
 
+export const PURCHASE_MODES: PurchaseMode[] = ["member_benefit", "org_use"];
+
 export type Fulfillment = "drop_ship_member" | "ship_to_group" | "pickup";
+
+export const FULFILLMENTS: Fulfillment[] = ["drop_ship_member", "ship_to_group", "pickup"];
 
 export type CampaignStatus =
   | "draft"

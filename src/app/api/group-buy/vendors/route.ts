@@ -3,7 +3,8 @@ import { auth } from "@/auth";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { GroupBuyDbError, isGroupBuyConfigured, selectOne } from "@/lib/group-buy/db";
 import { readVendorPayout, refreshVendorPayout, startVendorOnboarding } from "@/lib/group-buy/connect";
-import { listVendors } from "@/lib/group-buy/service";
+import { OperatorInputError, parseVendorSave } from "@/lib/group-buy/operator-input";
+import { listVendors, saveVendor } from "@/lib/group-buy/service";
 import type { Vendor } from "@/lib/group-buy/types";
 
 export const runtime = "nodejs";
@@ -63,25 +64,30 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "Group Buy storage is not configured." }, 503);
   }
 
-  let body: { vendorId?: unknown; action?: unknown };
+  let body: Record<string, unknown>;
 
   try {
-    body = (await request.json()) as { vendorId?: unknown; action?: unknown };
+    body = (await request.json()) as Record<string, unknown>;
   } catch {
     return json({ ok: false, message: "Expected a JSON body." }, 400);
   }
 
-  const vendorId = String(body.vendorId || "").trim();
+  const vendorId = String(body.vendorId || body.id || "").trim();
   const action = String(body.action || "onboard");
-
-  if (!vendorId) {
-    return json({ ok: false, message: "vendorId is required." }, 400);
-  }
 
   const session = await auth();
   const actor = session?.user?.email || "operator";
 
   try {
+    if (action === "save") {
+      const vendor = await saveVendor(parseVendorSave(body));
+      return json({ ok: true, vendor: { ...vendor, payout: payoutPayload(vendor) } });
+    }
+
+    if (!vendorId) {
+      return json({ ok: false, message: "vendorId is required." }, 400);
+    }
+
     if (action === "refresh") {
       const vendor = await selectOne<Vendor>("gb_vendors", `select=*&id=eq.${vendorId}`);
 
@@ -96,8 +102,8 @@ export async function POST(request: Request) {
     const started = await startVendorOnboarding(vendorId, actor);
     return json({ ok: true, url: started.url, payout: started.payout });
   } catch (error) {
-    if (error instanceof GroupBuyDbError) {
-      return json({ ok: false, message: error.message, detail: error.detail }, error.status);
+    if (error instanceof OperatorInputError || error instanceof GroupBuyDbError) {
+      return json({ ok: false, message: error.message, detail: error instanceof GroupBuyDbError ? error.detail : undefined }, error.status);
     }
 
     const message = error instanceof Error ? error.message : "Could not start vendor payout setup.";

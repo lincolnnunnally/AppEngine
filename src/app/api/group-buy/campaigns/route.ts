@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { GroupBuyDbError, isGroupBuyConfigured } from "@/lib/group-buy/db";
-import { createCampaign, listAllCampaigns, setCampaignStatus } from "@/lib/group-buy/service";
+import { OperatorInputError, parseCampaignWrite } from "@/lib/group-buy/operator-input";
+import { assertReadyToOpen, createCampaign, ensureGroup, listAllCampaigns, setCampaignStatus } from "@/lib/group-buy/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Operator access required." }, { status: 403 });
   }
 
+  if (!isGroupBuyConfigured()) {
+    return NextResponse.json({ ok: false, message: "Group Buy storage is not configured." }, { status: 503 });
+  }
+
   let body: Record<string, unknown>;
 
   try {
@@ -49,29 +54,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, campaign });
     }
 
+    const parsed = parseCampaignWrite(body);
+
+    if (parsed.input.open) {
+      assertReadyToOpen(parsed.input.minUnits, parsed.input.minSubtotalCents, parsed.input.items);
+    }
+
+    if (parsed.newGroup) {
+      await ensureGroup(parsed.newGroup);
+    }
+
     const campaign = await createCampaign({
-      groupSlug: String(body.group || body.group_slug || ""),
-      vendorSlug: String(body.vendor || body.vendor_slug || ""),
-      slug: String(body.slug || ""),
-      title: String(body.title || ""),
-      description: typeof body.description === "string" ? body.description : null,
-      purchaseMode: body.purchase_mode as never,
-      fulfillment: body.fulfillment as never,
-      minUnits: Number(body.min_units ?? 0),
-      minSubtotalCents: Number(body.min_subtotal_cents ?? 0),
-      closesAt: typeof body.closes_at === "string" ? body.closes_at : null,
-      commissionBps: Number(body.commission_bps ?? 0),
-      appSlug: typeof body.app_slug === "string" ? body.app_slug : null,
-      createdBy: "cockpit",
-      open: body.open === true,
-      tiers: Array.isArray(body.tiers) ? (body.tiers as never) : undefined,
-      items: Array.isArray(body.items) ? (body.items as never) : undefined
+      ...parsed.input,
+      createdBy: "cockpit"
     });
 
     return NextResponse.json({ ok: true, campaign }, { status: 201 });
   } catch (error) {
-    if (error instanceof GroupBuyDbError) {
-      return NextResponse.json({ ok: false, message: error.message, detail: error.detail }, { status: error.status });
+    if (error instanceof OperatorInputError || error instanceof GroupBuyDbError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: error.message,
+          detail: error instanceof GroupBuyDbError ? error.detail : undefined
+        },
+        { status: error.status }
+      );
     }
 
     const message = error instanceof Error ? error.message : "Could not create the campaign.";

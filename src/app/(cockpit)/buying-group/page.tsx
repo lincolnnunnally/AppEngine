@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
+import { CampaignForm, OpenCampaignButton, VendorForm } from "@/components/group-buy/operator-desk";
 import { VendorConnectButton } from "@/components/group-buy/vendor-connect-button";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
-import { isGroupBuyConfigured } from "@/lib/group-buy/db";
+import { GroupBuyDbError, isGroupBuyConfigured } from "@/lib/group-buy/db";
 import { readVendorPayout, refreshVendorPayout, stripeConnectConfigured } from "@/lib/group-buy/connect";
 import { listAllCampaigns, listGroups, listVendors } from "@/lib/group-buy/service";
-import type { Vendor } from "@/lib/group-buy/types";
+import type { BuyingGroup, Campaign, CampaignProgress, Vendor } from "@/lib/group-buy/types";
 
 // Buying Group — the owner's view of the ecosystem's collective purchasing.
 //
@@ -35,10 +36,47 @@ function payoutLabel(vendor: Vendor) {
   return "no Stripe payouts";
 }
 
+function noticeCopy(notice?: string) {
+  if (notice === "vendor-saved") {
+    return "Vendor saved. If they ship to members, invite them to Stripe from their row.";
+  }
+
+  if (notice === "campaign-open") {
+    return "Campaign is open. Operate /buy and GET /api/group-buy/public/campaigns list it now.";
+  }
+
+  if (notice === "campaign-draft") {
+    return "Campaign saved as a draft. Open it when the threshold and at least one SKU are in place.";
+  }
+
+  return null;
+}
+
+function VendorIdentity({ vendor }: { vendor: Vendor }) {
+  const href = vendor.kind === "gpo" ? vendor.join_url : vendor.website;
+
+  return (
+    <span>
+      {href ? (
+        <a className="account-link" href={href} target="_blank" rel="noreferrer">
+          <b>{vendor.name}</b>
+        </a>
+      ) : (
+        <b>{vendor.name}</b>
+      )}
+      <span className="dx-note">
+        {" "}
+        {vendor.kind}
+        {vendorLine(vendor) ? ` · ${vendorLine(vendor)}` : ""}
+      </span>
+    </span>
+  );
+}
+
 export default async function BuyingGroupPage({
   searchParams
 }: {
-  searchParams?: Promise<{ connect?: string; vendor?: string }>;
+  searchParams?: Promise<{ connect?: string; vendor?: string; editVendor?: string; notice?: string }>;
 }) {
   if (!(await canAccessEngineAdmin())) {
     redirect("/");
@@ -60,23 +98,56 @@ export default async function BuyingGroupPage({
   }
 
   const params = searchParams ? await searchParams : {};
-  let vendors = await listVendors();
+  let vendors: Vendor[] = [];
+  let campaigns: Array<{
+    campaign: Campaign;
+    progress: CampaignProgress | null;
+    vendor: Pick<Vendor, "id" | "slug" | "name"> | null;
+    group: Pick<BuyingGroup, "id" | "slug" | "name" | "kind"> | null;
+  }> = [];
+  let groups: BuyingGroup[] = [];
 
-  if (params.vendor && (params.connect === "done" || params.connect === "refresh")) {
-    const returning = vendors.find((row) => row.id === params.vendor);
-    if (returning) {
-      const refreshed = await refreshVendorPayout(returning).catch(() => null);
-      if (refreshed) {
-        vendors = vendors.map((row) => (row.id === refreshed.vendor.id ? refreshed.vendor : row));
+  try {
+    vendors = await listVendors();
+
+    if (params.vendor && (params.connect === "done" || params.connect === "refresh")) {
+      const returning = vendors.find((row) => row.id === params.vendor);
+      if (returning) {
+        const refreshed = await refreshVendorPayout(returning).catch(() => null);
+        if (refreshed) {
+          vendors = vendors.map((row) => (row.id === refreshed.vendor.id ? refreshed.vendor : row));
+        }
       }
     }
+
+    [campaigns, groups] = await Promise.all([listAllCampaigns(), listGroups()]);
+  } catch (error) {
+    const message =
+      error instanceof GroupBuyDbError
+        ? `${error.message}${error.detail ? ` — ${error.detail}` : ""}`
+        : error instanceof Error
+          ? error.message
+          : "Could not read Group Buy storage.";
+
+    return (
+      <main className="shell">
+        <section className="panel">
+          <p className="dx-label">Buying Group</p>
+          <h1 className="dx-display">Storage didn&rsquo;t answer</h1>
+          <p className="dx-lede">{message}</p>
+        </section>
+      </main>
+    );
   }
 
-  const [campaigns, groups] = await Promise.all([listAllCampaigns(), listGroups()]);
+  const editing = params.editVendor ? vendors.find((row) => row.id === params.editVendor) || null : null;
+  const notice = noticeCopy(params.notice);
 
   const dropShip = vendors.filter((v) => v.ships_to_member_addresses);
   const gpos = vendors.filter((v) => v.kind === "gpo");
+  const otherVendors = vendors.filter((v) => !v.ships_to_member_addresses && v.kind !== "gpo");
   const live = campaigns.filter((row) => ["open", "threshold_met"].includes(row.campaign.status));
+  const drafts = campaigns.filter((row) => row.campaign.status === "draft");
   const committed = campaigns.filter((row) => ["locked", "ordered", "shipped"].includes(row.campaign.status));
 
   const totalSavings = campaigns.reduce((sum, row) => sum + (row.progress?.savings_cents ?? 0), 0);
@@ -100,6 +171,7 @@ export default async function BuyingGroupPage({
             ? " This desk does not have STRIPE_SECRET_KEY yet, so the invite button will say so instead of opening Stripe."
             : ""}
         </p>
+        {notice ? <p className="dx-callout">{notice}</p> : null}
       </section>
 
       {/* ---------------------------------------------------------------- campaigns */}
@@ -107,8 +179,8 @@ export default async function BuyingGroupPage({
         <p className="dx-label">Live group orders</p>
         {live.length === 0 ? (
           <p className="dx-note">
-            No group order is open. Create one against a vendor whose account is active — until then members have
-            nothing to join.
+            No group order is open. Members, Operate /buy, and the public campaigns API stay empty until you open one
+            below.
           </p>
         ) : (
           <div>
@@ -118,7 +190,7 @@ export default async function BuyingGroupPage({
                   <b>{campaign.title}</b>
                   <span className="dx-note">
                     {" "}
-                    {group?.name} · {vendor?.name}
+                    {group?.name} · {vendor?.name} · {campaign.slug}
                   </span>
                 </span>
                 <span className="dx-note">
@@ -134,6 +206,40 @@ export default async function BuyingGroupPage({
             ))}
           </div>
         )}
+        {drafts.length > 0 ? (
+          <div>
+            <p className="dx-label">Not open yet</p>
+            {drafts.map(({ campaign, vendor, group }) => (
+              <p className="dx-row" key={campaign.id}>
+                <span>
+                  <b>{campaign.title}</b>
+                  <span className="dx-note">
+                    {" "}
+                    {group?.name} · {vendor?.name} · {campaign.slug}
+                  </span>
+                </span>
+                <span className="dx-note">{campaign.min_units} unit threshold</span>
+                <OpenCampaignButton campaignId={campaign.id} />
+              </p>
+            ))}
+          </div>
+        ) : null}
+        <p className="dx-label" id="open-campaign">
+          Open a group order
+        </p>
+        <p className="dx-note">
+          Pick a vendor, a buying group, a unit threshold, and at least one SKU. Opening it is what Operate /buy reads.
+          Drop-ship only works for a vendor marked as shipping to members.
+        </p>
+        <CampaignForm
+          vendors={vendors.map((vendor) => ({
+            slug: vendor.slug,
+            name: vendor.name,
+            kind: vendor.kind,
+            ships_to_member_addresses: vendor.ships_to_member_addresses
+          }))}
+          groups={groups.map((group) => ({ slug: group.slug, name: group.name, kind: group.kind }))}
+        />
       </section>
 
       {committed.length > 0 && (
@@ -164,30 +270,28 @@ export default async function BuyingGroupPage({
           The only channels that can turn one group order into many individual deliveries. Everything else needs the
           goods to land somewhere and be redistributed by hand.
         </p>
-        {dropShip.map((vendor) => (
-          <p className="dx-row" key={vendor.id}>
-            <span>
-              {vendor.website ? (
-                <a className="account-link" href={vendor.website} target="_blank" rel="noreferrer">
-                  <b>{vendor.name}</b>
-                </a>
-              ) : (
-                <b>{vendor.name}</b>
-              )}
-              <span className="dx-note"> {vendorLine(vendor)}</span>
-            </span>
-            <span className="dx-note">{vendor.discount_summary}</span>
-            <span className={readVendorPayout(vendor).payoutsEnabled ? "dx-tag" : "dx-tag dx-tag--alert"}>
-              {payoutLabel(vendor)}
-            </span>
-            <VendorConnectButton
-              vendorId={vendor.id}
-              ready={readVendorPayout(vendor).payoutsEnabled}
-              started={Boolean(readVendorPayout(vendor).accountId)}
-            />
-            <span className={vendor.status === "active" ? "dx-tag" : "dx-tag dx-tag--alert"}>{vendor.status}</span>
-          </p>
-        ))}
+        {dropShip.length === 0 ? (
+          <p className="dx-note">None yet. Add a vendor below and mark that it ships to each member.</p>
+        ) : (
+          dropShip.map((vendor) => (
+            <p className="dx-row" key={vendor.id}>
+              <VendorIdentity vendor={vendor} />
+              <span className="dx-note">{vendor.discount_summary}</span>
+              <span className={readVendorPayout(vendor).payoutsEnabled ? "dx-tag" : "dx-tag dx-tag--alert"}>
+                {payoutLabel(vendor)}
+              </span>
+              <VendorConnectButton
+                vendorId={vendor.id}
+                ready={readVendorPayout(vendor).payoutsEnabled}
+                started={Boolean(readVendorPayout(vendor).accountId)}
+              />
+              <span className={vendor.status === "active" ? "dx-tag" : "dx-tag dx-tag--alert"}>{vendor.status}</span>
+              <a className="dx-tag" href={`/buying-group?editVendor=${vendor.id}#vendor-form`}>
+                Edit
+              </a>
+            </p>
+          ))
+        )}
       </section>
 
       <section className="panel">
@@ -196,22 +300,51 @@ export default async function BuyingGroupPage({
           A GPO doesn&rsquo;t ship anything — it unlocks contract pricing at suppliers we already use. Joining one is
           the cheapest way to raise the whole network&rsquo;s buying power, and several charge nothing.
         </p>
-        {gpos.map((vendor) => (
-          <p className="dx-row" key={vendor.id}>
-            <span>
-              {vendor.join_url ? (
-                <a className="account-link" href={vendor.join_url} target="_blank" rel="noreferrer">
-                  <b>{vendor.name}</b>
-                </a>
-              ) : (
-                <b>{vendor.name}</b>
-              )}
-              <span className="dx-note"> {vendor.eligibility.join(", ")}</span>
-            </span>
-            <span className="dx-note">{vendor.discount_summary}</span>
-            <span className={vendor.status === "active" ? "dx-tag" : "dx-tag dx-tag--alert"}>{vendor.status}</span>
+        {gpos.length === 0 ? (
+          <p className="dx-note">No GPO yet. Add one below and set the kind to group purchasing organization.</p>
+        ) : (
+          gpos.map((vendor) => (
+            <p className="dx-row" key={vendor.id}>
+              <VendorIdentity vendor={vendor} />
+              <span className="dx-note">
+                {[(vendor.eligibility || []).join(", "), vendor.discount_summary].filter(Boolean).join(" · ")}
+              </span>
+              <span className={vendor.status === "active" ? "dx-tag" : "dx-tag dx-tag--alert"}>{vendor.status}</span>
+              <a className="dx-tag" href={`/buying-group?editVendor=${vendor.id}#vendor-form`}>
+                Edit
+              </a>
+            </p>
+          ))
+        )}
+      </section>
+
+      {otherVendors.length > 0 ? (
+        <section className="panel">
+          <p className="dx-label">Other vendors ({otherVendors.length})</p>
+          <p className="dx-note">
+            Distributors, retailers, manufacturers, and the rest. They can supply a ship-to-group or pickup campaign.
+            Mark “ships to each member” when you have confirmed drop-ship.
           </p>
-        ))}
+          {otherVendors.map((vendor) => (
+            <p className="dx-row" key={vendor.id}>
+              <VendorIdentity vendor={vendor} />
+              <span className="dx-note">{vendor.discount_summary}</span>
+              <span className={vendor.status === "active" ? "dx-tag" : "dx-tag dx-tag--alert"}>{vendor.status}</span>
+              <a className="dx-tag" href={`/buying-group?editVendor=${vendor.id}#vendor-form`}>
+                Edit
+              </a>
+            </p>
+          ))}
+        </section>
+      ) : null}
+
+      <section className="panel" id="vendor-form">
+        <p className="dx-label">{editing ? `Editing ${editing.name}` : "Add a vendor or GPO"}</p>
+        <p className="dx-note">
+          This writes the existing vendor list. Kind chooses GPO versus a supplier. Stripe Connect stays on the
+          drop-ship rows above — it invites a vendor who will actually be paid.
+        </p>
+        <VendorForm key={editing?.id || "new"} vendor={editing} />
       </section>
 
       {/* ---------------------------------------------------------------- groups */}
@@ -220,7 +353,7 @@ export default async function BuyingGroupPage({
         {groups.length === 0 ? (
           <p className="dx-note">
             No buying group yet. A group is a church, neighborhood, club, or association whose members&rsquo; orders
-            pool together.
+            pool together. Register one in the campaign form above — a campaign cannot open without one.
           </p>
         ) : (
           groups.map((group) => (

@@ -22,6 +22,7 @@ import {
 } from "./db";
 import { vendorCanReceivePayouts } from "./connect";
 import { buildManifest, taxNoteFor } from "./manifest";
+import { mergeVendorNotes, type VendorSaveInput } from "./operator-input";
 import type {
   BuyingGroup,
   Campaign,
@@ -58,6 +59,55 @@ export async function listVendors(options: { dropShipOnly?: boolean; status?: st
 
 export async function getVendorBySlug(slug: string) {
   return selectOne<Vendor>("gb_vendors", `select=*&slug=eq.${encodeURIComponent(slug)}`);
+}
+
+export async function saveVendor(input: VendorSaveInput): Promise<Vendor> {
+  const values: Record<string, unknown> = {
+    slug: input.slug,
+    name: input.name,
+    kind: input.kind,
+    website: input.website,
+    join_url: input.join_url,
+    membership_fee_cents: input.membership_fee_cents,
+    eligibility: input.eligibility,
+    ships_to_member_addresses: input.ships_to_member_addresses,
+    drop_ship: input.ships_to_member_addresses,
+    discount_summary: input.discount_summary,
+    min_order_units: input.min_order_units,
+    status: input.status,
+    contact_email: input.contact_email
+  };
+
+  if (input.id) {
+    const existing = await selectOne<Vendor>("gb_vendors", `select=*&id=eq.${encodeURIComponent(input.id)}`);
+
+    if (!existing) {
+      throw new GroupBuyDbError("Vendor not found.", 404);
+    }
+
+    if (input.slug !== existing.slug) {
+      const clash = await getVendorBySlug(input.slug);
+
+      if (clash && clash.id !== existing.id) {
+        throw new GroupBuyDbError(`A vendor already uses the slug "${input.slug}".`, 409);
+      }
+    }
+
+    values.notes = mergeVendorNotes(existing.notes, input.notes);
+
+    return updateOne<Vendor>("gb_vendors", `id=eq.${encodeURIComponent(existing.id)}`, values);
+  }
+
+  const clash = await getVendorBySlug(input.slug);
+
+  if (clash) {
+    throw new GroupBuyDbError(`A vendor already uses the slug "${input.slug}".`, 409);
+  }
+
+  values.notes = input.notes;
+  values.categories = [];
+
+  return insertRow<Vendor>("gb_vendors", values);
 }
 
 // ---------------------------------------------------------------- groups
@@ -255,7 +305,58 @@ export type CreateCampaignInput = {
   }>;
 };
 
+const CAMPAIGN_STATUSES = new Set<Campaign["status"]>([
+  "draft",
+  "open",
+  "threshold_met",
+  "locked",
+  "ordered",
+  "shipped",
+  "closed",
+  "cancelled"
+]);
+
+export function assertReadyToOpen(
+  minUnits: number,
+  minSubtotalCents: number,
+  items: Array<{ sku: string; name: string }>
+) {
+  if (minUnits <= 0 && minSubtotalCents <= 0) {
+    throw new GroupBuyDbError(
+      "Set a unit threshold or a dollar threshold before opening. Members need a line to clear.",
+      409
+    );
+  }
+
+  const ready = items.filter((item) => item.sku.trim() && item.name.trim());
+
+  if (ready.length === 0) {
+    throw new GroupBuyDbError("Add at least one SKU before opening this campaign.", 409);
+  }
+}
+
 export async function createCampaign(input: CreateCampaignInput) {
+  const slug = input.slug.trim();
+  const title = input.title.trim();
+
+  if (!title) {
+    throw new GroupBuyDbError("A campaign needs a title.", 400);
+  }
+
+  if (!slug) {
+    throw new GroupBuyDbError("A campaign needs a slug.", 400);
+  }
+
+  if (input.open) {
+    assertReadyToOpen(input.minUnits ?? 0, input.minSubtotalCents ?? 0, input.items || []);
+  }
+
+  const existingCampaign = await getCampaignBySlug(slug);
+
+  if (existingCampaign) {
+    throw new GroupBuyDbError(`A campaign already uses the slug "${slug}".`, 409);
+  }
+
   const [group, vendor] = await Promise.all([
     getGroupBySlug(input.groupSlug),
     getVendorBySlug(input.vendorSlug)
@@ -285,13 +386,13 @@ export async function createCampaign(input: CreateCampaignInput) {
   const campaign = await insertRow<Campaign>("gb_campaigns", {
     group_id: group.id,
     vendor_id: vendor.id,
-    slug: input.slug,
-    title: input.title,
+    slug,
+    title,
     description: input.description || null,
     purchase_mode: purchaseMode,
     fulfillment,
-    status: input.open ? "open" : "draft",
-    opens_at: input.open ? new Date().toISOString() : null,
+    status: "draft",
+    opens_at: null,
     closes_at: input.closesAt || null,
     min_units: input.minUnits ?? 0,
     min_subtotal_cents: input.minSubtotalCents ?? 0,
@@ -327,7 +428,8 @@ export async function createCampaign(input: CreateCampaignInput) {
         list_price_cents: item.list_price_cents,
         unit_price_cents: item.unit_price_cents,
         max_qty_per_member: item.max_qty_per_member ?? null,
-        sort_order: index
+        sort_order: index,
+        is_active: true
       }))
     );
   }
@@ -339,11 +441,30 @@ export async function createCampaign(input: CreateCampaignInput) {
     payload: { slug: campaign.slug, vendor: vendor.slug, group: group.slug }
   });
 
+  if (input.open) {
+    return setCampaignStatus(campaign.id, "open", input.createdBy || "cockpit");
+  }
+
   return campaign;
 }
 
 export async function setCampaignStatus(campaignId: string, status: Campaign["status"], actor: string) {
-  const campaign = await updateOne<Campaign>("gb_campaigns", `id=eq.${campaignId}`, {
+  if (!CAMPAIGN_STATUSES.has(status)) {
+    throw new GroupBuyDbError(`"${status}" is not a campaign status.`, 400);
+  }
+
+  if (status === "open") {
+    const current = await selectOne<Campaign>("gb_campaigns", `select=*&id=eq.${encodeURIComponent(campaignId)}`);
+
+    if (!current) {
+      throw new GroupBuyDbError("Campaign not found.", 404);
+    }
+
+    const items = await listCampaignItems(current.id);
+    assertReadyToOpen(current.min_units, current.min_subtotal_cents, items);
+  }
+
+  const campaign = await updateOne<Campaign>("gb_campaigns", `id=eq.${encodeURIComponent(campaignId)}`, {
     status,
     ...(status === "open" ? { opens_at: new Date().toISOString() } : {})
   });
