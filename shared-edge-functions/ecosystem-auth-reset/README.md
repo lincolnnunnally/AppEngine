@@ -22,7 +22,9 @@ change with the service role. Nothing depends on GoTrue email.
 - **Secret:** `RESEND_API_KEY` (set via `supabase secrets set`).
 - **Endpoints (all on `…/functions/v1/ecosystem-auth-reset`):**
   - `POST` JSON `{app, email}` → sends the email, always returns `{ok:true}` (non-enumerating).
-  - `GET ?token=&app=` → serves the branded reset form (from the email link).
+    When `resetPage` is set, the email links to `resetPage?token=&app=` on the product host.
+  - `GET ?token=&app=` → if the app has `resetPage`, **302** to that host (avoids the
+    Supabase gateway rewriting HTML to `text/plain`); otherwise serves the branded form.
   - `POST` form `{token, app, password, password2}` → changes the password, single-use.
 
 Tokens: 32 random bytes, SHA-256 hashed at rest, 1-hour expiry, single-use, throttled to
@@ -33,6 +35,8 @@ Tokens: 32 random bytes, SHA-256 hashed at rest, 1-hour expiry, single-use, thro
 1. Add one line to `APP_CONFIG` in `index.ts` and redeploy the function:
    ```ts
    'my-app': { name: 'My App', loginUrl: 'https://my-app.example.com' },
+   // Optional: host the form on the product (avoids edge HTML-as-text):
+   // resetPage: 'https://my-app.example.com/reset-password',
    ```
    Redeploy: `supabase functions deploy ecosystem-auth-reset --project-ref uqhqulrqcygsmmzdzemx --no-verify-jwt --use-api`
 2. In the app's sign-in UI add a **Forgot password?** control that calls:
@@ -50,6 +54,8 @@ Works from any frontend (Next, Vite, CRA) or backend proxy; no supabase-js neede
 ## Wired apps (2026-09-21)
 
 `kids-need-dads`, `best-life`, `aligned-souls`, `kindred`, `presence`, `laser`, `live-on-mission`, `ai-website-design`, `easypeazy-website`, `churchconnect-website`, `uug-website`.
+
+`resetPage` (product-host form + GET 302): `live-on-mission`, `ai-website-design`, `easypeazy-website`, `churchconnect-website`, `uug-website`.
 
 ## Related standing pattern — confirmed signup
 
