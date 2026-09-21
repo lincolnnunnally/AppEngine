@@ -21,27 +21,63 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const FROM = 'United Under God <no-reply@emails.unitedundergod.org>';
-const REPLY_TO = 'support@unitedundergod.org';
+const MAILBOX = 'no-reply@emails.unitedundergod.org';
 const TOKEN_TTL_MIN = 60;
 const FUNCTION_PATH = '/functions/v1/ecosystem-auth-reset';
 
+type AppCfg = {
+  name: string;
+  loginUrl: string;
+  /** Public reset form on the product host. Old email links to this function redirect here. */
+  resetPage?: string;
+  fromName?: string;
+  replyTo?: string;
+};
+
 // The ONLY per-app config. name = shown in email + reset page; loginUrl = where the
 // "back to sign in" button goes after a successful reset.
-const APP_CONFIG: Record<string, { name: string; loginUrl: string }> = {
-  'kids-need-dads': { name: 'Kids Need Dads', loginUrl: 'https://kidsneeddad.com' },
+const APP_CONFIG: Record<string, AppCfg> = {
+  'kids-need-dads': { name: 'Kids Need Dads', loginUrl: 'https://dads.unitedundergod.org' },
   'best-life': { name: 'Best Life', loginUrl: 'https://bestlife.unitedundergod.org' },
   'aligned-souls': { name: 'Aligned Souls', loginUrl: 'https://alignedsouls.unitedundergod.org' },
   'kindred': { name: 'Kindred', loginUrl: 'https://kindred.unitedundergod.org' },
+  'presence': { name: 'Presence', loginUrl: 'https://presence.unitedundergod.org' },
   'laser': { name: 'Laser Engraving', loginUrl: 'https://laser.unitedundergod.org' },
+  'live-on-mission': { name: 'Live On Mission', loginUrl: 'https://liveonmission.unitedundergod.org/sign-in?mode=signin' },
   // Website builder. One app, three front doors — the key picks which brand the
   // customer sees, because a church must never receive an email or a sign-in
   // link that says "AI Website Design".
-  'ai-website-design': { name: 'AI Website Design', loginUrl: 'https://ai-website.design/signin' },
-  'easypeazy-website': { name: 'Easy Peazy', loginUrl: 'https://my.easypeazy.site/signin' },
-  'churchconnect-website': { name: 'ChurchConnect', loginUrl: 'https://my.churchconnect.cloud/signin' },
-  'uug-website': { name: 'United Under God', loginUrl: 'https://my.unitedundergod.org/signin' },
+  'ai-website-design': {
+    name: 'AI Website Design',
+    loginUrl: 'https://ai-website.design/signin',
+    resetPage: 'https://ai-website.design/reset-password',
+    fromName: 'AI Website Design',
+  },
+  'easypeazy-website': {
+    name: 'Easy Peazy',
+    loginUrl: 'https://my.easypeazy.site/signin',
+    resetPage: 'https://my.easypeazy.site/reset-password',
+    fromName: 'Easy Peazy',
+  },
+  'churchconnect-website': {
+    name: 'ChurchConnect',
+    loginUrl: 'https://my.churchconnect.cloud/signin',
+    resetPage: 'https://my.churchconnect.cloud/reset-password',
+    fromName: 'ChurchConnect',
+    replyTo: 'support@churchconnect.cloud',
+  },
+  'uug-website': {
+    name: 'United Under God',
+    loginUrl: 'https://my.unitedundergod.org/signin',
+    resetPage: 'https://my.unitedundergod.org/reset-password',
+    fromName: 'United Under God',
+  },
 };
+
+function fromHeader(cfg?: AppCfg) {
+  const name = cfg?.fromName || cfg?.name || 'United Under God';
+  return `${name} <${MAILBOX}>`;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +87,10 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 const html = (body: string, status = 200) =>
-  new Response(body, { status, headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' } });
+  // Always 200: a 4xx from this function is rewritten to text/plain by the
+  // gateway, so the customer sees raw HTML source (white-on-black "code")
+  // instead of the reset form.
+  new Response(body, { status: 200, headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' } });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -118,7 +157,7 @@ Deno.serve(async (req: Request) => {
   // can probe real credential health without ever holding a credential.
   if (req.method === 'GET' && url.searchParams.get('selfcheck') === '1') {
     const key = Deno.env.get('RESEND_API_KEY') || '';
-    const sender = (FROM.match(/<([^>]+)>/)?.[1] || FROM).trim();
+    const sender = MAILBOX;
     const senderDomain = sender.split('@')[1] || '';
     const out: Record<string, unknown> = {
       ok: false,
@@ -154,15 +193,21 @@ Deno.serve(async (req: Request) => {
     return json(out, 200);
   }
 
-  // ---- GET: render the reset-password form from the email link ----
+  // ---- GET: send them to the product's own reset page (never raw HTML-as-text) ----
   if (req.method === 'GET') {
     const token = url.searchParams.get('token') || '';
     const app = url.searchParams.get('app') || '';
     const cfg = APP_CONFIG[app];
-    if (!cfg || !token) return html(page('Reset password', `<h1>Invalid link</h1><p class="sub">This password reset link is malformed. Please request a new one.</p>`), 400);
+    if (cfg?.resetPage && token) {
+      const dest = new URL(cfg.resetPage);
+      dest.searchParams.set('token', token);
+      dest.searchParams.set('app', app);
+      return Response.redirect(dest.toString(), 302);
+    }
+    if (!cfg || !token) return html(page('Reset password', `<h1>Invalid link</h1><p class="sub">This password reset link is malformed. Please request a new one.</p>`));
     const row = await validToken(sb, token, app);
     if (!row) {
-      return html(page(cfg.name, `<h1>Link expired</h1><p class="sub">This reset link is invalid or has expired. Request a new one from the sign-in page.</p><a class="back" href="${esc(cfg.loginUrl)}">← Back to ${esc(cfg.name)}</a>`), 400);
+      return html(page(cfg.name, `<h1>Link expired</h1><p class="sub">This reset link is invalid or has expired. Request a new one from the sign-in page.</p><a class="back" href="${esc(cfg.loginUrl)}">← Back to ${esc(cfg.name)}</a>`));
     }
     return html(page(cfg.name, `
       <h1>Set a new password</h1>
@@ -190,21 +235,37 @@ Deno.serve(async (req: Request) => {
     const password = String(form.get('password') || '');
     const password2 = String(form.get('password2') || '');
     const cfg = APP_CONFIG[app] || { name: 'Your account', loginUrl: '/' };
-    if (password.length < 8) return html(page(cfg.name, `<div class="err">Password must be at least 8 characters.</div><a class="back" href="javascript:history.back()">← Try again</a>`), 400);
-    if (password !== password2) return html(page(cfg.name, `<div class="err">Passwords did not match.</div><a class="back" href="javascript:history.back()">← Try again</a>`), 400);
+    if (password.length < 8) return html(page(cfg.name, `<div class="err">Password must be at least 8 characters.</div><a class="back" href="javascript:history.back()">← Try again</a>`));
+    if (password !== password2) return html(page(cfg.name, `<div class="err">Passwords did not match.</div><a class="back" href="javascript:history.back()">← Try again</a>`));
     const row = await validToken(sb, token, app);
-    if (!row) return html(page(cfg.name, `<h1>Link expired</h1><p class="sub">This reset link is invalid or has already been used. Request a new one.</p><a class="back" href="${esc(cfg.loginUrl)}">← Back to ${esc(cfg.name)}</a>`), 400);
+    if (!row) return html(page(cfg.name, `<h1>Link expired</h1><p class="sub">This reset link is invalid or has already been used. Request a new one.</p><a class="back" href="${esc(cfg.loginUrl)}">← Back to ${esc(cfg.name)}</a>`));
 
     const { error: updErr } = await sb.auth.admin.updateUserById(row.user_id, { password });
-    if (updErr) return html(page(cfg.name, `<div class="err">Could not update the password: ${esc(updErr.message)}</div>`), 500);
+    if (updErr) return html(page(cfg.name, `<div class="err">Could not update the password: ${esc(updErr.message)}</div>`));
     await sb.from('ecosystem_password_resets').update({ used_at: new Date().toISOString() }).eq('id', row.id);
 
     return html(page(cfg.name, `<div class="ok">Your password has been reset.</div><h1>All set</h1><p class="sub">You can now sign in to ${esc(cfg.name)} with your new password.</p><a class="back" href="${esc(cfg.loginUrl)}">Go to ${esc(cfg.name)} →</a>`));
   }
 
-  // ---- POST JSON {app, email}: send the reset email (always non-enumerating) ----
-  let payload: { app?: string; email?: string };
+  // ---- POST JSON: complete reset OR send the email ----
+  let payload: { app?: string; email?: string; token?: string; password?: string; password2?: string };
   try { payload = await req.json(); } catch { return json({ error: 'Bad request' }, 400); }
+
+  if (payload.token && payload.password) {
+    const app = String(payload.app || '');
+    const password = String(payload.password || '');
+    const password2 = String(payload.password2 || payload.password || '');
+    const cfg = APP_CONFIG[app] || { name: 'Your account', loginUrl: '/' };
+    if (password.length < 8) return json({ error: 'Password must be at least 8 characters.' }, 400);
+    if (password !== password2) return json({ error: 'Passwords did not match.' }, 400);
+    const row = await validToken(sb, String(payload.token), app);
+    if (!row) return json({ error: 'This reset link is invalid or has expired.' }, 400);
+    const { error: updErr } = await sb.auth.admin.updateUserById(row.user_id, { password });
+    if (updErr) return json({ error: updErr.message }, 500);
+    await sb.from('ecosystem_password_resets').update({ used_at: new Date().toISOString() }).eq('id', row.id);
+    return json({ ok: true, loginUrl: cfg.loginUrl });
+  }
+
   const app = String(payload.app || '');
   const email = String(payload.email || '').trim().toLowerCase();
   const cfg = APP_CONFIG[app];
@@ -228,8 +289,10 @@ Deno.serve(async (req: Request) => {
         user_id: userId, app, email, token_hash, expires_at,
       });
       if (!insErr) {
-        const link = `${Deno.env.get('SUPABASE_URL')}${FUNCTION_PATH}?token=${raw}&app=${encodeURIComponent(app)}`;
-        await sendResetEmail(cfg.name, email, link);
+        const base = cfg.resetPage || `${Deno.env.get('SUPABASE_URL')}${FUNCTION_PATH}`;
+        const join = base.includes('?') ? '&' : '?';
+        const link = `${base}${join}token=${raw}&app=${encodeURIComponent(app)}`;
+        await sendResetEmail(cfg, email, link);
       }
     }
   }
@@ -249,21 +312,29 @@ async function validToken(sb: ReturnType<typeof admin>, rawToken: string, app: s
   return data as { id: string; user_id: string; email: string };
 }
 
-async function sendResetEmail(appName: string, to: string, link: string) {
+async function sendResetEmail(cfg: AppCfg, to: string, link: string) {
   const key = Deno.env.get('RESEND_API_KEY');
   if (!key) { console.error('RESEND_API_KEY missing'); return; }
+  const appName = cfg.name;
   const subject = `Reset your ${appName} password`;
   const body = `<!doctype html><html><body style="margin:0;background:#f1f5f9;padding:24px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">
 <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:14px;padding:32px;border:1px solid #e2e8f0">
 <h1 style="font-size:20px;margin:0 0 8px">Reset your ${esc(appName)} password</h1>
-<p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px">We received a request to reset the password for this account. Click the button below to choose a new password. This link expires in ${TOKEN_TTL_MIN} minutes.</p>
+<p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px">We received a request to reset the password for this ${esc(appName)} account. Click the button below to choose a new password. This link expires in ${TOKEN_TTL_MIN} minutes.</p>
 <a href="${link}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px">Reset password</a>
 <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:22px 0 0">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+<p style="color:#94a3b8;font-size:12px;margin:16px 0 0">— ${esc(appName)}</p>
 </div></body></html>`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM, to, subject, html: body, reply_to: REPLY_TO }),
+    body: JSON.stringify({
+      from: fromHeader(cfg),
+      to,
+      subject,
+      html: body,
+      reply_to: cfg.replyTo || 'support@unitedundergod.org',
+    }),
   });
   if (!res.ok) console.error('Resend send failed', res.status, await res.text());
 }

@@ -47,9 +47,9 @@ Tokens: 32 random bytes, SHA-256 hashed at rest, 1-hour expiry, single-use, thro
 That's it — the reset page + email + password change are all handled by the service.
 Works from any frontend (Next, Vite, CRA) or backend proxy; no supabase-js needed.
 
-## Wired apps (2026-07-24)
+## Wired apps (2026-09-21)
 
-`kids-need-dads`, `best-life`, `aligned-souls`, `kindred`, `laser`.
+`kids-need-dads`, `best-life`, `aligned-souls`, `kindred`, `presence`, `laser`, `live-on-mission`, `ai-website-design`, `easypeazy-website`, `churchconnect-website`, `uug-website`.
 
 ## Related standing pattern — confirmed signup
 
