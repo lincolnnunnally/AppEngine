@@ -104,6 +104,14 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     purpose: "The head of the movement — the why, not a product hub.",
     adminPath: "/admin"
   },
+  plenty: {
+    slug: "plenty",
+    family: "church",
+    purpose: "Vidalia food pantry — get food, volunteer, or donate. Not a second Operate.",
+    adminPath: "/run/people",
+    adminNote:
+      "Pantry desk user-management lives on Plenty at /run/people. Super admin can grant or remove pantry admin there. Staff desk root is /run. Do not invent an AppEngine admin."
+  },
   "toner-management": {
     slug: "toner-management",
     family: "toner",

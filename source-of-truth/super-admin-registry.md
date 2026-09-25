@@ -216,6 +216,75 @@ ChurchConnect Association door — **not a new app brand**. Continuity home = Ch
 }
 ```
 
+### Plenty
+
+Vidalia food pantry — **not a new app brand and not a second Operate**. Continuity home = Plenty (`lincolnnunnally/plenty`). The public door is already live. User-management is the existing pantry desk at `/run/people` (roster; super admin can grant or remove pantry admin). Staff desk root is `/run`. There is no `/admin` on Plenty. Do not invent a parallel AppEngine admin.
+
+- Name: Plenty
+- Slug: `plenty`
+- Live URL: [https://plenty.unitedundergod.org](https://plenty.unitedundergod.org)
+- Admin / user-management: Plenty pantry desk — [https://plenty.unitedundergod.org/run/people](https://plenty.unitedundergod.org/run/people) (sign-in gated; staff desk root `/run`)
+
+```json
+{
+  "kind": "super_admin_registry_entry",
+  "schemaVersion": 1,
+  "app": {
+    "name": "Plenty",
+    "slug": "plenty",
+    "status": "production",
+    "owner": "APP_ENGINE_OWNER_EMAIL",
+    "repo": "lincolnnunnally/plenty",
+    "charterPath": "source-of-truth/super-admin-registry.md",
+    "packetPath": "not-a-new-app — Plenty pantry desk already live",
+    "environment": "production",
+    "doorKind": "plenty_pantry_desk",
+    "continuityHome": "Plenty",
+    "publicDirectory": "www.unitedundergod.org/apps lists Plenty under Church and community (listing/href only — not a new app)"
+  },
+  "release": {
+    "version": "production",
+    "gateStatus": "already_live",
+    "productionApproval": "inherited — Plenty is already live; this entry registers the pantry-desk user-management door, it does not launch a new app"
+  },
+  "deployment": {
+    "provider": "Vercel",
+    "previewUrl": "https://plenty.unitedundergod.org",
+    "productionUrl": "https://plenty.unitedundergod.org",
+    "productionApprovalRequired": false,
+    "staffDeskRoot": "https://plenty.unitedundergod.org/run"
+  },
+  "operations": {
+    "healthUrl": "https://plenty.unitedundergod.org/api/health",
+    "healthStatus": "live",
+    "logsProvider": "Vercel",
+    "logsUrl": "planned",
+    "adminUrl": "https://plenty.unitedundergod.org/run/people",
+    "userManagement": "https://plenty.unitedundergod.org/run/people",
+    "billingStatus": "not_applicable"
+  },
+  "auth": {
+    "provider": "Plenty Auth.js",
+    "roles": ["owner", "steward", "member"]
+  },
+  "superAdminActions": [
+    "open app",
+    "open admin",
+    "view health",
+    "view logs",
+    "manage users"
+  ],
+  "guardrails": {
+    "noSecretsInRegistry": true,
+    "requiresIdentityAuthPlan": true,
+    "requiresReleaseGateForProduction": true,
+    "notANewAppBrand": true,
+    "noParallelAppEngineAdminUi": true,
+    "documentedIntegrationReason": "Plenty's own pantry desk. User-management is /run/people on lincolnnunnally/plenty. Steward is pantry admin, granted or removed there by the super admin. Do not invent an AppEngine admin. Logs URL is planned — no public logs link was verified."
+  }
+}
+```
+
 ### Testimony doors (EXIST paths — not new apps)
 
 Quiet directory/SSO Continuity. Apps share philosophy, not purpose. Do not invent a mega-hub, SingTrue, or a ChurchConnect TestimonyHub door. Do not deploy from `spark-of-hope-vercel-recovery`. Full map: `source-of-truth/testimony-continuity.md`.
@@ -230,6 +299,7 @@ Quiet directory/SSO Continuity. Apps share philosophy, not purpose. Do not inven
 Registering this door updates the owner desk (soft-launch `appengine.unitedundergod.org` and leftover-preview of this AppEngine branch). It does **not** change ChurchConnect leftover-preview walks.
 
 - Owner desk leftover-preview: a Church & ministry card for **Vidalia / Toombs Pastors Circle** appears. Live opens the EXIST ChurchConnect Pastors Circle deep link (`/association/pastors-circle`). Admin opens ChurchConnect Super Admin (`/admin`) — association management stays there. No new AppEngine admin route.
+- Owner desk leftover-preview: **Plenty** stays in Church & ministry (the public directory lists it under Church and community). Live opens `https://plenty.unitedundergod.org`. Admin opens the existing pantry desk at `/run/people`. No new AppEngine admin route. The desk itself still requires owner sign-in.
 - Public apps showcase leftover-preview (`apps.unitedundergod.org` / factory showcase): one **LIVE** Pastors Circle card. It opens the same deep link. Listing/href only — not a new app brand.
 - Auth leftover-preview: AppEngine email/cookie hosts are unchanged. ChurchConnect Super Admin leftover-preview still uses ChurchConnect's own preview origin. Do not invent an AppEngine login for this door.
 - ChurchConnect PRs 221 / 222 / 287 / 293 are out of scope. Do not retarget leftover-preview of those branches from this registry lock.

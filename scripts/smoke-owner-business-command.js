@@ -51,8 +51,100 @@ runStep("catalog records verified admin doors only", () => {
     "porchlight",
     "HOLD invent — Operate has /desk and /people",
     "HOLD invent — no verified /admin user-management door in app-porchlight",
-    "Neighborly Tools is /app/tools"
+    "Neighborly Tools is /app/tools",
+    'slug: "plenty"',
+    'family: "church"',
+    'adminPath: "/run/people"',
+    "Pantry desk user-management lives on Plenty"
   ]);
+  const catalog = read("src/lib/engine/app-ops-catalog.ts");
+  const plentyStart = catalog.indexOf('slug: "plenty"');
+  const plentyNext = catalog.indexOf('slug: "', plentyStart + 12);
+  const plentyBlock = catalog.slice(plentyStart, plentyNext === -1 ? undefined : plentyNext);
+  if (!plentyBlock.includes('adminPath: "/run/people"') || !plentyBlock.includes('family: "church"')) {
+    throw new Error("Plenty catalog entry must be church family with adminPath /run/people");
+  }
+  if (plentyBlock.includes('adminPath: "/admin"')) {
+    throw new Error("Plenty has no /admin door — user-management is /run/people");
+  }
+  assertFileIncludes("source-of-truth/super-admin-registry.md", [
+    "lincolnnunnally/plenty",
+    "https://plenty.unitedundergod.org/run/people",
+    "https://plenty.unitedundergod.org/api/health"
+  ]);
+  const registry = read("source-of-truth/super-admin-registry.md");
+  const doorStart = registry.indexOf("### Plenty");
+  const doorEnd = registry.indexOf("### Testimony doors", doorStart);
+  const door = registry.slice(doorStart, doorEnd === -1 ? undefined : doorEnd);
+  if (doorStart < 0 || !door.includes('"userManagement": "https://plenty.unitedundergod.org/run/people"')) {
+    throw new Error("Plenty registered door must point user-management at /run/people");
+  }
+  if (!door.includes('"logsUrl": "planned"')) {
+    throw new Error("Plenty logs URL stays planned until a public logs link is verified");
+  }
+  if (!door.includes("noParallelAppEngineAdminUi")) {
+    throw new Error("Plenty door must not invent a parallel AppEngine admin");
+  }
+});
+
+runStep("every production_live UUG directory door has a catalog entry", () => {
+  // Verified 2026-09-25 against www.unitedundergod.org/apps
+  // (lincolnnunnally/united-under-god src/lib/content.ts APPS).
+  // Registry slugs for the external app cards. Two directory cards are pages
+  // on the UUG site, not registry apps, and stay off this list:
+  //   Understanding the Bible → /bible
+  //   SOURCE buying → /buying/desk (buying persistence HOLD)
+  const directorySlugs = [
+    "live-on-mission",
+    "spark-of-hope",
+    "kindred-connections",
+    "aligned-souls",
+    "kids-need-dads",
+    "childfirst-solutions",
+    "best-life",
+    "speak-to-me",
+    "presence",
+    "immerse",
+    "barefoot-coalition",
+    "dreamstand",
+    "sandlot",
+    "churchconnect",
+    "plenty",
+    "vidalia-toombs-pastors-circle",
+    "neighborly",
+    "pulse",
+    "operate",
+    "easy-peasy-website",
+    "porchlight",
+    "toner-connect",
+    "toner-management",
+    "ideas",
+    "laser-engrave-market",
+    "appengine"
+  ];
+  // production_live directory slugs that must not get their own catalog row.
+  // Empty on purpose: every live directory app already belongs in CATALOG.
+  const catalogAllowlist = new Set();
+  const registry = JSON.parse(read("source-of-truth/ecosystem-portfolio-registry.json"));
+  const catalog = read("src/lib/engine/app-ops-catalog.ts");
+  const apps = Array.isArray(registry.apps) ? registry.apps : [];
+  const bySlug = new Map(apps.map((app) => [app.slug, app]));
+  const missing = [];
+  for (const slug of directorySlugs) {
+    const app = bySlug.get(slug);
+    if (!app) {
+      throw new Error(`UUG directory slug ${slug} has no registry JSON row`);
+    }
+    if (app.deploymentState !== "production_live") continue;
+    if (catalogAllowlist.has(slug)) continue;
+    if (!catalog.includes(`slug: "${slug}"`)) missing.push(slug);
+  }
+  if (missing.length) {
+    throw new Error(`production_live directory doors missing catalog entries: ${missing.join(", ")}`);
+  }
+  if (catalog.includes('slug: "understanding-the-bible"') || catalog.includes('slug: "source-buying"')) {
+    throw new Error("UUG site pages are not separate catalog apps");
+  }
 });
 
 runStep("UUG apps directory: unlocked Continuity doors live, Selah coming soon, App Engine soft-launch href", () => {
@@ -67,7 +159,7 @@ runStep("UUG apps directory: unlocked Continuity doors live, Selah coming soon, 
     "https://sandlot.unitedundergod.org",
     "https://backoffice.works",
     "https://selah.unitedundergod.org",
-    "https://appengine.unitedundergod.org/soft-launch",
+    "https://appengine.unitedundergod.org",
     "SPARK_HOPE_STORIES_URL",
     "LOM_TESTIMONIES_URL"
   ]);
@@ -94,7 +186,7 @@ runStep("UUG apps directory: unlocked Continuity doors live, Selah coming soon, 
     throw new Error("Selah must not have a liveUrl — Coming soon honesty");
   }
   assertFileIncludes("src/app/apps-showcase/page.tsx", [
-    "https://appengine.unitedundergod.org/soft-launch",
+    "https://appengine.unitedundergod.org",
     "Coming soon",
     "app.reservedHost"
   ]);
@@ -148,7 +240,7 @@ runStep("home is an internal business desk, not an app builder", () => {
     "familyForSlug"
   ]);
   assertFileIncludes("src/lib/auth/hosts.ts", ["dashboard.unitedundergod.org", "appengine.unitedundergod.org"]);
-  assertFileIncludes("src/app/signin/page.tsx", ["Sign in to the desk", "AppEngine — app builder"]);
+  assertFileIncludes("src/app/signin/page.tsx", ["Private desk", "Welcome back", "AppEngine — app builder"]);
 });
 
 runStep("per-app dossier and central inbox exist", () => {

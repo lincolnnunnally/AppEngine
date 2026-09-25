@@ -1563,19 +1563,22 @@
         "urlStatus": "live",
         "servingUrl": "https://plenty.unitedundergod.org",
         "nextStep": "None — live. Vidalia food pantry (get food, volunteer, donate).",
-        "note": "Continuity-create for apps.unitedundergod.org gap fill. Already listed on www.unitedundergod.org/apps. Slug plenty from EXIST repo lincolnnunnally/plenty. Not a second Operate.",
+        "note": "Continuity-create for apps.unitedundergod.org gap fill. Already listed on www.unitedundergod.org/apps under Church and community. Slug plenty from EXIST repo lincolnnunnally/plenty. Not a second Operate. Central admin user-management is the pantry desk at /run/people — not an AppEngine admin.",
         "factsFrom": "continuity-unlock-2026-09-18"
       },
-      "sourceOfTruthFiles": [],
+      "sourceOfTruthFiles": [
+        "source-of-truth/super-admin-registry.md"
+      ],
       "linkedIssues": [],
       "linkedPRs": [],
       "blockers": [],
       "evidenceLinks": [
         "https://plenty.unitedundergod.org",
+        "https://plenty.unitedundergod.org/run/people",
         "https://www.unitedundergod.org/apps",
         "https://github.com/lincolnnunnally/plenty"
       ],
-      "lastUpdated": "2026-09-18T17:30:00.000Z"
+      "lastUpdated": "2026-09-25T17:15:00.000Z"
     }
   ],
   "guardrails": {
