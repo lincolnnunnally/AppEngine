@@ -79,42 +79,42 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
   {
     name: "Live On Mission",
     slug: "live-on-mission",
-    status: "planned; connection + events templates identified",
-    productionUrl: "approval-gated",
-    deploymentState: "production_blocked",
-    buildState: "planned",
-    nextSafeAction: "create_planning_issue",
+    status: "live — mission, serve, and testimonies at liveonmission.unitedundergod.org (live-on-mission.com serves the same app)",
+    productionUrl: "https://liveonmission.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
     blockers: []
   },
   {
     name: "Kids Need Dads",
     slug: "kids-need-dads",
-    status: "planned; mutual-aid + community templates identified",
-    productionUrl: "approval-gated",
-    deploymentState: "production_blocked",
-    buildState: "planned",
-    nextSafeAction: "create_planning_issue",
+    status: "live — Kids Need Dads at dads.unitedundergod.org (kidsneeddad.com serves the same app; Vercel project rebuilding-dads, repo RebuildingDads)",
+    productionUrl: "https://dads.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
     blockers: []
   },
   {
     name: "ChildFirst Solutions",
     slug: "childfirst-solutions",
-    status: "source mined (case management + mediated communication); ready to build",
-    productionUrl: "approval-gated",
-    deploymentState: "production_blocked",
-    buildState: "ready_for_build",
-    nextSafeAction: "create_implementation_issue",
+    status: "live — co-parenting workspace at childfirst.unitedundergod.org",
+    productionUrl: "https://childfirst.unitedundergod.org",
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
     blockers: []
   },
   {
     name: "Sandlot (formerly SwapAround)",
     slug: "sandlot",
     status: "live — kids meetups, fidget/toy exchange, supervised playdates (renamed from SwapAround 2026-07)",
-    productionUrl: "https://swaparound.vercel.app",
+    productionUrl: "https://sandlot.unitedundergod.org",
     deploymentState: "production_live",
     buildState: "ready_for_vnext",
     nextSafeAction: "create_vnext_packet",
-    blockers: ["Optional brand domain sandlot.unitedundergod.org not yet attached; Vercel project still named swaparound."]
+    blockers: []
   },
   {
     name: "Snip.Show",
@@ -256,13 +256,12 @@ export const IMPORTED_ECOSYSTEM_APPS: ImportedAppRecord[] = [
   {
     name: "Rally",
     slug: "rally",
-    status:
-      "name stub — placeholder holds the name at rally.unitedundergod.org; not a live product yet. Do not build Rally here.",
+    status: "live — tennis and pickleball at rally.unitedundergod.org",
     productionUrl: "https://rally.unitedundergod.org",
-    deploymentState: "production_blocked",
-    buildState: "planned",
-    nextSafeAction: "create_planning_issue",
-    blockers: ["Placeholder holds the name. Brand work not yet ported — do not invent Rally features."]
+    deploymentState: "production_live",
+    buildState: "ready_for_vnext",
+    nextSafeAction: "create_vnext_packet",
+    blockers: []
   },
   {
     name: "Selah",
