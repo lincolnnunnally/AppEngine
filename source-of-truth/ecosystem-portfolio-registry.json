@@ -1,31 +1,28 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-09-09T09:50:00.000Z",
+  "generatedAt": "2026-09-25T17:30:00.000Z",
   "owner": "Lincoln",
   "summary": {
     "totalApps": 42,
-    "reviewReadyApps": 1,
-    "productionLiveApps": 24,
-    "blockedApps": 15,
+    "reviewReadyApps": 0,
+    "productionLiveApps": 31,
+    "blockedApps": 11,
     "byDeploymentState": {
-      "production_live": 24,
-      "production_blocked": 15,
-      "review_ready": 1
+      "production_live": 31,
+      "production_blocked": 11
     },
     "byBuildState": {
-      "ready_for_vnext": 21,
+      "ready_for_vnext": 28,
       "review_blocked": 1,
-      "ready_for_build": 2,
-      "planned": 15,
-      "preview_verified": 1
+      "ready_for_build": 1,
+      "planned": 12
     },
     "nextSafeActions": {
-      "create_vnext_packet": 21,
+      "create_vnext_packet": 28,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
-      "create_planning_issue": 15,
-      "await_owner_review": 1
+      "create_planning_issue": 11
     },
     "byUrlStatus": {
       "live": 31,
@@ -267,15 +264,15 @@
       "reviewUrl": "https://spark.unitedundergod.org",
       "productionUrl": "https://spark.unitedundergod.org",
       "currentVersion": "package-surface",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "spark.unitedundergod.org",
         "urlStatus": "live",
-        "nextStep": "Reconcile the four Spark expressions into one canonical app first; the domain is already registered \u2014 add DNS and attach it when there is something to serve.",
-        "note": "Registered, zero DNS records today (owner, 2026-07-03).",
-        "factsFrom": "owner-2026-07-03"
+        "nextStep": "None \u2014 live at https://spark.unitedundergod.org.",
+        "note": "Live-verified 2026-09-25: HTTP 200, title Spark of Hope; /hope-stories HTTP 200.",
+        "factsFrom": "live-verified-2026-09-25"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -316,12 +313,14 @@
           "state": "open"
         }
       ],
-      "blockers": [
-        "Needs Launch Pack from the existing life-produces-life package surface before build dispatch.",
-        "Four divergent Spark expressions (LPL package, AppEngine intake-lite, Vercel project, mined sources) need reconciliation \u2014 2026-07-03 audit; the spark-of-hope Vercel project was disconnected from the AppEngine repo (PR #258, TRANSFER T6)."
+      "blockers": [],
+      "evidenceLinks": [
+        {
+          "label": "Live app (HTTP 200, title Spark of Hope, 2026-09-25)",
+          "url": "https://spark.unitedundergod.org"
+        }
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-09-25T17:30:00.000Z"
     },
     {
       "name": "Opportunity",
@@ -403,15 +402,15 @@
       "reviewUrl": "https://liveonmission.unitedundergod.org",
       "productionUrl": "https://liveonmission.unitedundergod.org",
       "currentVersion": "package-stub",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "liveonmission.unitedundergod.org",
         "urlStatus": "live",
-        "nextStep": "None for the domain itself \u2014 live-on-mission.com (Cloudflare) 301-redirects to churchconnect.cloud/mission, a polished landing already built inside ChurchConnect. Next step is the app boundary decision: standalone Live On Mission app vs continuing as the ChurchConnect /mission surface.",
-        "note": "Corrected by Lincoln 2026-07-03: the real domain is live-on-mission.COM (his earlier .org was a slip; .org is unregistered). Live and looking strong \u2014 warm/modern/trust-building styling is the bar.",
-        "factsFrom": "owner-2026-07-03"
+        "nextStep": "None \u2014 live at https://liveonmission.unitedundergod.org. https://live-on-mission.com serves the same app.",
+        "note": "Live-verified 2026-09-25: both hosts HTTP 200; /testimonies HTTP 200.",
+        "factsFrom": "live-verified-2026-09-25"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -426,11 +425,15 @@
       ],
       "linkedPRs": [],
       "blockers": [
-        "Needs app profile, Launch Pack, and shared needs-to-helper matching decision before coding.",
         "Community Connections is its less-faith-forward sibling \u2014 keep the pair designed together (see community-connections entry)."
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "evidenceLinks": [
+        {
+          "label": "Live app (HTTP 200, 2026-09-25)",
+          "url": "https://liveonmission.unitedundergod.org"
+        }
+      ],
+      "lastUpdated": "2026-09-25T17:30:00.000Z"
     },
     {
       "name": "Kids Need Dads",
@@ -438,15 +441,15 @@
       "reviewUrl": "https://dads.unitedundergod.org",
       "productionUrl": "https://dads.unitedundergod.org",
       "currentVersion": "canonical-source-needed",
-      "deploymentState": "production_blocked",
-      "buildState": "planned",
-      "nextSafeAction": "create_planning_issue",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "dads.unitedundergod.org",
         "urlStatus": "live",
-        "nextStep": "The domain serves, but the wrong face: rebrand the Netlify site to Kids Need Dads (or point the domain at the canonical rebuild once the source decision lands).",
-        "note": "Live on Netlify still showing RebuildingDad branding (owner-confirmed 2026-07-03). Singular kidsneeddad.com \u2014 the plural kidsneeddads.com belongs to a third party, never ours.",
-        "factsFrom": "owner-2026-07-03"
+        "nextStep": "None \u2014 live at https://dads.unitedundergod.org. https://kidsneeddad.com serves the same app.",
+        "note": "Live-verified 2026-09-25: both hosts HTTP 200, title Kids Need Dads. Vercel project rebuilding-dads, repo lincolnnunnally/RebuildingDads.",
+        "factsFrom": "live-verified-2026-09-25"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -462,12 +465,14 @@
         }
       ],
       "linkedPRs": [],
-      "blockers": [
-        "Choose canonical source between RebuildingDads, KND-google-ai, the dads-recovery protective backup (2026-07-03), and any local Kids Need Dads folders.",
-        "Domain for the record: kidsneeddad.com (singular; eNom/DreamHost, expires 2027-03-01, healthy). The plural kidsneeddads.com belongs to a third party \u2014 never ours."
+      "blockers": [],
+      "evidenceLinks": [
+        {
+          "label": "Live app (HTTP 200, title Kids Need Dads, 2026-09-25)",
+          "url": "https://dads.unitedundergod.org"
+        }
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-09-25T17:30:00.000Z"
     },
     {
       "name": "ChildFirst Solutions",
@@ -475,15 +480,15 @@
       "reviewUrl": "https://childfirst.unitedundergod.org",
       "productionUrl": "https://childfirst.unitedundergod.org",
       "currentVersion": "existing-next-supabase-app",
-      "deploymentState": "production_blocked",
-      "buildState": "ready_for_build",
-      "nextSafeAction": "create_planning_issue",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
       "domain": {
         "intendedDomain": "childfirst.unitedundergod.org",
         "urlStatus": "live",
-        "nextStep": "Pick and register a domain when ready \u2014 childfirstsolutions.com is unregistered and available, but nothing is owned today (registering is an owner/paid action).",
-        "note": "childfirstsolutions.com checked unregistered (owner, 2026-07-03).",
-        "factsFrom": "owner-2026-07-03"
+        "nextStep": "None \u2014 live at https://childfirst.unitedundergod.org.",
+        "note": "Live-verified 2026-09-25: HTTP 200; /login HTTP 200.",
+        "factsFrom": "live-verified-2026-09-25"
       },
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
@@ -509,11 +514,14 @@
           "state": "open"
         }
       ],
-      "blockers": [
-        "Install AIPOS + Launch Pack and verify current deploy path (CURRENT_SCOPE v12 Wave 1 names the ChildFirst launch pack after the ChurchConnect finish)."
+      "blockers": [],
+      "evidenceLinks": [
+        {
+          "label": "Live app (HTTP 200, 2026-09-25; /login HTTP 200)",
+          "url": "https://childfirst.unitedundergod.org"
+        }
       ],
-      "evidenceLinks": [],
-      "lastUpdated": "2026-07-03T19:18:00.000Z"
+      "lastUpdated": "2026-09-25T17:30:00.000Z"
     },
     {
       "name": "Easy Peasy Website (EasyPeazy)",
@@ -850,7 +858,7 @@
       "domain": {
         "intendedDomain": "sandlot.unitedundergod.org",
         "urlStatus": "live",
-        "nextStep": "Optional: attach sandlot.unitedundergod.org (CNAME to Vercel) for brand URL; production already live at swaparound.vercel.app.",
+        "nextStep": "None — canonical production is https://sandlot.unitedundergod.org (live-verified 2026-09-25, HTTP 200). https://swaparound.vercel.app is an old alias of the same app.",
         "note": "Kids meetup + fidget/plushy/toy exchange + supervised playdates. Renamed from SwapAround (owner 2026-07). UI brand Sandlot; DB tables keep swaparound_* prefix on LPL Supabase. GitHub: lincolnnunnally/sandlot. Vercel project still named swaparound for continuity.",
         "factsFrom": "owner-2026-07-18-sandlot-deploy"
       },
@@ -862,15 +870,15 @@
       "blockers": [],
       "evidenceLinks": [
         {
-          "label": "Live production (Sandlot title verified HTTP 200)",
-          "url": "https://swaparound.vercel.app"
+          "label": "Live production (Sandlot title verified HTTP 200, 2026-09-25)",
+          "url": "https://sandlot.unitedundergod.org"
         },
         {
           "label": "GitHub source",
           "url": "https://github.com/lincolnnunnally/sandlot"
         }
       ],
-      "lastUpdated": "2026-07-18T13:40:00.000Z"
+      "lastUpdated": "2026-09-25T17:30:00.000Z"
     },
     {
       "name": "United Under God (site)",
