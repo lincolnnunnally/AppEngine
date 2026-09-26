@@ -60,8 +60,25 @@ export type AdminDoorHandoffInput = {
   servingOrigin?: string | null;
 };
 
+export const OPERATE_DOOR_COMING_SOON =
+  "Operate owner sign-in is coming shortly. It turns on once Operate's handoff is live.";
+
+// Live only for the exact strings "1" and "true". Empty, "TRUE", "yes", and
+// anything else stay dark so the door cannot dead-end before /handoff exists.
+export function operateDoorLive(env: Record<string, string | undefined> = process.env): boolean {
+  const value = env.APPENGINE_OPERATE_DOOR_LIVE;
+  return value === "1" || value === "true";
+}
+
 export function isAdminDoorHandoffSlug(slug: string): slug is DoorSlug {
   return Object.prototype.hasOwnProperty.call(DOORS, slug);
+}
+
+// Laser is always offered. Operate is offered only while the flag is on.
+export function adminDoorShown(slug: string, env: Record<string, string | undefined> = process.env): boolean {
+  if (slug === "laser-engrave-market") return true;
+  if (slug === "operate") return operateDoorLive(env);
+  return false;
 }
 
 export function adminDoorPath(slug: string): string {
@@ -85,6 +102,11 @@ export function handleAdminDoor(input: AdminDoorHandoffInput): Response {
 
   const door = DOORS[input.slug];
   const env = input.env ?? process.env;
+
+  if (input.slug === "operate" && !operateDoorLive(env)) {
+    return textResponse(503, OPERATE_DOOR_COMING_SOON);
+  }
+
   const email = input.email?.trim().toLowerCase() ?? "";
 
   if (!isPlatformOwnerEmail(email, env)) {

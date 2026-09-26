@@ -20,13 +20,20 @@ const ownerEnv = {
   APP_ENGINE_OWNER_EMAIL: "other@example.com, Lincoln@UnitedUnderGod.org",
   APP_ENGINE_PLATFORM_ADMIN_EMAIL: "",
   APPENGINE_LASER_HANDOFF_SECRET: LASER_SECRET,
-  APPENGINE_OPERATE_HANDOFF_SECRET: OPERATE_SECRET
+  APPENGINE_OPERATE_HANDOFF_SECRET: OPERATE_SECRET,
+  APPENGINE_OPERATE_DOOR_LIVE: ""
 };
+
+const OPERATE_LIVE_NOTE = "Platform owner view across shops (owner-only). Opens signed in via dashboard handoff.";
+const OPERATE_HOLD_NOTE =
+  "HOLD invent — Operate has /desk and /people (shop people), not a verified /admin user-management door. Do not invent an AppEngine admin product.";
+const OPERATE_COMING_SOON = "Operate owner sign-in is coming shortly. It turns on once Operate's handoff is live.";
 
 runStep("route is node, session-gated, and does not mint unknown slugs", () => {
   assertFileIncludes("src/app/api/admin/door/[slug]/route.ts", [
     'export const runtime = "nodejs"',
     "isAdminDoorHandoffSlug",
+    "adminDoorShown",
     "auth()",
     "handleAdminDoor",
     "session?.user?.email"
@@ -35,6 +42,9 @@ runStep("route is node, session-gated, and does not mint unknown slugs", () => {
     'iss: "appengine"',
     "APPENGINE_LASER_HANDOFF_SECRET",
     "APPENGINE_OPERATE_HANDOFF_SECRET",
+    "APPENGINE_OPERATE_DOOR_LIVE",
+    "operateDoorLive",
+    OPERATE_COMING_SOON,
     "isPlatformOwnerEmail",
     "Cache-Control",
     "no-store",
@@ -52,6 +62,8 @@ runStep("route is node, session-gated, and does not mint unknown slugs", () => {
     "DASHBOARD_ORIGIN"
   ]);
   assertFileIncludes("src/app/signin/page.tsx", ["pathAfterSignIn(host, nextPath)"]);
+  assertFileIncludes(".env.example", ["APPENGINE_OPERATE_DOOR_LIVE"]);
+  assertFileIncludes(".env.vercel.example", ["APPENGINE_OPERATE_DOOR_LIVE"]);
   assertFileIncludes("next.config.mjs", [
     'source: "/api/admin/door/:slug"',
     '{ key: "Referrer-Policy", value: "no-referrer" }',
@@ -112,12 +124,53 @@ runStep("unknown slugs 404 and never mint", () => {
   }
 });
 
+runStep("operate door stays dark unless the flag is exactly 1 or true", async () => {
+  const requestUrl = "https://dashboard.unitedundergod.org/api/admin/door/operate";
+  for (const flag of [undefined, "", "0", "yes", "TRUE", "True", "1 ", " true"]) {
+    const response = handleAdminDoor({
+      slug: "operate",
+      requestUrl,
+      email: OWNER,
+      env: { ...ownerEnv, APPENGINE_OPERATE_DOOR_LIVE: flag },
+      nowSeconds: NOW
+    });
+    assertEqual(response.status, 503, `operate dark for ${JSON.stringify(flag)}`);
+    assertEqual(response.headers.get("location"), null, `no redirect for ${JSON.stringify(flag)}`);
+    assertPrivate(response);
+    const body = await response.text();
+    assertEqual(body, OPERATE_COMING_SOON, `coming-soon message for ${JSON.stringify(flag)}`);
+    if (body.includes("eyJ")) throw new Error("dark operate door must not mint a token");
+  }
+
+  const unsigned = handleAdminDoor({
+    slug: "operate",
+    requestUrl,
+    email: null,
+    env: ownerEnv,
+    nowSeconds: NOW
+  });
+  assertEqual(unsigned.status, 503, "unsigned operate is 503, not sign-in");
+  assertEqual(unsigned.headers.get("location"), null, "unsigned operate does not redirect");
+
+  const laser = await readHandoff(
+    handleAdminDoor({
+      slug: "laser-engrave-market",
+      requestUrl: REQUEST,
+      email: OWNER,
+      env: ownerEnv,
+      nowSeconds: NOW
+    }),
+    LASER_SECRET
+  );
+  assertEqual(laser.location.origin + laser.location.pathname, "https://laser.unitedundergod.org/admin", "laser ignores the operate flag");
+});
+
 runStep("missing secret is 503 and does not redirect", async () => {
   const laser = handleAdminDoor({
     slug: "laser-engrave-market",
     requestUrl: REQUEST,
     email: OWNER,
-    env: { ...ownerEnv, APPENGINE_LASER_HANDOFF_SECRET: "  " },
+    env: { ...ownerEnv, APPENGINE_LASER_HANDOFF_SECRET: "  ", APPENGINE_OPERATE_DOOR_LIVE: "1" },
     nowSeconds: NOW
   });
   assertEqual(laser.status, 503, "laser 503");
@@ -135,7 +188,7 @@ runStep("missing secret is 503 and does not redirect", async () => {
     slug: "operate",
     requestUrl: "https://dashboard.unitedundergod.org/api/admin/door/operate",
     email: OWNER,
-    env: { ...ownerEnv, APPENGINE_OPERATE_HANDOFF_SECRET: "" },
+    env: { ...ownerEnv, APPENGINE_OPERATE_HANDOFF_SECRET: "", APPENGINE_OPERATE_DOOR_LIVE: "true" },
     nowSeconds: NOW
   });
   assertEqual(operate.status, 503, "operate 503");
@@ -150,7 +203,7 @@ runStep("operate with no recorded host fails closed", async () => {
     slug: "operate",
     requestUrl: "https://dashboard.unitedundergod.org/api/admin/door/operate",
     email: OWNER,
-    env: ownerEnv,
+    env: { ...ownerEnv, APPENGINE_OPERATE_DOOR_LIVE: "1" },
     nowSeconds: NOW,
     servingOrigin: null
   });
@@ -209,14 +262,28 @@ runStep("each app redirects with a fragment JWT the secret verifies", async () =
       env: {
         APP_ENGINE_OWNER_EMAIL: "",
         APP_ENGINE_PLATFORM_ADMIN_EMAIL: OWNER,
-        APPENGINE_OPERATE_HANDOFF_SECRET: OPERATE_SECRET
+        APPENGINE_OPERATE_HANDOFF_SECRET: OPERATE_SECRET,
+        APPENGINE_OPERATE_DOOR_LIVE: "true"
       },
       nowSeconds: NOW
     }),
     OPERATE_SECRET
   );
   assertEqual(operate.location.origin + operate.location.pathname, "https://operate.unitedundergod.org/handoff", "operate location");
+  assertEqual(operate.fragmentKey, "token", "operate fragment");
   assertToken(operate, "operate", OWNER);
+  const operateFlagOne = await readHandoff(
+    handleAdminDoor({
+      slug: "operate",
+      requestUrl: "https://dashboard.unitedundergod.org/api/admin/door/operate",
+      email: OWNER,
+      env: { ...ownerEnv, APPENGINE_OPERATE_DOOR_LIVE: "1" },
+      nowSeconds: NOW
+    }),
+    OPERATE_SECRET
+  );
+  assertEqual(operateFlagOne.location.pathname, "/handoff", "flag 1 path");
+  assertEqual(operateFlagOne.fragmentKey, "token", "flag 1 fragment");
   if (laser.payload.jti === operate.payload.jti) {
     throw new Error("jti must be unique per mint");
   }
@@ -227,8 +294,9 @@ runStep("each app redirects with a fragment JWT the secret verifies", async () =
   }
 });
 
-runStep("catalog points only laser and operate at the handoff", () => {
+runStep("catalog points only laser at the handoff until operate is flagged live", () => {
   const serving = "https://serving.example";
+  const offEnv = { APPENGINE_OPERATE_DOOR_LIVE: "" };
   const catalog = fs.readFileSync(path.join(repoRoot, "src/lib/engine/app-ops-catalog.ts"), "utf8");
   const slugs = [...catalog.matchAll(/slug: "([^"]+)"/g)].map((match) => match[1]);
   if (!slugs.includes("laser-engrave-market") || !slugs.includes("operate") || !slugs.includes("churchconnect")) {
@@ -236,9 +304,9 @@ runStep("catalog points only laser and operate at the handoff", () => {
   }
 
   for (const slug of slugs) {
-    const entry = getAppOpsCatalogEntry(slug);
-    const resolved = resolveAdminDoor(slug, serving);
-    if (slug === "laser-engrave-market" || slug === "operate") {
+    const entry = getAppOpsCatalogEntry(slug, offEnv);
+    const resolved = resolveAdminDoor(slug, serving, offEnv);
+    if (slug === "laser-engrave-market") {
       assertEqual(resolved?.url, `/api/admin/door/${slug}`, `${slug} handoff url`);
       const generic = genericDoor(entry, serving);
       if (resolved?.url === generic?.url) {
@@ -247,16 +315,27 @@ runStep("catalog points only laser and operate at the handoff", () => {
       continue;
     }
     const expected = genericDoor(entry, serving);
-    assertEqual(resolved?.url ?? null, expected?.url ?? null, `${slug} url unchanged`);
-    assertEqual(resolved?.note ?? null, expected?.note ?? null, `${slug} note unchanged`);
+    assertEqual(resolved?.url ?? null, expected?.url ?? null, `${slug} url unchanged while operate is dark`);
+    assertEqual(resolved?.note ?? null, expected?.note ?? null, `${slug} note unchanged while operate is dark`);
   }
 
-  assertEqual(getAppOpsCatalogEntry("operate")?.adminPath, "/admin", "operate adminPath");
-  assertEqual(
-    resolveAdminDoor("operate", "https://operate.unitedundergod.org")?.note,
-    "Platform owner view across shops (owner-only). Opens signed in via dashboard handoff.",
-    "operate note"
-  );
+  const operateOff = resolveAdminDoor("operate", "https://operate.unitedundergod.org", offEnv);
+  assertEqual(operateOff?.url, "", "dark operate has no door link");
+  assertEqual(operateOff?.note, OPERATE_HOLD_NOTE, "dark operate keeps the HOLD note");
+  assertEqual(getAppOpsCatalogEntry("operate", offEnv)?.adminPath, undefined, "dark operate has no adminPath");
+  for (const flag of ["0", "yes", "TRUE"]) {
+    const resolved = resolveAdminDoor("operate", "https://operate.unitedundergod.org", { APPENGINE_OPERATE_DOOR_LIVE: flag });
+    assertEqual(resolved?.url, "", `operate stays dark for ${flag}`);
+    assertEqual(resolved?.note, OPERATE_HOLD_NOTE, `operate HOLD note for ${flag}`);
+  }
+
+  for (const flag of ["1", "true"]) {
+    const env = { APPENGINE_OPERATE_DOOR_LIVE: flag };
+    const resolved = resolveAdminDoor("operate", "https://operate.unitedundergod.org", env);
+    assertEqual(resolved?.url, "/api/admin/door/operate", `operate door for ${flag}`);
+    assertEqual(resolved?.note, OPERATE_LIVE_NOTE, `operate live note for ${flag}`);
+    assertEqual(getAppOpsCatalogEntry("operate", env)?.adminPath, "/admin", `operate adminPath for ${flag}`);
+  }
   assertEqual(resolveAdminDoor("laser-engrave-market", "https://laser.unitedundergod.org")?.url, "/api/admin/door/laser-engrave-market", "laser door");
   assertEqual(resolveAdminDoor("appengine", serving)?.url, "/admin", "appengine stays local");
   assertEqual(resolveAdminDoor("churchconnect", "https://churchconnect.unitedundergod.org")?.url, "https://churchconnect.unitedundergod.org/admin", "churchconnect");
@@ -269,8 +348,13 @@ runStep("catalog points only laser and operate at the handoff", () => {
   if (!String(resolveAdminDoor("porchlight", serving)?.note).includes("HOLD invent")) {
     throw new Error("porchlight HOLD note must stay");
   }
-  if (catalog.includes("HOLD invent — Operate")) {
-    throw new Error("operate HOLD invent note must be gone");
+  if (!catalog.includes("HOLD invent — Operate has /desk and /people")) {
+    throw new Error("operate catalog source must keep the prior HOLD note");
+  }
+  const operateBlockStart = catalog.indexOf('slug: "operate"');
+  const operateBlock = catalog.slice(operateBlockStart, catalog.indexOf('slug: "sandlot"', operateBlockStart));
+  if (operateBlock.includes("adminPath")) {
+    throw new Error("operate catalog entry must not carry adminPath while the door is flagged");
   }
 });
 

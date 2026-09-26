@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { handleAdminDoor, isAdminDoorHandoffSlug } from "@/lib/engine/admin-door-handoff";
+import { adminDoorShown, handleAdminDoor, isAdminDoorHandoffSlug } from "@/lib/engine/admin-door-handoff";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
 
-  if (!isAdminDoorHandoffSlug(slug)) {
+  // Unknown slugs 404, and a dark Operate door 503s, before any session read.
+  if (!isAdminDoorHandoffSlug(slug) || !adminDoorShown(slug)) {
     return handleAdminDoor({ slug, requestUrl: request.url });
   }
 

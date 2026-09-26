@@ -4,7 +4,10 @@
 // path exists in that app's code (never a guessed /admin that 404s). Families
 // exist so Lincoln can run Toner as one platform and keep per-app dashboards
 // for staff or a future sale. SERVER-SAFE (no secrets).
-import { adminDoorPath, isAdminDoorHandoffSlug } from "./admin-door-handoff";
+import { adminDoorPath, adminDoorShown } from "./admin-door-handoff";
+
+const OPERATE_LIVE_NOTE =
+  "Platform owner view across shops (owner-only). Opens signed in via dashboard handoff.";
 
 export type AppFamilyId =
   | "factory"
@@ -289,8 +292,8 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     slug: "operate",
     family: "commerce",
     purpose: "Nonprofit / shop desk — pantry, thrift, clothing, furniture kinds on the existing Operate desk.",
-    adminPath: "/admin",
-    adminNote: "Platform owner view across shops (owner-only). Opens signed in via dashboard handoff."
+    adminNote:
+      "HOLD invent — Operate has /desk and /people (shop people), not a verified /admin user-management door. Do not invent an AppEngine admin product."
   },
   sandlot: {
     slug: "sandlot",
@@ -330,8 +333,16 @@ export function listOpsSlugs(): string[] {
     .map((entry) => entry.slug);
 }
 
-export function getAppOpsCatalogEntry(slug: string): AppOpsCatalogEntry | null {
-  return CATALOG[slug] ?? null;
+export function getAppOpsCatalogEntry(
+  slug: string,
+  env: Record<string, string | undefined> = process.env
+): AppOpsCatalogEntry | null {
+  const entry = CATALOG[slug];
+  if (!entry) return null;
+  if (slug === "operate" && adminDoorShown(slug, env)) {
+    return { ...entry, adminPath: "/admin", adminNote: OPERATE_LIVE_NOTE };
+  }
+  return entry;
 }
 
 export function familyForSlug(slug: string): AppFamilyId {
@@ -356,14 +367,18 @@ export function listHelpApps(): Array<{ slug: string; nameHint: string; family: 
 // App Engine's own admin stays on this origin. Never invent a path.
 export function resolveAdminDoor(
   slug: string,
-  servingUrl: string | null
+  servingUrl: string | null,
+  env: Record<string, string | undefined> = process.env
 ): { url: string; note: string } | null {
   const entry = CATALOG[slug];
   if (!entry) return null;
-  // Laser and Operate only. The click hits this app, which mints a short-lived
-  // token and redirects. Every other door keeps the link it already had.
-  if (isAdminDoorHandoffSlug(slug)) {
-    return { url: adminDoorPath(slug), note: entry.adminNote ?? "" };
+  // Laser always. Operate only while APPENGINE_OPERATE_DOOR_LIVE is exactly
+  // "1" or "true" — otherwise the entry stays the prior HOLD note with no link.
+  if (adminDoorShown(slug, env)) {
+    return {
+      url: adminDoorPath(slug),
+      note: slug === "operate" ? OPERATE_LIVE_NOTE : entry.adminNote ?? ""
+    };
   }
   if (entry.adminUrl) {
     return { url: entry.adminUrl, note: entry.adminNote ?? "" };
