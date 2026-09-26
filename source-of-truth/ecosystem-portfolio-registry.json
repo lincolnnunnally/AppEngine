@@ -1435,7 +1435,7 @@
         "urlStatus": "live",
         "servingUrl": "https://operate.unitedundergod.org",
         "nextStep": "None — live. Nonprofit / shop desk (pantry, thrift, clothing, furniture kinds).",
-        "note": "Opened door Continuity from Operate PR 8. Central admin user-management: HOLD invent — Operate has /desk and /people, not a verified /admin door.",
+        "note": "Opened door Continuity from Operate PR 8. Platform owner view across shops is /admin (owner-only) and opens signed in via the dashboard handoff.",
         "factsFrom": "continuity-2026-09-09"
       },
       "sourceOfTruthFiles": [],
@@ -1449,12 +1449,12 @@
         }
       ],
       "blockers": [
-        "HOLD invent: Operate has /desk and /people (shop people), not a verified /admin user-management door. Do not invent an AppEngine admin product."
+        "Platform owner /admin is owner-only and opens signed in through the dashboard handoff. Shop staff stay on /desk and /people."
       ],
       "evidenceLinks": [
         "https://operate.unitedundergod.org"
       ],
-      "lastUpdated": "2026-09-09T09:50:00.000Z"
+      "lastUpdated": "2026-09-26T18:50:00.000Z"
     },
     {
       "name": "Vidalia / Toombs Pastors Circle",

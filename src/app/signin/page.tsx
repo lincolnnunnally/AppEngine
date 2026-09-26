@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { hasEmailSignIn, hasGithubProvider, hasGoogleProvider } from "@/lib/auth/access";
 import { isReservedTestEmail, normalizeSignInEmail } from "@/lib/auth/email";
-import { DASHBOARD_ORIGIN, hostFromHeader, isDashboardHostName, isDashboardRequest } from "@/lib/auth/hosts";
+import { hostFromHeader, isDashboardRequest, pathAfterSignIn } from "@/lib/auth/hosts";
 import { noOrphan } from "@/lib/ui/no-orphan";
 import { safeNextPath } from "@/lib/ui/compose-draft";
 
 async function afterSignIn(nextPath = "/"): Promise<string> {
   const host = hostFromHeader((await headers()).get("host"));
-  return isDashboardHostName(host) ? `${DASHBOARD_ORIGIN}/` : nextPath;
+  return pathAfterSignIn(host, nextPath);
 }
 
 // Public, branded sign-in. Consumer-friendly options first (Google, email link);

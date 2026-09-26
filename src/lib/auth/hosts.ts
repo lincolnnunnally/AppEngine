@@ -76,3 +76,18 @@ export async function requestHost(): Promise<string> {
 export async function isDashboardRequest(): Promise<boolean> {
   return isDashboardHostName(await requestHost());
 }
+
+// Where sign-in sends the browser. The desk still opens at its home, except
+// the admin-door handoff: that return path is a same-origin GET which mints
+// the token, so a signed-out click has to come back to it.
+export function pathAfterSignIn(host: string, nextPath: string): string {
+  if (!isDashboardHostName(hostFromHeader(host))) {
+    return nextPath;
+  }
+
+  if (nextPath.startsWith("/api/admin/door/")) {
+    return `${DASHBOARD_ORIGIN}${nextPath}`;
+  }
+
+  return `${DASHBOARD_ORIGIN}/`;
+}

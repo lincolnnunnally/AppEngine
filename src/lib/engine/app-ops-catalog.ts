@@ -4,6 +4,7 @@
 // path exists in that app's code (never a guessed /admin that 404s). Families
 // exist so Lincoln can run Toner as one platform and keep per-app dashboards
 // for staff or a future sale. SERVER-SAFE (no secrets).
+import { adminDoorPath, isAdminDoorHandoffSlug } from "./admin-door-handoff";
 
 export type AppFamilyId =
   | "factory"
@@ -255,6 +256,8 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     slug: "laser-engrave-market",
     family: "commerce",
     purpose: "Custom laser engraving and design.",
+    // In-app door stays /admin. The dashboard click is the handoff route so
+    // Laser's own cookie does not greet the owner signed out.
     adminPath: "/admin"
   },
   iconium: {
@@ -286,8 +289,8 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     slug: "operate",
     family: "commerce",
     purpose: "Nonprofit / shop desk — pantry, thrift, clothing, furniture kinds on the existing Operate desk.",
-    adminNote:
-      "HOLD invent — Operate has /desk and /people (shop people), not a verified /admin user-management door. Do not invent an AppEngine admin product."
+    adminPath: "/admin",
+    adminNote: "Platform owner view across shops (owner-only). Opens signed in via dashboard handoff."
   },
   sandlot: {
     slug: "sandlot",
@@ -357,6 +360,11 @@ export function resolveAdminDoor(
 ): { url: string; note: string } | null {
   const entry = CATALOG[slug];
   if (!entry) return null;
+  // Laser and Operate only. The click hits this app, which mints a short-lived
+  // token and redirects. Every other door keeps the link it already had.
+  if (isAdminDoorHandoffSlug(slug)) {
+    return { url: adminDoorPath(slug), note: entry.adminNote ?? "" };
+  }
   if (entry.adminUrl) {
     return { url: entry.adminUrl, note: entry.adminNote ?? "" };
   }

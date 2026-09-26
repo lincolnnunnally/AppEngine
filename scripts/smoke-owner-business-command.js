@@ -49,7 +49,7 @@ runStep("catalog records verified admin doors only", () => {
     "snip-show",
     "operate",
     "porchlight",
-    "HOLD invent — Operate has /desk and /people",
+    "Platform owner view across shops (owner-only). Opens signed in via dashboard handoff.",
     "HOLD invent — no verified /admin user-management door in app-porchlight",
     "Neighborly Tools is /app/tools",
     'slug: "plenty"',

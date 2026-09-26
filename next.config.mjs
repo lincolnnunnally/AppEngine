@@ -15,6 +15,16 @@ const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Admin-door handoff puts a bearer token in the URL fragment. no-referrer
+      // stops the next navigation from sending the dashboard URL along. This
+      // entry is after the global policy so it wins for this path only.
+      {
+        source: "/api/admin/door/:slug",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "no-store" }
+        ]
+      },
       {
         source: "/:path*",
         has: [{ type: "host", value: "apps.unitedundergod.org" }],
