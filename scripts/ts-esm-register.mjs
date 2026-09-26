@@ -6,31 +6,14 @@
 //
 // Why bother: the smoke tests then exercise the REAL modules the app ships,
 // rather than a copy of the logic that can quietly drift away from them.
-import { registerHooks } from "node:module";
+//
+// registerHooks landed in Node 22.15. Node 22.14 (and earlier 22) only has
+// module.register, so we use whichever this process exports.
+import * as nodeModule from "node:module";
+import { resolve } from "./ts-esm-hooks.mjs";
 
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    try {
-      return nextResolve(specifier, context);
-    } catch (error) {
-      const relative = specifier.startsWith("./") || specifier.startsWith("../");
-      const alias = specifier.startsWith("@/");
-
-      if (!relative && !alias) {
-        throw error;
-      }
-
-      const rebased = alias ? new URL(`../src/${specifier.slice(2)}`, import.meta.url).href : specifier;
-
-      for (const candidate of [`${rebased}.ts`, `${rebased}.tsx`, `${rebased}/index.ts`]) {
-        try {
-          return nextResolve(candidate, context);
-        } catch {
-          // try the next shape
-        }
-      }
-
-      throw error;
-    }
-  }
-});
+if (typeof nodeModule.registerHooks === "function") {
+  nodeModule.registerHooks({ resolve });
+} else {
+  nodeModule.register(new URL("./ts-esm-hooks.mjs", import.meta.url));
+}

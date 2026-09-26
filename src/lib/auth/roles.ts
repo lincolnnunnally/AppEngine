@@ -153,6 +153,19 @@ function isOwnerEmail(email?: string | null, env: RuntimeEnv = process.env) {
   return parseCustomerAllowlist(env.APP_ENGINE_OWNER_EMAIL).includes(normalizedEmail);
 }
 
+// Platform-owner gate for cross-app admin handoff. Same allowlist parse as the
+// owner bootstrap email, plus the platform admin email already recorded for
+// generated apps. This does not create a session — callers still use Auth.js.
+export function isPlatformOwnerEmail(email?: string | null, env: RuntimeEnv = process.env): boolean {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return false;
+  }
+
+  return isOwnerEmail(normalizedEmail, env) || parseCustomerAllowlist(env.APP_ENGINE_PLATFORM_ADMIN_EMAIL).includes(normalizedEmail);
+}
+
 async function readDatabaseProfileRole(
   user?: SessionRoleUser | null,
   options: RoleResolverOptions = {}
