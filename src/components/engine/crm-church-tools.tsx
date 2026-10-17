@@ -49,6 +49,29 @@ function useNotice(key: string): [CardNotice | null, (message: string) => void] 
   return [notice, (next: string) => setNoticeFor(key, next)];
 }
 
+// "Use this" on a suggested next step opens this card's Log a visit form with the
+// next step and date filled in. Nothing is saved until the owner taps Save.
+export type VisitDraft = { nextStep: string; nextDate: string };
+const drafts = new Map<string, VisitDraft>();
+const draftListeners = new Set<() => void>();
+export function offerVisitDraft(key: string, draft: VisitDraft | null) {
+  if (draft) drafts.set(key, draft);
+  else drafts.delete(key);
+  for (const listener of draftListeners) listener();
+}
+function subscribeDrafts(listener: () => void) {
+  draftListeners.add(listener);
+  return () => {
+    draftListeners.delete(listener);
+  };
+}
+function useDraft(key: string): VisitDraft | null {
+  return useSyncExternalStore(subscribeDrafts, () => drafts.get(key) ?? null, () => null);
+}
+export function saveKeyOf(target: SaveTarget | null): string {
+  return target ? `${target.field}:${target.id}` : "none";
+}
+
 /** Under every save form on a card: what saving does and doesn't do. */
 export function CrmOnlyNote() {
   return <p className="crm-dim crm-crm-only">Saved to your CRM only. Nothing is sent to anyone.</p>;
@@ -111,7 +134,19 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
   );
 }
 
-function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: SaveTarget; onDone: (message: string) => void; onCancel: () => void }) {
+function VisitForm({
+  card,
+  target,
+  draft,
+  onDone,
+  onCancel
+}: {
+  card: CrmCard;
+  target: SaveTarget;
+  draft?: VisitDraft | null;
+  onDone: (message: string) => void;
+  onCancel: () => void;
+}) {
   const [clientRef, setClientRef] = useState(() => newId());
   const [newContactId] = useState(() => newId());
   const [contactChoice, setContactChoice] = useState("");
@@ -226,14 +261,21 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
         <div className="crm-form-group">
           <label className="crm-field">
             <span>Next step</span>
-            <input name="next_step" maxLength={200} placeholder={target.noun === "church" ? "Call the pastor back" : "Call the owner back"} autoComplete="off" />
+            <input
+              name="next_step"
+              maxLength={200}
+              defaultValue={draft?.nextStep ?? ""}
+              placeholder={target.noun === "church" ? "Call the pastor back" : "Call the owner back"}
+              autoComplete="off"
+            />
           </label>
           <label className="crm-field">
             <span>When</span>
-            <input name="next_date" type="date" min={todayEastern()} />
+            <input name="next_date" type="date" min={todayEastern()} defaultValue={draft?.nextDate ?? ""} />
           </label>
         </div>
       )}
+      {draft ? <p className="crm-dim crm-from-suggestion">Next step filled in from the suggestion. Change it as you like.</p> : null}
       <p className="crm-dim">
         A visit lets the {target.noun} rest {VISIT_REST_DAYS} days; a drop-off rests {DROP_OFF_REST_DAYS}.
       </p>
@@ -303,18 +345,29 @@ function UndoDoNotContact({ target, onDone }: { target: SaveTarget; onDone: (mes
 export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean }) {
   const target = canSave ? saveTargetOf(card) : null;
   const [mode, setModeRaw] = useState<"" | "visit" | "add" | string>("");
-  const noticeKey = target ? `${target.field}:${target.id}` : "none";
+  const noticeKey = saveKeyOf(target);
   const [notice, setNotice] = useNotice(noticeKey);
+  const draft = useDraft(noticeKey);
   const setMode = (next: string) => {
     if (next) setNotice("");
+    if (next !== "visit") offerVisitDraft(noticeKey, null);
     setModeRaw(next);
   };
+  // A suggestion's "Use this" opens Log a visit with its next step filled in.
+  useEffect(() => {
+    if (draft) {
+      setNoticeFor(noticeKey, "");
+      setModeRaw("visit");
+    }
+  }, [draft, noticeKey]);
   const close = (message: string) => () => {
+    offerVisitDraft(noticeKey, null);
     setModeRaw("");
     setNotice(message);
   };
   // Writes straight to the store, so it lands even if this card re-mounts mid-save.
   const done = (message: string, warn = false) => {
+    offerVisitDraft(noticeKey, null);
     setNoticeFor(noticeKey, message, warn);
     setModeRaw("");
   };
@@ -380,7 +433,9 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
             </p>
           ) : null}
           {mode === "add" ? <ContactForm target={target} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}
-          {mode === "visit" ? <VisitForm card={card} target={target} onDone={done} onCancel={close("")} /> : null}
+          {mode === "visit" ? (
+            <VisitForm key={draft ? `${draft.nextStep}|${draft.nextDate}` : "blank"} card={card} target={target} draft={draft} onDone={done} onCancel={close("")} />
+          ) : null}
           {!mode ? (
             <div className="crm-actions">
               <button type="button" className="dx-btn dx-btn--primary" onClick={() => setMode("visit")}>

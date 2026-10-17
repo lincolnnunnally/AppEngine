@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { PeopleTools } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
+import { SuggestNextStep } from "@/components/engine/crm-suggest";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -32,6 +33,10 @@ type Props = {
   adminUrls: Partial<Record<CrmApp, string>>;
   /** Owner only, and only when saving is switched on for this deploy. */
   canSave?: boolean;
+  /** Owner only: "Suggested next step" on each card. Admins never get it. */
+  isOwner?: boolean;
+  /** The do-not-contact list couldn't be read: suggest nothing. */
+  outreachHidden?: boolean;
 };
 
 type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
@@ -129,7 +134,9 @@ function CardView({
   open,
   onOpen,
   onOpenOrg,
-  canSave
+  canSave,
+  isOwner,
+  outreachHidden
 }: {
   card: CrmCard;
   adminUrls: Props["adminUrls"];
@@ -137,6 +144,8 @@ function CardView({
   onOpen: (key: string) => void;
   onOpenOrg: (match: { kind: OrgKind; id: string }) => void;
   canSave: boolean;
+  isOwner: boolean;
+  outreachHidden: boolean;
 }) {
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
@@ -238,6 +247,7 @@ function CardView({
       </dl>
 
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
+      <SuggestNextStep card={card} isOwner={isOwner} canSave={canSave} outreachHidden={outreachHidden} />
       <PeopleTools card={card} canSave={canSave} />
 
       <details className="crm-more" open={open}>
@@ -374,7 +384,7 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false }: Props) {
+export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
   const [filter, setFilter] = useState<CardFilter>("all");
   const [query, setQuery] = useState("");
@@ -548,7 +558,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false }: Props)
         {shownCards.length ? (
           <div className="crm-grid">
             {shownCards.slice(0, limit).map((card) => (
-              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} onOpenOrg={openOrg} canSave={canSave} />
+              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} onOpenOrg={openOrg} canSave={canSave} isOwner={isOwner} outreachHidden={outreachHidden} />
             ))}
           </div>
         ) : (

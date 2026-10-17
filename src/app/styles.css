@@ -7424,3 +7424,22 @@ button.compose-arch:hover {
   border-radius: 8px;
   padding: 8px 10px;
 }
+
+/* Suggested next step (slice 4): a suggestion only, in the calm cyan of "possible match", never the success lime. */
+.crm-page .crm-suggest { margin-top: 12px; }
+.crm-page .crm-suggest .dx-btn { min-height: 44px; font-size: 1rem; padding: 8px 16px; }
+.crm-page .crm-suggest-box {
+  border: 1px dashed color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: color-mix(in srgb, var(--cyan) 6%, transparent);
+  border-radius: 10px;
+  padding: 12px;
+}
+.crm-page .crm-suggest-box h4 { font-size: 0.875rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cyan); margin: 0 0 6px; }
+.crm-page .crm-suggest-step { margin: 0 0 8px; font-size: 1rem; color: var(--ink); }
+.crm-page .crm-suggest-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; }
+.crm-page .crm-suggest-facts div { display: flex; gap: 6px; }
+.crm-page .crm-suggest-facts dt { color: var(--muted); }
+.crm-page .crm-suggest-facts dd { margin: 0; }
+.crm-page .crm-suggest-note { margin: 0 0 8px; }
+.crm-page .crm-suggest-rest { margin: 0; }
+.crm-page .crm-suggest-form .crm-form-status { margin: 8px 0 0; }
