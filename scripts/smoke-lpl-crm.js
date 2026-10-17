@@ -714,6 +714,9 @@ await runStep("slice 2: adding looks for duplicates first; churches hidden; noth
   assertIncludes(tools, "This name sounds like a church. Tick to confirm it&apos;s a business.", "church-name line above the tick");
   assertIncludes(tools, "{matches.length ? null : <Status state={state} />}", "one duplicate message, not two");
   assertIncludes(tools, "Name (required)", "required marked");
+  const deskSrc = read("src/components/engine/crm-desk.tsx");
+  assertIncludes(deskSrc, "`Only in ${businessApps[0]}`", "one app: 'Only in Operate'");
+  assertIncludes(deskSrc, "`In ${businessApps.slice(0, -1).join(\", \")} and ${businessApps[businessApps.length - 1]}`", "several apps: 'In Operate and AI Website Design'");
   assertIncludes(tools, '{editing ? "Edit details and apps"', "edit form has its own heading");
   assertIncludes(writer, "if (current !== null && current !== org.email) body.contact_email = org.email;", "church email sent only when it changed");
   assertIncludes(tools, "value={draft.name}", "fields are controlled, so a match answer never wipes what was typed");

@@ -140,13 +140,15 @@ function CardView({
 }) {
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
-  // A card that is only a business lead: say which apps were picked (or none yet), the way app names show on other cards.
+  // A card that is only a business lead: say which apps were picked (or none yet): "Only in Operate", "In Operate and AI Website Design".
   const businessOnly = card.apps.length === 1 && card.apps[0] === "business" && card.org?.kind === "business";
   const businessApps = businessOnly ? (card.org?.offers ?? []).map((id) => offerLabel("business", id)).filter(Boolean) : [];
   const matchText = businessOnly
-    ? businessApps.length
-      ? `Only in ${businessApps.join(", ")}`
-      : "Not in any app yet"
+    ? businessApps.length === 1
+      ? `Only in ${businessApps[0]}`
+      : businessApps.length
+        ? `In ${businessApps.slice(0, -1).join(", ")} and ${businessApps[businessApps.length - 1]}`
+        : "Not in any app yet"
     : card.matchedBy.length
     ? `Matched by ${card.matchedBy.map((kind) => MATCH_LABEL[kind]).join(", ")}`
     : card.recordCount > 1

@@ -49,3 +49,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: CRM smoke (church rule labels, saves fail closed, no secret in the bundle)
+        run: npm run smoke:lpl-crm
