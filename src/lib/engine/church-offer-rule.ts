@@ -34,7 +34,7 @@ const DOOR_PRODUCT: Record<string, ChurchOffer> = {
   outreach: "outreach"
 };
 
-export const OUTREACH_URL = "https://www.churchconnect.cloud/mission";
+export const OUTREACH_URL = "https://live-on-mission.com/outreach";
 
 /** Named only so tests and filters can prove they never reach a church. */
 export const NEVER_FOR_CHURCHES: ReadonlySet<string> = new Set([
@@ -56,12 +56,48 @@ export function hasForbiddenChurchWord(text: unknown): boolean {
   return FORBIDDEN_RE.test(String(text ?? ""));
 }
 
+/** Addresses, not words a church reads (laser.engrave.market is a domain). */
+const NOT_WORDS = new Set(["id", "url", "door"]);
+
 /** Keep only allowed offers whose words are safe for a church. */
 export function filterChurchOffers<T extends { id: string } | string>(items: readonly T[]): T[] {
   return items.filter((item) => {
     const id = typeof item === "string" ? item : item.id;
     if (!allowedForChurch(id)) return false;
     if (typeof item === "string") return true;
-    return !Object.values(item).some((value) => typeof value === "string" && hasForbiddenChurchWord(value));
+    return !Object.entries(item).some(([key, value]) => !NOT_WORDS.has(key) && typeof value === "string" && hasForbiddenChurchWord(value));
   });
+}
+
+/** Owner-chosen apps for a church: allowed product ids only, de-duplicated, in list order. */
+export function cleanChurchOfferIds(values: unknown): ChurchOffer[] {
+  const chosen = new Set((Array.isArray(values) ? values : []).map(churchProductOf));
+  return CHURCH_OFFER_IDS.filter((id) => chosen.has(id));
+}
+
+// ── Businesses ──────────────────────────────────────────────────────────────
+// What the desk may pick for a business prospect (MAP decision: Operate, AI
+// Website Design, Easy Peazy, Laser, a marketing campaign). Never shown for a
+// church: the picker only offers this list once the org is a business.
+export const BUSINESS_OFFERS = {
+  operate: "Operate",
+  awd: "AI Website Design",
+  easypeazy: "Easy Peazy website",
+  laser: "Laser gifts",
+  marketing_campaign: "Marketing campaign"
+} as const;
+
+export type BusinessOffer = keyof typeof BUSINESS_OFFERS;
+
+export const BUSINESS_OFFER_IDS = Object.keys(BUSINESS_OFFERS) as BusinessOffer[];
+
+export function cleanBusinessOfferIds(values: unknown): BusinessOffer[] {
+  const chosen = new Set((Array.isArray(values) ? values : []).map((value) => String(value ?? "").trim().toLowerCase()));
+  return BUSINESS_OFFER_IDS.filter((id) => chosen.has(id));
+}
+
+/** The choices the desk shows for this kind of org. A church never sees a business choice. */
+export function offerChoices(kind: "church" | "business"): Array<{ id: string; label: string }> {
+  const list: Record<string, string> = kind === "church" ? CHURCH_ALLOWED_OFFERS : BUSINESS_OFFERS;
+  return Object.entries(list).map(([id, label]) => ({ id, label }));
 }

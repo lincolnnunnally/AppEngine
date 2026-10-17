@@ -7225,6 +7225,8 @@ button.compose-arch:hover {
 .crm-pill--churchconnect { color: var(--crm-cc); border-color: color-mix(in srgb, var(--crm-cc) 45%, transparent); }
 .crm-pill--laser { color: var(--crm-laser); border-color: color-mix(in srgb, var(--crm-laser) 45%, transparent); }
 .crm-pill--presence { color: var(--crm-presence); border-color: color-mix(in srgb, var(--crm-presence) 45%, transparent); }
+.crm-pill--business { color: var(--lime, #b6f36b); border-color: color-mix(in srgb, var(--lime, #b6f36b) 45%, transparent); }
+.crm-pill--offer { color: var(--ink); border-color: var(--line); text-transform: none; letter-spacing: normal; }
 .crm-banner { margin: 0; padding: 9px 12px; border-radius: 9px; font-size: 0.85rem; line-height: 1.4; border: 1px solid; }
 .crm-banner strong { margin-right: 2px; }
 .crm-banner--stop { color: var(--ink); border-color: color-mix(in srgb, var(--pink) 55%, transparent); background: color-mix(in srgb, var(--pink) 10%, transparent); }
@@ -7392,3 +7394,12 @@ button.compose-arch:hover {
 .crm-page .crm-form-status { font-size: 1rem; margin: 0; }
 .crm-page .crm-form .crm-field > span, .crm-page .crm-form .crm-field legend, .crm-page .crm-choice label { text-transform: none; letter-spacing: normal; font-family: inherit; }
 .crm-page .crm-form .dx-btn[disabled] { opacity: 0.6; cursor: progress; }
+
+/* CRM v2 slice 2: add / edit an org */
+.crm-page .crm-add-org { display: grid; gap: 8px; margin: 12px 0; }
+.crm-page .crm-add-org > .dx-btn { justify-self: start; min-height: 44px; }
+.crm-page .crm-offer-pills { justify-content: flex-start; margin: 4px 0 8px; }
+.crm-page .crm-matches { display: grid; gap: 8px; padding: 12px; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 10px; }
+.crm-page .crm-matches .crm-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.crm-page .crm-matches .dx-btn { min-height: 44px; }
+.crm-page .crm-org-tools h4 { margin-bottom: 6px; }

@@ -1,16 +1,20 @@
 // CRM saving — SERVER ONLY. The owner logs a church visit or drop-off and
 // saves church contacts from the desk. Every save goes through ChurchConnect's
 // own CRM routes, so ChurchConnect stays the one writer of its records:
-//   POST /api/church-crm/leads/{church}/activities
-//   PUT  /api/church-crm/leads/{church}/contacts/{contact}
+//   POST   /api/church-crm/leads                      (add a church, hidden until real)
+//   PATCH  /api/church-crm/leads/{church}             (edit its basics and apps)
+//   POST   /api/church-crm/leads/{church}/activities
+//   PUT    /api/church-crm/leads/{church}/contacts/{contact}
 // Each call carries a pass that lives at most 2 minutes and is bound to that
-// one method and exact path. The only direct write here is the shared
-// do-not-contact list, when a visit ends with "asked not to be contacted".
+// one method and exact path. The only direct writes here are the shared
+// do-not-contact list (a visit that ends with "asked not to be contacted") and
+// business leads (op_leads), which no app owns yet.
 // Nothing here logs a body, a contact detail, or the pass. Nothing is sent to
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
-import { domainFromEmail, normDomain, normEmail, normPhone } from "@/lib/engine/lpl-crm-core";
+import { cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, resolveOrgKind, type OrgKind } from "@/lib/engine/lpl-crm-core";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
 export const CRM_PASS_AUDIENCE = "churchconnect-crm";
@@ -46,6 +50,7 @@ export type VisitInput = {
 };
 
 type CcConfig = { base: string; secret: string };
+type CcMethod = "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** Where to save and how to sign. The secret: env var if set, else the shared database row (cached). */
 async function ccConfig(env: Record<string, string | undefined> = process.env): Promise<CcConfig | null> {
@@ -66,7 +71,7 @@ export function savingOffMessage(env: Record<string, string | undefined> = proce
 }
 
 /** A pass for exactly one call: this method, this path, this owner, under 2 minutes. */
-export function mintCrmPass(secret: string, method: "POST" | "PUT" | "DELETE", path: string, ownerEmail: string, nowSeconds = Math.floor(Date.now() / 1000)): string {
+export function mintCrmPass(secret: string, method: CcMethod, path: string, ownerEmail: string, nowSeconds = Math.floor(Date.now() / 1000)): string {
   return mintHs256Jwt(
     {
       iss: CRM_PASS_ISSUER,
@@ -146,7 +151,7 @@ export function previewBypassHeader(env: Record<string, string | undefined> = pr
   return token ? { "x-vercel-protection-bypass": token } : {};
 }
 
-async function callChurchConnect(config: CcConfig, method: "POST" | "PUT" | "DELETE", path: string, ownerEmail: string, body?: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
+async function callChurchConnect(config: CcConfig, method: CcMethod, path: string, ownerEmail: string, body?: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
   try {
     const response = await fetch(`${config.base}${path}`, {
       method,
@@ -355,4 +360,335 @@ export async function undoChurchDoNotContact(ownerEmail: string, churchId: strin
     return { ok: false, message: "The church is back in the pipeline, but the do-not-contact list couldn't be cleared. Try again." };
   }
   return { ok: true, message: `Undone. Removed ${removed} do-not-contact ${removed === 1 ? "entry" : "entries"}; the church is back in the pipeline.` };
+}
+
+// ── Add or edit an org (church → ChurchConnect, business → op_leads) ───────
+
+export type OrgInput = {
+  kind: string;
+  confirmBusiness?: boolean;
+  name: string;
+  city: string;
+  state: string;
+  website: string;
+  phone: string;
+  email: string;
+  offers: string[];
+  /** The owner looked at the possible matches and says this is a different org. */
+  confirmNew?: boolean;
+};
+
+export type CleanOrg = {
+  kind: OrgKind;
+  name: string;
+  city: string;
+  state: string;
+  website: string;
+  phone: string;
+  email: string;
+  offers: string[];
+  confirmNew: boolean;
+};
+
+export type OrgMatch = {
+  kind: OrgKind;
+  id: string;
+  name: string;
+  town: string;
+  /** Plain words: "same name and town", "same website", "same phone", "same email". */
+  why: string[];
+  /** Same name and town: never added twice, even when the owner says it's different. */
+  hard: boolean;
+};
+
+export type OrgSaveResult =
+  | { ok: true; message: string; kind: OrgKind; id: string }
+  | { ok: false; message: string; matches?: OrgMatch[] };
+
+function cleanWebsite(value: unknown): string | null {
+  const raw = text(value, 300);
+  if (!raw) return "";
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return /^https?:\/\/[^\s/]+\.[^\s/]+/i.test(url) ? url : null;
+}
+
+export function cleanOrgInput(input: Partial<OrgInput>, editing: OrgKind | null = null): CleanOrg | string {
+  const name = text(input.name, 160);
+  if (!name) return "Add the name.";
+  // On edit the kind stays what it is; on add, "Not sure" means church.
+  const resolved = editing ? { kind: editing } : resolveOrgKind(input.kind, name, input.confirmBusiness === true);
+  if ("error" in resolved) return resolved.error;
+  const city = text(input.city, 80);
+  if (!city) return "Add the town, so we can check it isn't already here.";
+  const website = cleanWebsite(input.website);
+  if (website === null) return "That website doesn't look right.";
+  const rawEmail = text(input.email, 200);
+  const email = normEmail(rawEmail);
+  if (rawEmail && !email) return "That email doesn't look right.";
+  const phone = text(input.phone, 40);
+  if (phone && phone.replace(/\D/g, "").length < 7) return "That phone number looks too short.";
+  const offers = resolved.kind === "church" ? cleanChurchOfferIds(input.offers) : cleanBusinessOfferIds(input.offers);
+  return {
+    kind: resolved.kind,
+    name,
+    city,
+    state: text(input.state, 40).toUpperCase(),
+    website,
+    phone,
+    email,
+    offers,
+    confirmNew: input.confirmNew === true
+  };
+}
+
+/** PostgREST ilike pattern for a phone in any format: 7705550100 → *770*555*0100* */
+export function phoneLike(phone: string): string {
+  const digits = normPhone(phone);
+  if (!digits) return "";
+  return `*${digits.slice(0, 3)}*${digits.slice(3, 6)}*${digits.slice(6)}*`;
+}
+
+/** ilike pattern for a name: words kept, punctuation becomes a wildcard. */
+export function nameLike(name: string): string {
+  const words = normName(name).split(" ").filter(Boolean);
+  return words.length ? words.join("*") : "";
+}
+
+const pgValue = (value: string) => encodeURIComponent(value.replace(/[,()"]/g, " "));
+
+type MatchRow = Record<string, unknown> & { id?: unknown };
+
+/**
+ * Look before adding: churches and business leads with the same name + town,
+ * website, phone, or email. Returns null when the check could not run (then
+ * nothing is saved).
+ */
+export async function findOrgMatches(org: Pick<CleanOrg, "name" | "city" | "website" | "phone" | "email">, exclude: { kind: OrgKind; id: string } | null = null): Promise<OrgMatch[] | null> {
+  const config = lplConfig();
+  if (!config) return null;
+  const headers = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` };
+  const domain = normDomain(org.website) || (org.email ? domainFromEmail(org.email) : "");
+  const phone = phoneLike(org.phone);
+  const nameKey = normName(org.name);
+  const cityKey = normName(org.city);
+  const like = nameLike(org.name);
+
+  const churchSelect = "select=id,name:doc->>name,church_name:doc->>church_name,city:doc->>city,state:doc->>state,website:doc->>website,domain:doc->>domain,phone:doc->>phone,phone_office:doc->>phone_office,pastor_phone:doc->>pastor_phone,email:doc->>email,pastor_email:doc->>pastor_email,office_email:doc->>office_email,active:doc->>active,merged_into:doc->>merged_into,deleted_at:doc->>deleted_at";
+  const leadSelect = "select=id,business_name,city,state,website_url,phone,email,status";
+  const queries: Array<{ table: "cc_churches" | "op_leads"; query: string }> = [];
+  if (like) {
+    queries.push({ table: "cc_churches", query: `${churchSelect}&doc->>name=ilike.*${pgValue(like)}*&doc->>city=ilike.${pgValue(org.city)}&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&business_name=ilike.*${pgValue(like)}*&city=ilike.${pgValue(org.city)}&limit=10` });
+  }
+  if (domain) {
+    const d = `*${pgValue(domain)}*`;
+    queries.push({ table: "cc_churches", query: `${churchSelect}&or=(doc->>website.ilike.${d},doc->>domain.ilike.${d})&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&website_url=ilike.${d}&limit=10` });
+  }
+  if (phone) {
+    const p = pgValue(phone);
+    queries.push({ table: "cc_churches", query: `${churchSelect}&or=(doc->>phone.ilike.${p},doc->>phone_office.ilike.${p},doc->>pastor_phone.ilike.${p})&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&phone=ilike.${p}&limit=10` });
+  }
+  if (org.email) {
+    const e = pgValue(org.email);
+    queries.push({ table: "cc_churches", query: `${churchSelect}&or=(doc->>email.eq.${e},doc->>pastor_email.eq.${e},doc->>office_email.eq.${e})&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&email=eq.${e}&limit=10` });
+  }
+
+  try {
+    const results = await Promise.all(
+      queries.map(async ({ table, query }) => {
+        const response = await fetch(`${config.url}/rest/v1/${table}?${query}`, { method: "GET", headers, cache: "no-store" });
+        if (!response.ok) throw new Error("match lookup failed");
+        return { table, rows: (await response.json()) as MatchRow[] };
+      })
+    );
+    const found = new Map<string, OrgMatch>();
+    for (const { table, rows } of results) {
+      for (const row of rows) {
+        const kind: OrgKind = table === "cc_churches" ? "church" : "business";
+        const id = String(row.id ?? "");
+        if (!id || (exclude && exclude.kind === kind && exclude.id === id)) continue;
+        if (kind === "church" && (String(row.active) === "false" || row.merged_into || row.deleted_at)) continue;
+        const name = String((kind === "church" ? row.name || row.church_name : row.business_name) ?? "");
+        const city = String(row.city ?? "");
+        const why: string[] = [];
+        const sameName = normName(name) === nameKey && normName(city) === cityKey;
+        if (sameName) why.push("same name and town");
+        else if (like && normName(city) === cityKey && normName(name).includes(nameKey)) why.push("similar name, same town");
+        const websites = kind === "church" ? [row.website, row.domain] : [row.website_url];
+        if (domain && websites.some((value) => normDomain(value) === domain)) why.push("same website");
+        const phones = kind === "church" ? [row.phone, row.phone_office, row.pastor_phone] : [row.phone];
+        if (phone && phones.some((value) => normPhone(value) === normPhone(org.phone))) why.push("same phone");
+        const emails = kind === "church" ? [row.email, row.pastor_email, row.office_email] : [row.email];
+        if (org.email && emails.some((value) => normEmail(value) === org.email)) why.push("same email");
+        if (!why.length) continue; // a loose ilike hit that isn't really the same
+        const key = `${kind}:${id}`;
+        const prior = found.get(key);
+        const town = [city, String(row.state ?? "")].filter(Boolean).join(", ");
+        found.set(key, {
+          kind,
+          id,
+          name: name || (kind === "church" ? "Church" : "Business"),
+          town,
+          why: [...new Set([...(prior?.why ?? []), ...why])],
+          hard: Boolean(prior?.hard) || sameName
+        });
+      }
+    }
+    return [...found.values()].sort((a, b) => Number(b.hard) - Number(a.hard) || b.why.length - a.why.length).slice(0, 8);
+  } catch {
+    return null;
+  }
+}
+
+/** op_leads.slug: kebab, at most 80, unique (a short suffix is added on a clash). */
+export function leadSlug(name: string, city: string, suffix = ""): string {
+  const base = normName(`${name} ${city}`).replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "business";
+  const tail = suffix ? `-${suffix}` : "";
+  return `${base.slice(0, 80 - tail.length).replace(/-$/, "")}${tail}`;
+}
+
+function matchBlock(org: CleanOrg, matches: OrgMatch[] | null): OrgSaveResult | null {
+  if (matches === null) return { ok: false, message: "Couldn't check whether it's already here, so nothing was saved. Try again." };
+  if (!matches.length) return null;
+  if (matches.some((match) => match.hard)) {
+    return { ok: false, matches, message: `${org.name} in ${org.city} is already here. Open it instead.` };
+  }
+  if (!org.confirmNew) {
+    return { ok: false, matches, message: "This might already be here. Open the match, or say it's a different one." };
+  }
+  return null;
+}
+
+export async function createOrg(ownerEmail: string, raw: Partial<OrgInput>): Promise<OrgSaveResult> {
+  const org = cleanOrgInput(raw);
+  if (typeof org === "string") return { ok: false, message: org };
+  const cc = org.kind === "church" ? await ccConfig() : null;
+  if (org.kind === "church" && !cc) return { ok: false, message: savingOffMessage() };
+  if (org.kind === "business" && !lplConfig()) return { ok: false, message: savingOffMessage() };
+
+  const blocked = matchBlock(org, await findOrgMatches(org));
+  if (blocked) return blocked;
+
+  if (org.kind === "church") {
+    const result = await callChurchConnect(cc as CcConfig, "POST", "/api/church-crm/leads", ownerEmail, {
+      church_name: org.name,
+      city: org.city,
+      state: org.state,
+      website: org.website,
+      contact_phone: org.phone,
+      contact_email: org.email,
+      crm_offers: org.offers
+    });
+    if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
+    const existing = typeof result.json?.existing_id === "string" ? result.json.existing_id : "";
+    if (result.json?.success === false && existing) {
+      return {
+        ok: false,
+        message: `${org.name} in ${org.city} is already in ChurchConnect. Open it instead.`,
+        matches: [{ kind: "church", id: existing, name: org.name, town: [org.city, org.state].filter(Boolean).join(", "), why: ["same name and town"], hard: true }]
+      };
+    }
+    const id = typeof result.json?.church_id === "string" ? result.json.church_id : "";
+    if (!UUID_RE.test(id)) return { ok: false, message: "ChurchConnect didn't say it saved. Reload before trying again." };
+    return { ok: true, kind: "church", id, message: `Added ${org.name}. It stays hidden from the public directory until it's real.` };
+  }
+  return insertBusinessLead(org);
+}
+
+async function insertBusinessLead(org: CleanOrg): Promise<OrgSaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const headers = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}`, "Content-Type": "application/json", Prefer: "return=representation" };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const suffix = attempt === 0 ? "" : crypto.randomUUID().slice(0, 4);
+    try {
+      const response = await fetch(`${config.url}/rest/v1/op_leads?select=id`, {
+        method: "POST",
+        headers,
+        cache: "no-store",
+        body: JSON.stringify({
+          slug: leadSlug(org.name, org.city, suffix),
+          business_name: org.name,
+          kind: "shop",
+          city: org.city || null,
+          state: org.state || null,
+          phone: org.phone || null,
+          email: org.email || null,
+          website_url: org.website || null,
+          // Not scored yet: "refresh" is the mildest "has a site" value; "none" when there is no site.
+          site_status: org.website ? "refresh" : "none",
+          status: "new",
+          send_invite: false,
+          source: "appengine_crm",
+          signals: { services: org.offers, added_from: "owner_desk", site_scored: false }
+        })
+      });
+      if (response.status === 409) continue; // slug clash: try a suffix
+      if (!response.ok) return { ok: false, message: "The business couldn't be saved. Nothing was saved — try again." };
+      const [row] = ((await response.json()) as Array<{ id?: string }>) ?? [];
+      if (!row?.id) return { ok: false, message: "The business didn't come back saved. Reload before trying again." };
+      return { ok: true, kind: "business", id: row.id, message: `Added ${org.name} as a business lead.` };
+    } catch {
+      return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
+    }
+  }
+  return { ok: false, message: "Couldn't find a free short name for this business. Change the name a little and try again." };
+}
+
+export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw: Partial<OrgInput>): Promise<OrgSaveResult> {
+  if (!UUID_RE.test(id)) return { ok: false, message: "That org can't be edited here. Reload the page." };
+  const org = cleanOrgInput(raw, kind);
+  if (typeof org === "string") return { ok: false, message: org };
+  const cc = kind === "church" ? await ccConfig() : null;
+  if (kind === "church" && !cc) return { ok: false, message: savingOffMessage() };
+  if (kind === "business" && !lplConfig()) return { ok: false, message: savingOffMessage() };
+
+  const blocked = matchBlock(org, await findOrgMatches(org, { kind, id }));
+  if (blocked) return blocked;
+
+  if (kind === "church") {
+    const result = await callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail, {
+      church_name: org.name,
+      city: org.city,
+      state: org.state,
+      website: org.website,
+      contact_phone: org.phone,
+      contact_email: org.email,
+      crm_offers: org.offers
+    });
+    if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
+    return { ok: true, kind, id, message: `Saved ${org.name}.` };
+  }
+
+  const config = lplConfig() as LplConfig;
+  const headers = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` };
+  try {
+    const read = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}&select=signals&limit=1`, { method: "GET", headers, cache: "no-store" });
+    if (!read.ok) return { ok: false, message: "The business couldn't be read. Nothing was saved." };
+    const [row] = ((await read.json()) as Array<{ signals?: Record<string, unknown> }>) ?? [];
+    if (!row) return { ok: false, message: "That business isn't there any more." };
+    const signals = { ...(row.signals && typeof row.signals === "object" ? row.signals : {}), services: org.offers };
+    const response = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}`, {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json", Prefer: "return=minimal" },
+      cache: "no-store",
+      body: JSON.stringify({
+        business_name: org.name,
+        city: org.city || null,
+        state: org.state || null,
+        phone: org.phone || null,
+        email: org.email || null,
+        website_url: org.website || null,
+        signals,
+        updated_at: new Date().toISOString()
+      })
+    });
+    if (!response.ok) return { ok: false, message: "The business couldn't be saved. Nothing was saved — try again." };
+    return { ok: true, kind, id, message: `Saved ${org.name}.` };
+  } catch {
+    return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
+  }
 }

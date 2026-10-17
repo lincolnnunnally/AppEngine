@@ -4,13 +4,60 @@
 // org or person, applies the don't-repeat rule and the hard stops, and builds
 // the daily follow-up list. Nothing here writes anywhere.
 
-export type CrmApp = "churchconnect" | "laser" | "presence";
+export type CrmApp = "churchconnect" | "laser" | "presence" | "business";
 
 export const CRM_APP_LABEL: Record<CrmApp, string> = {
   churchconnect: "ChurchConnect",
   laser: "Laser",
-  presence: "Presence"
+  presence: "Presence",
+  // Business prospects (op_leads): Operate, AI Website Design, Easy Peazy, Laser.
+  business: "Business lead"
 };
+
+// ── Orgs the owner adds or edits from the desk ─────────────────────────────
+
+export type OrgKind = "church" | "business";
+
+/** The basics the desk can edit. Church → ChurchConnect church; business → op_leads row. */
+export type CrmOrg = {
+  kind: OrgKind;
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  website: string;
+  phone: string;
+  email: string;
+  /** Apps the owner picked (church: the church rule's ids; business: the business list). */
+  offers: string[];
+};
+
+// Church words (MAP: port of Easy Peazy is_church + a name list). Unclear = church.
+const CHURCH_NAME_RE =
+  /\b(church|chapel|baptist|methodist|ministry|ministries|parish|cathedral|fellowship|assembly|assemblies|tabernacle|temple|congregation|worship|catholic|lutheran|presbyterian|episcopal|pentecostal|apostolic|adventist|nazarene|mission|missions|diocese|basilica|sanctuary|gospel|christian|bible|ame|umc|cme|cogic)\b/i;
+
+export function looksLikeChurch(name: unknown): boolean {
+  return CHURCH_NAME_RE.test(String(name ?? ""));
+}
+
+/**
+ * Church or business. "Not sure" (or anything unclear) is a church. Picking
+ * "business" for a church-sounding name needs an explicit "yes, it's a business".
+ */
+export function resolveOrgKind(raw: unknown, name: unknown, confirmBusiness: boolean): { kind: OrgKind } | { error: string } {
+  const pick = String(raw ?? "").trim().toLowerCase();
+  if (pick !== "business") return { kind: "church" };
+  if (looksLikeChurch(name) && !confirmBusiness) {
+    return { error: "That name sounds like a church. Tick \"Yes, this is a business, not a church\" or pick Church." };
+  }
+  return { kind: "business" };
+}
+
+/** Admins see the org's name and town only; the owner also sees phone and email. */
+export function orgForViewer(org: CrmOrg | null, isOwner: boolean): CrmOrg | null {
+  if (!org || isOwner) return org;
+  return { ...org, phone: "", email: "" };
+}
 
 export type MatchKind = "id" | "email" | "domain" | "phone";
 
@@ -122,6 +169,8 @@ export type CrmNode = {
   contacts?: CrmContact[];
   /** A visit logged from the desk marked this church do-not-contact (the desk may undo it). */
   deskDoNotContact?: boolean;
+  /** Basics the owner can edit from the desk (ChurchConnect church or business lead). */
+  org?: CrmOrg;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
@@ -168,6 +217,8 @@ export type CrmCard = {
   contacts: CrmContact[];
   /** A visit logged from the desk set do-not-contact on this church; the owner can undo it. */
   deskDoNotContact: boolean;
+  /** The org's editable basics (church first). Phone and email are removed for viewers who are not the owner. */
+  org: CrmOrg | null;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -382,7 +433,7 @@ class Union {
 }
 
 const KIND_RANK: Record<CrmNode["kind"], number> = { org: 0, place: 1, batch: 2, event: 3, person: 4 };
-const APP_RANK: Record<CrmApp, number> = { churchconnect: 0, presence: 1, laser: 2 };
+const APP_RANK: Record<CrmApp, number> = { churchconnect: 0, presence: 1, laser: 2, business: 3 };
 
 function nodeKeys(node: CrmNode): { email: string[]; domain: string[]; phone: string[] } {
   const emails = [...new Set(node.emails.map(normEmail).filter(Boolean))];
@@ -438,6 +489,12 @@ function recordPathsOf(members: CrmNode[]): Partial<Record<CrmApp, string>> {
 }
 
 /** The one church the desk may write to: only when exactly one non-context church record is on the card. */
+/** The org the desk edits: the ChurchConnect church if there is one, else the business lead. */
+function orgOf(members: CrmNode[]): CrmOrg | null {
+  const orgs = members.filter((member) => member.org && !member.contextOnly).map((member) => member.org as CrmOrg);
+  return orgs.find((org) => org.kind === "church") ?? orgs[0] ?? null;
+}
+
 function churchIdOf(members: CrmNode[]): string | null {
   const ids = [...new Set(members.filter((member) => member.churchId && !member.contextOnly).map((member) => member.churchId as string))];
   return ids.length === 1 ? ids[0] : null;
@@ -585,7 +642,8 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       recordPaths: recordPathsOf(members),
       churchId: churchIdOf(members),
       contacts: contactsOf(members),
-      deskDoNotContact: members.some((member) => member.deskDoNotContact && !member.contextOnly)
+      deskDoNotContact: members.some((member) => member.deskDoNotContact && !member.contextOnly),
+      org: orgOf(members)
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));
