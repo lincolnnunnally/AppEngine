@@ -510,7 +510,8 @@ await runStep("church contacts: one list per card, details only for the owner", 
   const page = read("src/app/(cockpit)/crm/page.tsx");
   assertIncludes(page, "contactsForViewer(card.contacts, isOwner)", "page strips details for non-owners");
   assertIncludes(page, "cards={viewCards}", "stripped cards reach the browser");
-  assertIncludes(page, "const canSave = isOwner && crmSavingConfigured()", "only the owner gets save forms");
+  assertIncludes(page, "const canSave = isOwner && (await crmSavingConfigured())", "only the owner gets save forms");
+  assertIncludes(page, "const savingOff = isOwner && !canSave ? savingOffMessage() : \"\"", "owner-only note when saving is off");
 });
 
 await runStep("saving: owner-only server actions, narrow pass, one save per form", () => {
@@ -520,7 +521,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   const exported = actions.match(/export async function \w+Action/g) || [];
   assert(exported.length >= 2 && gates.length === exported.length, `every action checks the owner first (${gates.length}/${exported.length})`);
   const writer = read("src/lib/engine/lpl-crm-write.ts");
-  for (const needle of ['iss: CRM_PASS_ISSUER', 'aud: CRM_PASS_AUDIENCE', "htm: method", "htu: path", "CRM_PASS_TTL_SECONDS = 90", '"X-Engine-Pass"', "APPENGINE_CC_CRM_SECRET", "client_ref: visit.clientRef", 'reason: "do_not_contact"', "insert.status !== 409"]) {
+  for (const needle of ['iss: CRM_PASS_ISSUER', 'aud: CRM_PASS_AUDIENCE', "htm: method", "htu: path", "CRM_PASS_TTL_SECONDS = 90", '"X-Engine-Pass"', "resolveCrmSecret(env)", "savingOffMessage()", "client_ref: visit.clientRef", 'reason: "do_not_contact"', "insert.status !== 409"]) {
     assertIncludes(writer, needle, "writer contract");
   }
   assertIncludes(writer, "/api/church-crm/leads/${visit.churchId}/activities", "visits go through ChurchConnect");
@@ -536,6 +537,76 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(tools, "disabled={pending}", "button locks while saving");
   const desk = read("src/components/engine/crm-desk.tsx");
   assert(!desk.includes("lpl-crm-write"), "desk never imports the writer");
+});
+
+await runStep("pass secret: env var first, else the shared database row; cached; fails closed", async () => {
+  const src = read("src/lib/engine/crm-pass-secret.ts");
+  assert(!/console\.(log|error|warn|info)/.test(src), "secret module never logs");
+  const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
+  const DB_VALUE = "d".repeat(64);
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push({ url, auth: init.headers.Authorization });
+    return new Response(JSON.stringify([{ value: DB_VALUE }]), { status: 200 });
+  };
+  const serverEnv = { SUPABASE_URL: "https://lpl.example.test", SUPABASE_SERVICE_ROLE_KEY: "server-key" };
+  mod.clearCrmSecretCache();
+  assert((await mod.resolveCrmSecret({ ...serverEnv, APPENGINE_CC_CRM_SECRET: "e".repeat(64) }, fetcher, 0)) === "e".repeat(64), "env var wins");
+  assert(calls.length === 0, "env var means no database read");
+  assert((await mod.resolveCrmSecret(serverEnv, fetcher, 1000)) === DB_VALUE, "database row when no env var");
+  assert(calls.length === 1 && calls[0].url.endsWith("/rest/v1/app_shared_secrets?name=eq.cc_crm_owner_desk&select=value&limit=1") && calls[0].auth === "Bearer server-key", "reads only that row with the server key");
+  await mod.resolveCrmSecret(serverEnv, fetcher, 1000 + mod.CRM_SECRET_CACHE_MS - 1);
+  assert(calls.length === 1, "cached for a few minutes");
+  await mod.resolveCrmSecret(serverEnv, fetcher, 1000 + mod.CRM_SECRET_CACHE_MS + 1);
+  assert(calls.length === 2, "refreshed after the cache expires");
+  // Preview: only the public URL + publishable key, no server key.
+  mod.clearCrmSecretCache();
+  const previewEnv = { NEXT_PUBLIC_SUPABASE_URL: "https://lpl.example.test", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "pub", VERCEL_ENV: "preview" };
+  assert((await mod.resolveCrmSecret(previewEnv, fetcher, 5000)) === "", "no server key: no secret");
+  assert(calls.length === 2, "no server key: no request at all");
+  mod.clearCrmSecretCache();
+  const broken = async () => new Response("nope", { status: 401 });
+  assert((await mod.resolveCrmSecret(serverEnv, broken, 9000)) === "", "unreadable row fails closed");
+  const thrower = async () => { throw new Error("network"); };
+  mod.clearCrmSecretCache();
+  assert((await mod.resolveCrmSecret(serverEnv, thrower, 9000)) === "", "network error fails closed, never throws");
+  mod.clearCrmSecretCache();
+  const short = async () => new Response(JSON.stringify([{ value: "short" }]), { status: 200 });
+  assert((await mod.resolveCrmSecret(serverEnv, short, 9000)) === "", "a short value is refused");
+  mod.clearCrmSecretCache();
+  assert((await mod.resolveCrmSecret({ APPENGINE_CC_CRM_SECRET: "tooshort" }, fetcher, 0)) === "", "a short env value is refused");
+  const writer = read("src/lib/engine/lpl-crm-write.ts");
+  assertIncludes(writer, 'return env.VERCEL_ENV === "production" ? "Saving isn\'t switched on yet." : "Saving isn\'t available on this preview.";', "clear fail-closed wording");
+  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 2, "both saves fail closed");
+  // Nothing that runs in the browser may import the secret module.
+  for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx"]) {
+    const text = read(rel);
+    assert(!text.includes("crm-pass-secret") && !text.includes("app_shared_secrets"), `${rel} never touches the secret`);
+  }
+});
+
+await runStep("client bundle: no pass secret, secret env name, or secrets table (when .next exists)", () => {
+  const dir = path.join(repoRoot, ".next", "static");
+  if (!fs.existsSync(dir)) {
+    console.log("     (skipped: run after next build)");
+    return;
+  }
+  const needles = ["APPENGINE_CC_CRM_SECRET", "app_shared_secrets", "cc_crm_owner_desk", "SUPABASE_SERVICE_ROLE_KEY"];
+  if ((process.env.APPENGINE_CC_CRM_SECRET || "").length >= 32) needles.push(process.env.APPENGINE_CC_CRM_SECRET);
+  const hits = [];
+  const walk = (folder) => {
+    for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
+      const full = path.join(folder, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(js|css|json|html|txt)$/.test(entry.name)) {
+        const text = fs.readFileSync(full, "utf8");
+        for (const needle of needles) if (text.includes(needle)) hits.push(`${path.relative(repoRoot, full)} has ${needle.length > 40 ? "the secret value" : needle}`);
+      }
+    }
+  };
+  walk(dir);
+  assert(hits.length === 0, hits.join("; "));
 });
 
 await runStep("church rule: exactly four offers, never a business tool, never 'marketing'", async () => {

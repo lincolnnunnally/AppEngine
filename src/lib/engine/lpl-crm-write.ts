@@ -9,6 +9,7 @@
 // Nothing here logs a body, a contact detail, or the pass. Nothing is sent to
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
+import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { domainFromEmail, normDomain, normEmail, normPhone } from "@/lib/engine/lpl-crm-core";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
@@ -44,15 +45,22 @@ export type VisitInput = {
 
 type CcConfig = { base: string; secret: string };
 
-function ccConfig(env: Record<string, string | undefined> = process.env): CcConfig | null {
+/** Where to save and how to sign. The secret: env var if set, else the shared database row (cached). */
+async function ccConfig(env: Record<string, string | undefined> = process.env): Promise<CcConfig | null> {
   const base = (env.CHURCHCONNECT_API_URL || "https://www.churchconnect.cloud").trim().replace(/\/$/, "");
-  const secret = (env.APPENGINE_CC_CRM_SECRET || "").trim();
-  if (!/^https:\/\//.test(base) || secret.length < 32) return null;
+  if (!/^https:\/\//.test(base)) return null;
+  const secret = await resolveCrmSecret(env);
+  if (!secret) return null;
   return { base, secret };
 }
 
-export function crmSavingConfigured(env: Record<string, string | undefined> = process.env): boolean {
-  return ccConfig(env) !== null;
+export async function crmSavingConfigured(env: Record<string, string | undefined> = process.env): Promise<boolean> {
+  return (await ccConfig(env)) !== null;
+}
+
+/** Owner-only wording for a deploy that can't save. */
+export function savingOffMessage(env: Record<string, string | undefined> = process.env): string {
+  return env.VERCEL_ENV === "production" ? "Saving isn't switched on yet." : "Saving isn't available on this preview.";
 }
 
 /** A pass for exactly one call: this method, this path, this owner, under 2 minutes. */
@@ -164,8 +172,8 @@ function failure(status: number, json: Record<string, unknown> | null): string {
 }
 
 export async function saveChurchContact(ownerEmail: string, churchId: string, raw: Partial<ContactInput>): Promise<SaveResult> {
-  const config = ccConfig();
-  if (!config) return { ok: false, message: "Saving isn't switched on yet." };
+  const config = await ccConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
   if (!UUID_RE.test(churchId)) return { ok: false, message: "Contacts can only be saved on a ChurchConnect church." };
   const contact = cleanContactInput(raw);
   if (typeof contact === "string") return { ok: false, message: contact };
@@ -181,8 +189,8 @@ export async function saveChurchContact(ownerEmail: string, churchId: string, ra
 }
 
 export async function logChurchVisit(ownerEmail: string, raw: Partial<VisitInput>): Promise<SaveResult> {
-  const config = ccConfig();
-  if (!config) return { ok: false, message: "Saving isn't switched on yet." };
+  const config = await ccConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
   const visit = cleanVisitInput(raw);
   if (typeof visit === "string") return { ok: false, message: visit };
   const label = visit.kind === "visit" ? "Visit" : "Drop-off";

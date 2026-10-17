@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer } from "@/lib/engine/lpl-crm-core";
-import { crmSavingConfigured } from "@/lib/engine/lpl-crm-write";
+import { crmSavingConfigured, savingOffMessage } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,9 @@ export const dynamic = "force-dynamic";
 export default async function CrmPage() {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const isOwner = await canAccessEngineOwner();
-  const canSave = isOwner && crmSavingConfigured();
+  const canSave = isOwner && (await crmSavingConfigured());
+  // Owner-only note when this deploy can't save (an AppEngine preview has no server key).
+  const savingOff = isOwner && !canSave ? savingOffMessage() : "";
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
   // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
@@ -91,6 +93,11 @@ export default async function CrmPage() {
           <p className="dx-callout dx-callout--alert" role="alert">
             The do-not-contact list could not be read, so no outreach is suggested right now. Only event and token prep is
             listed. Reload in a minute.
+          </p>
+        ) : null}
+        {savingOff ? (
+          <p className="dx-callout" role="status">
+            {savingOff} You can look, but visits and contacts can&apos;t be saved from here.
           </p>
         ) : null}
         <p className="dx-note crm-asof">
