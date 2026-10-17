@@ -14,7 +14,7 @@
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
-import { cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
+import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
 import { domainFromEmail, normDomain, normEmail, normName, normPhone, resolveOrgKind, type OrgKind } from "@/lib/engine/lpl-crm-core";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
@@ -364,9 +364,9 @@ export async function undoChurchDoNotContact(ownerEmail: string, churchId: strin
   // Read back: nothing this desk added for this church may remain.
   const left = await deskSuppressions(churchId, false);
   if (removed === null || left !== 0) {
-    return { ok: false, message: "The church is back in the pipeline, but the do-not-contact list couldn't be cleared. Try again." };
+    return { ok: false, message: "The church was undone in ChurchConnect, but the do-not-contact list couldn't be cleared, so it stays stopped. Try again." };
   }
-  return { ok: true, message: `Undone. Removed ${removed} do-not-contact ${removed === 1 ? "entry" : "entries"}; the church is back in the pipeline.` };
+  return { ok: true, message: "Undone. You can contact this church again." };
 }
 
 // ── Add or edit an org (church → ChurchConnect, business → op_leads) ───────
@@ -383,6 +383,8 @@ export type OrgInput = {
   offers: string[];
   /** The owner looked at the possible matches and says this is a different org. */
   confirmNew?: boolean;
+  /** Business edit: the row's updated_at when the form was opened (stale-save check). */
+  version?: string;
 };
 
 export type CleanOrg = {
@@ -695,15 +697,23 @@ export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw
 
   const config = lplConfig() as LplConfig;
   const headers = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` };
+  const STALE = "Someone else changed this business since you opened it. Reload, check it, and save again.";
   try {
-    const read = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}&select=signals&limit=1`, { method: "GET", headers, cache: "no-store" });
+    const read = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}&select=signals,services,updated_at&limit=1`, { method: "GET", headers, cache: "no-store" });
     if (!read.ok) return { ok: false, message: "The business couldn't be read. Nothing was saved." };
-    const [row] = ((await read.json()) as Array<{ signals?: Record<string, unknown> }>) ?? [];
+    const [row] = ((await read.json()) as Array<{ signals?: Record<string, unknown>; services?: unknown; updated_at?: string | null }>) ?? [];
     if (!row) return { ok: false, message: "That business isn't there any more." };
-    const signals = { ...(row.signals && typeof row.signals === "object" ? row.signals : {}), services: org.offers };
-    const response = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}`, {
+    // Stale-save check: the form carries the updated_at it was opened with.
+    const version = text(raw.version, 64);
+    if (version && row.updated_at && version !== row.updated_at) return { ok: false, message: STALE };
+    const services = mergeBusinessServices(row.services, org.offers);
+    const prevSignals = row.signals && typeof row.signals === "object" ? row.signals : {};
+    const signals = { ...prevSignals, services: mergeBusinessServices(prevSignals.services, org.offers) };
+    // Guarded on the updated_at we just read, so a save that lands in between isn't overwritten.
+    const guard = row.updated_at ? `&updated_at=eq.${encodeURIComponent(row.updated_at)}` : "";
+    const response = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}${guard}&select=id`, {
       method: "PATCH",
-      headers: { ...headers, "Content-Type": "application/json", Prefer: "return=minimal" },
+      headers: { ...headers, "Content-Type": "application/json", Prefer: "return=representation" },
       cache: "no-store",
       body: JSON.stringify({
         business_name: org.name,
@@ -712,16 +722,28 @@ export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw
         phone: org.phone || null,
         email: org.email || null,
         website_url: org.website || null,
-        services: org.offers,
+        services,
         signals,
         updated_at: new Date().toISOString()
       })
     });
     if (!response.ok) return { ok: false, message: "The business couldn't be saved. Nothing was saved — try again." };
+    const saved = (await response.json()) as unknown[];
+    if (!Array.isArray(saved) || saved.length !== 1) return { ok: false, message: STALE };
     return { ok: true, kind, id, message: `Saved ${org.name}.` };
   } catch {
     return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
   }
+}
+
+/**
+ * The apps picked on the form replace only the apps the form shows. Anything
+ * else already on the row (a hidden or older service) is kept.
+ */
+export function mergeBusinessServices(current: unknown, picked: string[]): string[] {
+  const shown = new Set<string>(BUSINESS_OFFER_IDS);
+  const kept = (Array.isArray(current) ? current : []).map((value) => String(value ?? "").trim()).filter((value) => value && !shown.has(value));
+  return [...new Set([...kept, ...picked])];
 }
 
 // ── Business leads: contacts, visits and drop-offs, do-not-contact ─────────
@@ -848,7 +870,7 @@ export function leadSuppressionRows(lead: LeadRow): SuppressionRow[] {
   });
 }
 
-/** A day typed on the form, stored as noon Eastern (16:00 UTC) so the reader shows the same calendar day. */
+/** A day typed on the form, stored as 16:00 UTC (noon Eastern in summer, 11 AM in winter) so the reader shows the same calendar day. */
 export function leadDayStamp(day: string): string {
   return `${day}T16:00:00.000Z`;
 }
@@ -900,19 +922,79 @@ export async function logBusinessVisit(ownerEmail: string, raw: Partial<VisitInp
   return { ok: true, duplicate, message: duplicate ? `${label} was already saved.` : `${label} saved.` };
 }
 
+/** A PostgREST filter value in double quotes (commas, dots and parens inside stay literal). */
+function pgQuoted(value: string): string {
+  return `"${value.replace(/[\\"]/g, (char) => `\\${char}`)}"`;
+}
+
+/**
+ * Rows already on the shared do-not-contact list that match any of these (any source).
+ * The query is case-insensitive and may over-match; callers compare exactly with sameSuppression.
+ */
+async function existingSuppressions(config: LplConfig, rows: SuppressionRow[]): Promise<Array<SuppressionRow & { reason?: string; source?: string }> | null> {
+  const ors: string[] = [];
+  for (const row of rows) {
+    if (row.email) ors.push(`email.ilike.${pgQuoted(row.email)}`);
+    if (row.domain) ors.push(`domain.ilike.${pgQuoted(row.domain)}`);
+    if (row.phone) ors.push(`phone.eq.${pgQuoted(row.phone)}`);
+  }
+  if (!ors.length) return [];
+  try {
+    const filter = encodeURIComponent(`(${ors.join(",")})`);
+    const response = await fetch(`${config.url}/rest/v1/outreach_suppressions?or=${filter}&select=email,domain,phone,reason,source&limit=500`, {
+      method: "GET",
+      headers: lplHeaders(config),
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const found = (await response.json()) as Array<SuppressionRow & { reason?: string; source?: string }>;
+    if (!Array.isArray(found)) return null;
+    return found.filter((hit) => rows.some((row) => sameSuppression(row, hit)));
+  } catch {
+    return null;
+  }
+}
+
+function sameSuppression(a: SuppressionRow, b: SuppressionRow): boolean {
+  if (a.email) return normEmail(b.email) === a.email;
+  if (a.domain) return normDomain(b.domain) === a.domain;
+  if (a.phone) return normPhone(b.phone) === a.phone;
+  return false;
+}
+
+/** Plain words for why a business is on the list, from the strongest reason found. */
+export function suppressionReasonWords(reasons: string[]): string {
+  const set = new Set(reasons.map((reason) => String(reason || "").toLowerCase()));
+  if (set.has("do_not_contact") || set.has("manual")) return "they asked not to be contacted";
+  if (set.has("opt_out") || set.has("complaint")) return "they opted out";
+  if (set.has("bounce")) return "an email to them bounced";
+  return "it's on the do-not-contact list";
+}
+
 async function addLeadToDoNotContact(config: LplConfig, lead: LeadRow): Promise<boolean> {
   try {
-    for (const row of leadSuppressionRows(lead)) {
+    const wanted = leadSuppressionRows(lead);
+    // Dedupe in code: anything already on the list (from any source) is left alone and not tagged as ours.
+    const existing = await existingSuppressions(config, wanted);
+    if (existing === null) return false;
+    for (const row of wanted) {
+      if (existing.some((found) => sameSuppression(row, found))) continue;
       const insert = await fetch(`${config.url}/rest/v1/outreach_suppressions`, {
         method: "POST",
         headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({ ...row, brand: "all", reason: "do_not_contact", source: leadSuppressionSource(lead.id) }),
         cache: "no-store"
       });
+      // 409: the list's unique email/domain/phone index says someone added it between our check and now. It's listed; fine.
       if (!insert.ok && insert.status !== 409) return false;
     }
-    if (lead.status === "suppressed") return true;
-    const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}), dnc_source: "crm_visit", dnc_prev_status: lead.status || "new" };
+    const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
+    // Already marked from this desk (a repeat): keep the status it had before the first time.
+    if (lead.status === "suppressed" && signals.dnc_source === "crm_visit") return true;
+    // Always mark it, even when it was already suppressed some other way, so the rows tagged
+    // above can be undone. Undo puts back exactly this status ("suppressed" stays suppressed).
+    signals.dnc_source = "crm_visit";
+    signals.dnc_prev_status = lead.status || "new";
     return await patchLeadIfUnchanged(config, lead, { status: "suppressed", signals });
   } catch {
     return false;
@@ -946,14 +1028,35 @@ export async function undoBusinessDoNotContact(_ownerEmail: string, leadId: stri
   const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
   // Only a do-not-contact this desk set can be undone here.
   if (signals.dnc_source !== "crm_visit") return { ok: false, message: "This business wasn't marked do-not-contact from this desk." };
-  const prev = typeof signals.dnc_prev_status === "string" && signals.dnc_prev_status !== "suppressed" ? signals.dnc_prev_status : "new";
+  const prevRaw = typeof signals.dnc_prev_status === "string" ? signals.dnc_prev_status : "new";
   delete signals.dnc_source;
   delete signals.dnc_prev_status;
   const removed = await leadSuppressions(config, leadId, true);
   const left = await leadSuppressions(config, leadId, false);
   if (removed === null || left !== 0) return { ok: false, message: "The do-not-contact list couldn't be cleared. Nothing else was changed — try again." };
-  if (!(await patchLeadIfUnchanged(config, lead, { status: prev, signals }))) {
-    return { ok: false, message: "The do-not-contact entries were removed, but the business couldn't be put back. Reload and undo again." };
+  // Never reopen a business that is still on the list some other way (its email or phone, any source).
+  const own: SuppressionRow[] = [
+    ...(normEmail(lead.email) ? [{ email: normEmail(lead.email) }] : []),
+    ...(normPhone(lead.phone) ? [{ phone: normPhone(lead.phone) }] : [])
+  ];
+  const still = await existingSuppressions(config, own);
+  if (still === null) {
+    // Can't tell: fail closed, keep it stopped.
+    if (!(await patchLeadIfUnchanged(config, lead, { status: "suppressed", signals }))) {
+      return { ok: false, message: "Your do-not-contact entries were removed, but the business couldn't be updated. Reload and undo again." };
+    }
+    return { ok: true, message: "Your do-not-contact entries were removed, but the list couldn't be checked, so this business stays stopped for now." };
   }
-  return { ok: true, message: `Undone. Removed ${removed} do-not-contact ${removed === 1 ? "entry" : "entries"}; the business is back on the list.` };
+  const elsewhere = still.length > 0;
+  const status = elsewhere || prevRaw === "suppressed" ? "suppressed" : prevRaw;
+  if (!(await patchLeadIfUnchanged(config, lead, { status, signals }))) {
+    return { ok: false, message: "Your do-not-contact entries were removed, but the business couldn't be updated. Reload and undo again." };
+  }
+  if (elsewhere) {
+    return { ok: true, message: `Your do-not-contact entries were removed, but this business is still on the do-not-contact list because ${suppressionReasonWords(still.map((row) => row.reason ?? ""))}. Don't contact it.` };
+  }
+  if (status === "suppressed") {
+    return { ok: true, message: "Your do-not-contact entries were removed, but this business was already stopped before, so it stays stopped. Don't contact it." };
+  }
+  return { ok: true, message: "Undone. You can contact this business again." };
 }

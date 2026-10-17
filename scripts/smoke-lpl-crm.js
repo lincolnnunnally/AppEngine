@@ -533,7 +533,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(writer, 'if (env.VERCEL_ENV === "production") return {};', "preview bypass never sent from production");
   // PATCH: only a church's basics through ChurchConnect (pass-bound) and a business lead row.
   // Direct PATCHes: a business lead's basics (editOrg) and the guarded lead update (contacts, do-not-contact). Never a church.
-  assert((writer.match(/method: "PATCH"/g) || []).length === 2 && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}`, {\n      method: "PATCH"') && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${lead.id}${guard}&select=id`, {\n      method: "PATCH"'), "direct PATCHes are business leads only");
+  assert((writer.match(/method: "PATCH"/g) || []).length === 2 && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}${guard}&select=id`, {\n      method: "PATCH"') && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${lead.id}${guard}&select=id`, {\n      method: "PATCH"'), "direct PATCHes are business leads only");
   assert(!/rest\/v1\/cc_churches[^`]*`,\s*\{\s*method: "(PATCH|POST|DELETE)"/.test(writer), "never writes cc_churches directly");
   assertIncludes(writer, 'callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail', "church edits go through ChurchConnect");
   // The only deletes: one saved contact (through ChurchConnect, pass-bound) and this desk's own do-not-contact rows for one church.
@@ -793,6 +793,41 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
   assert(!tools.includes('name="church_id"'), "no hard-wired church field left");
   assertIncludes(tools, 'if (card.churchId) return { field: "church_id"', "a church wins over a lead");
   assert(!/export function (Business|Lead)\w*Tools/.test(tools), "no parallel business component");
+
+  // EA round 3: undo never reopens a lead still on the list elsewhere; tagged rows are always removable.
+  const undo = writer.slice(writer.indexOf("export async function undoBusinessDoNotContact"));
+  assert(undo.indexOf("existingSuppressions(config, own)") > undo.indexOf("if (removed === null || left !== 0)"), "undo checks the list for the lead's email/phone after removing its own rows");
+  assertIncludes(undo, 'const status = elsewhere || prevRaw === "suppressed" ? "suppressed" : prevRaw;', "still listed elsewhere (or stopped before) stays suppressed");
+  assertIncludes(undo, "still on the do-not-contact list because", "says plainly why it stays stopped");
+  assertIncludes(undo, '"Undone. You can contact this business again."', "undo wording (business)");
+  assertIncludes(writer, '"Undone. You can contact this church again."', "undo wording (church)");
+  assert(!writer.includes("back on the list") && !writer.includes("back in the pipeline"), "old undo wording gone");
+  const add = writer.slice(writer.indexOf("async function addLeadToDoNotContact"), writer.indexOf("async function leadSuppressions("));
+  assert(!add.includes('if (lead.status === "suppressed") return true;'), "an already-suppressed lead still gets dnc_source, so its tagged rows can be undone");
+  assertIncludes(add, 'signals.dnc_source = "crm_visit";', "always tags the lead");
+  assert(add.indexOf("existingSuppressions(config, wanted)") < add.indexOf("method: \"POST\""), "dedupe: checks the list before inserting");
+  assertIncludes(add, "if (existing.some((found) => sameSuppression(row, found))) continue;", "never re-adds or re-tags a row already on the list");
+  // editOrg (business): stale-save check and services merged, not replaced.
+  const edit = writer.slice(writer.indexOf("export async function editOrg"), writer.indexOf("export function mergeBusinessServices"));
+  assertIncludes(edit, "if (version && row.updated_at && version !== row.updated_at) return { ok: false, message: STALE };", "stale form refused");
+  assertIncludes(edit, "const services = mergeBusinessServices(row.services, org.offers);", "services merged");
+  const merge = new Function("BUSINESS_OFFER_IDS", writer.slice(writer.indexOf("export function mergeBusinessServices")).split("\n}\n")[0].replace("export function mergeBusinessServices(current: unknown, picked: string[]): string[]", "return function (current, picked)").replace("new Set<string>(", "new Set(") + "\n}");
+  const merged = merge(["operate", "awd"])(["toner_legacy", "operate"], ["awd"]);
+  assert(JSON.stringify(merged) === JSON.stringify(["toner_legacy", "awd"]), `merge keeps hidden services, replaces shown ones: ${JSON.stringify(merged)}`);
+  assertIncludes(read("src/components/engine/crm-org-tools.tsx"), 'name="org_version" value={org.version}', "edit form carries the version");
+  assertIncludes(reader, "version: s(row.updated_at)", "business org carries its version");
+  // Banner worded by source.
+  for (const line of ['"Opted out. Do not reach out from any app."', '"Email bounced. Do not reach out from any app until the address is fixed."', '"On the do-not-contact list. Do not reach out from any app."']) assertIncludes(reader, line, "stop line by source");
+  const bounced = buildCards([node({ ...biz, phones: ["7705550111"], declined: "Email bounced. Do not reach out from any app until the address is fixed." })], { emails: new Set(), domains: new Set(), phones: new Set(["7705550111"]) }, NOW);
+  assert(bounced[0].stops.length === 1, `bounced: one stop, not two: ${JSON.stringify(bounced[0].stops)}`);
+  // Confirmations stay on the card after save and undo.
+  assertIncludes(tools, "useSyncExternalStore(subscribeNotices", "confirmation survives the card re-rendering");
+  assertIncludes(tools, "onDone(result.message);", "the server's own words are shown, handed over inside the action (the re-render can unmount the form)");
+  assertIncludes(tools, "<UndoDoNotContact target={target} onDone={done} />", "undo confirmation moves to the card");
+  assertIncludes(tools, "Saved to your CRM only. Nothing is sent to anyone.", "CRM-only line");
+  assertIncludes(writer, "`${label} saved.`", "'Visit saved.' / 'Drop-off saved.'");
+  assert(!tools.includes("The card updates in a moment"), "old vague save line gone");
+  assert(!read("src/app/(cockpit)/crm/page.tsx").includes(",,"), "no double comma");
 });
 
 await runStep("plain words on screen — no vendor names", () => {

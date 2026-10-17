@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
 import { logChurchVisitAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
 
@@ -25,6 +25,32 @@ export function saveTargetOf(card: Pick<CrmCard, "churchId" | "leadId">): SaveTa
   if (card.churchId) return { field: "church_id", id: card.churchId, noun: "church" };
   if (card.leadId) return { field: "lead_id", id: card.leadId, noun: "business" };
   return null;
+}
+
+// Confirmations ("Visit saved.", "Undone. …") live outside the card, keyed by
+// the org, so they stay on screen when the saved card re-renders or moves to
+// another part of the desk. They clear when the owner starts something else.
+const notices = new Map<string, string>();
+const noticeListeners = new Set<() => void>();
+function setNoticeFor(key: string, message: string) {
+  if (message) notices.set(key, message);
+  else notices.delete(key);
+  for (const listener of noticeListeners) listener();
+}
+function subscribeNotices(listener: () => void) {
+  noticeListeners.add(listener);
+  return () => {
+    noticeListeners.delete(listener);
+  };
+}
+function useNotice(key: string): [string, (message: string) => void] {
+  const message = useSyncExternalStore(subscribeNotices, () => notices.get(key) ?? "", () => "");
+  return [message, (next: string) => setNoticeFor(key, next)];
+}
+
+/** Under every save form on a card: what saving does and doesn't do. */
+export function CrmOnlyNote() {
+  return <p className="crm-dim crm-crm-only">Saved to your CRM only. Nothing is sent to anyone.</p>;
 }
 
 export function newId(): string {
@@ -83,7 +109,7 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
   );
 }
 
-function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: SaveTarget; onDone: () => void; onCancel: () => void }) {
+function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: SaveTarget; onDone: (message: string) => void; onCancel: () => void }) {
   const [clientRef, setClientRef] = useState(() => newId());
   const [newContactId] = useState(() => newId());
   const [contactChoice, setContactChoice] = useState("");
@@ -92,13 +118,16 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
   // Do-not-contact: Save stays off until the tick, the same way "Add anyway" waits for its tick.
   const [confirmed, setConfirmed] = useState(false);
   const stopping = outcome === "do_not_contact";
-  const [state, action, pending] = useActionState<CrmFormState, FormData>(logChurchVisitAction, null);
-  useEffect(() => {
-    if (state?.ok) {
+  // The confirmation is handed over as soon as the server answers, inside the action itself:
+  // the same answer re-renders the card, which can unmount this form before an effect would run.
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(async (prev, formData) => {
+    const result = await logChurchVisitAction(prev, formData);
+    if (result?.ok) {
       setClientRef(newId());
-      onDone();
+      onDone(result.message);
     }
-  }, [state, onDone]);
+    return result;
+  }, null);
   const picked = card.contacts.find((contact) => contact.id === contactChoice) ?? null;
   return (
     <form action={action} className="crm-form" data-testid="crm-visit-form">
@@ -206,6 +235,7 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
       <p className="crm-dim">
         A visit lets the {target.noun} rest {VISIT_REST_DAYS} days; a drop-off rests {DROP_OFF_REST_DAYS}.
       </p>
+      <CrmOnlyNote />
       <div className="crm-form-actions">
         <button
           type="submit"
@@ -250,27 +280,42 @@ function RemoveContact({ target, contact, onDone, onCancel }: { target: SaveTarg
   );
 }
 
-function UndoDoNotContact({ target }: { target: SaveTarget }) {
-  const [state, action, pending] = useActionState<CrmFormState, FormData>(undoDoNotContactAction, null);
+function UndoDoNotContact({ target, onDone }: { target: SaveTarget; onDone: (message: string) => void }) {
+  // Undo removes this button in the same re-render that answers; hand the message to the card first.
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(async (prev, formData) => {
+    const result = await undoDoNotContactAction(prev, formData);
+    if (result?.ok) onDone(result.message);
+    return result;
+  }, null);
   return (
     <form action={action} className="crm-undo" data-testid="crm-undo-dnc">
       <input type="hidden" name={target.field} value={target.id} />
       <button type="submit" className="dx-btn" disabled={pending} aria-busy={pending}>
         {pending ? "Undoing…" : "Undo do-not-contact"}
       </button>
-      <Status state={state} />
+      {state?.ok ? null : <Status state={state} />}
     </form>
   );
 }
 
 export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean }) {
-  const [mode, setMode] = useState<"" | "visit" | "add" | string>("");
-  const [notice, setNotice] = useState("");
+  const target = canSave ? saveTargetOf(card) : null;
+  const [mode, setModeRaw] = useState<"" | "visit" | "add" | string>("");
+  const noticeKey = target ? `${target.field}:${target.id}` : "none";
+  const [notice, setNotice] = useNotice(noticeKey);
+  const setMode = (next: string) => {
+    if (next) setNotice("");
+    setModeRaw(next);
+  };
   const close = (message: string) => () => {
-    setMode("");
+    setModeRaw("");
     setNotice(message);
   };
-  const target = canSave ? saveTargetOf(card) : null;
+  // Writes straight to the store, so it lands even if this card re-mounts mid-save.
+  const done = (message: string) => {
+    setNoticeFor(noticeKey, message);
+    setModeRaw("");
+  };
   if (!card.contacts.length && !target) return null;
   return (
     <section className="crm-sub crm-church-tools" aria-label={`People at this ${card.leadId && !card.churchId ? "business" : "church"}`}>
@@ -324,12 +369,12 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
       {target ? (
         <>
           {notice && !mode ? (
-            <p className="crm-form-status crm-ok-text" role="status">
+            <p className="crm-form-status crm-ok-text" role="status" data-testid="crm-people-notice">
               {notice}
             </p>
           ) : null}
           {mode === "add" ? <ContactForm target={target} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}
-          {mode === "visit" ? <VisitForm card={card} target={target} onDone={close("Saved. The card updates in a moment.")} onCancel={close("")} /> : null}
+          {mode === "visit" ? <VisitForm card={card} target={target} onDone={done} onCancel={close("")} /> : null}
           {!mode ? (
             <div className="crm-actions">
               <button type="button" className="dx-btn dx-btn--primary" onClick={() => setMode("visit")}>
@@ -341,7 +386,7 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
             </div>
           ) : null}
           {/* Below the everyday buttons, so it's hard to hit by accident. */}
-          {card.deskDoNotContact && !mode ? <UndoDoNotContact target={target} /> : null}
+          {card.deskDoNotContact && !mode ? <UndoDoNotContact target={target} onDone={done} /> : null}
         </>
       ) : null}
     </section>

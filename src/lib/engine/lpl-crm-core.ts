@@ -30,6 +30,8 @@ export type CrmOrg = {
   email: string;
   /** Apps the owner picked (church: the church rule's ids; business: the business list). */
   offers: string[];
+  /** Business: the row's updated_at, sent back on edit so a stale form can't overwrite a newer save. */
+  version?: string;
 };
 
 // Church words (MAP: port of EasyPeazy is_church + a name list). Unclear = church.
@@ -176,6 +178,9 @@ export type CrmNode = {
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
+
+/** Declined lines that already mean "on the do-not-contact list". */
+export const DNC_DECLINED_RE = /^(Asked not to be contacted|Opted out|Email bounced|On the do-not-contact list)\b/;
 
 export type CrmStop = { reason: "suppressed" | "customer" | "declined"; text: string; app?: CrmApp };
 
@@ -612,8 +617,9 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       keys.some((k) => k.email.some((e) => allEmails.has(e))) ||
       keys.some((k) => k.domain.some((d) => allDomains.has(d))) ||
       keys.some((k) => k.phone.some((p) => allPhones.has(p)));
-    // "Asked not to be contacted" already says it; don't stack a second, generic stop under it.
-    const askedNot = members.some((member) => member.declined?.startsWith("Asked not to be contacted"));
+    // A member's own do-not-contact line ("Asked not to be contacted", "Opted out", "Email bounced")
+    // already says it; don't stack a second, generic stop under it.
+    const askedNot = members.some((member) => DNC_DECLINED_RE.test(member.declined ?? ""));
     if (suppressed && !askedNot) {
       stops.push({ reason: "suppressed", text: "On the do-not-contact list. Do not reach out from any app." });
     }

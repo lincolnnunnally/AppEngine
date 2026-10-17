@@ -253,7 +253,44 @@ function leadContactList(value: unknown): CrmContact[] {
 }
 
 /** A business prospect (op_leads). The desk is its only writer today. */
-export function businessNode(row: Row): CrmNode | null {
+function reasonsFor(row: Row, index?: SuppressionReasonIndex): string[] {
+  if (!index) return [];
+  return [
+    ...(index.emails.get(normEmail(row.email)) ?? []),
+    ...(index.domains.get(normDomain(row.website_url)) ?? []),
+    ...(index.phones.get(normPhone(row.phone)) ?? [])
+  ];
+}
+
+/** Why a suppressed business is stopped, by the list rows that match it. */
+export type SuppressionReasonIndex = { emails: Map<string, string[]>; domains: Map<string, string[]>; phones: Map<string, string[]> };
+
+export function suppressionReasonIndex(rows: Row[]): SuppressionReasonIndex {
+  const index: SuppressionReasonIndex = { emails: new Map(), domains: new Map(), phones: new Map() };
+  const put = (map: Map<string, string[]>, key: string, reason: string) => {
+    if (key) map.set(key, [...(map.get(key) ?? []), reason]);
+  };
+  for (const row of rows) {
+    const reason = s(row.reason).toLowerCase();
+    put(index.emails, normEmail(row.email), reason);
+    put(index.domains, normDomain(row.domain), reason);
+    put(index.phones, normPhone(row.phone), reason);
+  }
+  return index;
+}
+
+/** The stop line for a suppressed business, worded by why: asked, opted out, or bounced. */
+export function businessStopText(signals: Row, reasons: string[]): string {
+  const set = new Set(reasons);
+  if (s(signals.dnc_source) === "crm_visit" || set.has("do_not_contact") || set.has("manual")) {
+    return "Asked not to be contacted. Do not reach out from any app.";
+  }
+  if (set.has("opt_out") || set.has("complaint")) return "Opted out. Do not reach out from any app.";
+  if (set.has("bounce")) return "Email bounced. Do not reach out from any app until the address is fixed.";
+  return "On the do-not-contact list. Do not reach out from any app.";
+}
+
+export function businessNode(row: Row, reasons?: SuppressionReasonIndex): CrmNode | null {
   const id = s(row.id);
   if (!UUID_RE.test(id)) return null;
   const status = s(row.status).toLowerCase();
@@ -276,7 +313,7 @@ export function businessNode(row: Row): CrmNode | null {
     customerOf: [],
     declined:
       status === "suppressed"
-        ? "Asked not to be contacted. Do not reach out from any app."
+        ? businessStopText(signals, reasonsFor(row, reasons))
         : status === "declined"
           ? "Said no as a business lead. Do not pitch again."
           : undefined,
@@ -292,7 +329,8 @@ export function businessNode(row: Row): CrmNode | null {
       website: s(row.website_url),
       phone: contactText(row.phone, 40),
       email: normEmail(row.email),
-      offers: BUSINESS_OFFER_IDS.filter((offer) => services.includes(offer))
+      offers: BUSINESS_OFFER_IDS.filter((offer) => services.includes(offer)),
+      version: s(row.updated_at)
     }
   };
 }
@@ -507,7 +545,7 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     read("presence_coins", "select=id,batch_id,serial,code,kind,place_id,moment_id,status,released_where,released_at,found_at,created_at&limit=5000", "Tokens", "presence"),
     read("presence_moments", "select=id,title,activity,kind,starts_at,place,city,state,place_id,coin_batch_id,status,created_at&limit=1000", "Events", "presence"),
     read("presence_coin_scans", "select=coin_id,kind,created_at&order=created_at.desc&limit=5000", "Token scans", "presence"),
-    read("outreach_suppressions", "select=email,domain,phone&limit=5000", "Do-not-contact list", "shared"),
+    read("outreach_suppressions", "select=email,domain,phone,reason&limit=5000", "Do-not-contact list", "shared"),
     read("op_leads", `${OP_LEAD_SELECT}&order=created_at.desc&limit=1000`, "Business leads", "business"),
     read("op_lead_activities", `${OP_LEAD_ACTIVITY_SELECT}&order=occurred_at.desc&limit=2000`, "Business visit log", "business")
   ]);
@@ -544,7 +582,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
   for (const row of churches) add(churchNode(row, false));
 
   // --- Business leads (op_leads) ---------------------------------------------
-  for (const row of opLeads) add(businessNode(row));
+  const reasonIndex = suppressionReasonIndex(suppressionRows);
+  for (const row of opLeads) add(businessNode(row, reasonIndex));
   leadActivityNodes(leadActivities, nodes);
 
   // Churches the logs point at that the pipeline query did not return.

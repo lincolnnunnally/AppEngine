@@ -134,7 +134,8 @@ function orgInput(formData: FormData): Partial<OrgInput> {
     phone: field(formData, "phone"),
     email: field(formData, "email"),
     offers: formData.getAll("offers").map((value) => String(value)),
-    confirmNew: field(formData, "confirm_new") === "yes"
+    confirmNew: field(formData, "confirm_new") === "yes",
+    version: field(formData, "org_version")
   };
 }
 
