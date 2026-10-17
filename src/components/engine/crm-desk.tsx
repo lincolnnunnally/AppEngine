@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChurchTools } from "@/components/engine/crm-church-tools";
-import { AddOrg, OrgTools } from "@/components/engine/crm-org-tools";
+import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -107,7 +107,8 @@ function TouchLine({ touch }: { touch: Touch }) {
       <span className="crm-touch-when">{touch.dateOnly ? fmtDate(touch.at) : fmtTime(touch.at)}</span>
       <span className="crm-touch-body">
         <span className="crm-touch-head">
-          <AppPill app={touch.app} />
+          {/* A business lead's own notes don't need a second "Business lead" pill. */}
+          {touch.app === "business" ? null : <AppPill app={touch.app} />}
           <span className="crm-touch-kind">{touch.kind === "visit" ? "We visited" : touch.kind === "drop_off" ? "We dropped off" : touch.outreach ? "We reached out" : touch.signal ? "They responded" : "Noted"}</span>
         </span>
         <span className="crm-touch-what">{touch.what}</span>
@@ -139,7 +140,14 @@ function CardView({
 }) {
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
-  const matchText = card.matchedBy.length
+  // A card that is only a business lead: say which apps were picked (or none yet), the way app names show on other cards.
+  const businessOnly = card.apps.length === 1 && card.apps[0] === "business" && card.org?.kind === "business";
+  const businessApps = businessOnly ? (card.org?.offers ?? []).map((id) => offerLabel("business", id)).filter(Boolean) : [];
+  const matchText = businessOnly
+    ? businessApps.length
+      ? `Only in ${businessApps.join(", ")}`
+      : "Not in any app yet"
+    : card.matchedBy.length
     ? `Matched by ${card.matchedBy.map((kind) => MATCH_LABEL[kind]).join(", ")}`
     : card.recordCount > 1
       ? "Several records in one app"

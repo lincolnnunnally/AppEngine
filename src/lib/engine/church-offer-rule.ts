@@ -3,7 +3,7 @@
 //
 // Lincoln, Oct 17 2026: churches get exactly these, nothing else:
 //   ChurchConnect (its own doors, like the Find a Church directory, count as ChurchConnect),
-//   the Easy Peazy church website (through the existing ChurchConnect → Easy Peazy connection),
+//   the EasyPeazy church website (through the existing ChurchConnect → EasyPeazy connection),
 //   Laser church gifts,
 //   Outreach, which points to Live On Mission.
 // Never Operate, never toner, never any business tool. For a church this is
@@ -14,11 +14,12 @@
 // change has to be made in both places on purpose. Check this list BEFORE
 // asking for suggestions (only offer these) and AFTER (drop anything else).
 
+// Every church offer reads as ChurchConnect ("churches get ChurchConnect only").
 export const CHURCH_ALLOWED_OFFERS = {
   churchconnect: "ChurchConnect",
-  easypeazy: "Easy Peazy church website",
-  laser: "Laser church gifts",
-  outreach: "Outreach"
+  easypeazy: "ChurchConnect: church website",
+  laser: "ChurchConnect: Laser church gifts",
+  outreach: "ChurchConnect: Outreach (Live on Mission)"
 } as const;
 
 export type ChurchOffer = keyof typeof CHURCH_ALLOWED_OFFERS;
@@ -77,19 +78,31 @@ export function cleanChurchOfferIds(values: unknown): ChurchOffer[] {
 
 // ── Businesses ──────────────────────────────────────────────────────────────
 // What the desk may pick for a business prospect (MAP decision: Operate, AI
-// Website Design, Easy Peazy, Laser, a marketing campaign). Never shown for a
+// Website Design, EasyPeazy, Laser, a marketing campaign). Never shown for a
 // church: the picker only offers this list once the org is a business.
 export const BUSINESS_OFFERS = {
   operate: "Operate",
   awd: "AI Website Design",
-  easypeazy: "Easy Peazy website",
+  easypeazy: "EasyPeazy website",
   laser: "Laser gifts",
   marketing_campaign: "Marketing campaign"
 } as const;
 
 export type BusinessOffer = keyof typeof BUSINESS_OFFERS;
 
-export const BUSINESS_OFFER_IDS = Object.keys(BUSINESS_OFFERS) as BusinessOffer[];
+/** "Marketing campaign" stays hidden until that offer exists. Flip to true to show it. */
+export const MARKETING_CAMPAIGN_LIVE = false;
+
+const HIDDEN_BUSINESS_OFFERS: ReadonlySet<string> = new Set(MARKETING_CAMPAIGN_LIVE ? [] : ["marketing_campaign"]);
+
+/** Business offers the desk shows and saves today. */
+export const BUSINESS_OFFER_IDS = (Object.keys(BUSINESS_OFFERS) as BusinessOffer[]).filter((id) => !HIDDEN_BUSINESS_OFFERS.has(id));
+
+/** One line under a business choice that could be confused with another. */
+export const BUSINESS_OFFER_HINTS: Partial<Record<BusinessOffer, string>> = {
+  awd: "We design a full business site for you.",
+  easypeazy: "A simple site you build or keep yourself."
+};
 
 export function cleanBusinessOfferIds(values: unknown): BusinessOffer[] {
   const chosen = new Set((Array.isArray(values) ? values : []).map((value) => String(value ?? "").trim().toLowerCase()));
@@ -97,7 +110,7 @@ export function cleanBusinessOfferIds(values: unknown): BusinessOffer[] {
 }
 
 /** The choices the desk shows for this kind of org. A church never sees a business choice. */
-export function offerChoices(kind: "church" | "business"): Array<{ id: string; label: string }> {
-  const list: Record<string, string> = kind === "church" ? CHURCH_ALLOWED_OFFERS : BUSINESS_OFFERS;
-  return Object.entries(list).map(([id, label]) => ({ id, label }));
+export function offerChoices(kind: "church" | "business"): Array<{ id: string; label: string; hint?: string }> {
+  if (kind === "church") return CHURCH_OFFER_IDS.map((id) => ({ id, label: CHURCH_ALLOWED_OFFERS[id] }));
+  return BUSINESS_OFFER_IDS.map((id) => ({ id, label: BUSINESS_OFFERS[id], hint: BUSINESS_OFFER_HINTS[id] }));
 }

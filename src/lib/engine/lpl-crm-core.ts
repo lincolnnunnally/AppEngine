@@ -10,7 +10,7 @@ export const CRM_APP_LABEL: Record<CrmApp, string> = {
   churchconnect: "ChurchConnect",
   laser: "Laser",
   presence: "Presence",
-  // Business prospects (op_leads): Operate, AI Website Design, Easy Peazy, Laser.
+  // Business prospects (op_leads): Operate, AI Website Design, EasyPeazy, Laser.
   business: "Business lead"
 };
 
@@ -32,7 +32,7 @@ export type CrmOrg = {
   offers: string[];
 };
 
-// Church words (MAP: port of Easy Peazy is_church + a name list). Unclear = church.
+// Church words (MAP: port of EasyPeazy is_church + a name list). Unclear = church.
 const CHURCH_NAME_RE =
   /\b(church|chapel|baptist|methodist|ministry|ministries|parish|cathedral|fellowship|assembly|assemblies|tabernacle|temple|congregation|worship|catholic|lutheran|presbyterian|episcopal|pentecostal|apostolic|adventist|nazarene|mission|missions|diocese|basilica|sanctuary|gospel|christian|bible|ame|umc|cme|cogic)\b/i;
 

@@ -638,6 +638,24 @@ async function insertBusinessLead(org: CleanOrg): Promise<OrgSaveResult> {
   return { ok: false, message: "Couldn't find a free short name for this business. Change the name a little and try again." };
 }
 
+/** The church's current email (normalized), or null when it can't be read. */
+async function currentChurchEmail(churchId: string): Promise<string | null> {
+  const config = lplConfig();
+  if (!config) return null;
+  try {
+    const response = await fetch(`${config.url}/rest/v1/cc_churches?id=eq.${churchId}&select=email:doc->>email&limit=1`, {
+      method: "GET",
+      headers: { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` },
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const [row] = ((await response.json()) as Array<{ email?: string | null }>) ?? [];
+    return row ? normEmail(row.email) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw: Partial<OrgInput>): Promise<OrgSaveResult> {
   if (!UUID_RE.test(id)) return { ok: false, message: "That org can't be edited here. Reload the page." };
   const org = cleanOrgInput(raw, kind);
@@ -650,15 +668,19 @@ export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw
   if (blocked) return blocked;
 
   if (kind === "church") {
-    const result = await callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail, {
+    const body: Record<string, unknown> = {
       church_name: org.name,
       city: org.city,
       state: org.state,
       website: org.website,
       contact_phone: org.phone,
-      contact_email: org.email,
       crm_offers: org.offers
-    });
+    };
+    // The church email is sent only when it actually changed (and ChurchConnect never
+    // copies a desk edit into the login/billing email). Unknown current value = don't send.
+    const current = await currentChurchEmail(id);
+    if (current !== null && current !== org.email) body.contact_email = org.email;
+    const result = await callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail, body);
     if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
     return { ok: true, kind, id, message: `Saved ${org.name}.` };
   }

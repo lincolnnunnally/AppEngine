@@ -34,8 +34,15 @@ function Matches({
   confirmNew: boolean;
   setConfirmNew: (value: boolean) => void;
 }) {
+  const hardMatch = matches.find((match) => match.hard);
+  const town = (hardMatch?.town ?? "").split(",")[0].trim();
+  // One message, at the top of the box. (The form's own status line is hidden while matches show.)
+  const headline = hardMatch
+    ? `${hardMatch.name}${town ? ` in ${town}` : ""} is already here.`
+    : "This might already be here. Open it, or tick that it's a different one.";
   return (
-    <div className="crm-matches" data-testid="crm-org-matches">
+    <div className="crm-matches" data-testid="crm-org-matches" role="alert">
+      <p className="crm-matches-head">{headline}</p>
       <ul className="crm-list">
         {matches.map((match) => (
           <li key={`${match.kind}-${match.id}`}>
@@ -47,7 +54,7 @@ function Matches({
                 · {KIND_LABEL[match.kind]} · {match.why.join(", ")}
               </span>
             </span>
-            <button type="button" className="dx-btn" onClick={() => onOpen(match)}>
+            <button type="button" className="dx-btn dx-btn--primary" onClick={() => onOpen(match)}>
               Open it
             </button>
           </li>
@@ -94,13 +101,16 @@ function OrgFields({ kind, draft, setDraft }: { kind: OrgKind | "unsure"; draft:
   return (
     <>
       <label className="crm-field">
-        <span>Name</span>
+        <span>Name (required)</span>
         <input name="name" required maxLength={160} value={draft.name} onChange={(event) => set("name", event.target.value)} autoComplete="off" />
       </label>
       <div className="crm-form-group">
         {FIELDS.map((field) => (
           <label className="crm-field" key={field.key}>
-            <span>{field.label}</span>
+            <span>
+              {field.label}
+              {field.required ? " (required)" : ""}
+            </span>
             <input
               name={field.key}
               type={field.type ?? "text"}
@@ -117,9 +127,12 @@ function OrgFields({ kind, draft, setDraft }: { kind: OrgKind | "unsure"; draft:
       <fieldset className="crm-field crm-choice crm-offers" data-testid="crm-org-offers">
         <legend>{offerKind === "church" ? "Apps for this church" : "Apps for this business"}</legend>
         {offerChoices(offerKind).map((choice) => (
-          <label key={choice.id}>
+          <label key={choice.id} className={choice.hint ? "crm-offer-with-hint" : undefined}>
             <input type="checkbox" name="offers" value={choice.id} checked={draft.offers.includes(choice.id)} onChange={(event) => toggle(choice.id, event.target.checked)} />
-            {choice.label}
+            <span>
+              {choice.label}
+              {choice.hint ? <span className="crm-offer-hint">{choice.hint}</span> : null}
+            </span>
           </label>
         ))}
       </fieldset>
@@ -184,6 +197,7 @@ export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string
           </fieldset>
           {kind === "unsure" ? <p className="crm-dim">Not sure is saved as a church, with church apps only.</p> : null}
           <OrgFields kind={kind} draft={draft} setDraft={setDraft} />
+          {churchy ? <p className="crm-churchy-note">This name sounds like a church. Tick to confirm it&apos;s a business.</p> : null}
           {churchy ? (
             <label className="crm-confirm">
               <input type="checkbox" name="confirm_business" value="yes" checked={confirmBusiness} onChange={(event) => setConfirmBusiness(event.target.checked)} />
@@ -197,14 +211,17 @@ export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string
           </p>
           {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} confirmNew={confirmNew} setConfirmNew={setConfirmNew} /> : null}
           <div className="crm-form-actions">
-            <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
-              {pending ? "Checking…" : matches.length && !hard ? "Add anyway" : "Check and add"}
-            </button>
+            {/* Same name + town: no way to add it again. A weaker match: "Add anyway" only after the tick. */}
+            {hard ? null : (
+              <button type="submit" className="dx-btn dx-btn--primary" disabled={pending || (matches.length > 0 && !confirmNew)} aria-busy={pending}>
+                {pending ? "Checking…" : matches.length ? "Add anyway" : "Check and add"}
+              </button>
+            )}
             <button type="button" className="dx-btn" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </button>
           </div>
-          <Status state={state} />
+          {matches.length ? null : <Status state={state} />}
         </form>
       )}
     </div>
@@ -239,7 +256,8 @@ export function OrgTools({ card, canSave, onOpen }: { card: CrmCard; canSave: bo
   const hard = matches.some((match) => match.hard);
   return (
     <section className="crm-sub crm-org-tools" aria-label="Apps picked">
-      <h4>{org.kind === "church" ? "Apps for this church" : "Apps for this business"}</h4>
+      {/* While editing, the form has its own heading so it doesn't sit under "Apps for this church". */}
+      <h4>{editing ? "Edit details and apps" : org.kind === "church" ? "Apps for this church" : "Apps for this business"}</h4>
       {!editing ? (
         picked.length ? (
           <div className="crm-pills crm-offer-pills" data-testid="crm-org-picked">
@@ -258,18 +276,19 @@ export function OrgTools({ card, canSave, onOpen }: { card: CrmCard; canSave: bo
           <form action={action} className="crm-form" data-testid="crm-edit-org-form">
             <input type="hidden" name="org_kind" value={org.kind} />
             <input type="hidden" name="org_id" value={org.id} />
-            <p className="crm-dim">{KIND_LABEL[org.kind]}</p>
             <OrgFields kind={org.kind} draft={draft} setDraft={setDraft} />
             {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} confirmNew={confirmNew} setConfirmNew={setConfirmNew} /> : null}
             <div className="crm-form-actions">
-              <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
-                {pending ? "Saving…" : matches.length && !hard ? "Save anyway" : "Save details"}
-              </button>
+              {hard ? null : (
+                <button type="submit" className="dx-btn dx-btn--primary" disabled={pending || (matches.length > 0 && !confirmNew)} aria-busy={pending}>
+                  {pending ? "Saving…" : matches.length ? "Save anyway" : "Save details"}
+                </button>
+              )}
               <button type="button" className="dx-btn" onClick={() => setEditing(false)} disabled={pending}>
                 Cancel
               </button>
             </div>
-            <Status state={state} />
+            {matches.length ? null : <Status state={state} />}
           </form>
         ) : (
           <>

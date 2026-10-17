@@ -632,7 +632,7 @@ await runStep("church rule: exactly four offers, never a business tool, never 'm
   const rule = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
   // Pinned. ChurchConnect's backend/utils/church_offer_rule.py pins the same list.
   assert(JSON.stringify(rule.CHURCH_OFFER_IDS) === JSON.stringify(["churchconnect", "easypeazy", "laser", "outreach"]), "exactly four");
-  assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "Outreach" && rule.OUTREACH_URL === "https://live-on-mission.com/outreach", "Outreach → Live On Mission");
+  assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "ChurchConnect: Outreach (Live on Mission)" && rule.OUTREACH_URL === "https://live-on-mission.com/outreach", "Outreach → Live On Mission");
   assert(rule.churchProductOf("directory") === "churchconnect", "directory is ChurchConnect");
   for (const banned of [...rule.NEVER_FOR_CHURCHES, "operate", "toner", "", null, "marketing"]) assert(!rule.allowedForChurch(banned), `never ${banned}`);
   assert(rule.hasForbiddenChurchWord("church marketing") && !rule.hasForbiddenChurchWord("Outreach with Live On Mission"), "marketing caught");
@@ -677,6 +677,13 @@ await runStep("slice 2: church or business — unclear is a church; a church onl
   );
   assert(cards.length === 1 && cards[0].org.kind === "church" && cards[0].apps.includes("business"), "church first on a joined card");
   assert(core.CRM_APP_LABEL.business === "Business lead", "business pill label");
+  // Church apps all read as ChurchConnect; EasyPeazy is one word; Marketing campaign hidden until it exists.
+  assert(JSON.stringify(rule.offerChoices("church").map((c) => c.label)) === JSON.stringify(["ChurchConnect", "ChurchConnect: church website", "ChurchConnect: Laser church gifts", "ChurchConnect: Outreach (Live on Mission)"]), "church labels");
+  const biz = rule.offerChoices("business");
+  assert(JSON.stringify(biz.map((c) => c.id)) === '["operate","awd","easypeazy","laser"]' && rule.MARKETING_CAMPAIGN_LIVE === false, "marketing campaign hidden behind the flag");
+  assert(JSON.stringify(rule.cleanBusinessOfferIds(["marketing_campaign", "operate"])) === '["operate"]', "a hidden offer can't be saved");
+  assert(biz.find((c) => c.id === "awd").hint && biz.find((c) => c.id === "easypeazy").hint && biz.find((c) => c.id === "easypeazy").label === "EasyPeazy website", "hints + EasyPeazy one word");
+  assert(!/Easy Peazy/.test(JSON.stringify([...rule.offerChoices("church"), ...biz])), "never 'Easy Peazy'");
 });
 
 await runStep("slice 2: adding looks for duplicates first; churches hidden; nothing sent", () => {
@@ -702,6 +709,13 @@ await runStep("slice 2: adding looks for duplicates first; churches hidden; noth
   assertIncludes(tools, "Yes, this is a business, not a church", "church-name guard wording");
   assertIncludes(tools, "Open it", "offer to open the existing one");
   assertIncludes(tools, "if ((next === \"business\") !== (kind === \"business\")) setDraft((current) => ({ ...current, offers: [] }));", "switching kind clears the app picks");
+  assertIncludes(tools, "{hard ? null : (", "same name + town hides the add button");
+  assertIncludes(tools, "disabled={pending || (matches.length > 0 && !confirmNew)}", "'Add anyway' waits for the different-one tick");
+  assertIncludes(tools, "This name sounds like a church. Tick to confirm it&apos;s a business.", "church-name line above the tick");
+  assertIncludes(tools, "{matches.length ? null : <Status state={state} />}", "one duplicate message, not two");
+  assertIncludes(tools, "Name (required)", "required marked");
+  assertIncludes(tools, '{editing ? "Edit details and apps"', "edit form has its own heading");
+  assertIncludes(writer, "if (current !== null && current !== org.email) body.contact_email = org.email;", "church email sent only when it changed");
   assertIncludes(tools, "value={draft.name}", "fields are controlled, so a match answer never wipes what was typed");
   assertIncludes(tools, "disabled={pending}", "button locks while saving");
   const desk = read("src/components/engine/crm-desk.tsx");

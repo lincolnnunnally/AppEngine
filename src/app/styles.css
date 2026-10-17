@@ -7398,7 +7398,12 @@ button.compose-arch:hover {
 /* CRM v2 slice 2: add / edit an org */
 .crm-page .crm-add-org { display: grid; gap: 8px; margin: 12px 0; }
 .crm-page .crm-add-org > .dx-btn { justify-self: start; min-height: 44px; }
-.crm-page .crm-offer-pills { justify-content: flex-start; margin: 4px 0 8px; }
+.crm-page .crm-offer-pills { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 6px; max-width: 100%; margin: 4px 0 8px; }
+.crm-page .crm-matches-head { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink); }
+.crm-page .crm-offer-with-hint { align-items: flex-start; }
+.crm-page .crm-offer-with-hint input { margin-top: 3px; }
+.crm-page .crm-offer-hint { display: block; font-size: 0.875rem; color: var(--muted, #9aa59c); font-weight: 400; }
+.crm-page .crm-churchy-note { margin: 0; font-size: 1rem; color: var(--gold); }
 .crm-page .crm-matches { display: grid; gap: 8px; padding: 12px; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 10px; }
 .crm-page .crm-matches .crm-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .crm-page .crm-matches .dx-btn { min-height: 44px; }
