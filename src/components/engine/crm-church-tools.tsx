@@ -97,6 +97,7 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
         <span>Phone</span>
         <input name="phone" type="tel" maxLength={40} defaultValue={contact?.phone ?? ""} autoComplete="off" />
       </label>
+      <CrmOnlyNote />
       <div className="crm-form-actions">
         <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
           {pending ? "Saving…" : contact ? "Save changes" : "Save contact"}

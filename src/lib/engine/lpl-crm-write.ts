@@ -279,10 +279,8 @@ export function suppressionRowsFor(church: Record<string, unknown>): Suppression
     const domain = normDomain(value);
     if (domain) domains.add(domain);
   }
-  for (const email of emails) {
-    const domain = domainFromEmail(email);
-    if (domain) domains.add(domain);
-  }
+  // Domains come only from the website: an email's domain is often a shared provider
+  // (gmail.com, bellsouth.net…), and blocking it would block strangers.
   return [
     ...[...emails].map((email) => ({ email })),
     ...[...domains].map((domain) => ({ domain })),
@@ -300,20 +298,45 @@ async function addChurchToDoNotContact(churchId: string): Promise<boolean> {
     if (!read.ok) return false;
     const [church] = ((await read.json()) as Record<string, unknown>[]) ?? [];
     if (!church) return false;
-    const rows = suppressionRowsFor(church);
-    for (const row of rows) {
-      // One row per address: an address already on the list answers 409, which is fine.
-      const insert = await fetch(`${config.url}/rest/v1/outreach_suppressions`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ ...row, brand: "all", reason: "do_not_contact", source: deskSuppressionSource(churchId) }),
-        cache: "no-store"
-      });
-      if (!insert.ok && insert.status !== 409) return false;
-    }
-    return true;
+    return await claimSuppressions(config, suppressionRowsFor(church), deskSuppressionSource(churchId));
   } catch {
     return false;
+  }
+}
+
+/**
+ * Put rows on the shared do-not-contact list as one desk claim, through the database's
+ * outreach_suppress() (the only writer of that table from this desk). An address already on
+ * the list keeps its row and real reason; this desk only adds its claim to it.
+ */
+async function claimSuppressions(config: LplConfig, rows: SuppressionRow[], claim: string): Promise<boolean> {
+  for (const row of rows) {
+    const response = await fetch(`${config.url}/rest/v1/rpc/outreach_suppress`, {
+      method: "POST",
+      headers: { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_email: row.email ?? null, p_domain: row.domain ?? null, p_phone: row.phone ?? null, p_reason: "do_not_contact", p_source: claim }),
+      cache: "no-store"
+    });
+    if (!response.ok) return false;
+  }
+  return true;
+}
+
+/** Remove one desk claim everywhere (outreach_release). Rows go only when no claim and no real reason is left. */
+async function releaseClaim(config: LplConfig, claim: string): Promise<{ released: number; deleted: number; remaining: number } | null> {
+  try {
+    const response = await fetch(`${config.url}/rest/v1/rpc/outreach_release`, {
+      method: "POST",
+      headers: { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_claim: claim }),
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const [row] = ((await response.json()) as Array<{ released?: number; deleted?: number; remaining?: number }>) ?? [];
+    if (!row || typeof row.remaining !== "number") return null;
+    return { released: Number(row.released) || 0, deleted: Number(row.deleted) || 0, remaining: row.remaining };
+  } catch {
+    return null;
   }
 }
 
@@ -334,37 +357,54 @@ export async function removeChurchContact(ownerEmail: string, churchId: string, 
   return { ok: true, message: "Contact removed." };
 }
 
-/** Count (or with remove=true, delete) the do-not-contact rows this desk added for one church. */
-async function deskSuppressions(churchId: string, remove: boolean): Promise<number | null> {
-  const config = lplConfig();
-  if (!config) return null;
-  const headers = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` };
-  const where = `source=eq.${encodeURIComponent(deskSuppressionSource(churchId))}&reason=eq.do_not_contact`;
+/** The church's name and every way to reach it, read from the shared database. */
+async function readChurchReach(config: LplConfig, churchId: string): Promise<{ name: string; rows: SuppressionRow[] } | null> {
   try {
-    const response = await fetch(`${config.url}/rest/v1/outreach_suppressions?${where}&select=id`, {
-      method: remove ? "DELETE" : "GET",
-      headers: { ...headers, Prefer: "return=representation" },
+    const select = ["name:doc->>name", "church_name:doc->>church_name", ...CHURCH_REACH_FIELDS.map((field) => `${field}:doc->>${field}`), "staff_contacts:doc->staff_contacts"].join(",");
+    const read = await fetch(`${config.url}/rest/v1/cc_churches?id=eq.${churchId}&select=${select}&limit=1`, {
+      method: "GET",
+      headers: { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` },
       cache: "no-store"
     });
-    if (!response.ok) return null;
-    const rows = (await response.json()) as unknown[];
-    return Array.isArray(rows) ? rows.length : null;
+    if (!read.ok) return null;
+    const [church] = ((await read.json()) as Record<string, unknown>[]) ?? [];
+    if (!church) return null;
+    return { name: text(church.name, 160) || text(church.church_name, 160) || "This church", rows: suppressionRowsFor(church) };
   } catch {
     return null;
   }
 }
 
+/** ChurchConnect's own reason a church stays stopped, in plain words. */
+export function churchStopReason(name: string, reason: unknown): string {
+  return String(reason ?? "") === "email_unsubscribe" ? `${name} unsubscribed by email` : `${name} was stopped in ChurchConnect for another reason`;
+}
+
 export async function undoChurchDoNotContact(ownerEmail: string, churchId: string): Promise<SaveResult> {
   const config = await ccConfig();
-  if (!config) return { ok: false, message: savingOffMessage() };
+  const lpl = lplConfig();
+  if (!config || !lpl) return { ok: false, message: savingOffMessage() };
   if (!UUID_RE.test(churchId)) return { ok: false, message: "Only a ChurchConnect church can be undone here." };
+  // 1. Remove only this desk's claim on the shared list (read back: none left). Retryable.
+  const released = await releaseClaim(lpl, deskSuppressionSource(churchId));
+  if (!released || released.remaining !== 0) {
+    return { ok: false, message: "The do-not-contact list couldn't be cleared. Nothing else was changed — try again." };
+  }
+  // 2. ChurchConnect removes only the desk's claim and keeps the church stopped for any other reason.
   const result = await callChurchConnect(config, "POST", `/api/church-crm/leads/${churchId}/do-not-contact/undo`, ownerEmail, {});
   if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
-  const removed = await deskSuppressions(churchId, true);
-  // Read back: nothing this desk added for this church may remain.
-  const left = await deskSuppressions(churchId, false);
-  if (removed === null || left !== 0) {
-    return { ok: false, message: "The church was undone in ChurchConnect, but the do-not-contact list couldn't be cleared, so it stays stopped. Try again." };
+  // 3. Still on the shared list another way (its email, phone or website, any source)?
+  const reach = await readChurchReach(lpl, churchId);
+  const name = reach?.name || "This church";
+  if (result.json?.still_stopped === true) {
+    return { ok: true, warn: true, message: `Still blocked. ${churchStopReason(name, result.json?.reason)}, so it stays blocked. Don't contact it.` };
+  }
+  const still = reach ? await existingSuppressions(lpl, reach.rows) : null;
+  if (still === null) {
+    return { ok: true, warn: true, message: `Still blocked for now. The do-not-contact list couldn't be checked, so treat ${name} as blocked. Don't contact it yet.` };
+  }
+  if (still.length) {
+    return { ok: true, warn: true, message: `Still on the do-not-contact list. ${stillListedReason(name, still.map((row) => row.reason ?? ""))}, so it stays blocked. Don't contact it.` };
   }
   return { ok: true, message: "Undone. You can contact this church again." };
 }
@@ -972,48 +1012,19 @@ export function stillListedReason(name: string, reasons: string[]): string {
 
 async function addLeadToDoNotContact(config: LplConfig, lead: LeadRow): Promise<boolean> {
   try {
-    const wanted = leadSuppressionRows(lead);
-    // Dedupe in code: anything already on the list (from any source) is left alone and not tagged as ours.
-    const existing = await existingSuppressions(config, wanted);
-    if (existing === null) return false;
-    for (const row of wanted) {
-      if (existing.some((found) => sameSuppression(row, found))) continue;
-      const insert = await fetch(`${config.url}/rest/v1/outreach_suppressions`, {
-        method: "POST",
-        headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ ...row, brand: "all", reason: "do_not_contact", source: leadSuppressionSource(lead.id) }),
-        cache: "no-store"
-      });
-      // 409: the list's unique email/domain/phone index says someone added it between our check and now. It's listed; fine.
-      if (!insert.ok && insert.status !== 409) return false;
-    }
+    // One claim per address through outreach_suppress(): a row already on the list (any source)
+    // keeps its real reason; this desk only adds its claim, so repeats never add rows.
+    if (!(await claimSuppressions(config, leadSuppressionRows(lead), leadSuppressionSource(lead.id)))) return false;
     const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
     // Already marked from this desk (a repeat): keep the status it had before the first time.
     if (lead.status === "suppressed" && signals.dnc_source === "crm_visit") return true;
-    // Always mark it, even when it was already suppressed some other way, so the rows tagged
-    // above can be undone. Undo puts back exactly this status ("suppressed" stays suppressed).
+    // Always mark it, even when it was already suppressed some other way, so the claim above can
+    // be undone. Undo puts back exactly this status ("suppressed" stays suppressed).
     signals.dnc_source = "crm_visit";
     signals.dnc_prev_status = lead.status || "new";
     return await patchLeadIfUnchanged(config, lead, { status: "suppressed", signals });
   } catch {
     return false;
-  }
-}
-
-/** Count (or with remove=true, delete) the do-not-contact rows this desk added for one business. */
-async function leadSuppressions(config: LplConfig, leadId: string, remove: boolean): Promise<number | null> {
-  const where = `source=eq.${encodeURIComponent(leadSuppressionSource(leadId))}&reason=eq.do_not_contact`;
-  try {
-    const response = await fetch(`${config.url}/rest/v1/outreach_suppressions?${where}&select=id`, {
-      method: remove ? "DELETE" : "GET",
-      headers: { ...lplHeaders(config), Prefer: "return=representation" },
-      cache: "no-store"
-    });
-    if (!response.ok) return null;
-    const rows = (await response.json()) as unknown[];
-    return Array.isArray(rows) ? rows.length : null;
-  } catch {
-    return null;
   }
 }
 
@@ -1028,35 +1039,33 @@ export async function undoBusinessDoNotContact(_ownerEmail: string, leadId: stri
   // Only a do-not-contact this desk set can be undone here.
   if (signals.dnc_source !== "crm_visit") return { ok: false, message: "This business wasn't marked do-not-contact from this desk." };
   const prevRaw = typeof signals.dnc_prev_status === "string" ? signals.dnc_prev_status : "new";
-  delete signals.dnc_source;
-  delete signals.dnc_prev_status;
-  const removed = await leadSuppressions(config, leadId, true);
-  const left = await leadSuppressions(config, leadId, false);
-  if (removed === null || left !== 0) return { ok: false, message: "The do-not-contact list couldn't be cleared. Nothing else was changed — try again." };
-  // Never reopen a business that is still on the list some other way (its email or phone, any source).
+  const name = text(lead.business_name, 160) || "This business";
+  // 1. Remove only this desk's claim (read back: none left). Safe to repeat.
+  const released = await releaseClaim(config, leadSuppressionSource(leadId));
+  if (!released || released.remaining !== 0) return { ok: false, message: "The do-not-contact list couldn't be cleared. Nothing else was changed — try again." };
+  // 2. Never reopen a business still on the list another way: its email, phone or website, any source.
   const own: SuppressionRow[] = [
     ...(normEmail(lead.email) ? [{ email: normEmail(lead.email) }] : []),
-    ...(normPhone(lead.phone) ? [{ phone: normPhone(lead.phone) }] : [])
+    ...(normPhone(lead.phone) ? [{ phone: normPhone(lead.phone) }] : []),
+    ...(normDomain(lead.website_url) ? [{ domain: normDomain(lead.website_url) }] : [])
   ];
   const still = await existingSuppressions(config, own);
-  const name = text(lead.business_name, 160) || "This business";
-  if (still === null) {
-    // Can't tell: fail closed, keep it stopped.
-    if (!(await patchLeadIfUnchanged(config, lead, { status: "suppressed", signals }))) {
-      return { ok: false, message: "The business couldn't be updated. Reload and undo again." };
-    }
-    return { ok: true, warn: true, message: `Still blocked for now. The do-not-contact list couldn't be checked, so ${name} stays blocked. Don't contact it yet.` };
-  }
+  // Can't tell: change nothing, so the desk mark (and the Undo button) stay and Undo can be tried again.
+  if (still === null) return { ok: false, message: `The do-not-contact list couldn't be checked, so ${name} stays blocked. Try Undo again in a minute.` };
+  const cleared = { ...signals };
+  delete cleared.dnc_source;
+  delete cleared.dnc_prev_status;
   const elsewhere = still.length > 0;
   const status = elsewhere || prevRaw === "suppressed" ? "suppressed" : prevRaw;
-  if (!(await patchLeadIfUnchanged(config, lead, { status, signals }))) {
+  if (!(await patchLeadIfUnchanged(config, lead, { status, signals: cleared }))) {
     return { ok: false, message: "The business couldn't be updated. Reload and undo again." };
   }
   if (elsewhere) {
     return { ok: true, warn: true, message: `Still on the do-not-contact list. ${stillListedReason(name, still.map((row) => row.reason ?? ""))}, so it stays blocked. Don't contact it.` };
   }
   if (status === "suppressed") {
-    return { ok: true, warn: true, message: `Still on the do-not-contact list. ${name} was already blocked before this, so it stays blocked. Don't contact it.` };
+    // Only the status was set before this desk's stop; nothing is on the list.
+    return { ok: true, warn: true, message: `Still blocked. ${name} was already marked do-not-contact before this, so it stays blocked. Don't contact it.` };
   }
   return { ok: true, message: "Undone. You can contact this business again." };
 }

@@ -110,7 +110,7 @@ const CHURCH_FIELDS = [
   "crm_status", "crm_next_action", "crm_next_action_date", "invite_status", "last_invited_at", "invite_campaign",
   "website_offer_status", "is_customer", "signed_up", "converted_at", "merged_into", "duplicate_of", "deleted_at",
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
-  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source"
+  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim"
 ];
 const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers`;
 const CHURCH_TOUCHED = [
@@ -208,7 +208,9 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     touches,
     customerOf: customer ? ["churchconnect"] : [],
     declined: truthy(row.do_not_contact)
-      ? "Asked not to be contacted. Do not reach out from any app."
+      ? s(row.do_not_contact_source) === "email_unsubscribe"
+        ? "Opted out. Do not reach out from any app."
+        : "Asked not to be contacted. Do not reach out from any app."
       : status === "lost"
         ? "Marked lost in the ChurchConnect pipeline. Do not pitch again."
         : undefined,
@@ -217,7 +219,8 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     contextOnly,
     churchId: UUID_RE.test(id) ? id : undefined,
     contacts: churchContacts(row, id),
-    deskDoNotContact: UUID_RE.test(id) && truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit",
+    // The desk's own claim (it may sit next to a real reason such as an email unsubscribe).
+    deskDoNotContact: UUID_RE.test(id) && (truthy(row.do_not_contact_desk_claim) || (truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit")),
     org: UUID_RE.test(id) ? churchOrg(row, id) : undefined
   };
 }

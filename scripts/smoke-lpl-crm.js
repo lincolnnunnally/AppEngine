@@ -528,7 +528,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   const exported = actions.match(/export async function \w+Action/g) || [];
   assert(exported.length >= 2 && gates.length === exported.length, `every action checks the owner first (${gates.length}/${exported.length})`);
   const writer = read("src/lib/engine/lpl-crm-write.ts");
-  for (const needle of ['iss: CRM_PASS_ISSUER', 'aud: CRM_PASS_AUDIENCE', "htm: method", "htu: path", "CRM_PASS_TTL_SECONDS = 90", '"X-Engine-Pass"', "resolveCrmSecret(env)", "savingOffMessage()", "client_ref: visit.clientRef", 'reason: "do_not_contact"', "insert.status !== 409"]) {
+  for (const needle of ['iss: CRM_PASS_ISSUER', 'aud: CRM_PASS_AUDIENCE', "htm: method", "htu: path", "CRM_PASS_TTL_SECONDS = 90", '"X-Engine-Pass"', "resolveCrmSecret(env)", "savingOffMessage()", "client_ref: visit.clientRef", 'p_reason: "do_not_contact"', "/rest/v1/rpc/outreach_suppress", "/rest/v1/rpc/outreach_release"]) {
     assertIncludes(writer, needle, "writer contract");
   }
   assertIncludes(writer, "/api/church-crm/leads/${visit.churchId}/activities", "visits go through ChurchConnect");
@@ -540,12 +540,12 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assert((writer.match(/method: "PATCH"/g) || []).length === 2 && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}${guard}&select=id`, {\n      method: "PATCH"') && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${lead.id}${guard}&select=id`, {\n      method: "PATCH"'), "direct PATCHes are business leads only");
   assert(!/rest\/v1\/cc_churches[^`]*`,\s*\{\s*method: "(PATCH|POST|DELETE)"/.test(writer), "never writes cc_churches directly");
   assertIncludes(writer, 'callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail', "church edits go through ChurchConnect");
-  // The only deletes: one saved contact (through ChurchConnect, pass-bound) and this desk's own do-not-contact rows for one church.
+  // The only delete: one saved contact (through ChurchConnect, pass-bound). The do-not-contact list is
+  // written only through the database's outreach_suppress() / outreach_release() (claims, never a raw delete).
   assertIncludes(writer, 'callChurchConnect(config, "DELETE", `/api/church-crm/leads/${churchId}/contacts/${contactId}`, ownerEmail)', "contact removal goes through ChurchConnect");
-  assertIncludes(writer, "return `crm_visit:${churchId}`;", "desk rows carry the church id");
-  assertIncludes(writer, 'const where = `source=eq.${encodeURIComponent(deskSuppressionSource(churchId))}&reason=eq.do_not_contact`;', "undo is pinned to this church's desk rows");
-  assertIncludes(writer, 'method: remove ? "DELETE" : "GET"', "one pinned delete");
-  assertIncludes(writer, "if (removed === null || left !== 0)", "undo reads back zero rows left");
+  assertIncludes(writer, "return `crm_visit:${churchId}`;", "desk claims carry the church id");
+  assert(!/rest\/v1\/outreach_suppressions[^`]*`,\s*\{\s*method: "(POST|DELETE|PATCH)"/.test(writer) && !writer.includes('method: remove ? "DELETE"'), "no raw insert or delete on the do-not-contact list");
+  assertIncludes(writer, "if (!released || released.remaining !== 0)", "undo reads back zero claims left");
   assertIncludes(writer, 'if (outcomeCode === "do_not_contact" && input.confirmDnc !== true)', "do-not-contact needs the confirm tick on the server too");
   assert(!writer.includes('"cc_churches", {') && !/rest\/v1\/cc_church[a-z_]*`?, \{\s*method: "(POST|PATCH|PUT)/.test(writer), "church records are only read directly");
   const tools = read("src/components/engine/crm-church-tools.tsx");
@@ -608,7 +608,7 @@ await runStep("pass secret: env var first, else the shared database row; cached;
   assert((await mod.resolveCrmSecret({ APPENGINE_CC_CRM_SECRET: "tooshort" }, fetcher, 0)) === "", "a short env value is refused");
   const writer = read("src/lib/engine/lpl-crm-write.ts");
   assertIncludes(writer, 'return env.VERCEL_ENV === "production" ? "Saving isn\'t switched on yet." : "Saving isn\'t available on this preview.";', "clear fail-closed wording");
-  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 9, "every save (church and business: visit, contact, remove, undo; business lead) fails closed");
+  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 8 && writer.includes("if (!config || !lpl) return { ok: false, message: savingOffMessage() };"), "every save (church and business: visit, contact, remove, undo; business lead) fails closed");
   // Nothing that runs in the browser may import the secret module.
   for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx", "src/components/engine/crm-org-tools.tsx"]) {
     const text = read(rel);
@@ -773,7 +773,7 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
     "return `crm_visit:op_lead:${leadId}`;",
     'status: "suppressed", signals',
     'if (signals.dnc_source !== "crm_visit") return',
-    "if (removed === null || left !== 0)",
+    "if (!released || released.remaining !== 0)",
     "const LEAD_CONTACT_LIMIT = 25;",
     "updated_at=eq.${encodeURIComponent(lead.updated_at)}",
     "return `${day}T16:00:00.000Z`;",
@@ -800,7 +800,25 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
 
   // EA round 3: undo never reopens a lead still on the list elsewhere; tagged rows are always removable.
   const undo = writer.slice(writer.indexOf("export async function undoBusinessDoNotContact"));
-  assert(undo.indexOf("existingSuppressions(config, own)") > undo.indexOf("if (removed === null || left !== 0)"), "undo checks the list for the lead's email/phone after removing its own rows");
+  assert(undo.indexOf("existingSuppressions(config, own)") > undo.indexOf("if (!released || released.remaining !== 0)"), "undo checks the list after releasing its own claim");
+  assertIncludes(undo, "...(normDomain(lead.website_url) ? [{ domain: normDomain(lead.website_url) }] : [])", "the re-check includes the website domain");
+  // Fail closed stays retryable: nothing (not even dnc_source) is cleared before the check succeeds and the save lands.
+  assert(undo.indexOf("if (still === null) return { ok: false") < undo.indexOf("delete cleared.dnc_source;") && !undo.includes("delete signals.dnc_source"), "an unchecked undo keeps dnc_source so Undo can be tried again");
+  assertIncludes(undo, "Still blocked. ${name} was already marked do-not-contact before this", "status-only stop is not called 'on the list'");
+  // Church undo: release the desk claim first, ChurchConnect keeps other reasons, then re-check the shared list.
+  const cundo = writer.slice(writer.indexOf("export async function undoChurchDoNotContact"), writer.indexOf("// ── Add or edit an org"));
+  assert(cundo.indexOf("releaseClaim(lpl, deskSuppressionSource(churchId))") < cundo.indexOf("/do-not-contact/undo"), "church: claim released before ChurchConnect undo (retryable)");
+  assertIncludes(cundo, "if (result.json?.still_stopped === true)", "church: ChurchConnect's own other reason keeps it blocked");
+  assertIncludes(cundo, "const still = reach ? await existingSuppressions(lpl, reach.rows) : null;", "church: re-checks email, phone and website on the shared list");
+  assertIncludes(cundo, "Still on the do-not-contact list. ${stillListedReason(name", "church: says it's still blocked");
+  // Domains are added from the website only (never an email provider's domain).
+  const rowsFn = writer.slice(writer.indexOf("export function suppressionRowsFor"), writer.indexOf("async function addChurchToDoNotContact"));
+  assert(!rowsFn.includes("domainFromEmail"), "no domain rows from email addresses");
+  for (const host of ["sbcglobal.net", "cox.net", "earthlink.net", "frontier.com", "rr.com", "juno.com", "embarqmail.com", "centurylink.net", "aim.com", "att.net", "bellsouth.net", "verizon.net", "comcast.net", "charter.net", "windstream.net", "msn.com", "live.com", "me.com", "mac.com", "ymail.com", "protonmail.com"]) {
+    assert(core.domainFromEmail(`a@${host}`) === "", `free-mail host is not an org domain: ${host}`);
+  }
+  assertIncludes(reader, "truthy(row.do_not_contact_desk_claim) ||", "church undo shows for the desk's claim even beside an unsubscribe");
+  assertIncludes(reader, 's(row.do_not_contact_source) === "email_unsubscribe"', "church unsubscribe reads 'Opted out'");
   assertIncludes(undo, 'const status = elsewhere || prevRaw === "suppressed" ? "suppressed" : prevRaw;', "still listed elsewhere (or stopped before) stays suppressed");
   assertIncludes(undo, "Still on the do-not-contact list. ${stillListedReason(name", "leads with the result, then why");
   assert(!writer.includes("Your do-not-contact entries were removed"), "no 'Your do-not-contact entries were removed'");
@@ -816,11 +834,10 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
   assertIncludes(undo, '"Undone. You can contact this business again."', "undo wording (business)");
   assertIncludes(writer, '"Undone. You can contact this church again."', "undo wording (church)");
   assert(!writer.includes("back on the list") && !writer.includes("back in the pipeline"), "old undo wording gone");
-  const add = writer.slice(writer.indexOf("async function addLeadToDoNotContact"), writer.indexOf("async function leadSuppressions("));
+  const add = writer.slice(writer.indexOf("async function addLeadToDoNotContact"), writer.indexOf("export async function undoBusinessDoNotContact"));
   assert(!add.includes('if (lead.status === "suppressed") return true;'), "an already-suppressed lead still gets dnc_source, so its tagged rows can be undone");
   assertIncludes(add, 'signals.dnc_source = "crm_visit";', "always tags the lead");
-  assert(add.indexOf("existingSuppressions(config, wanted)") < add.indexOf("method: \"POST\""), "dedupe: checks the list before inserting");
-  assertIncludes(add, "if (existing.some((found) => sameSuppression(row, found))) continue;", "never re-adds or re-tags a row already on the list");
+  assertIncludes(add, "claimSuppressions(config, leadSuppressionRows(lead), leadSuppressionSource(lead.id))", "adds claims through outreach_suppress (no repeat rows; a real reason keeps its row)");
   // editOrg (business): stale-save check and services merged, not replaced.
   const edit = writer.slice(writer.indexOf("export async function editOrg"), writer.indexOf("export function mergeBusinessServices"));
   assertIncludes(edit, "if (version && row.updated_at && version !== row.updated_at) return { ok: false, message: STALE };", "stale form refused");

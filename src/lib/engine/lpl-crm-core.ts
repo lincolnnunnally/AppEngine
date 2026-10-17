@@ -285,7 +285,9 @@ const DAY = 86_400_000;
 const FREEMAIL = new Set([
   "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "hotmail.com", "outlook.com", "live.com", "msn.com",
   "icloud.com", "me.com", "mac.com", "aol.com", "comcast.net", "att.net", "bellsouth.net", "windstream.net",
-  "charter.net", "verizon.net", "protonmail.com", "proton.me", "gmx.com", "mail.com", "example.com", "example.org"
+  "charter.net", "verizon.net", "protonmail.com", "proton.me", "gmx.com", "mail.com", "example.com", "example.org",
+  "sbcglobal.net", "cox.net", "earthlink.net", "frontier.com", "rr.com", "juno.com", "embarqmail.com", "centurylink.net",
+  "aim.com"
 ]);
 
 // Hosts many unrelated orgs share — never proof of "same org".
