@@ -34,7 +34,9 @@ export type TouchKind =
   | "scan"
   | "view"
   | "event"
-  | "customer";
+  | "customer"
+  | "visit"
+  | "drop_off";
 
 export type Touch = {
   at: string; // ISO timestamp
@@ -46,6 +48,12 @@ export type Touch = {
   response?: string;
   purchase?: string;
   unpaid?: boolean;
+  /** How long other apps should wait after this reach-out. Default DONT_REPEAT_DAYS (14). A drop-off rests 7. */
+  restDays?: number;
+  /** The record holds a calendar day, not a moment: show the date without a time. */
+  dateOnly?: boolean;
+  /** What was left on a visit or drop-off, in plain words (no contact details). */
+  left?: string;
 };
 
 export type TokenRow = {
@@ -72,6 +80,20 @@ export type EventRow = {
 
 export type LocationRow = { name: string; town: string; kind: string };
 
+/**
+ * A person at a church. "saved" contacts live in the church's own contact list
+ * and can be edited from the desk; the others come from the church record
+ * (pastor, secretary, main contact) and are shown read-only.
+ */
+export type CrmContact = {
+  id: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  source: "saved" | "pastor" | "secretary" | "contact";
+};
+
 export type CrmNode = {
   id: string;
   app: CrmApp;
@@ -95,6 +117,11 @@ export type CrmNode = {
   contextOnly?: boolean;
   /** Where the owning app opens this record: "/path#hash" from the app origin, or "#hash" on its admin URL. */
   recordPath?: string;
+  /** ChurchConnect church id the desk may log visits and save contacts on (UUID churches only). */
+  churchId?: string;
+  contacts?: CrmContact[];
+  /** A visit logged from the desk marked this church do-not-contact (the desk may undo it). */
+  deskDoNotContact?: boolean;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
@@ -135,6 +162,12 @@ export type CrmCard = {
   followUpReasons: FollowUpReason[];
   /** Per-app path inside that app's admin that opens this exact record (only where the app supports it). */
   recordPaths: Partial<Record<CrmApp, string>>;
+  /** The ChurchConnect church this card can log visits and save contacts on, if any. */
+  churchId: string | null;
+  /** People at this org (church contacts). Contact details are removed for viewers who are not the owner. */
+  contacts: CrmContact[];
+  /** A visit logged from the desk set do-not-contact on this church; the owner can undo it. */
+  deskDoNotContact: boolean;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -174,6 +207,9 @@ export type FollowUp = {
 };
 
 export const DONT_REPEAT_DAYS = 14;
+/** A visit rests 14 days; something dropped off (a sample, a flyer) rests 7. */
+export const VISIT_REST_DAYS = 14;
+export const DROP_OFF_REST_DAYS = 7;
 export const SOFT_REPEAT_DAYS = 30;
 export const WAITING_MIN_DAYS = 3;
 export const WARM_DAYS = 7;
@@ -401,6 +437,33 @@ function recordPathsOf(members: CrmNode[]): Partial<Record<CrmApp, string>> {
   return out;
 }
 
+/** The one church the desk may write to: only when exactly one non-context church record is on the card. */
+function churchIdOf(members: CrmNode[]): string | null {
+  const ids = [...new Set(members.filter((member) => member.churchId && !member.contextOnly).map((member) => member.churchId as string))];
+  return ids.length === 1 ? ids[0] : null;
+}
+
+function contactsOf(members: CrmNode[]): CrmContact[] {
+  const out: CrmContact[] = [];
+  const seen = new Set<string>();
+  for (const member of members) {
+    for (const contact of member.contacts ?? []) {
+      const key = `${normName(contact.name)}|${normEmail(contact.email)}|${normPhone(contact.phone)}`;
+      if (!contact.name || seen.has(contact.id) || seen.has(key)) continue;
+      seen.add(contact.id);
+      seen.add(key);
+      out.push(contact);
+    }
+  }
+  // Saved contacts first (they can be edited), then the record's own names.
+  return out.sort((a, b) => Number(a.source !== "saved") - Number(b.source !== "saved"));
+}
+
+/** Owner view keeps everything; anyone else sees names and titles only. */
+export function contactsForViewer(contacts: CrmContact[], isOwner: boolean): CrmContact[] {
+  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "" }));
+}
+
 export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Date): CrmCard[] {
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const union = new Union();
@@ -519,7 +582,10 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       nextAction: nextDates[0]?.action ?? "",
       nextStep: nextDates[0]?.action ?? "",
       followUpReasons: [],
-      recordPaths: recordPathsOf(members)
+      recordPaths: recordPathsOf(members),
+      churchId: churchIdOf(members),
+      contacts: contactsOf(members),
+      deskDoNotContact: members.some((member) => member.deskDoNotContact && !member.contextOnly)
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));
@@ -588,25 +654,54 @@ export function applyRestRule(card: CrmCard, now: Date): void {
   }
 }
 
+export function restDaysOf(touch: Pick<Touch, "restDays">): number {
+  const days = Number(touch.restDays);
+  return Number.isFinite(days) && days > 0 ? days : DONT_REPEAT_DAYS;
+}
+
 export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
   const outreach = touchesNewestFirst.filter((touch) => touch.outreach && !Number.isNaN(ms(touch.at)));
   const last = outreach[0];
   if (!last) return { level: null, text: "" };
   const age = daysBetween(last.at, now);
-  const who = CRM_APP_LABEL[last.app];
-  const agoText = age <= 0 ? "today" : age === 1 ? "yesterday" : `${age} days ago`;
   const reply = touchesNewestFirst.find((touch) => touch.signal && !touch.outreach && ms(touch.at) > ms(last.at));
   if (reply && age <= SOFT_REPEAT_DAYS) {
     return { level: "replied", text: `They replied ${friendlyDate(reply.at)} — OK to follow up.` };
   }
-  if (age < DONT_REPEAT_DAYS) {
-    const until = addDaysIso(last.at, DONT_REPEAT_DAYS);
+  // Each reach-out has its own rest (a visit 14 days, a drop-off 7). The rest
+  // runs until the latest end among them.
+  let holder: Touch | null = null;
+  let holdEnd = Number.NEGATIVE_INFINITY;
+  for (const touch of outreach) {
+    const rest = restDaysOf(touch);
+    const end = ms(touch.at) + rest * DAY;
+    if (now.getTime() < end && end > holdEnd) {
+      holder = touch;
+      holdEnd = end;
+    }
+  }
+  if (holder) {
+    const until = new Date(holdEnd).toISOString();
+    // A typed day ("I went on Oct 14") counts in calendar days, not hours.
+    const heldAge = holder.dateOnly
+      ? Math.round((Date.parse(`${nyDate(now.toISOString())}T12:00:00Z`) - Date.parse(`${dayOf(holder.at)}T12:00:00Z`)) / DAY)
+      : daysBetween(holder.at, now);
+    const heldAgo = heldAge <= 0 ? "today" : heldAge === 1 ? "yesterday" : `${heldAge} days ago`;
+    // In person it was you, so say so; anything an app sent is named by the app.
+    const lead =
+      holder.kind === "visit"
+        ? `You visited ${heldAgo}.`
+        : holder.kind === "drop_off"
+          ? `You dropped off ${holder.left || "something"} ${heldAgo}.`
+          : `${CRM_APP_LABEL[holder.app]} reached out ${heldAgo}.`;
     return {
       level: "hold",
       until,
-      text: `${who} reached out ${agoText}. Let it rest until ${friendlyDate(until)} before any app reaches out again.`
+      text: `${lead} Let it rest until ${friendlyDate(until)} before any app reaches out again.`
     };
   }
+  const who = CRM_APP_LABEL[last.app];
+  const agoText = age <= 0 ? "today" : age === 1 ? "yesterday" : `${age} days ago`;
   const recent = outreach.filter((touch) => daysBetween(touch.at, now) <= 60);
   const replied = touchesNewestFirst.some((touch) => touch.signal && ms(touch.at) >= ms(recent[recent.length - 1]?.at));
   if (recent.length >= 2 && !replied) {

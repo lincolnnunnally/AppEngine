@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChurchTools } from "@/components/engine/crm-church-tools";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -16,14 +17,19 @@ import {
   type Touch
 } from "@/lib/engine/lpl-crm-core";
 
-// CRM v1 — one card per org or person, the don't-repeat rule, hard stops, and
-// today's follow-ups. Read-only: every action button opens the app that owns
-// the record. Contact details never reach this component.
+// CRM — one card per org or person, the don't-repeat rule, hard stops, and
+// today's follow-ups. Most buttons open the app that owns the record. On a
+// ChurchConnect church the owner can also log a visit and save contacts
+// (crm-church-tools.tsx). Church contact emails and phones reach this
+// component only for the owner; the page strips them for anyone else. Match
+// emails and phones from the other apps never reach it.
 
 type Props = {
   cards: CrmCard[];
   followUps: FollowUp[];
   adminUrls: Partial<Record<CrmApp, string>>;
+  /** Owner only, and only when saving is switched on for this deploy. */
+  canSave?: boolean;
 };
 
 type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
@@ -32,7 +38,7 @@ const FILTER_LABEL: Record<CardFilter, string> = {
   all: "Everyone",
   today: "On today's list",
   multi: "In more than one app",
-  resting: "Resting (14 days)",
+  resting: "Resting",
   stops: "Do not pitch",
   possible: "Possible matches",
   presence: "Tokens & events",
@@ -96,11 +102,11 @@ function AppPill({ app }: { app: CrmApp }) {
 function TouchLine({ touch }: { touch: Touch }) {
   return (
     <li className={`crm-touch${touch.outreach ? " is-outreach" : ""}${touch.signal ? " is-signal" : ""}`}>
-      <span className="crm-touch-when">{fmtTime(touch.at)}</span>
+      <span className="crm-touch-when">{touch.dateOnly ? fmtDate(touch.at) : fmtTime(touch.at)}</span>
       <span className="crm-touch-body">
         <span className="crm-touch-head">
           <AppPill app={touch.app} />
-          <span className="crm-touch-kind">{touch.outreach ? "We reached out" : touch.signal ? "They responded" : "Noted"}</span>
+          <span className="crm-touch-kind">{touch.kind === "visit" ? "We visited" : touch.kind === "drop_off" ? "We dropped off" : touch.outreach ? "We reached out" : touch.signal ? "They responded" : "Noted"}</span>
         </span>
         <span className="crm-touch-what">{touch.what}</span>
         {touch.response || touch.purchase ? (
@@ -114,7 +120,7 @@ function TouchLine({ touch }: { touch: Touch }) {
   );
 }
 
-function CardView({ card, adminUrls, open, onOpen }: { card: CrmCard; adminUrls: Props["adminUrls"]; open: boolean; onOpen: (key: string) => void }) {
+function CardView({ card, adminUrls, open, onOpen, canSave }: { card: CrmCard; adminUrls: Props["adminUrls"]; open: boolean; onOpen: (key: string) => void; canSave: boolean }) {
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
   const matchText = card.matchedBy.length
@@ -204,6 +210,8 @@ function CardView({ card, adminUrls, open, onOpen }: { card: CrmCard; adminUrls:
           </div>
         ) : null}
       </dl>
+
+      <ChurchTools card={card} canSave={canSave} />
 
       <details className="crm-more" open={open}>
         <summary>
@@ -339,7 +347,7 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls }: Props) {
+export function CrmDesk({ cards, followUps, adminUrls, canSave = false }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
   const [filter, setFilter] = useState<CardFilter>("all");
   const [query, setQuery] = useState("");
@@ -489,7 +497,7 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
         {shownCards.length ? (
           <div className="crm-grid">
             {shownCards.slice(0, limit).map((card) => (
-              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} />
+              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} canSave={canSave} />
             ))}
           </div>
         ) : (

@@ -194,6 +194,11 @@ type HandoffClaims = {
 };
 
 function mintHandoffJwt(claims: HandoffClaims, secret: string): string {
+  return mintHs256Jwt(claims, secret);
+}
+
+/** Shared HS256 signer for the desk's short-lived passes (admin doors, CRM writes). */
+export function mintHs256Jwt(claims: Record<string, unknown>, secret: string): string {
   const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = base64url(JSON.stringify(claims));
   const data = `${header}.${payload}`;
