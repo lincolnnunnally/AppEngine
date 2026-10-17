@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
+import type { Suggestion } from "@/lib/engine/crm-suggest-core";
+import { suggestNextStep } from "@/lib/engine/crm-suggest";
+import { loadCrmSnapshot } from "@/lib/engine/lpl-crm";
 import {
   createOrg,
   editOrg,
@@ -38,7 +41,8 @@ async function ownerEmail(): Promise<string> {
 // to op_leads / op_lead_activities). Never both.
 const leadOf = (formData: FormData) => field(formData, "lead_id").trim();
 
-const refused = (): CrmFormState => ({ ok: false, message: "Only the owner can save here.", at: Date.now() });
+const refused = (message = "Only the owner can save here."): CrmFormState => ({ ok: false, message, at: Date.now() });
+const SUGGEST_OWNER_ONLY = "Only the owner can use this.";
 
 export async function saveChurchContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
   if (!(await canAccessEngineOwner())) return refused();
@@ -158,4 +162,22 @@ export async function editOrgAction(_prev: OrgFormState, formData: FormData): Pr
     return { ok: true, message: result.message, at: Date.now(), kind: result.kind, id: result.id };
   }
   return { ok: false, message: result.message, at: Date.now(), matches: result.matches };
+}
+
+// ── Suggested next step (slice 4) ──────────────────────────────────────────
+// Owner only, suggestions only: nothing is saved or sent here. The card is
+// re-read on the server (never trusted from the browser) so do-not-contact and
+// rest are checked against live data before anything is asked.
+
+export type SuggestState = { ok: boolean; message: string; at: number; suggestion?: Suggestion } | null;
+
+export async function suggestNextStepAction(_prev: SuggestState, formData: FormData): Promise<SuggestState> {
+  if (!(await canAccessEngineOwner())) return refused(SUGGEST_OWNER_ONLY);
+  const key = field(formData, "card_key").trim().slice(0, 200);
+  const snapshot = await loadCrmSnapshot().catch(() => null);
+  const card = snapshot?.cards.find((item) => item.key === key);
+  if (!snapshot || !card) return { ok: false, message: "Suggestions aren't available right now.", at: Date.now() };
+  const result = await suggestNextStep(card, snapshot.outreachHidden);
+  if (result.ok) return { ok: true, message: "", at: Date.now(), suggestion: result.suggestion };
+  return { ok: false, message: result.message, at: Date.now() };
 }

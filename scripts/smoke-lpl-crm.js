@@ -476,6 +476,10 @@ await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins"
   assert(!repeatRule([visit(10)], NOW).text.includes("ChurchConnect visited"), "in person it was you");
   assert(repeatRule([{ at: daysAgo(3), app: "laser", kind: "sample", what: "Left a sample", outreach: true, restDays: 7 }], NOW).text.startsWith("Laser reached out 3 days ago."), "apps still named for their own touches");
   assert(repeatRule([drop(8)], NOW).level === "soon", "drop-off 8 days ago → go gently");
+  // VAD slice 4 r1: Go gently after an in-person visit says "You visited", like the rest banner; drop-off and app wording unchanged.
+  assert(repeatRule([visit(20)], NOW).text === "You visited 20 days ago. Fine to follow up, but go gently.", repeatRule([visit(20)], NOW).text);
+  assert(repeatRule([drop(8)], NOW).text === "You dropped something off 8 days ago. Fine to follow up, but go gently.", repeatRule([drop(8)], NOW).text);
+  assert(repeatRule([{ at: daysAgo(20), app: "churchconnect", kind: "invite", what: "Invite", outreach: true }], NOW).text === "ChurchConnect reached out 20 days ago. Fine to follow up, but go gently.", "an app's own reach-out is still named by the app");
   // A drop-off yesterday after a visit 3 days ago: the visit's rest ends later and wins.
   const both = repeatRule([drop(1), visit(3)], NOW);
   assert(both.level === "hold" && both.until.slice(0, 10) === daysAgo(3 - 14).slice(0, 10), `longest rest wins, got ${both.until}`);
@@ -524,7 +528,7 @@ await runStep("church contacts: one list per card, details only for the owner", 
 await runStep("saving: owner-only server actions, narrow pass, one save per form", () => {
   const actions = read("src/app/(cockpit)/crm/actions.ts");
   assert(actions.startsWith('"use server"'), "server actions file");
-  const gates = actions.match(/if \(!\(await canAccessEngineOwner\(\)\)\) return refused\(\);/g) || [];
+  const gates = actions.match(/if \(!\(await canAccessEngineOwner\(\)\)\) return refused\((SUGGEST_OWNER_ONLY)?\);/g) || [];
   const exported = actions.match(/export async function \w+Action/g) || [];
   assert(exported.length >= 2 && gates.length === exported.length, `every action checks the owner first (${gates.length}/${exported.length})`);
   const writer = read("src/lib/engine/lpl-crm-write.ts");
@@ -560,7 +564,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(tools, "disabled={pending || (stopping && !confirmed)}", "do-not-contact Save waits for the tick");
   assertIncludes(tools, 'stopping && confirmed ? "Save and stop contact"', "ticked: 'Save and stop contact'");
   assertIncludes(tools, 'stopping && confirmed ? "dx-btn--danger" : "dx-btn--primary"', "ticked: stop style");
-  assertIncludes(tools, 'kind === "drop_off" ? "Save drop-off" : "Save visit"', "drop-off button label");
+  assertIncludes(tools, 'kind === "drop_off" ? "Save drop-off" : kind === "visit" ? "Save visit" : "Save"', "drop-off / visit button label; plain Save until a type is picked");
   assertIncludes(tools, "Yes, remove", "remove asks first");
   assertIncludes(tools, "(contact.email || contact.phone) && mode !== `edit:${contact.id}`", "details not shown twice while editing");
   const desk = read("src/components/engine/crm-desk.tsx");

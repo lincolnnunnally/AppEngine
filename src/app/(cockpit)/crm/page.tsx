@@ -107,7 +107,14 @@ export default async function CrmPage() {
       </section>
 
       {snapshot.configured ? (
-        <CrmDesk cards={viewCards} followUps={snapshot.followUps} adminUrls={snapshot.adminUrls} canSave={canSave} />
+        <CrmDesk
+          cards={viewCards}
+          followUps={snapshot.followUps}
+          adminUrls={snapshot.adminUrls}
+          canSave={canSave}
+          isOwner={isOwner}
+          outreachHidden={snapshot.outreachHidden}
+        />
       ) : (
         <section className="panel">
           <p className="dx-callout dx-callout--alert">
