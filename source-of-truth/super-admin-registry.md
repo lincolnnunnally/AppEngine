@@ -285,6 +285,56 @@ Vidalia food pantry — **not a new app brand and not a second Operate**. Contin
 }
 ```
 
+### People & places (CRM v1 — desk view, not a new app)
+
+Owner-only, read-only view on the private desk at `/crm` (`dashboard.unitedundergod.org/crm`). Approved by Lincoln 2026-10-17. **Not a new CRM system and not a parallel admin UI**: it reads the records ChurchConnect, Laser, and Presence already keep in the shared database and every action button opens that app's own admin. No new tables, no writes, nothing sent.
+
+- Name: People & places
+- Route: `/crm` (rail: Command → People & places; deck tile "follow-ups today")
+- Reader: `src/lib/engine/lpl-crm.ts` (server only, same pattern as `lpl-ops-stats.ts`); rules: `src/lib/engine/lpl-crm-core.ts`
+- Sources read (read-only): ChurchConnect `cc_churches` (pipeline rows only), `cc_site_invites`, `cc_church_crm_activities`, `cc_invites`, `cc_email_log`, website-preview visits in `lpl_events`; Laser `drop_places`, `drop_samples`, `orders`, `customers`; Presence `presence_places`, `presence_coin_batches`, `presence_coins`, `presence_coin_scans`, `presence_moments`; shared `outreach_suppressions`
+- Matching: explicit ids → email → website → phone. Name + town is only a "possible match", never a merge.
+- Don't repeat: any app reached out in the last 14 days → card says rest. Hard stops: do-not-contact list, already a customer for that app, said no.
+- Daily follow-ups: due today, warm with no follow-up, waiting 3–14 days, not paid, upcoming events (14 days), tokens to print.
+- Printed tokens: Presence has no separate "printed" field. A token counts as printed at `engraved` (or later: `released`, `found`); `drafted` / `approved` = not printed.
+- Privacy: people show as first name + last initial; emails and phones are used only to match and never rendered or logged.
+
+```json
+{
+  "kind": "super_admin_registry_entry",
+  "schemaVersion": 1,
+  "app": {
+    "name": "People & places (CRM v1)",
+    "slug": "crm-desk-view",
+    "status": "production",
+    "owner": "APP_ENGINE_OWNER_EMAIL",
+    "repo": "lincolnnunnally/AppEngine",
+    "charterPath": "source-of-truth/super-admin-registry.md",
+    "packetPath": "not-a-new-app — read-only desk view over ChurchConnect, Laser, and Presence records",
+    "environment": "production",
+    "doorKind": "desk_view",
+    "continuityHome": "AppEngine private desk"
+  },
+  "operations": {
+    "adminUrl": "https://dashboard.unitedundergod.org/crm",
+    "writes": "none",
+    "sends": "none",
+    "newTables": "none"
+  },
+  "auth": {
+    "provider": "AppEngine Auth.js",
+    "roles": ["owner", "admin"]
+  },
+  "guardrails": {
+    "noSecretsInRegistry": true,
+    "readOnly": true,
+    "noParallelAppEngineAdminUi": true,
+    "noPersonalDataInLogs": true,
+    "documentedIntegrationReason": "Lincoln approved CRM v1 on 2026-10-17: one card per org or person across ChurchConnect, Laser, and Presence, with a 14-day don't-repeat rule. Actions open each app's own admin."
+  }
+}
+```
+
 ### Testimony doors (EXIST paths — not new apps)
 
 Quiet directory/SSO Continuity. Apps share philosophy, not purpose. Do not invent a mega-hub, SingTrue, or a ChurchConnect TestimonyHub door. Do not deploy from `spark-of-hope-vercel-recovery`. Full map: `source-of-truth/testimony-continuity.md`.
