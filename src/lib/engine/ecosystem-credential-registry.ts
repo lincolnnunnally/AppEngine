@@ -192,7 +192,7 @@ const EASY_PEAZY: CredentialAppGroup = {
   vercelProjectId: "prj_TvIKmnbeYR9ZzqSLysPeDfoCgVbU",
   keys: [
     { displayName: "Easy Peazy — envs (live stack)", envVar: "REACT_APP_BACKEND_URL", host: "vercel", location: "Its Vercel + Render env (set during the 2026-07-09 port)", scope: "config", secret: false, whoProvides: "already-set", purpose: "Superseded question — the app went live on our stack 2026-07-09 with its envs installed at deploy. Nothing to enter.", statusMode: "manual" },
-    { displayName: "Easy Peazy — Supabase URL (Supabase main branch)", envVar: "VITE_SUPABASE_URL", host: "vercel", location: "Vercel project website-friends · production", scope: "frontend_public", secret: false, whoProvides: "already-set", purpose: "Set during the 2026-07-09 port to the shared LPL Supabase. Nothing to enter.", statusMode: "manual" },
+    { displayName: "Easy Peazy — Supabase URL (Supabase main branch)", envVar: "VITE_SUPABASE_URL", host: "vercel", location: "Vercel project easypeazy-web · production", scope: "frontend_public", secret: false, whoProvides: "already-set", purpose: "Set during the 2026-07-09 port to the shared LPL Supabase. Nothing to enter.", statusMode: "manual" },
   ],
 };
 
@@ -217,7 +217,7 @@ const EASY_PEAZY_API: CredentialAppGroup = {
       displayName: "Easy Peazy — service token (shared with AI Website Design)",
       envVar: "AWD_SERVICE_TOKEN",
       host: "vercel",
-      location: "Vercel project easy-peazy-api · production",
+      location: "Vercel project easypeazy-api · production",
       scope: "server",
       secret: true,
       whoProvides: "lincoln",
@@ -228,14 +228,14 @@ const EASY_PEAZY_API: CredentialAppGroup = {
         when: "missing",
         priority: "blocker",
         action:
-          "Push the same AWD_SERVICE_TOKEN to easy-peazy-api and ai-website-design — without it Easy Peazy cannot build a customer a website.",
+          "Push the same AWD_SERVICE_TOKEN to easypeazy-api and ai-website-design — without it Easy Peazy cannot build a customer a website.",
       },
     },
     {
       displayName: "Elegant Themes — account username",
       envVar: "ELEGANT_THEMES_USERNAME",
       host: "vercel",
-      location: "Vercel project easy-peazy-api · production",
+      location: "Vercel project easypeazy-api · production",
       scope: "server",
       secret: false,
       whoProvides: "lincoln",
@@ -253,7 +253,7 @@ const EASY_PEAZY_API: CredentialAppGroup = {
       displayName: "Elegant Themes — API key (members area)",
       envVar: "ELEGANT_THEMES_API_KEY",
       host: "vercel",
-      location: "Vercel project easy-peazy-api · production",
+      location: "Vercel project easypeazy-api · production",
       scope: "server",
       secret: true,
       whoProvides: "lincoln",
@@ -391,7 +391,7 @@ const AI_WEBSITE_DESIGN: CredentialAppGroup = {
       secret: true,
       whoProvides: "lincoln",
       purpose:
-        "Licences and updates Divi on the network. ONE Elegant Themes membership covers unlimited client sites — what the licence bars is reselling Divi itself, not handing a customer a layout. Same value already set on easy-peazy-api.",
+        "Licences and updates Divi on the network. ONE Elegant Themes membership covers unlimited client sites — what the licence bars is reselling Divi itself, not handing a customer a layout. Same value already set on easypeazy-api.",
       statusMode: "vercel_env",
     },
     {
@@ -403,7 +403,7 @@ const AI_WEBSITE_DESIGN: CredentialAppGroup = {
       secret: true,
       whoProvides: "lincoln",
       purpose:
-        "Paired with the username above. elegantthemes.com → Account → API Key. Same value already set on easy-peazy-api.",
+        "Paired with the username above. elegantthemes.com → Account → API Key. Same value already set on easypeazy-api.",
       statusMode: "vercel_env",
     },
     {
@@ -415,7 +415,7 @@ const AI_WEBSITE_DESIGN: CredentialAppGroup = {
       secret: true,
       whoProvides: "lincoln",
       purpose:
-        "The shared secret Easy Peazy and ChurchConnect present to POST /api/provision to have a customer's website built. MUST be the identical value on the easy-peazy-api project — if they drift, every partner build fails with a 401 that looks like an outage.",
+        "The shared secret Easy Peazy and ChurchConnect present to POST /api/provision to have a customer's website built. MUST be the identical value on the easypeazy-api project — if they drift, every partner build fails with a 401 that looks like an outage.",
       statusMode: "vercel_env",
     },
   ],

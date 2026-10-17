@@ -153,7 +153,7 @@ Deployment condition:
 
 - Needs Launch Pack install/fill, Supabase placement review, and live preview target confirmation.
 
-### Easy Peasy Websites / Website-friends
+### Easy Peasy Websites / easypeazy
 
 Status: canonical candidate
 

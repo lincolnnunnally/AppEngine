@@ -134,10 +134,10 @@ Owner: Lincoln
 - Slug: easy-peasy-website
 - Review: unknown
 - Production: approval-gated
-- Version: website-friends-source
+- Version: easypeazy-source
 - State: production_blocked / planned
 - Next safe action: create_planning_issue
-- Source files: source-of-truth/ecosystem-build-ledger.md, Website-friends
+- Source files: source-of-truth/ecosystem-build-ledger.md, easypeazy
 - Linked issues: none
 - Linked PRs: none
 - Blockers: Confirm rename/alias and mine Website Builder module before launch work.

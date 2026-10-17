@@ -74,7 +74,7 @@ High-signal findings:
 | Opportunity | problem-to-opportunity app | no standalone repo; surfaces inside AppEngine / We Succeed | MISSING_REPO / IN_APPENGINE | Decide whether Opportunity remains AppEngine/We Succeed front door or gets own repo/app package |
 | Best Life | growth app | no standalone repo; README/package area in `life-produces-life/apps/best-life` | MISSING_REPO / PACKAGE_STUB | Create AIPOS app profile and first build packet before coding |
 | Live On Mission | service app | no standalone repo; README/package area in `life-produces-life/apps/live-on-mission` | MISSING_REPO / PACKAGE_STUB | Create AIPOS app profile and first build packet before coding |
-| Easy Peasy Website | website builder | `Website-friends`, Supabase app | CANONICAL_CANDIDATE | Rename/alias decision; install Launch Pack; mine Website Builder module |
+| Easy Peasy Website | website builder | `easypeazy`, Supabase app | CANONICAL_CANDIDATE | Rename/alias decision; install Launch Pack; mine Website Builder module |
 | Snip.Show | clip/creator tool | `Snip.Show` small shell; `emergent` rich Snip.show code | CANONICAL_CANDIDATE | Decide canonical repo and merge direction; likely preserve `Snip.Show` name and mine `emergent` |
 | emergent | Snip.Show rich source | `emergent`, backend/frontend/services/tests | MERGE_SOURCE | Mine into Snip.Show; archive as source after consolidation |
 | Iconium | icon/logo/image tool | `Iconium`, Next/Prisma app | CANONICAL_ACTIVE | Install Launch Pack; decide whether Prisma stays or moves to Supabase ecosystem tree |
@@ -105,7 +105,7 @@ These should be built once and reused across apps. They should live in the conso
 | Navigator / Recommendation | Opportunity/AppEngine surfaces, `ideas` | Opportunity, Best Life, Spark | Build as shared module after intake and identity are stable |
 | Events and Scheduling | ChurchConnect | ChurchConnect, Live On Mission, coaching | Mine ChurchConnect event routes and schema first |
 | CRM / Follow-up | ChurchConnect | ChurchConnect, business apps, KND | Finish ChurchConnect follow-up proof, then generalize |
-| Website Builder | Website-friends | Easy Peasy, ChurchConnect, business apps | Audit Website-friends for reusable builder module |
+| Website Builder | easypeazy | Easy Peasy, ChurchConnect, business apps | Audit easypeazy for reusable builder module |
 | Payments / Billing | Toner, Laser, RebuildingDads | commercial apps, donations | Keep payment code app-scoped until shared policy/security review |
 | Growth Tracking | RebuildingDads, KND-google-ai, Best Life stub | Best Life, KND, Spark | Define shared growth model before Best Life build |
 | Hope / Engagement Analytics | Spark/AppEngine docs | dashboard across journey apps | Park until first three live apps produce data |
@@ -178,7 +178,7 @@ Goal: stop treating every niche community as a separate app build.
 
 Goal: finish revenue/service apps without absorbing the mission apps.
 
-1. Easy Peasy Website / Website-friends.
+1. Easy Peasy Website / easypeazy.
 2. Toner Management platform.
 3. Laser Engrave Market.
 4. Iconium.

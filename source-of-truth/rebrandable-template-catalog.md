@@ -344,7 +344,7 @@ Credentials:
 
 ### Managed Website + Domain Launch App
 
-Source: Easy Peasy Websites / Website-friends
+Source: Easy Peasy Websites / easypeazy
 
 Mine first:
 

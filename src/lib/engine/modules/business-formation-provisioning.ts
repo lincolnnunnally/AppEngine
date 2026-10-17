@@ -1,6 +1,6 @@
 // business-formation-provisioning — guide a customer from signup into domain,
 // email, business formation, and service provisioning. Ported from the real
-// "Website-friends" hosting SaaS:
+// "easypeazy" hosting SaaS:
 //   - SignupPage.tsx: on signup, create a client profile (full_name, business_name,
 //     email, phone, status='active') then a subscription (plan_type='basic',
 //     monthly_fee=5.00, status='active', current_period_start/end, next_billing_date

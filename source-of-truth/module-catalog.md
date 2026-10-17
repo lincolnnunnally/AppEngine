@@ -23,7 +23,7 @@ The catalog is not abstract — it is mined from the completed repos, **verified
 
 - **ChurchConnect** (richest, completed): Communication (`broadcasting`/`church_sms`/`email_service`), Payments & Giving (`stripe_payments`/`universal_giving`/`OnlineGiving`), Scripture & Sermon Tools, Live Service (`streaming`/`LiveStreamManager`), Volunteer & Safety (`volunteer_force`/`background_checks`), CRM, Events, Testimony, Identity (phone OTP), Analytics.
 - **Kindred-Connection / Kindred Connections** — the **canonical Connection Engine** and strongest rebrandable human-growth app source: `backend/routers/soul_match.py`, `relational_posture.py`, `loneliness_prescription.py`, `pods.py`, `knowing.py`, `identity.py`, `forgiveness.py`, `coaching.py`, `events.py`, `event_curation.py`, `webhooks.py`, `public_profile.py`, `admin.py`, and frontend pages for onboarding, becoming, discover, match detail, invites, public profiles, events, coaching, forgiveness, mediation, and admin. Mine these before rebuilding any belonging, matching, referral, profile-sharing, coaching, event-service, repair, or admin/moderation flow.
-- **Website-friends / Easy Peasy** — Website Builder + Domains (`WebsitesAndDomains.tsx`, `DomainSearchModal.tsx`, `Web3Domains.tsx`).
+- **easypeazy / Easy Peasy** — Website Builder + Domains (`WebsitesAndDomains.tsx`, `DomainSearchModal.tsx`, `Web3Domains.tsx`).
 - **ideas** — Idea Capture & Content Forge (voice/photo/OCR/transcribe → forge/polish).
 - **LaserEngraving** — Marketplace & Orders + Design Studio (canvas, upload, mockups).
 - **childfirst-solutions** — Case Management & Documentation + Mediated Communication.
