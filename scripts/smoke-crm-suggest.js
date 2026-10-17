@@ -173,11 +173,23 @@ await step("owner only, server-side card", () => {
   assert(fn.includes("snapshot?.cards.find((item) => item.key === key)") && fn.includes("snapshot.outreachHidden"), "card and DNC state read on the server");
   const ui = read("src/components/engine/crm-suggest.tsx");
   assert(ui.includes("if (!isOwner) return null;"), "UI owner only");
+  // VAD r1: resting hides the suggestion area completely, like stopped (no "Resting…" line).
+  assert(ui.includes('if (suggestGate(card, outreachHidden).kind !== "ok") return null;') && !ui.includes("crm-suggest-rest"), "stopped, resting and blocked: no suggestion area");
   const page = read("src/app/(cockpit)/crm/page.tsx");
   assert(page.includes("isOwner={isOwner}"), "page passes the owner flag");
 });
 
 const VENDOR_RE = /\b(grok|xai|x\.ai|openai)\b/i;
+await step("VAD r1: chips wrap, Next step grows, Go gently names the visit", () => {
+  const css = read("src/app/styles.css");
+  assert(css.includes(".crm-page .crm-offer-pills .crm-pill { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere;"), "app chips wrap within the card");
+  const tools = read("src/components/engine/crm-church-tools.tsx");
+  assert(tools.includes('<textarea\n      name="next_step"') && tools.includes("maxLength={200}") && tools.includes("box.scrollHeight"), "Next step is a growing textarea with the same name and limit");
+  assert(!tools.includes('<input\n              name="next_step"'), "old one-line input gone");
+  const coreSrc = read("src/lib/engine/lpl-crm-core.ts");
+  assert(coreSrc.includes('last.kind === "visit"\n        ? `You visited ${agoText}.`'), "Go gently: You visited N days ago");
+});
+
 await step("no vendor name on screen (client sources)", () => {
   for (const rel of ["src/components/engine/crm-suggest.tsx", "src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx", "src/lib/engine/crm-suggest-core.ts", "src/app/(cockpit)/crm/page.tsx"]) {
     const code = ts.transpileModule(read(rel), { compilerOptions: { removeComments: true, jsx: ts.JsxEmit.Preserve } }).outputText;

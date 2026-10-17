@@ -476,6 +476,10 @@ await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins"
   assert(!repeatRule([visit(10)], NOW).text.includes("ChurchConnect visited"), "in person it was you");
   assert(repeatRule([{ at: daysAgo(3), app: "laser", kind: "sample", what: "Left a sample", outreach: true, restDays: 7 }], NOW).text.startsWith("Laser reached out 3 days ago."), "apps still named for their own touches");
   assert(repeatRule([drop(8)], NOW).level === "soon", "drop-off 8 days ago → go gently");
+  // VAD slice 4 r1: Go gently after an in-person visit says "You visited", like the rest banner; drop-off and app wording unchanged.
+  assert(repeatRule([visit(20)], NOW).text === "You visited 20 days ago. Fine to follow up, but go gently.", repeatRule([visit(20)], NOW).text);
+  assert(repeatRule([drop(8)], NOW).text === "You dropped off something 8 days ago. Fine to follow up, but go gently.", repeatRule([drop(8)], NOW).text);
+  assert(repeatRule([{ at: daysAgo(20), app: "churchconnect", kind: "invite", what: "Invite", outreach: true }], NOW).text === "ChurchConnect reached out 20 days ago. Fine to follow up, but go gently.", "an app's own reach-out is still named by the app");
   // A drop-off yesterday after a visit 3 days ago: the visit's rest ends later and wins.
   const both = repeatRule([drop(1), visit(3)], NOW);
   assert(both.level === "hold" && both.until.slice(0, 10) === daysAgo(3 - 14).slice(0, 10), `longest rest wins, got ${both.until}`);

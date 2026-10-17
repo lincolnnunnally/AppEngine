@@ -805,7 +805,14 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
     return { level: "soon", text: `${recent.length} touches in 60 days with no reply. Go gently on a third.` };
   }
   if (age <= SOFT_REPEAT_DAYS) {
-    return { level: "soon", text: `${who} reached out ${agoText}. Fine to follow up, but go gently.` };
+    // In person it was you, the same words as the rest banner; anything an app sent is named by the app.
+    const lead =
+      last.kind === "visit"
+        ? `You visited ${agoText}.`
+        : last.kind === "drop_off"
+          ? `You dropped off ${last.left || "something"} ${agoText}.`
+          : `${who} reached out ${agoText}.`;
+    return { level: "soon", text: `${lead} Fine to follow up, but go gently.` };
   }
   return { level: null, text: "" };
 }

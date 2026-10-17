@@ -134,6 +134,37 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
   );
 }
 
+/** Next step: a one-line-looking box that grows to show the whole step (a suggestion can be long). Same name, length and value as before. */
+function NextStepField({ defaultValue, placeholder }: { defaultValue: string; placeholder: string }) {
+  const fit = (box: HTMLTextAreaElement | null) => {
+    if (!box) return;
+    box.style.height = "auto";
+    box.style.height = `${box.scrollHeight + 2}px`;
+  };
+  return (
+    <textarea
+      name="next_step"
+      className="crm-next-step"
+      rows={1}
+      maxLength={200}
+      defaultValue={defaultValue}
+      placeholder={placeholder}
+      autoComplete="off"
+      ref={fit}
+      onInput={(event) => fit(event.currentTarget)}
+      onKeyDown={(event) => {
+        // One line of text: Enter submits like the old input did, instead of adding a line break.
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          const save = event.currentTarget.form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+          // Same as Enter in a text input: only when Save is enabled (not while saving).
+          if (save && !save.disabled) event.currentTarget.form?.requestSubmit(save);
+        }
+      }}
+    />
+  );
+}
+
 function VisitForm({
   card,
   target,
@@ -261,13 +292,7 @@ function VisitForm({
         <div className="crm-form-group">
           <label className="crm-field">
             <span>Next step</span>
-            <input
-              name="next_step"
-              maxLength={200}
-              defaultValue={draft?.nextStep ?? ""}
-              placeholder={target.noun === "church" ? "Call the pastor back" : "Call the owner back"}
-              autoComplete="off"
-            />
+            <NextStepField defaultValue={draft?.nextStep ?? ""} placeholder={target.noun === "church" ? "Call the pastor back" : "Call the owner back"} />
           </label>
           <label className="crm-field">
             <span>When</span>

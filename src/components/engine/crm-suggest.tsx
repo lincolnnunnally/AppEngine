@@ -21,18 +21,8 @@ export function SuggestNextStep({ card, isOwner, canSave, outreachHidden = false
   const [dismissedAt, setDismissedAt] = useState(0);
   const [state, action, pending] = useActionState<SuggestState, FormData>(suggestNextStepAction, null);
   if (!isOwner) return null;
-  const gate = suggestGate(card, outreachHidden);
-  // Stopped: the red stop banner already says it; nothing to suggest.
-  if (gate.kind === "stopped") return null;
-  if (gate.kind !== "ok") {
-    return (
-      <section className="crm-sub crm-suggest" aria-label={SUGGEST_LABEL} data-testid="crm-suggest">
-        <p className="crm-dim crm-suggest-rest">
-          <strong>{SUGGEST_LABEL}:</strong> {gate.message}
-        </p>
-      </section>
-    );
-  }
+  // Stopped, resting, or the do-not-contact list unreadable: the banners already say it; no suggestion area at all.
+  if (suggestGate(card, outreachHidden).kind !== "ok") return null;
   const target = canSave ? saveTargetOf(card) : null;
   const shown = state && state.at > dismissedAt ? state : null;
   const suggestion = shown?.ok ? shown.suggestion : undefined;
