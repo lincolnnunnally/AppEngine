@@ -5,7 +5,8 @@ import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
 import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
-import { loadCrmSnapshot } from "@/lib/engine/lpl-crm";
+import { loadAvProspects, loadCrmSnapshot } from "@/lib/engine/lpl-crm";
+import type { AvProspect } from "@/lib/engine/av-prospects-core";
 import {
   createOrg,
   editOrg,
@@ -180,4 +181,18 @@ export async function suggestNextStepAction(_prev: SuggestState, formData: FormD
   const result = await suggestNextStep(card, snapshot.outreachHidden);
   if (result.ok) return { ok: true, message: "", at: Date.now(), suggestion: result.suggestion };
   return { ok: false, message: result.message, at: Date.now() };
+}
+
+// ── AV prospects (Messenger AVL kit) ───────────────────────────────────────
+// Owner only, read only: a ranked list of churches that may want help with
+// sound, video, lighting or streaming. Nothing is saved or sent.
+
+export type AvProspectState = { ok: boolean; message: string; at: number; prospects?: AvProspect[]; read?: number } | null;
+
+export async function loadAvProspectsAction(_prev: AvProspectState, _formData: FormData): Promise<AvProspectState> {
+  if (!(await canAccessEngineOwner())) return refused(SUGGEST_OWNER_ONLY);
+  const list = await loadAvProspects().catch(() => null);
+  if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now() };
+  if (!list.ok) return { ok: false, message: list.message, at: Date.now() };
+  return { ok: true, message: "", at: Date.now(), prospects: list.prospects, read: list.read };
 }

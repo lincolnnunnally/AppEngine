@@ -28,6 +28,7 @@ import {
   type Touch
 } from "@/lib/engine/lpl-crm-core";
 import { BUSINESS_OFFER_IDS, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
+import { AV_LIST_SIZE, AV_RINGS_MILES, rankAvProspects, tierRingFilters, type AvProspect, type AvRow, type AvTierIndex } from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
 
@@ -1104,4 +1105,88 @@ export async function crmFollowUpCount(): Promise<number | null> {
 /** The /crm page already did the full read — share its count with the deck. */
 export function rememberCrmFollowUpCount(snapshot: CrmSnapshot): void {
   if (snapshot.configured) deckCount = { at: Date.now(), value: todayCount(snapshot) };
+}
+
+// --- AV prospects (Messenger AVL kit) -----------------------------------------
+// Read only, on tap from the desk (never on page load). Churches with a website
+// or Facebook page on file, in Lincoln's territory order (av-prospects-core.ts):
+// central & South GA, rest of GA, FL, SC — nearest Vidalia first in each tier.
+// Reads tier by tier in growing rings and stops as soon as the top of the list
+// is settled, so it never pulls the whole table. Anyone on the do-not-contact
+// list (email, website domain or phone) is left out; if that list can't be
+// read, nothing is listed.
+const AV_FIELDS = [
+  "name", "city", "state", "lat", "lng", "latitude", "longitude", "website", "facebook_url", "live_stream_url",
+  "livestream_url", "youtube_url", "subsplash_url", "website_live", "website_http_status", "website_trouble",
+  "avg_attendance", "pastor_name", "contact_name", "ministry_assist_name", "secretary_name", "do_not_contact",
+  "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind", "source", "email", "phone"
+];
+const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as`;
+const AV_PAGE = 1000;
+const AV_MAX_PAGES = 15;
+
+export type AvProspectList = { ok: boolean; prospects: AvProspect[]; read: number; message: string };
+
+export async function loadAvProspects(): Promise<AvProspectList> {
+  const config = getLplConfig();
+  if (!config) return { ok: false, prospects: [], read: 0, message: "This deploy cannot read the shared database yet." };
+  const sources: CrmSourceStatus[] = [];
+  const suppressionRows = await readRows(config, "outreach_suppressions", "select=email,domain,phone&limit=5000", sources, { label: "Do-not-contact list", app: "shared" });
+  if (sources.some((source) => !source.ok)) {
+    return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
+  }
+  const emails = new Set<string>();
+  const domains = new Set<string>();
+  const phones = new Set<string>();
+  for (const row of suppressionRows) {
+    const email = normEmail(row.email);
+    const domain = normDomain(row.domain);
+    const phone = normPhone(row.phone);
+    if (email) emails.add(email);
+    if (domain) domains.add(domain);
+    if (phone) phones.add(phone);
+  }
+  const suppressed = (row: AvRow): boolean => {
+    const email = normEmail(row.email);
+    if (email && (emails.has(email) || domains.has(email.split("@")[1] ?? ""))) return true;
+    const domain = normDomain(row.website);
+    if (domain && domains.has(domain)) return true;
+    const phone = normPhone(row.phone);
+    return Boolean(phone && phones.has(phone));
+  };
+  const readRing = async (tier: AvTierIndex, radius: number): Promise<Row[]> => {
+    const rows: Row[] = [];
+    for (let page = 0; page < AV_MAX_PAGES; page += 1) {
+      const batch = await readRows(
+        config,
+        "cc_churches",
+        `${AV_SELECT}&${tierRingFilters(tier, radius)}&or=(doc->>website.not.is.null,doc->>facebook_url.not.is.null)&order=id&limit=${AV_PAGE}&offset=${page * AV_PAGE}`,
+        sources,
+        { label: "Churches for AV prospects", app: "churchconnect" }
+      );
+      rows.push(...batch);
+      if (batch.length < AV_PAGE) break;
+    }
+    return rows;
+  };
+  const kept: Row[] = [];
+  let read = 0;
+  let prospects: AvProspect[] = [];
+  for (const tier of [0, 1, 2, 3] as AvTierIndex[]) {
+    let tierRows: Row[] = [];
+    for (const radius of AV_RINGS_MILES) {
+      tierRows = await readRing(tier, radius);
+      if (sources.some((source) => !source.ok)) {
+        return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
+      }
+      prospects = rankAvProspects([...kept, ...tierRows], suppressed);
+      // Settled: earlier tiers plus this tier's churches inside the ring already fill the list.
+      const settled = prospects.filter((item) => item.tier < tier || (item.tier === tier && item.miles <= radius)).length;
+      if (settled >= AV_LIST_SIZE) break;
+    }
+    read += tierRows.length;
+    kept.push(...tierRows);
+    if (prospects.length >= AV_LIST_SIZE && prospects.every((item) => item.tier <= tier)) break;
+  }
+  return { ok: true, prospects, read, message: "" };
 }

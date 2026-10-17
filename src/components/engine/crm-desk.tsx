@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { PeopleTools } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
@@ -390,6 +391,8 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
+  // Owner only: the AV prospect list (Messenger AVL) shows in place of the cards.
+  const [av, setAv] = useState(false);
 
   const todayRows = useMemo(() => followUps.filter((row) => row.today), [followUps]);
   const waitOnlyRows = useMemo(() => followUps.filter((row) => !row.today), [followUps]);
@@ -416,6 +419,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
   }, [cards, filter, query, focus]);
 
   const openCard = (key: string) => {
+    setAv(false);
     setFocus(key);
     requestAnimationFrame(() => document.getElementById("crm-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
@@ -517,17 +521,32 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             <button
               type="button"
               key={key}
-              className={`dx-chip crm-chip${!focus && filter === key ? " dx-chip--active" : ""}`}
+              className={`dx-chip crm-chip${!av && !focus && filter === key ? " dx-chip--active" : ""}`}
               onClick={() => {
                 setFilter(key);
                 setFocus(null);
+                setAv(false);
                 setLimit(PAGE);
               }}
-              aria-pressed={!focus && filter === key}
+              aria-pressed={!av && !focus && filter === key}
             >
               {FILTER_LABEL[key]} <strong>{filterCounts[key]}</strong>
             </button>
           ))}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${av ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setAv(true);
+                setFocus(null);
+              }}
+              aria-pressed={av}
+              data-testid="crm-av-chip"
+            >
+              AV prospects (Messenger AVL)
+            </button>
+          ) : null}
         </div>
         <details className="crm-legend">
           <summary>What the words mean</summary>
@@ -555,7 +574,9 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             </button>
           </p>
         ) : null}
-        {shownCards.length ? (
+        {av ? (
+          <AvProspects cards={cards} adminUrls={adminUrls} onOpen={openCard} />
+        ) : shownCards.length ? (
           <div className="crm-grid">
             {shownCards.slice(0, limit).map((card) => (
               <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} onOpenOrg={openOrg} canSave={canSave} isOwner={isOwner} outreachHidden={outreachHidden} />
@@ -564,7 +585,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
         ) : (
           <p className="crm-empty">No cards match. Try another filter or clear the search.</p>
         )}
-        {shownCards.length > limit ? (
+        {!av && shownCards.length > limit ? (
           <div className="crm-more-wrap">
             <button type="button" className="dx-btn" onClick={() => setLimit((value) => value + PAGE)}>
               Show {Math.min(PAGE, shownCards.length - limit)} more of {shownCards.length - limit}

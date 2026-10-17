@@ -6,6 +6,9 @@
 //   the EasyPeazy church website (through the existing ChurchConnect → EasyPeazy connection),
 //   Laser church gifts,
 //   Outreach, which points to Live On Mission.
+// Lincoln, Oct 17 2026 (4:37 PM): plus Messenger AVL — our partner for church
+// sound, video, lighting and streaming (messengeravl.com). Named as "our
+// partner" only; it is the one church choice that is not a ChurchConnect app.
 // Never Operate, never toner, never any business tool. For a church this is
 // never called "marketing". Unclear whether an org is a church? Treat it as one.
 //
@@ -14,12 +17,13 @@
 // change has to be made in both places on purpose. Check this list BEFORE
 // asking for suggestions (only offer these) and AFTER (drop anything else).
 
-// Every church offer reads as ChurchConnect ("churches get ChurchConnect only").
+// Our own church offers read as ChurchConnect; the partner reads by its own name.
 export const CHURCH_ALLOWED_OFFERS = {
   churchconnect: "ChurchConnect",
   easypeazy: "ChurchConnect: church website",
   laser: "ChurchConnect: Laser church gifts",
-  outreach: "ChurchConnect: Outreach (Live on Mission)"
+  outreach: "ChurchConnect: Outreach (Live on Mission)",
+  messenger_avl: "Messenger AVL (sound, video, lighting)"
 } as const;
 
 export type ChurchOffer = keyof typeof CHURCH_ALLOWED_OFFERS;
@@ -32,10 +36,15 @@ const DOOR_PRODUCT: Record<string, ChurchOffer> = {
   directory: "churchconnect",
   easypeazy: "easypeazy",
   laser: "laser",
-  outreach: "outreach"
+  outreach: "outreach",
+  messenger_avl: "messenger_avl",
+  messengeravl: "messenger_avl"
 };
 
 export const OUTREACH_URL = "https://live-on-mission.com/outreach";
+
+/** Our partner for church sound, video, lighting and streaming. Link only; no logo. */
+export const MESSENGER_AVL_URL = "https://messengeravl.com";
 
 /** Named only so tests and filters can prove they never reach a church. */
 export const NEVER_FOR_CHURCHES: ReadonlySet<string> = new Set([

@@ -643,12 +643,14 @@ await runStep("client bundle: no pass secret, secret env name, or secrets table 
   assert(hits.length === 0, hits.join("; "));
 });
 
-await runStep("church rule: exactly four offers, never a business tool, never 'marketing'", async () => {
+await runStep("church rule: exactly five offers (Messenger AVL added Oct 17), never a business tool, never 'marketing'", async () => {
   const src = read("src/lib/engine/church-offer-rule.ts");
   const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
   const rule = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
   // Pinned. ChurchConnect's backend/utils/church_offer_rule.py pins the same list.
-  assert(JSON.stringify(rule.CHURCH_OFFER_IDS) === JSON.stringify(["churchconnect", "easypeazy", "laser", "outreach"]), "exactly four");
+  assert(JSON.stringify(rule.CHURCH_OFFER_IDS) === JSON.stringify(["churchconnect", "easypeazy", "laser", "outreach", "messenger_avl"]), "exactly five");
+  assert(rule.CHURCH_ALLOWED_OFFERS.messenger_avl === "Messenger AVL (sound, video, lighting)" && rule.MESSENGER_AVL_URL === "https://messengeravl.com", "Messenger AVL label + link");
+  assert(rule.churchProductOf("MessengerAVL") === "messenger_avl" && rule.allowedForChurch("messenger_avl"), "Messenger AVL is a church choice");
   assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "ChurchConnect: Outreach (Live on Mission)" && rule.OUTREACH_URL === "https://live-on-mission.com/outreach", "Outreach → Live On Mission");
   assert(rule.churchProductOf("directory") === "churchconnect", "directory is ChurchConnect");
   for (const banned of [...rule.NEVER_FOR_CHURCHES, "operate", "toner", "", null, "marketing"]) assert(!rule.allowedForChurch(banned), `never ${banned}`);
@@ -694,8 +696,8 @@ await runStep("slice 2: church or business — unclear is a church; a church onl
   );
   assert(cards.length === 1 && cards[0].org.kind === "church" && cards[0].apps.includes("business"), "church first on a joined card");
   assert(core.CRM_APP_LABEL.business === "Business lead", "business pill label");
-  // Church apps all read as ChurchConnect; EasyPeazy is one word; Marketing campaign hidden until it exists.
-  assert(JSON.stringify(rule.offerChoices("church").map((c) => c.label)) === JSON.stringify(["ChurchConnect", "ChurchConnect: church website", "ChurchConnect: Laser church gifts", "ChurchConnect: Outreach (Live on Mission)"]), "church labels");
+  // Our church apps read as ChurchConnect; the partner (Messenger AVL) reads by its own name; EasyPeazy is one word; Marketing campaign hidden until it exists.
+  assert(JSON.stringify(rule.offerChoices("church").map((c) => c.label)) === JSON.stringify(["ChurchConnect", "ChurchConnect: church website", "ChurchConnect: Laser church gifts", "ChurchConnect: Outreach (Live on Mission)", "Messenger AVL (sound, video, lighting)"]), "church labels");
   const biz = rule.offerChoices("business");
   assert(JSON.stringify(biz.map((c) => c.id)) === '["operate","awd","easypeazy","laser"]' && rule.MARKETING_CAMPAIGN_LIVE === false, "marketing campaign hidden behind the flag");
   assert(JSON.stringify(rule.cleanBusinessOfferIds(["marketing_campaign", "operate"])) === '["operate"]', "a hidden offer can't be saved");

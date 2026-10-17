@@ -171,7 +171,7 @@ const NOT_NAME_WORDS = [
   "Meet", "Met", "See", "Saw", "Seen", "Say", "Tell", "Told", "Hope", "Hopes", "Agreed", "Leads", "Runs", "Run",
   // app names (church-offer-rule.ts and the rest of the portfolio)
   "ChurchConnect", "EasyPeazy", "Laser", "Outreach", "Operate", "Neighborly", "Neighbourly", "Presence", "Spark",
-  "Toner", "Toners", "AWD", "AI", "Live", "Best", "Local", "Directory", "Find"
+  "Toner", "Toners", "AWD", "AI", "Live", "Best", "Local", "Directory", "Find", "Messenger", "AVL"
 ];
 const NOT_A_NAME = `(?!(?:${NOT_NAME_WORDS.join("|")})(?![\\p{L}]))`;
 const NAME_WORD = `(?:[A-Z]\\.\\s*)?${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+|['\u2019][A-Z][\\p{L}]*)*`;
@@ -197,7 +197,7 @@ export function withoutMadeUpNames(text: string): string {
  *  - ChurchConnect: a "customer" stop for churchconnect (is_customer / signed_up /
  *    accepted invite / converted_at in ChurchConnect).
  *  - Laser: a "customer" stop for laser (a paid Laser order).
- *  - EasyPeazy / church website, Outreach, Operate, AI Website Design: NO signal
+ *  - EasyPeazy / church website, Outreach, Messenger AVL, Operate, AI Website Design: NO signal
  *    on the card yet (noted in the registry). They're matched by id here so a
  *    customer stop for them is honored the day the snapshot starts carrying one.
  * A "customer" touch (e.g. "Became a ChurchConnect customer") counts for its app too.
@@ -207,6 +207,7 @@ const BOUGHT_SIGNAL: Record<string, string[]> = {
   laser: ["laser"],
   easypeazy: ["easypeazy"],
   outreach: ["outreach"],
+  messenger_avl: ["messenger_avl"],
   operate: ["operate"],
   awd: ["awd"]
 };
