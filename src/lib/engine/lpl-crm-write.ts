@@ -123,13 +123,25 @@ export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string
   };
 }
 
+/**
+ * Previews only: ChurchConnect previews sit behind Vercel login, so server
+ * calls carry the sanctioned automation bypass when one is set. Never sent
+ * from production.
+ */
+export function previewBypassHeader(env: Record<string, string | undefined> = process.env): Record<string, string> {
+  if (env.VERCEL_ENV === "production") return {};
+  const token = (env.CHURCHCONNECT_PREVIEW_BYPASS || "").trim();
+  return token ? { "x-vercel-protection-bypass": token } : {};
+}
+
 async function callChurchConnect(config: CcConfig, method: "POST" | "PUT", path: string, ownerEmail: string, body: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
   try {
     const response = await fetch(`${config.base}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
-        "X-Engine-Pass": mintCrmPass(config.secret, method, path, ownerEmail)
+        "X-Engine-Pass": mintCrmPass(config.secret, method, path, ownerEmail),
+        ...previewBypassHeader()
       },
       body: JSON.stringify(body),
       cache: "no-store",

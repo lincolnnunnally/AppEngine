@@ -526,6 +526,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(writer, "/api/church-crm/leads/${visit.churchId}/activities", "visits go through ChurchConnect");
   assertIncludes(writer, "/api/church-crm/leads/${churchId}/contacts/${contact.id}", "contacts go through ChurchConnect");
   assert(!/console\.(log|error|warn)/.test(writer), "writer never logs");
+  assertIncludes(writer, 'if (env.VERCEL_ENV === "production") return {};', "preview bypass never sent from production");
   assert(!/method: "(PATCH|DELETE)"/.test(writer), "no PATCH or DELETE anywhere");
   assert(!writer.includes('"cc_churches", {') && !/rest\/v1\/cc_church[a-z_]*`?, \{\s*method: "(POST|PATCH|PUT)/.test(writer), "church records are only read directly");
   const tools = read("src/components/engine/crm-church-tools.tsx");
