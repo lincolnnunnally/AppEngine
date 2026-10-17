@@ -7351,3 +7351,9 @@ button.compose-arch:hover {
 }
 .crm-page .dx-chip strong { font-size: 0.875rem; }
 .crm-page .crm-sources summary { min-height: 44px; display: flex; align-items: center; font-size: 1rem; cursor: pointer; }
+/* Legend toggle uses the same chevron as the Timeline toggle. */
+.crm-legend summary { list-style: none; gap: 6px; color: var(--ink); }
+.crm-legend summary::-webkit-details-marker { display: none; }
+.crm-legend summary::before { content: "▸"; color: var(--muted); transition: transform 0.15s ease; }
+.crm-legend[open] summary::before { transform: rotate(90deg); }
+.crm-legend summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
