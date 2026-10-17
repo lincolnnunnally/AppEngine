@@ -4,6 +4,7 @@ import { loadRevenueDetail } from "@/lib/engine/revenue-detail";
 import { buildWeeklyGoal, type WeeklyGoalReport } from "@/lib/engine/weekly-revenue-goal";
 import { BusinessExplorer } from "@/components/engine/business-explorer";
 import { WeeklyGoalGlance } from "@/components/engine/weekly-goal-panel";
+import { crmFollowUpCount } from "@/lib/engine/lpl-crm";
 
 // Internal business desk. Money, people, help, and a table you can search
 // and sort. Factory language stays on /start.
@@ -65,10 +66,11 @@ function MoneyStrip({ stripe, weekly }: { stripe: StripeSummary; weekly: WeeklyG
 }
 
 export async function OwnerCommandDeck({ userKey }: { userKey: string | null; appsFilter?: string }) {
-  const [deck, stripe, detail] = await Promise.all([
+  const [deck, stripe, detail, followUps] = await Promise.all([
     loadOwnerDeck(),
     loadStripeSummary(userKey),
-    loadRevenueDetail(userKey)
+    loadRevenueDetail(userKey),
+    crmFollowUpCount()
   ]);
   const weekly = buildWeeklyGoal(detail);
   const actItems = deck.attention.filter((item) => item.severity === "act");
@@ -148,6 +150,11 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
             <strong>{deck.openTickets}</strong>
             <span>people waiting</span>
             <p>{deck.openTickets ? "open the inbox →" : "inbox is clear"}</p>
+          </a>
+          <a className={`dx-stat ${followUps ? "dx-stat--lime" : ""}`} href="/crm">
+            <strong>{followUps ?? "—"}</strong>
+            <span>follow-ups today</span>
+            <p>{followUps === null ? "people & places — not connected" : "people & places →"}</p>
           </a>
           <div className="dx-stat">
             <strong>{ordersAcross || "—"}</strong>
