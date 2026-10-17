@@ -210,7 +210,7 @@ await step("EA r1: already a customer → that app is not offered (signals on th
   }
   assert(core.cleanSuggestion("church", { next_step: "Stop by", app: "churchconnect" }, cc, TODAY) === null, "picking an app they already buy drops it");
   const reg = read("source-of-truth/super-admin-registry.md");
-  assert(reg.includes("**No signal yet** for EasyPeazy / church website, Outreach, Messenger AVL, Operate or AI Website Design"), "registry names the apps with no signal yet");
+  assert(reg.includes("**No signal yet** for EasyPeazy / church website, Outreach, church sound, video & lighting, Operate or AI Website Design"), "registry names the apps with no signal yet");
 });
 
 await step("unclear = church; businesses only get live business apps", () => {

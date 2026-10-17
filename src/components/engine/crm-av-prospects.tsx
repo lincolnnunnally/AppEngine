@@ -2,17 +2,26 @@
 
 import { useActionState } from "react";
 import { loadAvProspectsAction, type AvProspectState } from "@/app/(cockpit)/crm/actions";
-import { MESSENGER_AVL_URL } from "@/lib/engine/church-offer-rule";
+import { avReasonText, type AvProspect } from "@/lib/engine/av-prospects-core";
 import { recordLink, type CrmApp, type CrmCard } from "@/lib/engine/lpl-crm-core";
 
-// AV prospects (Messenger AVL kit). OWNER ONLY, read only: churches that may
-// want help with sound, video, lighting or streaming, nearest Vidalia first.
-// Read on tap, never on page load. Nothing is saved or sent from here.
+// AV prospects. OWNER ONLY, read only: churches that may
+// want help with sound, video, lighting or streaming. Read on tap, never on
+// page load. Nothing is saved or sent from here.
+//
+// The screen shows the tier once, in the subline. It does not explain the
+// sort. Central & South Georgia is a Georgia church south of 33.25° N
+// (Macon and Milledgeville in; Augusta and Atlanta out). The reader walks
+// rings around Vidalia (40/80/160/320/700 mi) and groups copies
+// (possible_same_as, same website, same name in the same town): if one
+// copy is left out, all are. See av-prospects-core.ts.
 
 type Props = {
   cards: CrmCard[];
   adminUrls: Partial<Record<CrmApp, string>>;
   onOpen: (key: string) => void;
+  /** Already-read rows for a local preview. The desk omits this and reads on tap. */
+  initial?: AvProspectState;
 };
 
 function safeHref(url: string): string {
@@ -27,21 +36,24 @@ function safeHref(url: string): string {
   }
 }
 
-export function AvProspects({ cards, adminUrls, onOpen }: Props) {
-  const [state, action, pending] = useActionState<AvProspectState, FormData>(loadAvProspectsAction, null);
+function subline(item: AvProspect): string {
+  return [item.town, `${item.miles} mi`, item.tierLabel].filter(Boolean).join(" · ");
+}
+
+const OPEN_LABEL = "Open in ChurchConnect";
+
+export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props) {
+  const [state, action, pending] = useActionState<AvProspectState, FormData>(loadAvProspectsAction, initial);
   const prospects = state?.ok ? state.prospects ?? [] : [];
   return (
     <div className="crm-av" data-testid="crm-av-prospects">
-      <p className="crm-dim crm-section-note">
-        Churches that may want help with sound, video, lighting, or streaming from our partner,{" "}
-        <a href={MESSENGER_AVL_URL} target="_blank" rel="noopener noreferrer">
-          Messenger AVL
-        </a>
-        . Lincoln&apos;s territory first: central &amp; South Georgia, then the rest of Georgia, then Florida, then South Carolina; nearest Vidalia first in each. Reasons say only what is on file; a missing link may just mean we don&apos;t have it.
-        Nothing is sent from here.
+      <p className="crm-section-note">
+        Churches that may want help with sound, video, lighting, or streaming.
+        Your territory first: central and South Georgia, then the rest of Georgia, then Florida, then South Carolina; nearest Vidalia first in each.
+        Reasons say only what is on file. Nothing is sent from here.
       </p>
       <form action={action}>
-        <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>
+        <button type="submit" className="dx-btn dx-btn--primary crm-av-open" disabled={pending}>
           {pending ? "Reading churches…" : state?.ok ? "Read the list again" : "Show the list"}
         </button>
       </form>
@@ -55,35 +67,32 @@ export function AvProspects({ cards, adminUrls, onOpen }: Props) {
           <ol className="crm-follow crm-av-list">
             {prospects.map((item) => {
               const card = cards.find((entry) => entry.churchId === item.churchId);
-              const record = card ? null : recordLink("churchconnect", { recordPaths: { churchconnect: `/super-admin#crm/lead/${item.churchId}` } }, adminUrls);
+              const record = recordLink("churchconnect", { recordPaths: { churchconnect: `/super-admin#crm/lead/${item.churchId}` } }, adminUrls);
               const site = safeHref(item.website);
               return (
                 <li key={item.churchId} className="crm-follow-row" data-testid="crm-av-row">
-                  <div className="crm-follow-main">
-                    <strong>{item.name}</strong>
-                    <span className="crm-dim">
-                      {" "}
-                      · {item.town ? `${item.town}, ` : ""}
-                      {item.miles} mi from Vidalia · {item.tierLabel}
-                    </span>
+                  <div className="crm-av-main">
+                    <strong className="crm-av-name">{item.name}</strong>
+                    <span className="crm-av-meta">{subline(item)}</span>
                     <ul className="crm-av-reasons">
-                      {item.reasons.map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
+                      {item.reasons.map((reason) => {
+                        const text = avReasonText(reason, item.tierLabel);
+                        return <li key={reason}>{text}</li>;
+                      })}
                     </ul>
                   </div>
                   <div className="crm-av-actions">
-                    {card ? (
-                      <button type="button" className="dx-btn crm-follow-open" onClick={() => onOpen(card.key)}>
-                        Open card
-                      </button>
-                    ) : record ? (
-                      <a className="dx-btn crm-follow-open" href={record.href} target="_blank" rel="noopener noreferrer">
-                        Open in ChurchConnect
+                    {record ? (
+                      <a className="dx-btn crm-av-open" href={record.href} target="_blank" rel="noopener noreferrer">
+                        {OPEN_LABEL}
                       </a>
+                    ) : card ? (
+                      <button type="button" className="dx-btn crm-av-open" onClick={() => onOpen(card.key)}>
+                        {OPEN_LABEL}
+                      </button>
                     ) : null}
                     {site ? (
-                      <a className="crm-link-btn" href={site} target="_blank" rel="noopener noreferrer nofollow">
+                      <a className="crm-link-btn crm-av-open" href={site} target="_blank" rel="noopener noreferrer nofollow">
                         Their website
                       </a>
                     ) : null}
@@ -97,10 +106,8 @@ export function AvProspects({ cards, adminUrls, onOpen }: Props) {
         )
       ) : null}
       {state?.ok ? (
-        <p className="crm-dim crm-pad">
-          Read {state.read ?? 0} churches with a website or Facebook page on file, tier by tier, until the top {prospects.length} were settled. Central &amp; South
-          Georgia means south of 33.25° N (Macon and Milledgeville in; Augusta and Atlanta out). Left out: do-not-contact, lost, merged, churches that already
-          stream (a stream link on file), and churches Messenger AVL already shows as its own work. If one record of a church is left out, its copies are too.
+        <p className="crm-av-foot">
+          Up to 30 churches with a website or Facebook page, nearest first within each area. Leaves out do-not-contact churches and churches that already stream.
         </p>
       ) : null}
     </div>

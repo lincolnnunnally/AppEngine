@@ -391,7 +391,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
-  // Owner only: the AV prospect list (Messenger AVL) shows in place of the cards.
+  // Owner only: the AV prospect list shows in place of the cards.
   const [av, setAv] = useState(false);
 
   const todayRows = useMemo(() => followUps.filter((row) => row.today), [followUps]);
@@ -544,7 +544,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               aria-pressed={av}
               data-testid="crm-av-chip"
             >
-              AV prospects (Messenger AVL)
+              AV prospects
             </button>
           ) : null}
         </div>

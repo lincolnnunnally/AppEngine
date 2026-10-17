@@ -28,7 +28,7 @@ import {
   type Touch
 } from "@/lib/engine/lpl-crm-core";
 import { BUSINESS_OFFER_IDS, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { AV_LIST_SIZE, AV_RINGS_MILES, rankAvProspects, tierRingFilters, type AvProspect, type AvRow, type AvTierIndex } from "@/lib/engine/av-prospects-core";
+import { AV_LIST_SIZE, AV_RINGS_MILES, groupMateLookups, rankAvProspects, tierRingFilters, type AvProspect, type AvRow, type AvTierIndex } from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
 
@@ -1119,11 +1119,14 @@ const AV_FIELDS = [
   "name", "city", "state", "lat", "lng", "latitude", "longitude", "website", "facebook_url", "live_stream_url",
   "livestream_url", "youtube_url", "subsplash_url", "website_live", "website_http_status", "website_trouble",
   "avg_attendance", "pastor_name", "contact_name", "ministry_assist_name", "secretary_name", "do_not_contact",
-  "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind", "source", "email", "phone"
+  "do_not_contact_desk_claim", "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
+  "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at"
 ];
 const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as`;
 const AV_PAGE = 1000;
 const AV_MAX_PAGES = 15;
+const DNC_PAGE = 1000;
+const DNC_MAX_PAGES = 50;
 
 export type AvProspectList = { ok: boolean; prospects: AvProspect[]; read: number; message: string };
 
@@ -1131,9 +1134,24 @@ export async function loadAvProspects(): Promise<AvProspectList> {
   const config = getLplConfig();
   if (!config) return { ok: false, prospects: [], read: 0, message: "This deploy cannot read the shared database yet." };
   const sources: CrmSourceStatus[] = [];
-  const suppressionRows = await readRows(config, "outreach_suppressions", "select=email,domain,phone&limit=5000", sources, { label: "Do-not-contact list", app: "shared" });
-  if (sources.some((source) => !source.ok)) {
-    return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
+  const unreadable = () => sources.some((source) => !source.ok);
+  const suppressionRows: Row[] = [];
+  for (let page = 0; page < DNC_MAX_PAGES; page += 1) {
+    const batch = await readRows(
+      config,
+      "outreach_suppressions",
+      `select=email,domain,phone&order=email.asc.nullslast,domain.asc.nullslast,phone.asc.nullslast&limit=${DNC_PAGE}&offset=${page * DNC_PAGE}`,
+      sources,
+      { label: "Do-not-contact list", app: "shared" }
+    );
+    if (unreadable()) {
+      return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
+    }
+    suppressionRows.push(...batch);
+    if (batch.length < DNC_PAGE) break;
+    if (page === DNC_MAX_PAGES - 1) {
+      return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
+    }
   }
   const emails = new Set<string>();
   const domains = new Set<string>();
@@ -1172,14 +1190,69 @@ export async function loadAvProspects(): Promise<AvProspectList> {
   const kept: Row[] = [];
   let read = 0;
   let prospects: AvProspect[] = [];
+  const fetchedMate = new Set<string>();
+  // Copies with no website, and copies outside the ring, still count. A do-not-contact
+  // or stopped member keeps the whole group off the list.
+  const readGroupMates = async (focus: Row[]): Promise<Row[] | null> => {
+    const lookups = groupMateLookups(focus);
+    const mates: Row[] = [];
+    const ids = lookups.ids.filter((id) => !fetchedMate.has(`id:${id}`));
+    for (let index = 0; index < ids.length; index += 40) {
+      const chunk = ids.slice(index, index + 40);
+      for (const id of chunk) fetchedMate.add(`id:${id}`);
+      const batch = await readRows(
+        config,
+        "cc_churches",
+        `${AV_SELECT}&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})&limit=${AV_PAGE}`,
+        sources,
+        { label: "Churches for AV prospects", app: "churchconnect" }
+      );
+      if (unreadable()) return null;
+      mates.push(...batch);
+    }
+    const pointed = [...new Set(focus.map((row) => s(row.id)).filter(Boolean))].filter((id) => !fetchedMate.has(`cs:${id}`));
+    for (let index = 0; index < pointed.length; index += 12) {
+      const chunk = pointed.slice(index, index + 12);
+      for (const id of chunk) fetchedMate.add(`cs:${id}`);
+      const or = chunk.map((id) => `doc->possible_same_as.cs.${encodeURIComponent(JSON.stringify([id]))}`).join(",");
+      const batch = await readRows(config, "cc_churches", `${AV_SELECT}&or=(${or})&limit=${AV_PAGE}`, sources, { label: "Churches for AV prospects", app: "churchconnect" });
+      if (unreadable() || batch.length >= AV_PAGE) return null;
+      mates.push(...batch);
+    }
+    for (const item of lookups.nameCities) {
+      const mark = `${item.city.toLowerCase()}|${item.pattern}`;
+      if (fetchedMate.has(mark)) continue;
+      fetchedMate.add(mark);
+      const pattern = `*${item.pattern.split(" ").join("*")}*`;
+      const batch = await readRows(
+        config,
+        "cc_churches",
+        `${AV_SELECT}&doc->>city=ilike.${encodeURIComponent(item.city)}&doc->>name=ilike.${encodeURIComponent(pattern)}&limit=40`,
+        sources,
+        { label: "Churches for AV prospects", app: "churchconnect" }
+      );
+      if (unreadable() || batch.length >= 40) return null;
+      mates.push(...batch);
+    }
+    return mates;
+  };
   for (const tier of [0, 1, 2, 3] as AvTierIndex[]) {
     let tierRows: Row[] = [];
     for (const radius of AV_RINGS_MILES) {
       tierRows = await readRing(tier, radius);
-      if (sources.some((source) => !source.ok)) {
+      if (unreadable()) {
         return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
       }
-      prospects = rankAvProspects([...kept, ...tierRows], suppressed);
+      let pool = [...kept, ...tierRows];
+      for (let pass = 0; pass < 3; pass += 1) {
+        const preview = rankAvProspects(pool, suppressed);
+        const focus = pool.filter((row) => preview.some((item) => item.churchId === s(row.id)));
+        const mates = await readGroupMates(focus);
+        if (!mates) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
+        pool = [...pool, ...mates];
+        prospects = rankAvProspects(pool, suppressed);
+        if (mates.length === 0) break;
+      }
       // Settled: earlier tiers plus this tier's churches inside the ring already fill the list.
       const settled = prospects.filter((item) => item.tier < tier || (item.tier === tier && item.miles <= radius)).length;
       if (settled >= AV_LIST_SIZE) break;

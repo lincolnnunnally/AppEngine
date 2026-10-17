@@ -649,7 +649,7 @@ await runStep("church rule: exactly five offers (Messenger AVL added Oct 17), ne
   const rule = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
   // Pinned. ChurchConnect's backend/utils/church_offer_rule.py pins the same list.
   assert(JSON.stringify(rule.CHURCH_OFFER_IDS) === JSON.stringify(["churchconnect", "easypeazy", "laser", "outreach", "messenger_avl"]), "exactly five");
-  assert(rule.CHURCH_ALLOWED_OFFERS.messenger_avl === "Messenger AVL (sound, video, lighting)" && rule.MESSENGER_AVL_URL === "https://messengeravl.com", "Messenger AVL label + link");
+  assert(rule.CHURCH_ALLOWED_OFFERS.messenger_avl === "Church sound, video & lighting" && rule.MESSENGER_AVL_URL === undefined, "service label, no outbound link");
   assert(rule.churchProductOf("MessengerAVL") === "messenger_avl" && rule.allowedForChurch("messenger_avl"), "Messenger AVL is a church choice");
   assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "ChurchConnect: Outreach (Live on Mission)" && rule.OUTREACH_URL === "https://live-on-mission.com/outreach", "Outreach → Live On Mission");
   assert(rule.churchProductOf("directory") === "churchconnect", "directory is ChurchConnect");
@@ -697,7 +697,7 @@ await runStep("slice 2: church or business — unclear is a church; a church onl
   assert(cards.length === 1 && cards[0].org.kind === "church" && cards[0].apps.includes("business"), "church first on a joined card");
   assert(core.CRM_APP_LABEL.business === "Business lead", "business pill label");
   // Our church apps read as ChurchConnect; the partner (Messenger AVL) reads by its own name; EasyPeazy is one word; Marketing campaign hidden until it exists.
-  assert(JSON.stringify(rule.offerChoices("church").map((c) => c.label)) === JSON.stringify(["ChurchConnect", "ChurchConnect: church website", "ChurchConnect: Laser church gifts", "ChurchConnect: Outreach (Live on Mission)", "Messenger AVL (sound, video, lighting)"]), "church labels");
+  assert(JSON.stringify(rule.offerChoices("church").map((c) => c.label)) === JSON.stringify(["ChurchConnect", "ChurchConnect: church website", "ChurchConnect: Laser church gifts", "ChurchConnect: Outreach (Live on Mission)", "Church sound, video & lighting"]), "church labels");
   const biz = rule.offerChoices("business");
   assert(JSON.stringify(biz.map((c) => c.id)) === '["operate","awd","easypeazy","laser"]' && rule.MARKETING_CAMPAIGN_LIVE === false, "marketing campaign hidden behind the flag");
   assert(JSON.stringify(rule.cleanBusinessOfferIds(["marketing_campaign", "operate"])) === '["operate"]', "a hidden offer can't be saved");

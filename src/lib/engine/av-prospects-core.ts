@@ -102,8 +102,23 @@ export type AvProspect = {
   website: string;
 };
 
+/**
+ * Stored reasons keep the tier prefix ("Central/South GA · …") so the data
+ * still says which area a line belongs to. The row shows that tier once, in
+ * the subline, so the bullet on screen is the reason only.
+ */
+export function avReasonText(reason: string, tierLabel: string): string {
+  const prefix = `${tierLabel} \u00b7 `;
+  return reason.startsWith(prefix) ? reason.slice(prefix.length) : reason;
+}
+
 const s = (value: unknown): string => (value === null || value === undefined ? "" : String(value).trim());
-const yes = (value: unknown): boolean => value === true || s(value).toLowerCase() === "true";
+/** Desk and directory flags are not only the boolean true. "yes" and 1 count too. */
+const yes = (value: unknown): boolean => {
+  if (value === true || value === 1) return true;
+  const text = s(value).toLowerCase();
+  return text === "true" || text === "yes" || text === "y" || text === "1";
+};
 
 export function milesBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const rad = (deg: number) => (deg * Math.PI) / 180;
@@ -127,14 +142,18 @@ function hostOf(url: string): { host: string; path: string } {
 
 const GIVING_HOSTS = ["tithe.ly", "give.tithe.ly", "pushpay.com", "onrealm.org", "givelify.com", "secure.myvanco.com", "vancopayments.com"];
 const DIRECTORY_HOSTS = ["churchangel.com", "placestars.com", "churchfinder.com", "faithstreet.com", "yellowpages.com", "yelp.com", "manta.com", "mapquest.com", "inallthingspray.org"];
-// A denomination's national site on a single church's record: not their own site.
-const DENOMINATION_HOSTS = ["nationalbaptist.com", "sbc.net", "umc.org", "cogic.org", "ag.org", "gabaptist.org", "namb.net", "elca.org", "pcusa.org", "ame-church.com", "thecme.church"];
-const FREE_BUILDER_HOSTS = ["wix.com", "wixsite.com", "weebly.com", "blogspot.com", "sites.google.com", "godaddysites.com", "square.site", "webs.com", "tripod.com", "angelfire.com", "wordpress.com"];
+// A denomination or platform root on a single church's record: not their own site, and not a key that proves two rows are the same church.
+const DENOMINATION_HOSTS = [
+  "nationalbaptist.com", "sbc.net", "umc.org", "cogic.org", "ag.org", "gabaptist.org", "namb.net", "elca.org", "pcusa.org",
+  "ame-church.com", "thecme.church", "watchtower.org", "jw.org", "upci.org", "church-of-christ.org", "churchofjesuschrist.org", "lds.org"
+];
+const FREE_BUILDER_HOSTS = ["wix.com", "wixsite.com", "weebly.com", "blogspot.com", "sites.google.com", "godaddysites.com", "square.site", "webs.com", "tripod.com", "angelfire.com", "wordpress.com", "faithlife.com"];
+const PLATFORM_HOSTS = ["facebook.com", "fb.com", "instagram.com", "youtube.com", "youtu.be", "tiktok.com", "linktr.ee"];
 
 const onHost = (host: string, list: string[]) => list.some((item) => host === item || host.endsWith(`.${item}`));
 
 /** What the website address on file says about the site, or "" when it looks like the church's own site. */
-export function websiteWeakness(url: string): "" | "giving" | "directory" | "denomination" | "free_builder" {
+export function websiteWeakness(url: string): "" | "giving" | "directory" | "denomination" | "free_builder" | "platform" {
   if (!url.trim()) return "";
   const { host } = hostOf(url);
   if (!host) return "";
@@ -142,19 +161,45 @@ export function websiteWeakness(url: string): "" | "giving" | "directory" | "den
   if (onHost(host, DIRECTORY_HOSTS)) return "directory";
   if (onHost(host, DENOMINATION_HOSTS)) return "denomination";
   if (onHost(host, FREE_BUILDER_HOSTS)) return "free_builder";
+  if (onHost(host, PLATFORM_HOSTS)) return "platform";
   return "";
 }
 
-const WEAKNESS_REASON: Record<"giving" | "directory" | "denomination" | "free_builder", string> = {
+const WEAKNESS_REASON: Record<"giving" | "directory" | "denomination" | "free_builder" | "platform", string> = {
   giving: "The website on file is only a giving page",
   directory: "The website on file is a directory listing, not their own site",
   denomination: "The website on file is a denomination's site, not their own",
-  free_builder: "The website on file is on a free site builder"
+  free_builder: "The website on file is on a free site builder",
+  platform: "The website on file is a shared platform, not their own site"
 };
 
+// A host that names some other city or state is probably the wrong church's site.
+const PLACE_TOKENS = [
+  "savannah", "augusta", "atlanta", "macon", "valdosta", "columbus", "athens", "brunswick", "albany", "milledgeville",
+  "dublin", "statesboro", "waycross", "tifton", "americus", "jacksonville", "tallahassee", "orlando", "tampa", "miami",
+  "charleston", "columbia", "greenville", "florida", "alabama", "tennessee", "carolina"
+];
+
+/** True when the website host names a different city or state than the row. */
+export function websitePlaceMismatch(url: string, city: string, state: string): boolean {
+  const host = hostOf(url).host.replace(/\.(com|org|net|church|us|info)$/g, "");
+  const flat = host.replace(/[^a-z0-9]/g, "");
+  if (flat.length < 5 || websiteWeakness(url)) return false;
+  const cityFlat = s(city).toLowerCase().replace(/[^a-z]/g, "");
+  const stateFlat = s(state).toLowerCase();
+  const ownState = stateFlat === "fl" || stateFlat === "florida" ? "florida" : stateFlat === "sc" || stateFlat === "south carolina" ? "carolina" : stateFlat === "al" || stateFlat === "alabama" ? "alabama" : stateFlat === "ga" || stateFlat === "georgia" ? "georgia" : "";
+  for (const place of PLACE_TOKENS) {
+    if (!flat.includes(place)) continue;
+    if (cityFlat && (cityFlat.includes(place) || place.includes(cityFlat))) continue;
+    if (ownState && place === ownState) continue;
+    return true;
+  }
+  return false;
+}
+
 /**
- * Georgia churches Messenger AVL lists as its own work on messengeravl.com
- * (read Oct 17 2026), within reach of this list: not prospects. A church
+ * Georgia churches the AV partner lists as its own work (read Oct 17 2026),
+ * within reach of this list: not prospects. A church
  * matches when every word is in its name and the town is the same.
  */
 export const MESSENGER_AVL_SHOWN_WORK: ReadonlyArray<{ words: string[]; town: string }> = [
@@ -172,14 +217,56 @@ function shownWork(row: AvRow): boolean {
   return MESSENGER_AVL_SHOWN_WORK.some((item) => town === item.town && item.words.every((word) => words.has(word)));
 }
 
-/** Never on the list: stopped, lost, merged, deleted, not a church, or already Messenger AVL's own work. */
-export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean): boolean {
-  if (yes(row.do_not_contact)) return true;
-  if (s(row.crm_status).toLowerCase() === "lost") return true;
+const STOPPED_STATUS = new Set(["lost", "won", "declined", "not_interested", "said_no", "suppressed", "do_not_contact", "closed"]);
+
+function nameWords(name: string): string[] {
+  return s(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter(Boolean);
+}
+
+/**
+ * Places that are not a Christian church, matched on the name because
+ * religion_guess is empty on most rows. "Temple Baptist Church" stays
+ * (it says church). "Hindu Temple", "Kingdom Hall", and "Baptist Association" do not.
+ */
+export function avNameExcluded(name: string): boolean {
+  const raw = s(name).toLowerCase();
+  const words = nameWords(name);
+  const has = (word: string) => words.includes(word);
+  const church = has("church") || has("churches");
+  if (raw.includes("kingdom hall") || has("jehovah")) return true;
+  if (["islamic", "islam", "masjid", "mosque", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
+  if (["hindu", "buddhist", "buddhism", "buddha"].some(has)) return true;
+  if (has("synagogue") || has("messianic")) return true;
+  if (has("lds") || raw.includes("latter-day") || raw.includes("latter day") || raw.includes("latterday")) return true;
+  if (has("association")) return true;
+  if (has("cemetery") || has("cemetary")) return true;
+  if (has("temple") && !church) return true;
+  if (["school", "academy", "seminary", "college"].some(has) && !church) return true;
+  if (has("camp") && !church) return true;
+  return false;
+}
+
+/** The desk would not offer outreach: stopped, invited, resting, or contacted in the last 30 days. */
+export function avDeskBlocked(row: AvRow, now = new Date()): boolean {
+  const status = s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_");
+  if (STOPPED_STATUS.has(status)) return true;
+  const invite = s(row.invite_status).toLowerCase();
+  if (invite === "sent" || invite === "accepted") return true;
+  const invitedAt = Date.parse(s(row.last_invited_at));
+  if (!Number.isNaN(invitedAt) && now.getTime() - invitedAt <= 30 * 86_400_000) return true;
+  return false;
+}
+
+/** Never on the list: stopped, lost, inactive, not a church, or already the partner's own work. */
+export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now = new Date()): boolean {
+  if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
+  if (avDeskBlocked(row, now)) return true;
   if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return true;
+  if (s(row.active).toLowerCase() === "false" || row.active === false) return true;
+  if (s(row.is_public).toLowerCase() === "false" || row.is_public === false) return true;
   if (s(row.religion_guess).toLowerCase() === "other") return true;
-  // Associations (e.g. Baptist associations from the GA roster) are not one church.
   if (s(row.prospect_kind).toLowerCase() === "association") return true;
+  if (avNameExcluded(s(row.name))) return true;
   if (s(row.source) === "qa_crm_v2") return true;
   if (shownWork(row)) return true;
   return suppressed(row);
@@ -191,20 +278,26 @@ export function scoreAvProspect(row: AvRow): { score: number; reasons: string[];
   let score = 0;
   const website = s(row.website);
   const facebook = s(row.facebook_url);
+  const weak = websiteWeakness(website);
+  const mismatch = websitePlaceMismatch(website, s(row.city), s(row.state));
+  const ownSite = Boolean(website) && !weak && !mismatch;
   const streams = Boolean(s(row.live_stream_url) || s(row.livestream_url) || s(row.youtube_url) || s(row.subsplash_url));
   if (streams) {
     reasons.push("Already streams (a stream link is on file)");
     score -= 2;
-  } else if (website) {
+  } else if (ownSite) {
     reasons.push("Has a website, but no livestream or YouTube link on file");
     score += 2;
   } else if (facebook) {
     reasons.push("Facebook page on file, but no website or stream link");
     score += 1;
   }
-  const weak = websiteWeakness(website);
   if (weak) {
     reasons.push(WEAKNESS_REASON[weak]);
+    score += 1;
+  }
+  if (mismatch) {
+    reasons.push("The website on file may be wrong");
     score += 1;
   }
   const status = Number(s(row.website_http_status));
@@ -241,59 +334,130 @@ function titleCase(text: string): string {
     .join("");
 }
 
+const NAME_DROP = new Set(["inc", "incorporated", "llc", "corp", "corporation", "co"]);
+
+/** Same church name: drop Inc/LLC, read St as Saint, strip punctuation, keep word order. */
+export function churchNameKey(name: string): string {
+  return s(name)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => (word === "st" ? "saint" : word))
+    .filter((word) => !NAME_DROP.has(word))
+    .join(" ");
+}
+
+/** Host only. www, the path, and a trailing slash do not make a second church. Generic hosts are not a key. */
+export function websiteGroupKey(url: string, city = "", state = ""): string {
+  const host = hostOf(url).host;
+  if (!host || websiteWeakness(url) || websitePlaceMismatch(url, city, state)) return "";
+  return host;
+}
+
+function groupKeys(row: AvRow): string[] {
+  const id = s(row.id);
+  const site = websiteGroupKey(s(row.website), s(row.city), s(row.state));
+  const name = churchNameKey(s(row.name));
+  const city = s(row.city).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const sameAs = (Array.isArray(row.possible_same_as) ? row.possible_same_as : []).map((value) => `id:${s(value)}`).filter((value) => value !== "id:");
+  return [`id:${id}`, ...sameAs, site ? `site:${site}` : "", name && city ? `name:${name}|${city}` : ""].filter(Boolean);
+}
+
+/** What the loader should read next so a do-not-contact copy outside the ring still blocks the group. */
+export function groupMateLookups(rows: AvRow[]): { ids: string[]; nameCities: Array<{ city: string; pattern: string }> } {
+  const have = new Set(rows.map((row) => s(row.id)).filter(Boolean));
+  const ids = new Set<string>();
+  const nameCities: Array<{ city: string; pattern: string }> = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    for (const value of Array.isArray(row.possible_same_as) ? row.possible_same_as : []) {
+      const id = s(value);
+      if (id && !have.has(id)) ids.add(id);
+    }
+    const city = s(row.city);
+    const key = churchNameKey(s(row.name));
+    if (!city || !key) continue;
+    const patterns = [key];
+    if (key.includes("saint")) patterns.push(key.replace(/\bsaint\b/g, "st"));
+    for (const pattern of patterns) {
+      const mark = `${city.toLowerCase()}|${pattern}`;
+      if (seen.has(mark)) continue;
+      seen.add(mark);
+      nameCities.push({ city, pattern });
+    }
+  }
+  return { ids: [...ids], nameCities };
+}
+
+class UnionFind {
+  private parent = new Map<string, string>();
+  find(id: string): string {
+    let root = this.parent.get(id) ?? id;
+    if (root !== id) {
+      root = this.find(root);
+      this.parent.set(id, root);
+    }
+    return root;
+  }
+  join(a: string, b: string): void {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra !== rb) this.parent.set(rb, ra);
+  }
+}
+
 /**
  * The ranked list: in the territory, at least one real need signal; tier
  * first (central & South GA, rest of GA, FL, SC), then nearest Vidalia.
  * Every reason line starts with the tier label ("Central/South GA · …").
+ * Copies of one church are one group (union-find). A stopped copy, even one
+ * with no website or outside the ring, keeps the whole group off the list.
  */
-export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boolean, options: { size?: number } = {}): AvProspect[] {
+export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boolean, options: { size?: number; now?: Date } = {}): AvProspect[] {
   const size = options.size ?? AV_LIST_SIZE;
-  const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
-  const ids = new Set<string>();
+  const now = options.now ?? new Date();
+  const seen = new Set<string>();
+  const all: AvRow[] = [];
   for (const row of rows) {
     const id = s(row.id);
-    if (!id || ids.has(id)) continue;
-    ids.add(id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    all.push(row);
+  }
+  const groups = new UnionFind();
+  const blocked = new Set<string>();
+  for (const row of all) {
+    const keys = groupKeys(row);
+    for (let i = 1; i < keys.length; i += 1) groups.join(keys[0], keys[i]);
+    if (avExcluded(row, suppressed, now) || scoreAvProspect(row).streams) blocked.add(groups.find(keys[0]));
+  }
+  // A block discovered before a later join still has to cover the merged root.
+  const blockedRoots = new Set<string>();
+  for (const row of all) {
+    const root = groups.find(`id:${s(row.id)}`);
+    if (blocked.has(root) || avExcluded(row, suppressed, now) || scoreAvProspect(row).streams) blockedRoots.add(root);
+  }
+  const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
+  for (const row of all) {
     const lat = Number(s(row.lat) || s(row.latitude));
     const tier = territoryTier(row.state, s(row.lat) || s(row.latitude) ? lat : null);
-    if (tier === null) continue;
     const miles = milesFromVidalia(row);
-    if (miles === null) continue;
+    if (tier === null || miles === null) continue;
     candidates.push({ row, tier, miles });
   }
-  // Nearest first, so when one church has two records the nearer one is kept.
   candidates.sort((a, b) => a.tier - b.tier || a.miles - b.miles || s(a.row.name).localeCompare(s(b.row.name)) || s(a.row.id).localeCompare(s(b.row.id)));
-  // Group records of the same church: one marked as the same (possible_same_as),
-  // one website, or one name in one town. If ANY record of a church is stopped,
-  // lost, merged, on the do-not-contact list or already streams, the whole church
-  // is left out — a second copy of a stopped church must never slip through.
-  const groupOf = new Map<string, number>();
-  const groups: Array<{ members: Array<{ row: AvRow; tier: AvTierIndex; miles: number }>; blocked: boolean }> = [];
-  const keysOf = (row: AvRow): string[] => {
-    const site = hostOf(s(row.website)).host + hostOf(s(row.website)).path.replace(/\/$/, "");
-    const sameAs = (Array.isArray(row.possible_same_as) ? row.possible_same_as : []).map((value) => `id:${s(value)}`);
-    const name = s(row.name).toLowerCase().replace(/[^a-z]+/g, " ").split(" ").filter(Boolean).sort().join(" ");
-    return [`id:${s(row.id)}`, ...sameAs, site ? `site:${site}` : "", name ? `name:${name}|${s(row.city).toLowerCase()}` : ""].filter(Boolean);
-  };
-  for (const candidate of candidates) {
-    const keys = keysOf(candidate.row);
-    const found = keys.map((key) => groupOf.get(key)).find((value) => value !== undefined);
-    const index = found ?? groups.push({ members: [], blocked: false }) - 1;
-    for (const key of keys) if (!groupOf.has(key)) groupOf.set(key, index);
-    const group = groups[index];
-    group.members.push(candidate);
-    if (avExcluded(candidate.row, suppressed) || scoreAvProspect(candidate.row).streams) group.blocked = true;
-  }
   const out: AvProspect[] = [];
-  const listed = new Set<number>();
+  const listed = new Set<string>();
   for (const candidate of candidates) {
     if (out.length >= size) break;
-    const index = groupOf.get(`id:${s(candidate.row.id)}`) as number;
-    if (listed.has(index) || groups[index].blocked) continue;
+    const root = groups.find(`id:${s(candidate.row.id)}`);
+    if (listed.has(root) || blockedRoots.has(root)) continue;
     const { row, tier, miles } = candidate;
     const { score, reasons } = scoreAvProspect(row);
     if (score < 1) continue;
-    listed.add(index);
+    listed.add(root);
     const label = AV_TIERS[tier].label;
     out.push({
       churchId: s(row.id),

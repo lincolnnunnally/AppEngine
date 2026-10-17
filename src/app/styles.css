@@ -7204,12 +7204,6 @@ button.compose-arch:hover {
 .crm-follow-row--tokens { border-left-color: var(--purple); }
 .crm-follow-tag { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.66rem; color: var(--muted); padding-top: 3px; }
 .crm-follow-main p { margin: 0; }
-/* AV prospects (Messenger AVL kit) */
-.crm-av { display: grid; gap: 12px; }
-.crm-av-list .crm-follow-row { grid-template-columns: 1fr auto; }
-.crm-av-reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted, inherit); font-size: 0.92em; }
-.crm-av-actions { display: grid; gap: 6px; justify-items: end; }
-@media (max-width: 640px) { .crm-av-list .crm-follow-row { grid-template-columns: 1fr; } .crm-av-actions { justify-items: start; } }
 .crm-follow-name { font-size: 1rem; }
 .crm-follow-why { margin-top: 4px !important; font-size: 0.9rem; }
 .crm-follow-step { margin-top: 4px !important; font-size: 0.86rem; }
@@ -7453,3 +7447,69 @@ button.compose-arch:hover {
 
 /* Next step on the visit form grows to fit a long (suggested) step instead of cutting it off. */
 .crm-page .crm-field textarea.crm-next-step { min-height: 44px; font: inherit; font-size: 1rem; line-height: 1.4; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); width: 100%; box-sizing: border-box; resize: none; overflow: hidden; field-sizing: content; }
+
+/* AV prospects. At 1280 the name and reasons take the row (flex 1, min-width 0)
+   and the actions sit in a 200px column. At 390 the actions stack under the text.
+   Body copy is 16px. The subline and reasons are 14px. Reason text is #d8e2dc
+   on the dark row (about 12:1 on #18211c and #0f172a) and #1b2923 on white
+   (about 15:1) when a light scheme is actually painting a light surface. */
+.crm-page .crm-av { display: grid; gap: 12px; min-width: 0; }
+.crm-page .crm-av .crm-section-note,
+.crm-page .crm-av .crm-av-foot,
+.crm-page .crm-av .crm-av-name { font-size: 1rem; line-height: 1.45; color: var(--ink); }
+.crm-page .crm-av .crm-av-name { display: block; font-weight: 700; overflow-wrap: anywhere; }
+.crm-page .crm-av-meta,
+.crm-page .crm-av-reasons { font-size: 0.875rem; line-height: 1.45; color: #d8e2dc; }
+.crm-page .crm-av-meta { display: block; margin-top: 2px; }
+.crm-page .crm-av-reasons { margin: 6px 0 0; padding-left: 18px; }
+.crm-page .crm-av-list { min-width: 0; }
+.crm-page .crm-av-list .crm-follow-row {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+.crm-page .crm-av-main { flex: 1 1 auto; min-width: 0; }
+.crm-page .crm-av-actions {
+  flex: 0 0 200px;
+  width: 200px;
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+  align-content: start;
+}
+.crm-page .crm-av .crm-av-open {
+  min-height: 44px;
+  min-width: 44px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  text-align: center;
+  justify-content: center;
+  padding: 8px 10px;
+}
+.crm-page .crm-av .crm-link-btn.crm-av-open { text-decoration: underline; }
+@media (max-width: 640px) {
+  .crm-page .crm-av-list .crm-follow-row { flex-direction: column; }
+  .crm-page .crm-av-actions { flex: 1 1 auto; width: 100%; }
+}
+@media (prefers-color-scheme: light) {
+  body:not(.desk) .crm-page .crm-av {
+    background: #ffffff;
+    color: #1b2923;
+    padding: 16px;
+    border-radius: 12px;
+  }
+  body:not(.desk) .crm-page .crm-av .crm-section-note,
+  body:not(.desk) .crm-page .crm-av .crm-av-foot,
+  body:not(.desk) .crm-page .crm-av .crm-av-name,
+  body:not(.desk) .crm-page .crm-av-meta,
+  body:not(.desk) .crm-page .crm-av-reasons { color: #1b2923; }
+  body:not(.desk) .crm-page .crm-av-list .crm-follow-row { background: #ffffff; }
+}
