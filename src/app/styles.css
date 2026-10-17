@@ -7413,3 +7413,14 @@ button.compose-arch:hover {
 .crm-page .crm-org-tools h4 { margin-bottom: 6px; }
 .crm-page .crm-org-tools .dx-btn, .crm-page .crm-add-org .dx-btn { min-height: 44px; font-size: 1rem; padding: 8px 16px; }
 .crm-page .crm-add-org .crm-link-btn { min-height: 44px; }
+
+/* A confirmation line on a CRM card: a little air before the button below it. */
+.crm-page .crm-card-notice { margin: 0 0 8px; }
+/* Saved, but it stays blocked: the stop tone, not the success lime. */
+.crm-page .crm-card-notice--stop {
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--pink) 55%, transparent);
+  background: color-mix(in srgb, var(--pink) 10%, transparent);
+  border-radius: 8px;
+  padding: 8px 10px;
+}

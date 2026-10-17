@@ -479,7 +479,11 @@ await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins"
   // A drop-off yesterday after a visit 3 days ago: the visit's rest ends later and wins.
   const both = repeatRule([drop(1), visit(3)], NOW);
   assert(both.level === "hold" && both.until.slice(0, 10) === daysAgo(3 - 14).slice(0, 10), `longest rest wins, got ${both.until}`);
-  assert(both.text.includes("You visited 3 days ago"), both.text);
+  // VAD: the newest time there was a drop-off, so the line says when you were last there, not "You visited".
+  assert(both.text.startsWith("You were last there yesterday.") && !both.text.includes("You visited"), both.text);
+  const dropToday = repeatRule([drop(0), visit(5)], NOW);
+  assert(dropToday.text.startsWith("You were last there today.") && dropToday.until.slice(0, 10) === daysAgo(5 - 14).slice(0, 10), `drop-off today after a visit: ${dropToday.text}`);
+  assert(repeatRule([visit(1), drop(3)], NOW).text.startsWith("You visited yesterday."), "a visit that is the newest still says You visited");
   // A typed day counts calendar days in Eastern time.
   const typed = repeatRule([{ at: "2026-10-14T16:00:00.000Z", dateOnly: true, app: "churchconnect", kind: "visit", what: "Visit", outreach: true, restDays: 14 }], new Date("2026-10-17T13:00:00Z"));
   assert(typed.text.includes("You visited 3 days ago"), typed.text);
@@ -798,7 +802,17 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
   const undo = writer.slice(writer.indexOf("export async function undoBusinessDoNotContact"));
   assert(undo.indexOf("existingSuppressions(config, own)") > undo.indexOf("if (removed === null || left !== 0)"), "undo checks the list for the lead's email/phone after removing its own rows");
   assertIncludes(undo, 'const status = elsewhere || prevRaw === "suppressed" ? "suppressed" : prevRaw;', "still listed elsewhere (or stopped before) stays suppressed");
-  assertIncludes(undo, "still on the do-not-contact list because", "says plainly why it stays stopped");
+  assertIncludes(undo, "Still on the do-not-contact list. ${stillListedReason(name", "leads with the result, then why");
+  assert(!writer.includes("Your do-not-contact entries were removed"), "no 'Your do-not-contact entries were removed'");
+  assertIncludes(undo, "return { ok: true, warn: true, message: `Still on the do-not-contact list.", "still-listed is a warning, not a success");
+  const reasonFn = new Function(writer.slice(writer.indexOf("export function stillListedReason")).split("\n}\n")[0].replace("export function stillListedReason(name: string, reasons: string[]): string", "return function (name, reasons)") + "\n}")();
+  assert(reasonFn("Peach Bakery", ["opt_out"]) === "Peach Bakery opted out themselves", "opted out");
+  assert(reasonFn("Peach Bakery", ["bounce"]) === "Peach Bakery's email bounced", "bounced");
+  assert(reasonFn("Peach Bakery", ["do_not_contact"]) === "Peach Bakery is on the list for another reason", "another reason");
+  assertIncludes(read("src/app/(cockpit)/crm/actions.ts"), "warn: result.ok && result.warn === true", "the warning reaches the card");
+  assertIncludes(tools, '${notice.warn ? "crm-card-notice--stop" : "crm-ok-text"}', "warning uses the stop tone, success the lime");
+  const css = read("src/app/styles.css");
+  assertIncludes(css, ".crm-page .crm-card-notice { margin: 0 0 8px; }", "8px between a confirmation and the button below");
   assertIncludes(undo, '"Undone. You can contact this business again."', "undo wording (business)");
   assertIncludes(writer, '"Undone. You can contact this church again."', "undo wording (church)");
   assert(!writer.includes("back on the list") && !writer.includes("back in the pipeline"), "old undo wording gone");

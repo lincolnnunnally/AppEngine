@@ -30,10 +30,11 @@ export function saveTargetOf(card: Pick<CrmCard, "churchId" | "leadId">): SaveTa
 // Confirmations ("Visit saved.", "Undone. …") live outside the card, keyed by
 // the org, so they stay on screen when the saved card re-renders or moves to
 // another part of the desk. They clear when the owner starts something else.
-const notices = new Map<string, string>();
+export type CardNotice = { message: string; warn: boolean };
+const notices = new Map<string, CardNotice>();
 const noticeListeners = new Set<() => void>();
-function setNoticeFor(key: string, message: string) {
-  if (message) notices.set(key, message);
+function setNoticeFor(key: string, message: string, warn = false) {
+  if (message) notices.set(key, { message, warn });
   else notices.delete(key);
   for (const listener of noticeListeners) listener();
 }
@@ -43,9 +44,9 @@ function subscribeNotices(listener: () => void) {
     noticeListeners.delete(listener);
   };
 }
-function useNotice(key: string): [string, (message: string) => void] {
-  const message = useSyncExternalStore(subscribeNotices, () => notices.get(key) ?? "", () => "");
-  return [message, (next: string) => setNoticeFor(key, next)];
+function useNotice(key: string): [CardNotice | null, (message: string) => void] {
+  const notice = useSyncExternalStore(subscribeNotices, () => notices.get(key) ?? null, () => null);
+  return [notice, (next: string) => setNoticeFor(key, next)];
 }
 
 /** Under every save form on a card: what saving does and doesn't do. */
@@ -280,11 +281,11 @@ function RemoveContact({ target, contact, onDone, onCancel }: { target: SaveTarg
   );
 }
 
-function UndoDoNotContact({ target, onDone }: { target: SaveTarget; onDone: (message: string) => void }) {
+function UndoDoNotContact({ target, onDone }: { target: SaveTarget; onDone: (message: string, warn?: boolean) => void }) {
   // Undo removes this button in the same re-render that answers; hand the message to the card first.
   const [state, action, pending] = useActionState<CrmFormState, FormData>(async (prev, formData) => {
     const result = await undoDoNotContactAction(prev, formData);
-    if (result?.ok) onDone(result.message);
+    if (result?.ok) onDone(result.message, result.warn === true);
     return result;
   }, null);
   return (
@@ -312,8 +313,8 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
     setNotice(message);
   };
   // Writes straight to the store, so it lands even if this card re-mounts mid-save.
-  const done = (message: string) => {
-    setNoticeFor(noticeKey, message);
+  const done = (message: string, warn = false) => {
+    setNoticeFor(noticeKey, message, warn);
     setModeRaw("");
   };
   if (!card.contacts.length && !target) return null;
@@ -369,8 +370,12 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
       {target ? (
         <>
           {notice && !mode ? (
-            <p className="crm-form-status crm-ok-text" role="status" data-testid="crm-people-notice">
-              {notice}
+            <p
+              className={`crm-form-status crm-card-notice ${notice.warn ? "crm-card-notice--stop" : "crm-ok-text"}`}
+              role={notice.warn ? "alert" : "status"}
+              data-testid="crm-people-notice"
+            >
+              {notice.message}
             </p>
           ) : null}
           {mode === "add" ? <ContactForm target={target} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}

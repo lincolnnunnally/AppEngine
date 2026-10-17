@@ -31,7 +31,7 @@ export type VisitKind = (typeof VISIT_KINDS)[number];
 export const OUTCOME_CODES = ["interested", "follow_up", "not_now", "do_not_contact"] as const;
 export type OutcomeCode = (typeof OUTCOME_CODES)[number];
 
-export type SaveResult = { ok: true; message: string; duplicate?: boolean; contactId?: string } | { ok: false; message: string };
+export type SaveResult = { ok: true; message: string; duplicate?: boolean; contactId?: string; /** Saved, but the result needs a warning, not a success line. */ warn?: boolean } | { ok: false; message: string };
 
 export type ContactInput = { id: string; name: string; title: string; email: string; phone: string };
 
@@ -962,13 +962,12 @@ function sameSuppression(a: SuppressionRow, b: SuppressionRow): boolean {
   return false;
 }
 
-/** Plain words for why a business is on the list, from the strongest reason found. */
-export function suppressionReasonWords(reasons: string[]): string {
+/** Why a business is still blocked after an undo, leading with the name: opted out, bounced, or another reason. */
+export function stillListedReason(name: string, reasons: string[]): string {
   const set = new Set(reasons.map((reason) => String(reason || "").toLowerCase()));
-  if (set.has("do_not_contact") || set.has("manual")) return "they asked not to be contacted";
-  if (set.has("opt_out") || set.has("complaint")) return "they opted out";
-  if (set.has("bounce")) return "an email to them bounced";
-  return "it's on the do-not-contact list";
+  if (set.has("opt_out") || set.has("complaint")) return `${name} opted out themselves`;
+  if (set.has("bounce")) return `${name}'s email bounced`;
+  return `${name} is on the list for another reason`;
 }
 
 async function addLeadToDoNotContact(config: LplConfig, lead: LeadRow): Promise<boolean> {
@@ -1040,23 +1039,24 @@ export async function undoBusinessDoNotContact(_ownerEmail: string, leadId: stri
     ...(normPhone(lead.phone) ? [{ phone: normPhone(lead.phone) }] : [])
   ];
   const still = await existingSuppressions(config, own);
+  const name = text(lead.business_name, 160) || "This business";
   if (still === null) {
     // Can't tell: fail closed, keep it stopped.
     if (!(await patchLeadIfUnchanged(config, lead, { status: "suppressed", signals }))) {
-      return { ok: false, message: "Your do-not-contact entries were removed, but the business couldn't be updated. Reload and undo again." };
+      return { ok: false, message: "The business couldn't be updated. Reload and undo again." };
     }
-    return { ok: true, message: "Your do-not-contact entries were removed, but the list couldn't be checked, so this business stays stopped for now." };
+    return { ok: true, warn: true, message: `Still blocked for now. The do-not-contact list couldn't be checked, so ${name} stays blocked. Don't contact it yet.` };
   }
   const elsewhere = still.length > 0;
   const status = elsewhere || prevRaw === "suppressed" ? "suppressed" : prevRaw;
   if (!(await patchLeadIfUnchanged(config, lead, { status, signals }))) {
-    return { ok: false, message: "Your do-not-contact entries were removed, but the business couldn't be updated. Reload and undo again." };
+    return { ok: false, message: "The business couldn't be updated. Reload and undo again." };
   }
   if (elsewhere) {
-    return { ok: true, message: `Your do-not-contact entries were removed, but this business is still on the do-not-contact list because ${suppressionReasonWords(still.map((row) => row.reason ?? ""))}. Don't contact it.` };
+    return { ok: true, warn: true, message: `Still on the do-not-contact list. ${stillListedReason(name, still.map((row) => row.reason ?? ""))}, so it stays blocked. Don't contact it.` };
   }
   if (status === "suppressed") {
-    return { ok: true, message: "Your do-not-contact entries were removed, but this business was already stopped before, so it stays stopped. Don't contact it." };
+    return { ok: true, warn: true, message: `Still on the do-not-contact list. ${name} was already blocked before this, so it stays blocked. Don't contact it.` };
   }
   return { ok: true, message: "Undone. You can contact this business again." };
 }

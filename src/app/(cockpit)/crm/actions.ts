@@ -24,7 +24,7 @@ import {
 // the server before anything is read from the form. Admins can view the desk
 // but never reach a save.
 
-export type CrmFormState = { ok: boolean; message: string; at: number } | null;
+export type CrmFormState = { ok: boolean; message: string; at: number; warn?: boolean } | null;
 
 const field = (formData: FormData, name: string) => String(formData.get(name) ?? "");
 
@@ -116,7 +116,7 @@ export async function undoDoNotContactAction(_prev: CrmFormState, formData: Form
     ? await undoBusinessDoNotContact(await ownerEmail(), lead)
     : await undoChurchDoNotContact(await ownerEmail(), field(formData, "church_id"));
   revalidatePath("/crm");
-  return { ok: result.ok, message: result.message, at: Date.now() };
+  return { ok: result.ok, message: result.message, at: Date.now(), warn: result.ok && result.warn === true };
 }
 
 // ── Add or edit an org ─────────────────────────────────────────────────────
