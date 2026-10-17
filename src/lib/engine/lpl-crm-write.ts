@@ -41,6 +41,8 @@ export type VisitInput = {
   nextStep: string;
   nextDate: string;
   clientRef: string;
+  /** "Yes, never contact this church" was ticked (required for do_not_contact). */
+  confirmDnc?: boolean;
 };
 
 type CcConfig = { base: string; secret: string };
@@ -64,7 +66,7 @@ export function savingOffMessage(env: Record<string, string | undefined> = proce
 }
 
 /** A pass for exactly one call: this method, this path, this owner, under 2 minutes. */
-export function mintCrmPass(secret: string, method: "POST" | "PUT", path: string, ownerEmail: string, nowSeconds = Math.floor(Date.now() / 1000)): string {
+export function mintCrmPass(secret: string, method: "POST" | "PUT" | "DELETE", path: string, ownerEmail: string, nowSeconds = Math.floor(Date.now() / 1000)): string {
   return mintHs256Jwt(
     {
       iss: CRM_PASS_ISSUER,
@@ -110,6 +112,7 @@ export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string
   const clientRef = text(input.clientRef, 64);
   if (!REF_RE.test(clientRef)) return "Reload the page and try again.";
   const outcomeCode = OUTCOME_CODES.includes(input.outcomeCode as OutcomeCode) ? (input.outcomeCode as OutcomeCode) : "";
+  if (outcomeCode === "do_not_contact" && input.confirmDnc !== true) return "Tick \"Yes, never contact this church\" to save this.";
   const nextStep = outcomeCode === "do_not_contact" ? "" : text(input.nextStep, 200);
   const nextDate = outcomeCode === "do_not_contact" ? "" : text(input.nextDate, 10);
   if (nextDate && !validDay(nextDate)) return "Pick a real day for the next step.";
@@ -127,7 +130,8 @@ export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string
     outcomeNote: text(input.outcomeNote, 300),
     nextStep,
     nextDate,
-    clientRef
+    clientRef,
+    confirmDnc: outcomeCode === "do_not_contact"
   };
 }
 
@@ -142,7 +146,7 @@ export function previewBypassHeader(env: Record<string, string | undefined> = pr
   return token ? { "x-vercel-protection-bypass": token } : {};
 }
 
-async function callChurchConnect(config: CcConfig, method: "POST" | "PUT", path: string, ownerEmail: string, body: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
+async function callChurchConnect(config: CcConfig, method: "POST" | "PUT" | "DELETE", path: string, ownerEmail: string, body?: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
   try {
     const response = await fetch(`${config.base}${path}`, {
       method,
@@ -151,7 +155,7 @@ async function callChurchConnect(config: CcConfig, method: "POST" | "PUT", path:
         "X-Engine-Pass": mintCrmPass(config.secret, method, path, ownerEmail),
         ...previewBypassHeader()
       },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
       signal: AbortSignal.timeout(15000)
     });
@@ -290,7 +294,7 @@ async function addChurchToDoNotContact(churchId: string): Promise<boolean> {
       const insert = await fetch(`${config.url}/rest/v1/outreach_suppressions`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ ...row, brand: "all", reason: "do_not_contact", source: "crm_visit" }),
+        body: JSON.stringify({ ...row, brand: "all", reason: "do_not_contact", source: deskSuppressionSource(churchId) }),
         cache: "no-store"
       });
       if (!insert.ok && insert.status !== 409) return false;
@@ -299,4 +303,56 @@ async function addChurchToDoNotContact(churchId: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// ── Remove a contact, undo a do-not-contact ────────────────────────────────
+
+/** Rows this desk adds to the do-not-contact list carry the church id, so an undo removes only those. */
+export function deskSuppressionSource(churchId: string): string {
+  return `crm_visit:${churchId}`;
+}
+
+export async function removeChurchContact(ownerEmail: string, churchId: string, contactId: string): Promise<SaveResult> {
+  const config = await ccConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(churchId)) return { ok: false, message: "Contacts can only be removed on a ChurchConnect church." };
+  if (!CONTACT_ID_RE.test(contactId)) return { ok: false, message: "That contact can't be removed. Reload the page and try again." };
+  const result = await callChurchConnect(config, "DELETE", `/api/church-crm/leads/${churchId}/contacts/${contactId}`, ownerEmail);
+  if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
+  return { ok: true, message: "Contact removed." };
+}
+
+/** Count (or with remove=true, delete) the do-not-contact rows this desk added for one church. */
+async function deskSuppressions(churchId: string, remove: boolean): Promise<number | null> {
+  const config = lplConfig();
+  if (!config) return null;
+  const headers = { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` };
+  const where = `source=eq.${encodeURIComponent(deskSuppressionSource(churchId))}&reason=eq.do_not_contact`;
+  try {
+    const response = await fetch(`${config.url}/rest/v1/outreach_suppressions?${where}&select=id`, {
+      method: remove ? "DELETE" : "GET",
+      headers: { ...headers, Prefer: "return=representation" },
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const rows = (await response.json()) as unknown[];
+    return Array.isArray(rows) ? rows.length : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function undoChurchDoNotContact(ownerEmail: string, churchId: string): Promise<SaveResult> {
+  const config = await ccConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(churchId)) return { ok: false, message: "Only a ChurchConnect church can be undone here." };
+  const result = await callChurchConnect(config, "POST", `/api/church-crm/leads/${churchId}/do-not-contact/undo`, ownerEmail, {});
+  if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
+  const removed = await deskSuppressions(churchId, true);
+  // Read back: nothing this desk added for this church may remain.
+  const left = await deskSuppressions(churchId, false);
+  if (removed === null || left !== 0) {
+    return { ok: false, message: "The church is back in the pipeline, but the do-not-contact list couldn't be cleared. Try again." };
+  }
+  return { ok: true, message: `Undone. Removed ${removed} do-not-contact ${removed === 1 ? "entry" : "entries"}; the church is back in the pipeline.` };
 }

@@ -531,13 +531,24 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(writer, "/api/church-crm/leads/${churchId}/contacts/${contact.id}", "contacts go through ChurchConnect");
   assert(!/console\.(log|error|warn)/.test(writer), "writer never logs");
   assertIncludes(writer, 'if (env.VERCEL_ENV === "production") return {};', "preview bypass never sent from production");
-  assert(!/method: "(PATCH|DELETE)"/.test(writer), "no PATCH or DELETE anywhere");
+  assert(!/method: "PATCH"/.test(writer), "no PATCH anywhere");
+  // The only deletes: one saved contact (through ChurchConnect, pass-bound) and this desk's own do-not-contact rows for one church.
+  assertIncludes(writer, 'callChurchConnect(config, "DELETE", `/api/church-crm/leads/${churchId}/contacts/${contactId}`, ownerEmail)', "contact removal goes through ChurchConnect");
+  assertIncludes(writer, "return `crm_visit:${churchId}`;", "desk rows carry the church id");
+  assertIncludes(writer, 'const where = `source=eq.${encodeURIComponent(deskSuppressionSource(churchId))}&reason=eq.do_not_contact`;', "undo is pinned to this church's desk rows");
+  assertIncludes(writer, 'method: remove ? "DELETE" : "GET"', "one pinned delete");
+  assertIncludes(writer, "if (removed === null || left !== 0)", "undo reads back zero rows left");
+  assertIncludes(writer, 'if (outcomeCode === "do_not_contact" && input.confirmDnc !== true)', "do-not-contact needs the confirm tick on the server too");
   assert(!writer.includes('"cc_churches", {') && !/rest\/v1\/cc_church[a-z_]*`?, \{\s*method: "(POST|PATCH|PUT)/.test(writer), "church records are only read directly");
   const tools = read("src/components/engine/crm-church-tools.tsx");
   assertIncludes(tools, '"use client"', "client component");
   assert(!tools.includes("lpl-crm-write") && !tools.includes("process.env") && !tools.includes("SERVICE_ROLE"), "client never touches the writer or env");
   assertIncludes(tools, 'name="client_ref" value={clientRef}', "one-time key per form");
   assertIncludes(tools, "disabled={pending}", "button locks while saving");
+  assertIncludes(tools, 'name="confirm_dnc" value="yes" required', "confirm tick for do-not-contact");
+  assertIncludes(tools, "Yes, never contact this church", "confirm wording");
+  assertIncludes(tools, "card.deskDoNotContact && !mode ? <UndoDoNotContact", "undo shows only for a desk do-not-contact");
+  assertIncludes(tools, "Yes, remove", "remove asks first");
   assertIncludes(tools, "(contact.email || contact.phone) && mode !== `edit:${contact.id}`", "details not shown twice while editing");
   const desk = read("src/components/engine/crm-desk.tsx");
   assert(!desk.includes("lpl-crm-write"), "desk never imports the writer");
@@ -582,7 +593,7 @@ await runStep("pass secret: env var first, else the shared database row; cached;
   assert((await mod.resolveCrmSecret({ APPENGINE_CC_CRM_SECRET: "tooshort" }, fetcher, 0)) === "", "a short env value is refused");
   const writer = read("src/lib/engine/lpl-crm-write.ts");
   assertIncludes(writer, 'return env.VERCEL_ENV === "production" ? "Saving isn\'t switched on yet." : "Saving isn\'t available on this preview.";', "clear fail-closed wording");
-  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 2, "both saves fail closed");
+  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 4, "every save (visit, contact, remove, undo) fails closed");
   // Nothing that runs in the browser may import the secret module.
   for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx"]) {
     const text = read(rel);

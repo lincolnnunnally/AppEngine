@@ -120,6 +120,8 @@ export type CrmNode = {
   /** ChurchConnect church id the desk may log visits and save contacts on (UUID churches only). */
   churchId?: string;
   contacts?: CrmContact[];
+  /** A visit logged from the desk marked this church do-not-contact (the desk may undo it). */
+  deskDoNotContact?: boolean;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
@@ -164,6 +166,8 @@ export type CrmCard = {
   churchId: string | null;
   /** People at this org (church contacts). Contact details are removed for viewers who are not the owner. */
   contacts: CrmContact[];
+  /** A visit logged from the desk set do-not-contact on this church; the owner can undo it. */
+  deskDoNotContact: boolean;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -580,7 +584,8 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       followUpReasons: [],
       recordPaths: recordPathsOf(members),
       churchId: churchIdOf(members),
-      contacts: contactsOf(members)
+      contacts: contactsOf(members),
+      deskDoNotContact: members.some((member) => member.deskDoNotContact && !member.contextOnly)
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { logChurchVisitAction, saveChurchContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
+import { logChurchVisitAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
 
 // Church contacts and "log a visit" on a CRM card. Everyone who can open the
@@ -159,10 +159,15 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
         <input name="outcome_note" maxLength={300} autoComplete="off" />
       </label>
       {outcome === "do_not_contact" ? (
-        <p className="crm-banner crm-banner--stop">
-          Saving this marks the church lost and adds its emails, phones, and website to the do-not-contact list. No app will
-          reach out again.
-        </p>
+        <>
+          <p className="crm-banner crm-banner--stop">
+            Saving this marks the church lost and adds its emails, phones, and website to the do-not-contact list. No app will
+            reach out again. You can undo it from this card.
+          </p>
+          <label className="crm-field crm-confirm">
+            <input type="checkbox" name="confirm_dnc" value="yes" required /> <span>Yes, never contact this church</span>
+          </label>
+        </>
       ) : (
         <div className="crm-form-group">
           <label className="crm-field">
@@ -191,6 +196,42 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
   );
 }
 
+function RemoveContact({ churchId, contact, onDone, onCancel }: { churchId: string; contact: CrmContact; onDone: () => void; onCancel: () => void }) {
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(removeChurchContactAction, null);
+  useEffect(() => {
+    if (state?.ok) onDone();
+  }, [state, onDone]);
+  return (
+    <form action={action} className="crm-form crm-confirm-box" data-testid="crm-remove-contact">
+      <input type="hidden" name="church_id" value={churchId} />
+      <input type="hidden" name="contact_id" value={contact.id} />
+      <p>Remove {contact.name} from this church? Their visits stay in the timeline.</p>
+      <div className="crm-form-actions">
+        <button type="submit" className="dx-btn dx-btn--danger" disabled={pending} aria-busy={pending}>
+          {pending ? "Removing…" : "Yes, remove"}
+        </button>
+        <button type="button" className="dx-btn" onClick={onCancel} disabled={pending}>
+          Keep
+        </button>
+      </div>
+      <Status state={state} />
+    </form>
+  );
+}
+
+function UndoDoNotContact({ churchId }: { churchId: string }) {
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(undoDoNotContactAction, null);
+  return (
+    <form action={action} className="crm-undo" data-testid="crm-undo-dnc">
+      <input type="hidden" name="church_id" value={churchId} />
+      <button type="submit" className="dx-btn" disabled={pending} aria-busy={pending}>
+        {pending ? "Undoing…" : "Undo do-not-contact"}
+      </button>
+      <Status state={state} />
+    </form>
+  );
+}
+
 export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean }) {
   const [mode, setMode] = useState<"" | "visit" | "add" | string>("");
   const [notice, setNotice] = useState("");
@@ -212,7 +253,7 @@ export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean
                 {SOURCE_LABEL[contact.source] ? <span className="crm-contact-note">{SOURCE_LABEL[contact.source]}</span> : null}
               </div>
               {/* While this contact is being edited, the form shows the phone and email; don't show them twice. */}
-              {(contact.email || contact.phone) && mode !== `edit:${contact.id}` ? (
+              {(contact.email || contact.phone) && mode !== `edit:${contact.id}` && mode !== `remove:${contact.id}` ? (
                 <div className="crm-contact-links">
                   {contact.phone ? (
                     <a className="crm-contact-link" href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}>
@@ -229,10 +270,17 @@ export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean
               {canSave && card.churchId && contact.source === "saved" ? (
                 mode === `edit:${contact.id}` ? (
                   <ContactForm churchId={card.churchId} contact={contact} onDone={close("Contact saved.")} onCancel={close("")} />
+                ) : mode === `remove:${contact.id}` ? (
+                  <RemoveContact churchId={card.churchId} contact={contact} onDone={close(`${contact.name} removed.`)} onCancel={close("")} />
                 ) : (
-                  <button type="button" className="dx-btn crm-contact-edit" onClick={() => setMode(`edit:${contact.id}`)}>
-                    Edit
-                  </button>
+                  <div className="crm-contact-actions">
+                    <button type="button" className="dx-btn crm-contact-edit" onClick={() => setMode(`edit:${contact.id}`)}>
+                      Edit
+                    </button>
+                    <button type="button" className="dx-btn crm-contact-remove" onClick={() => setMode(`remove:${contact.id}`)}>
+                      Remove
+                    </button>
+                  </div>
                 )
               ) : null}
             </li>
@@ -250,6 +298,7 @@ export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean
           ) : null}
           {mode === "add" ? <ContactForm churchId={card.churchId} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}
           {mode === "visit" ? <VisitForm card={card} onDone={close("Saved. The card updates in a moment.")} onCancel={close("")} /> : null}
+          {card.deskDoNotContact && !mode ? <UndoDoNotContact churchId={card.churchId} /> : null}
           {!mode ? (
             <div className="crm-actions">
               <button type="button" className="dx-btn dx-btn--primary" onClick={() => setMode("visit")}>

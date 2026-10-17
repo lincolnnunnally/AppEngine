@@ -108,7 +108,7 @@ const CHURCH_FIELDS = [
   "crm_status", "crm_next_action", "crm_next_action_date", "invite_status", "last_invited_at", "invite_campaign",
   "website_offer_status", "is_customer", "signed_up", "converted_at", "merged_into", "duplicate_of", "deleted_at",
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
-  "contact_name", "contact_role", "do_not_contact"
+  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source"
 ];
 const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts`;
 const CHURCH_TOUCHED = [
@@ -214,7 +214,8 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     nextAction: scrubContact(row.crm_next_action, 120),
     contextOnly,
     churchId: UUID_RE.test(id) ? id : undefined,
-    contacts: churchContacts(row, id)
+    contacts: churchContacts(row, id),
+    deskDoNotContact: UUID_RE.test(id) && truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit"
   };
 }
 

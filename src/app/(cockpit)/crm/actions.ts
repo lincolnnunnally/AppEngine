@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
-import { logChurchVisit, saveChurchContact, type OutcomeCode, type VisitKind } from "@/lib/engine/lpl-crm-write";
+import { logChurchVisit, removeChurchContact, saveChurchContact, undoChurchDoNotContact, type OutcomeCode, type VisitKind } from "@/lib/engine/lpl-crm-write";
 
 // Saves from the CRM desk. OWNER ONLY: every action checks the owner gate on
 // the server before anything is read from the form. Admins can view the desk
@@ -64,8 +64,23 @@ export async function logChurchVisitAction(_prev: CrmFormState, formData: FormDa
     outcomeNote: field(formData, "outcome_note"),
     nextStep: field(formData, "next_step"),
     nextDate: field(formData, "next_date"),
-    clientRef: field(formData, "client_ref")
+    clientRef: field(formData, "client_ref"),
+    confirmDnc: field(formData, "confirm_dnc") === "yes"
   });
+  revalidatePath("/crm");
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function removeChurchContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const result = await removeChurchContact(await ownerEmail(), field(formData, "church_id"), field(formData, "contact_id"));
+  if (result.ok) revalidatePath("/crm");
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function undoDoNotContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const result = await undoChurchDoNotContact(await ownerEmail(), field(formData, "church_id"));
   revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now() };
 }
