@@ -107,7 +107,7 @@ export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props)
       ) : null}
       {state?.ok ? (
         <p className="crm-av-foot">
-          Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream or asked not to be contacted.
+          Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream, are resting or recently contacted, were invited, said no, are not public, are inactive, or are not a church.
         </p>
       ) : null}
     </div>

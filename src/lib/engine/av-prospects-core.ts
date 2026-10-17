@@ -245,11 +245,19 @@ function nameWords(name: string): string[] {
   return s(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter(Boolean);
 }
 
+/** M.B.C. and C.M.E. are the same words as MBC and CME. */
+function collapseInitials(raw: string): string {
+  return raw.replace(/\b(?:[a-z]\.){2,}[a-z]\.?/g, (match) => match.replace(/\./g, ""));
+}
+
 const CHRISTIAN_WORDS = new Set([
   "church", "churches", "baptist", "ministries", "ministry", "ame", "methodist", "worship", "fellowship",
   "chapel", "tabernacle", "assembly", "cathedral", "pentecostal", "holiness", "missionary", "faith", "bethel",
-  "christ", "gospel", "apostolic", "deliverance", "praise", "holy", "cog", "cogic", "cogiu", "cme", "mbc", "umc"
+  "christ", "gospel", "apostolic", "deliverance", "praise", "holy", "cog", "cogic", "cogiu", "cme", "mbc", "umc",
+  "upc", "upci"
 ]);
+/** School, academy, and campus drop only when none of these are in the name. UPC is the United Pentecostal Church. */
+const CHURCH_OR_BAPTIST = new Set(["church", "churches", "baptist", "upc", "upci"]);
 const NAME_DROP = new Set(["inc", "incorporated", "llc", "corp", "corporation", "co"]);
 
 function foldedName(name: string): string {
@@ -266,39 +274,56 @@ function hasChristianWord(raw: string, words: string[]): boolean {
 
 /**
  * Places that are not a Christian church, matched on the name because
- * religion_guess is empty on most rows. A Christian word keeps a temple, camp,
- * college, seminary, Jehovah, foundation, or preschool name. Kingdom Hall always
- * goes. So do association (unless the name ends in Church), a trailing MBA or BA,
- * academy, school, campus, college ministry, and Church of Christ, Scientist.
- * Diocese and the other-faith list go even when the name says Episcopal, Catholic, or Baptist.
+ * religion_guess is empty on most rows. Kingdom Hall and Kingdom Kids always
+ * go. Association goes unless the name ends in Church. A trailing MBA or BA,
+ * college ministry, Church of Christ Scientist, a name ending in Preschool or
+ * Community Center, and a conference council go even when the name says Baptist.
+ * School, academy, and campus go only when the name has no church or baptist
+ * word ("Christian Academy" still goes; "old school" is the Primitive Baptist
+ * phrase, not a school). A bare temple stays. Hindu, mandir, Swaminarayan,
+ * Temple Beth, and shrine still go.
  */
 export function avNameExcluded(name: string): boolean {
-  const raw = foldedName(name);
+  const raw = collapseInitials(foldedName(name));
   if (raw.replace(/[^a-z]/g, "").includes("kingdomhall")) return true;
-  const street = raw.replace(/\bmosque\s+street\b/g, " ");
+  if (/\bkingdom\s+kids\b/.test(raw)) return true;
+  const street = raw.replace(/\bmosque\s+street\b/g, " ").replace(/\bold\s+school\b/g, " ");
   const words = nameWords(street);
   const has = (word: string) => words.includes(word);
-  const christian = hasChristianWord(raw, words);
+  const christian = hasChristianWord(raw, nameWords(raw)) || /\bold\s+school\b/.test(raw);
+  const churchOrBaptist = words.some((word) => CHURCH_OR_BAPTIST.has(word));
   const significant = words.filter((word) => !NAME_DROP.has(word));
   const endsWithChurch = significant[significant.length - 1] === "church";
-  if (["unitarian", "universalist", "diocese", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
+  const tail = (phrase: string[]) => phrase.length <= significant.length && phrase.every((word, index) => significant[significant.length - phrase.length + index] === word);
+  if (["unitarian", "universalist", "diocese", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "swaminarayan", "shrine", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
   if (has("mosque")) return true;
   if (/\blatter\s*-?\s*day\b/.test(raw) || raw.includes("latterday")) return true;
   // "1st Ward" is an LDS ward. A bare "ward" is too, unless the name is a church (Ward Grove Baptist, Ward Memorial UMC).
   if (/\b\d+(st|nd|rd|th)\s+ward\b/.test(street) || (has("ward") && !christian)) return true;
-  if (/\bstake\s+center\b/.test(raw) || /\bconference\s+center\b/.test(raw)) return true;
-  if (/\bbeth\s+israel\b/.test(raw) || /\bchristian\s+science\b/.test(raw) || /\bbaha['’]?i\b/.test(raw)) return true;
+  if (/\bstake\s+center\b/.test(raw) || /\bconference\s+center\b/.test(raw) || /\bconference\s+council\b/.test(raw)) return true;
+  if (/\bbeth\s+israel\b/.test(raw) || /\btemple\s+beth\b/.test(raw) || /\bchristian\s+science\b/.test(raw) || /\bbaha['’]?i\b/.test(raw)) return true;
   if (/\bcongregation\b/.test(raw) && /\bisrael\b/.test(raw)) return true;
   if (/\bchurch\s+of\s+christ,?\s+scientist\b/.test(raw)) return true;
   if (has("association") && !endsWithChurch) return true;
-  if (has("academy") || has("school") || has("campus")) return true;
+  if ((has("academy") || has("school") || has("schools") || has("campus")) && !churchOrBaptist) return true;
   if (/\bcollege\s+ministr(?:y|ies)\b/.test(raw)) return true;
   const last = significant[significant.length - 1];
   if (last === "mba" || last === "ba") return true;
+  if (tail(["community", "center"])) return true;
+  if (last === "preschool" || (significant.length >= 2 && significant[significant.length - 2] === "preschool")) return true;
   if (/\bfood\s+(bank|pantry)\b/.test(raw) && !christian) return true;
-  if ((has("foundation") || has("preschool")) && !christian) return true;
-  if (!christian && ["temple", "camp", "college", "seminary", "jehovah"].some(has)) return true;
+  if (has("foundation") && !christian) return true;
+  if (!christian && ["camp", "college", "seminary", "jehovah"].some(has)) return true;
   return false;
+}
+
+/**
+ * A name lookup of 40 or more rows is too wide to trust. The church ids that
+ * asked for it are blocked; a shorter lookup blocks nobody.
+ */
+export function wideNameLookupBlock(batchLength: number, churchIds: readonly string[]): string[] {
+  if (batchLength < 40) return [];
+  return [...new Set(churchIds.map((id) => s(id)).filter(Boolean))];
 }
 
 /** Touches the desk would rest on: the invite on the church, plus visits and drop-offs the loader attached. */
