@@ -99,7 +99,7 @@ const API_PROBES = {
 const CREDENTIAL_PROBES = [
   {
     name: 'Easy Peazy — build & billing credentials',
-    url: 'https://easy-peazy-api.vercel.app/api/health?deep=1',
+    url: 'https://easypeazy-api.vercel.app/api/health?deep=1',
     read: (j) => ({
       ok: j?.credentials?.ok !== false,
       detail: j?.credentials?.detail

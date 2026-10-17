@@ -25,7 +25,7 @@ Each is one file implementing the `AppModule` contract in `types.ts` (slug, name
 registered in `registry.ts`, covered by `smoke:modules-registry` + `e2e:compose-selection`.
 The generator composes foundation modules into every app; optional modules only when selected.
 All were ported from real ecosystem source (ChurchConnect, Kindred-Connection, RebuildingDads,
-JeepFix, Website-friends, ideas, Iconium, honestly, Association…) — the file header of each
+JeepFix, easypeazy, ideas, Iconium, honestly, Association…) — the file header of each
 module names its exact lineage.
 
 **Foundation (1)**
@@ -105,7 +105,7 @@ Doc `id` (str uuid) is the row key — no ObjectId.
 
 | Pattern | Proven file | Driver | Storage | Pick when |
 |---|---|---|---|---|
-| **Relational async** | `Website-friends/backend/supabase_db.py` (EasyPeazy) | asyncpg, motor drop-in | real typed `ep_*` tables, explicit COLLECTIONS map, column types from information_schema | schema is already real relational tables; you want typed columns, DB constraints, atomic RPCs |
+| **Relational async** | `easypeazy/backend/supabase_db.py` (EasyPeazy) | asyncpg, motor drop-in | real typed `ep_*` tables, explicit COLLECTIONS map, column types from information_schema | schema is already real relational tables; you want typed columns, DB constraints, atomic RPCs |
 | **JSONB sync** | `ChurchConnect/ChurchConnect/backend/db_compat.py` | psycopg2 ThreadedConnectionPool, PyMongo drop-in | one `cc_<collection>(id, doc jsonb, created_at)` table per collection + GIN index, lazy ensure_table | big synchronous PyMongo app needs widest operator/aggregate coverage ($elemMatch, $lookup, bulk_write, TTL-sweeper, DuplicateKeyError parity) with zero schema modeling |
 | **JSONB async** | `snip.show/backend/db_supabase.py` (the lineage template, ~378 lines) | asyncpg, motor drop-in | `snip_<collection>(id, doc jsonb)` + expression indexes | small async motor app needs a minimal schema-free bridge; this is the reference to copy |
 

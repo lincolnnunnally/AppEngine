@@ -34,7 +34,7 @@ Answer any of these inline; each is phrased so a one-line reply unblocks the tag
 | 15 | **ChildFirst PR #2 + data direction:** May Claude Code merge codex PR #2 after local build/typecheck? And kill the mid-flight Neon migration to stay Supabase-only? ("Supabase" / "Neon") | ChildFirst |
 | 16 | **Laser launch keys + cutover:** Provide RENDER_API_KEY + STRIPE_API_KEY (or click Render yourself); and cut over the live 2024 WordPress storefront at laser.engrave.market — replace / preserve-then-replace / keep-WP? | Laser Engrave |
 | 17 | **Snip.Show ECO-004 canonical + host access:** Canonical repo = Snip.Show with emergent `complete` branch merged in? And do you have Emergent.sh + Mongo access for the live legacy deploy (real user data to export)? | Snip.Show |
-| 18 | **Easy Peazy canonical + name:** Which codebase is canonical — the live Emergent CRA build or the Website-friends repo — and the final name (EasyPeazy / EasyWebsite / Easy Business Website Service)? Approve Spaceship API creds + spend guard? | Easy Peazy |
+| 18 | **Easy Peazy canonical + name:** Which codebase is canonical — the live Emergent CRA build or the easypeazy repo — and the final name (EasyPeazy / EasyWebsite / Easy Business Website Service)? Approve Spaceship API creds + spend guard? | Easy Peazy |
 | 19 | **Live On Mission boundary:** Standalone app, or keep running as the ChurchConnect `/mission` surface? Confirm the Community Connections pairing and one shared needs-to-helper matching module. | Live On Mission, Community Connections |
 | 20 | **Milstead Church disposition:** When the ChurchConnect tenant is ready, do we (a) replace WP at milstead.church, (b) subdomain `app.milstead.church`, or (c) bridge via the churchconnect-wordpress plugin? Approve seeding the real org row (DB change)? | Milstead Church |
 | 21 | **UUG platform:** Keep unitedundergod.org on WordPress/PMP as canonical, or replatform into the ecosystem? Embed the public family-of-apps view (reading the existing ops collector — never a second dashboard) now or after the ruling? | United Under God |
@@ -168,7 +168,7 @@ Effort: **S** = small · **M** = medium · **L** = large.
 - **Gated by:** LOM boundary + pairing [#19], D1 [#1], D9 Cloudflare [#8].
 
 **Easy Peazy Website** (`easy-peasy-website`) · **M** · live, but source→production unproven
-- **State:** easypeazy.site is LIVE (200) serving an Emergent-era CRA build (loads assets.emergent.sh), NOT the Website-friends repo. The repo has a stale main + two unmerged June-2026 launch branches + a third different Vite build on its Vercel homepage. No local clone.
+- **State:** easypeazy.site is LIVE (200) serving an Emergent-era CRA build (loads assets.emergent.sh), NOT the easypeazy repo. The repo has a stale main + two unmerged June-2026 launch branches + a third different Vite build on its Vercel homepage. No local clone.
 - **Complete means:** one owner-ruled canonical codebase/name; June branches reconciled; transfer ledger; Emergent script stripped; proven repo→production path; one customer workflow verified.
 - **First actions:** (docs) transfer-ledger audit across main/emergent/2 launch branches vs the live bundle; (protective) trace the real deploy host + capture deployed source if Emergent-only; (owner_decision) canonical codebase + name + Spaceship creds.
 - **Gated by:** canonical + name + Spaceship [#18], D9 Cloudflare [#8], D7 [#6].

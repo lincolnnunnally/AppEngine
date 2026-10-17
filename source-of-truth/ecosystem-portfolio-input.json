@@ -176,13 +176,13 @@
       "slug": "easy-peasy-website",
       "reviewUrl": "unknown",
       "productionUrl": "approval-gated",
-      "currentVersion": "website-friends-source",
+      "currentVersion": "easypeazy-source",
       "deploymentState": "production_blocked",
       "buildState": "planned",
       "nextSafeAction": "create_planning_issue",
       "sourceOfTruthFiles": [
         "source-of-truth/ecosystem-build-ledger.md",
-        "Website-friends"
+        "easypeazy"
       ],
       "blockers": [
         "Confirm rename/alias and mine Website Builder module before launch work."

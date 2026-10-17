@@ -326,7 +326,7 @@ engine pointed at a specific community and the problem/purpose they gather aroun
 | Snip.Show | Clip tool (= the ClipManager idea, shipped) | Keep — canonical name |
 | emergent | Same clip app, built on the Emergent platform | Merge into Snip.Show |
 | Iconium | AI icon / logo / image generation (born from the Barefoot feet problem) | Keep; also feeds the Design Agent |
-| Website-friends | Easy Peasy Website (easypeazy.site) — all-in-one site builder | Rename to Easy Peasy |
+| easypeazy | Easy Peasy Website (easypeazy.site) — all-in-one site builder | Rename to Easy Peasy |
 | LaserEngraving | Laser Engrave Market | Keep (commercial line) |
 | ideas | Idea capture → turn into article/post/app/video | Keep — it's the *front door* of App Engine + the content hub |
 

@@ -96,7 +96,7 @@ values
     'Managed Website + Domain Launch',
     'Web',
     'Rebrandable Easy Peasy template for website signup, domain search, client portal, admin portal, checkout, and provisioning.',
-    '{"source":"Easy Peasy Websites / Website-friends","includes":["Signup","Domain search","Client portal","Admin portal","Checkout","Provisioning"]}'::jsonb
+    '{"source":"Easy Peasy Websites / easypeazy","includes":["Signup","Domain search","Client portal","Admin portal","Checkout","Provisioning"]}'::jsonb
   ),
   (
     'toner-fleet-auto-ordering',

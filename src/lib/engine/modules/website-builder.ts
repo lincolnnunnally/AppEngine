@@ -1,5 +1,5 @@
 // website-builder — a site setup wizard + a branded landing-page builder, ported
-// from the real "Websites & Domains" product (Website-friends repo:
+// from the real "Websites & Domains" product (easypeazy repo:
 // src/components/admin/WebsitesAndDomains.tsx + DomainSearchModal.tsx +
 // LandingPage.tsx + supabase/functions/check-domain-availability) and
 // ChurchConnect's WebsiteSetupWizard.tsx. We keep the actual model and flow:

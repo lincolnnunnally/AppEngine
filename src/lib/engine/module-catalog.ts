@@ -344,7 +344,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Generate simple sites and branded landing pages fast.",
     capabilities: ["website builder", "landing pages", "site generation", "branded pages"],
     usedByApps: ["easy-peasy-website", "churchconnect", "milstead-us"],
-    primarySource: "Website-friends (GitHub, Easy Peasy) src/components/WebsitesAndDomains.tsx + LandingPage.tsx + ChurchConnect src/components/WebsiteSetupWizard.tsx",
+    primarySource: "easypeazy (GitHub, Easy Peasy) src/components/WebsitesAndDomains.tsx + LandingPage.tsx + ChurchConnect src/components/WebsiteSetupWizard.tsx",
     status: "extractable"
   },
   {
@@ -354,7 +354,7 @@ const MODULES: ModuleCatalogEntry[] = [
     purpose: "Register domains and publish/hand off generated sites (incl. WordPress).",
     capabilities: ["domain registration", "publishing", "site handoff", "wordpress"],
     usedByApps: ["easy-peasy-website", "churchconnect"],
-    primarySource: "Website-friends DomainSearchModal + AppEngine src/lib/engine/modules/domains-publishing.ts",
+    primarySource: "easypeazy DomainSearchModal + AppEngine src/lib/engine/modules/domains-publishing.ts",
     status: "in_use"
   },
   {

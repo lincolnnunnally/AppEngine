@@ -15,7 +15,7 @@ The audit listed 29 repos and inspected default-branch trees for code/config sig
 | Kindred-Connection | main | Python | 2026-06-10 | 260 | 1 | backend, frontend, tests | active connection engine |
 | emergent | main | JavaScript | 2026-06-10 | 223 | 1 | backend, frontend, tests | Snip.Show merge source |
 | childfirst-solutions | main | TypeScript | 2026-06-09 | 136 | 1 | Supabase, Next app | active co-parenting app |
-| Website-friends | main | TypeScript | 2026-06-09 | 90 | 1 | Supabase, src | Easy Peasy candidate |
+| easypeazy | main | TypeScript | 2026-06-09 | 90 | 1 | Supabase, src | Easy Peasy candidate |
 | TotalTonerManagement | main | TypeScript | 2026-06-09 | 87 | 1 | Supabase, src | toner canonical candidate |
 | Snip.Show | main | JavaScript | 2026-06-08 | 14 | 1 | small shell | canonical-name candidate |
 | KND-google-ai | main | TypeScript | 2026-06-06 | 40 | 1 | src, env example | KND merge source |
