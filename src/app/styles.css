@@ -7349,3 +7349,5 @@ button.compose-arch:hover {
   .crm-legend dl div { grid-template-columns: 1fr; gap: 2px; }
   .crm-follow-tags { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; }
 }
+.crm-page .dx-chip strong { font-size: 0.875rem; }
+.crm-page .crm-sources summary { min-height: 44px; display: flex; align-items: center; font-size: 1rem; cursor: pointer; }
