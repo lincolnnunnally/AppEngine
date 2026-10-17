@@ -315,12 +315,35 @@ Owner-only, read-only view on the private desk at `/crm` (`dashboard.unitedunder
     "doorKind": "desk_view",
     "continuityHome": "AppEngine private desk"
   },
+  "release": {
+    "version": "crm-v1 (PR #409)",
+    "gateStatus": "owner_approved",
+    "productionApproval": "Lincoln approved CRM v1 on 2026-10-17 6:45 AM ET (Presence 6:46 AM ET); VAD and Experience Auditor passes on PR #409 before merge"
+  },
+  "deployment": {
+    "provider": "Vercel",
+    "previewUrl": "per-PR Vercel preview of lincolnnunnally/AppEngine",
+    "productionUrl": "https://dashboard.unitedundergod.org/crm",
+    "productionApprovalRequired": true
+  },
   "operations": {
     "adminUrl": "https://dashboard.unitedundergod.org/crm",
+    "healthUrl": "https://appengine.unitedundergod.org/api/health",
+    "healthStatus": "inherited — the CRM view has no health route of its own; it runs inside the AppEngine desk",
+    "logsProvider": "Vercel",
+    "logsUrl": "planned",
+    "billingStatus": "not_applicable",
     "writes": "none",
     "sends": "none",
     "newTables": "none"
   },
+  "superAdminActions": [
+    "open admin",
+    "view health",
+    "view logs (planned)",
+    "view deployment",
+    "manage users (not applicable — owner/admin desk roles)"
+  ],
   "auth": {
     "provider": "AppEngine Auth.js",
     "roles": ["owner", "admin"]
