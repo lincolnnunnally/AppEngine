@@ -4,7 +4,9 @@ import { useActionState, useEffect, useState } from "react";
 import { logChurchVisitAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
 
-// Church contacts and "log a visit" on a CRM card. Everyone who can open the
+// Contacts and "log a visit" on a CRM card, for a ChurchConnect church or a
+// business lead (the same forms; the form carries church_id or lead_id and the
+// server picks the writer). Everyone who can open the
 // desk sees names and titles. Email and phone arrive only for the owner (the
 // page strips them for anyone else), and only the owner gets the save forms.
 // Every save runs an owner check on the server again.
@@ -15,6 +17,15 @@ const SOURCE_LABEL: Record<CrmContact["source"], string> = {
   secretary: "From the church record",
   contact: "From the church record"
 };
+
+/** Where this card's saves go: a ChurchConnect church, or a business lead. */
+export type SaveTarget = { field: "church_id" | "lead_id"; id: string; noun: "church" | "business" };
+
+export function saveTargetOf(card: Pick<CrmCard, "churchId" | "leadId">): SaveTarget | null {
+  if (card.churchId) return { field: "church_id", id: card.churchId, noun: "church" };
+  if (card.leadId) return { field: "lead_id", id: card.leadId, noun: "business" };
+  return null;
+}
 
 export function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -33,7 +44,7 @@ export function Status({ state }: { state: CrmFormState }) {
   );
 }
 
-function ContactForm({ churchId, contact, onDone, onCancel }: { churchId: string; contact: CrmContact | null; onDone: () => void; onCancel: () => void }) {
+function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget; contact: CrmContact | null; onDone: () => void; onCancel: () => void }) {
   const [contactId] = useState(() => contact?.id ?? newId());
   const [state, action, pending] = useActionState<CrmFormState, FormData>(saveChurchContactAction, null);
   useEffect(() => {
@@ -41,14 +52,14 @@ function ContactForm({ churchId, contact, onDone, onCancel }: { churchId: string
   }, [state, onDone]);
   return (
     <form action={action} className="crm-form" data-testid="crm-contact-form">
-      <input type="hidden" name="church_id" value={churchId} />
+      <input type="hidden" name={target.field} value={target.id} />
       <input type="hidden" name="contact_id" value={contactId} />
       <label className="crm-field">
         <span>Name</span>
         <input name="name" required maxLength={120} defaultValue={contact?.name ?? ""} autoComplete="off" />
       </label>
       <label className="crm-field">
-        <span>Role (pastor, secretary, deacon…)</span>
+        <span>{target.noun === "church" ? "Role (pastor, secretary, deacon…)" : "Role (owner, manager…)"}</span>
         <input name="title" maxLength={80} defaultValue={contact?.title ?? ""} autoComplete="off" />
       </label>
       <label className="crm-field">
@@ -72,7 +83,7 @@ function ContactForm({ churchId, contact, onDone, onCancel }: { churchId: string
   );
 }
 
-function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => void; onCancel: () => void }) {
+function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: SaveTarget; onDone: () => void; onCancel: () => void }) {
   const [clientRef, setClientRef] = useState(() => newId());
   const [newContactId] = useState(() => newId());
   const [contactChoice, setContactChoice] = useState("");
@@ -87,7 +98,7 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
   const picked = card.contacts.find((contact) => contact.id === contactChoice) ?? null;
   return (
     <form action={action} className="crm-form" data-testid="crm-visit-form">
-      <input type="hidden" name="church_id" value={card.churchId ?? ""} />
+      <input type="hidden" name={target.field} value={target.id} />
       <input type="hidden" name="client_ref" value={clientRef} />
       <input type="hidden" name="contact_mode" value={contactChoice === "new" ? "new" : "existing"} />
       <input type="hidden" name="contact_id" value={picked?.id ?? ""} />
@@ -142,7 +153,7 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
       ) : null}
       <label className="crm-field">
         <span>What you left</span>
-        <input name="left_item" maxLength={200} placeholder="A brochure, a gift, a sample…" autoComplete="off" />
+        <input name="left_item" maxLength={200} placeholder={target.noun === "church" ? "A brochure, a gift, a sample…" : "A Laser sample, a card, a brochure…"} autoComplete="off" />
       </label>
       <label className="crm-field">
         <span>How it went</span>
@@ -161,18 +172,18 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
       {outcome === "do_not_contact" ? (
         <>
           <p className="crm-banner crm-banner--stop">
-            Saving this marks the church lost and adds its emails, phones, and website to the do-not-contact list. No app will
-            reach out again. You can undo it from this card.
+            {target.noun === "church" ? "Saving this marks the church lost" : "Saving this marks the business do-not-contact"} and adds its emails, phones,
+            and website to the do-not-contact list. No app will reach out again. You can undo it from this card.
           </p>
           <label className="crm-confirm">
-            <input type="checkbox" name="confirm_dnc" value="yes" required /> <span>Yes, never contact this church</span>
+            <input type="checkbox" name="confirm_dnc" value="yes" required /> <span>Yes, never contact this {target.noun}</span>
           </label>
         </>
       ) : (
         <div className="crm-form-group">
           <label className="crm-field">
             <span>Next step</span>
-            <input name="next_step" maxLength={200} placeholder="Call the pastor back" autoComplete="off" />
+            <input name="next_step" maxLength={200} placeholder={target.noun === "church" ? "Call the pastor back" : "Call the owner back"} autoComplete="off" />
           </label>
           <label className="crm-field">
             <span>When</span>
@@ -181,7 +192,7 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
         </div>
       )}
       <p className="crm-dim">
-        A visit lets the church rest {VISIT_REST_DAYS} days; a drop-off rests {DROP_OFF_REST_DAYS}.
+        A visit lets the {target.noun} rest {VISIT_REST_DAYS} days; a drop-off rests {DROP_OFF_REST_DAYS}.
       </p>
       <div className="crm-form-actions">
         <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
@@ -196,16 +207,18 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
   );
 }
 
-function RemoveContact({ churchId, contact, onDone, onCancel }: { churchId: string; contact: CrmContact; onDone: () => void; onCancel: () => void }) {
+function RemoveContact({ target, contact, onDone, onCancel }: { target: SaveTarget; contact: CrmContact; onDone: () => void; onCancel: () => void }) {
   const [state, action, pending] = useActionState<CrmFormState, FormData>(removeChurchContactAction, null);
   useEffect(() => {
     if (state?.ok) onDone();
   }, [state, onDone]);
   return (
     <form action={action} className="crm-form crm-confirm-box" data-testid="crm-remove-contact">
-      <input type="hidden" name="church_id" value={churchId} />
+      <input type="hidden" name={target.field} value={target.id} />
       <input type="hidden" name="contact_id" value={contact.id} />
-      <p>Remove {contact.name} from this church? Their visits stay in the timeline.</p>
+      <p>
+        Remove {contact.name} from this {target.noun}? Their visits stay in the timeline.
+      </p>
       <div className="crm-form-actions">
         <button type="submit" className="dx-btn dx-btn--danger" disabled={pending} aria-busy={pending}>
           {pending ? "Removing…" : "Yes, remove"}
@@ -219,11 +232,11 @@ function RemoveContact({ churchId, contact, onDone, onCancel }: { churchId: stri
   );
 }
 
-function UndoDoNotContact({ churchId }: { churchId: string }) {
+function UndoDoNotContact({ target }: { target: SaveTarget }) {
   const [state, action, pending] = useActionState<CrmFormState, FormData>(undoDoNotContactAction, null);
   return (
     <form action={action} className="crm-undo" data-testid="crm-undo-dnc">
-      <input type="hidden" name="church_id" value={churchId} />
+      <input type="hidden" name={target.field} value={target.id} />
       <button type="submit" className="dx-btn" disabled={pending} aria-busy={pending}>
         {pending ? "Undoing…" : "Undo do-not-contact"}
       </button>
@@ -232,16 +245,17 @@ function UndoDoNotContact({ churchId }: { churchId: string }) {
   );
 }
 
-export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean }) {
+export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean }) {
   const [mode, setMode] = useState<"" | "visit" | "add" | string>("");
   const [notice, setNotice] = useState("");
   const close = (message: string) => () => {
     setMode("");
     setNotice(message);
   };
-  if (!card.contacts.length && !(canSave && card.churchId)) return null;
+  const target = canSave ? saveTargetOf(card) : null;
+  if (!card.contacts.length && !target) return null;
   return (
-    <section className="crm-sub crm-church-tools" aria-label="People at this church">
+    <section className="crm-sub crm-church-tools" aria-label={`People at this ${card.leadId && !card.churchId ? "business" : "church"}`}>
       <h4>People</h4>
       {card.contacts.length ? (
         <ul className="crm-contacts" data-testid="crm-contacts">
@@ -267,11 +281,11 @@ export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean
                   ) : null}
                 </div>
               ) : null}
-              {canSave && card.churchId && contact.source === "saved" ? (
+              {target && contact.source === "saved" ? (
                 mode === `edit:${contact.id}` ? (
-                  <ContactForm churchId={card.churchId} contact={contact} onDone={close("Contact saved.")} onCancel={close("")} />
+                  <ContactForm target={target} contact={contact} onDone={close("Contact saved.")} onCancel={close("")} />
                 ) : mode === `remove:${contact.id}` ? (
-                  <RemoveContact churchId={card.churchId} contact={contact} onDone={close(`${contact.name} removed.`)} onCancel={close("")} />
+                  <RemoveContact target={target} contact={contact} onDone={close(`${contact.name} removed.`)} onCancel={close("")} />
                 ) : (
                   <div className="crm-contact-actions">
                     <button type="button" className="dx-btn crm-contact-edit" onClick={() => setMode(`edit:${contact.id}`)}>
@@ -289,16 +303,16 @@ export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean
       ) : (
         <p className="crm-dim">No one saved yet.</p>
       )}
-      {canSave && card.churchId ? (
+      {target ? (
         <>
           {notice && !mode ? (
             <p className="crm-form-status crm-ok-text" role="status">
               {notice}
             </p>
           ) : null}
-          {mode === "add" ? <ContactForm churchId={card.churchId} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}
-          {mode === "visit" ? <VisitForm card={card} onDone={close("Saved. The card updates in a moment.")} onCancel={close("")} /> : null}
-          {card.deskDoNotContact && !mode ? <UndoDoNotContact churchId={card.churchId} /> : null}
+          {mode === "add" ? <ContactForm target={target} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}
+          {mode === "visit" ? <VisitForm card={card} target={target} onDone={close("Saved. The card updates in a moment.")} onCancel={close("")} /> : null}
+          {card.deskDoNotContact && !mode ? <UndoDoNotContact target={target} /> : null}
           {!mode ? (
             <div className="crm-actions">
               <button type="button" className="dx-btn dx-btn--primary" onClick={() => setMode("visit")}>

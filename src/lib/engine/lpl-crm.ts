@@ -236,7 +236,21 @@ function churchOrg(row: Row, id: string): CrmOrg {
   };
 }
 
-export const OP_LEAD_SELECT = "select=id,slug,business_name,category,city,state,phone,email,website_url,status,signals,created_at,updated_at";
+export const OP_LEAD_SELECT = "select=id,slug,business_name,category,city,state,phone,email,website_url,status,signals,services,contacts,created_at,updated_at";
+export const OP_LEAD_ACTIVITY_SELECT = "select=id,lead_id,type,occurred_at,contact,left_item,outcome_code,outcome,next_step,next_action_date,created_at";
+
+/** op_leads.contacts (same shape as ChurchConnect staff_contacts); every one is editable from the desk. */
+function leadContactList(value: unknown): CrmContact[] {
+  const out: CrmContact[] = [];
+  for (const item of Array.isArray(value) ? (value as Row[]) : []) {
+    if (!item || typeof item !== "object") continue;
+    const name = contactText(item.name, 120);
+    if (!name) continue;
+    const id = CONTACT_ID_RE.test(s(item.id)) ? s(item.id) : stableContactId(item);
+    out.push({ id, name, title: contactText(item.role ?? item.title, 80), email: normEmail(item.email), phone: contactText(item.phone, 40), source: "saved" });
+  }
+  return out;
+}
 
 /** A business prospect (op_leads). The desk is its only writer today. */
 export function businessNode(row: Row): CrmNode | null {
@@ -244,7 +258,9 @@ export function businessNode(row: Row): CrmNode | null {
   if (!UUID_RE.test(id)) return null;
   const status = s(row.status).toLowerCase();
   const signals = row.signals && typeof row.signals === "object" ? (row.signals as Row) : {};
-  const services = Array.isArray(signals.services) ? signals.services.map((value) => s(value)) : [];
+  // The services column (slice 3) wins; older rows only have signals.services.
+  const column = Array.isArray(row.services) ? row.services.map((value) => s(value)) : [];
+  const services = column.length ? column : Array.isArray(signals.services) ? signals.services.map((value) => s(value)) : [];
   const created = s(row.created_at);
   return {
     id: `op:lead:${id}`,
@@ -264,6 +280,9 @@ export function businessNode(row: Row): CrmNode | null {
         : status === "declined"
           ? "Said no as a business lead. Do not pitch again."
           : undefined,
+    leadId: id,
+    contacts: leadContactList(row.contacts),
+    deskDoNotContact: status === "suppressed" && s(signals.dnc_source) === "crm_visit",
     org: {
       kind: "business",
       id,
@@ -286,7 +305,7 @@ const OUTCOME_LABEL: Record<string, string> = {
 };
 
 /** A visit or drop-off logged on a church (lead panel or this desk). */
-function visitTouch(row: Row, type: "visit" | "drop_off"): Touch | null {
+function visitTouch(row: Row, type: "visit" | "drop_off", app: CrmApp = "churchconnect"): Touch | null {
   const occurred = s(row.occurred_at);
   const dayOnly = /^\d{4}-\d{2}-\d{2}$/.test(occurred);
   // A typed day counts from noon Eastern so the rest ends on the right calendar day.
@@ -304,7 +323,7 @@ function visitTouch(row: Row, type: "visit" | "drop_off"): Touch | null {
   const outcome = [OUTCOME_LABEL[s(row.outcome_code)] || "", scrubContact(row.outcome, 60)].filter(Boolean).join(" — ");
   return {
     at,
-    app: "churchconnect",
+    app,
     kind: type,
     what: scrubContact(parts.join(", "), 160),
     outreach: true,
@@ -313,6 +332,55 @@ function visitTouch(row: Row, type: "visit" | "drop_off"): Touch | null {
     dateOnly: dayOnly || undefined,
     left: s(row.left_item) ? scrubContact(row.left_item, 60) : undefined
   };
+}
+
+const LEAD_DAY_RE = /^(\d{4}-\d{2}-\d{2})T16:00:00(?:\.0+)?(?:Z|\+00:00|\+00)$/;
+
+/**
+ * Business visit log (op_lead_activities) onto its lead's node: visits and
+ * drop-offs start the same rest as a church (14 / 7 days); the newest entry
+ * that set a next step is the lead's next step (as a church's next action).
+ */
+export function leadActivityNodes(rows: Row[], nodes: Map<string, CrmNode>): CrmNode[] {
+  const touched: CrmNode[] = [];
+  const newest = new Map<string, Row>();
+  for (const row of rows) {
+    const node = nodes.get(`op:lead:${s(row.lead_id)}`);
+    if (!node) continue;
+    // The desk stores a typed day as noon Eastern; show it as that calendar day.
+    const occurred = s(row.occurred_at);
+    const day = LEAD_DAY_RE.exec(occurred)?.[1];
+    const entry = day ? { ...row, occurred_at: day } : row;
+    const type = s(row.type).toLowerCase();
+    if (type === "visit" || type === "drop_off") {
+      const touch = visitTouch(entry, type, "business");
+      if (touch) node.touches.push(touch);
+    } else {
+      const at = occurred || s(row.created_at);
+      if (at) {
+        node.touches.push({
+          at,
+          app: "business",
+          kind: type === "email" ? "email" : type === "call" ? "call" : "note",
+          what: scrubContact([type === "note" ? "Note" : type, s(row.outcome)].filter(Boolean).join(": "), 120),
+          outreach: ["call", "email", "meeting"].includes(type)
+        });
+      }
+    }
+    // Like a church's next action: the newest entry that set a next step keeps it until a later one replaces it.
+    const key = s(row.lead_id);
+    const seen = newest.get(key);
+    if (s(row.next_action_date) && (!seen || (s(row.created_at) || s(row.occurred_at)) > (s(seen.created_at) || s(seen.occurred_at)))) newest.set(key, row);
+    touched.push(node);
+  }
+  for (const [leadId, row] of newest) {
+    const node = nodes.get(`op:lead:${leadId}`);
+    if (!node || node.declined) continue;
+    const due = s(row.next_action_date);
+    node.nextActionDate = /^\d{4}-\d{2}-\d{2}$/.test(due) ? due : null;
+    node.nextAction = node.nextActionDate ? scrubContact(row.next_step, 120) : "";
+  }
+  return touched;
 }
 
 export type CrmSnapshot = {
@@ -396,7 +464,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     pMoments,
     pScans,
     suppressionRows,
-    opLeads
+    opLeads,
+    leadActivities
   ] = await Promise.all([
     read("cc_churches", `${CHURCH_SELECT}&or=(${CHURCH_TOUCHED})&limit=1500`, "Churches in the pipeline", "churchconnect"),
     read("cc_site_invites", "select=id,church_id:doc->>church_id,slug:doc->>slug,updated_at:doc->>updated_at,created_at&limit=1000", "Website preview pages", "churchconnect"),
@@ -439,7 +508,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     read("presence_moments", "select=id,title,activity,kind,starts_at,place,city,state,place_id,coin_batch_id,status,created_at&limit=1000", "Events", "presence"),
     read("presence_coin_scans", "select=coin_id,kind,created_at&order=created_at.desc&limit=5000", "Token scans", "presence"),
     read("outreach_suppressions", "select=email,domain,phone&limit=5000", "Do-not-contact list", "shared"),
-    read("op_leads", `${OP_LEAD_SELECT}&order=created_at.desc&limit=1000`, "Business leads", "business")
+    read("op_leads", `${OP_LEAD_SELECT}&order=created_at.desc&limit=1000`, "Business leads", "business"),
+    read("op_lead_activities", `${OP_LEAD_ACTIVITY_SELECT}&order=occurred_at.desc&limit=2000`, "Business visit log", "business")
   ]);
 
   const nodes = new Map<string, CrmNode>();
@@ -475,6 +545,7 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
 
   // --- Business leads (op_leads) ---------------------------------------------
   for (const row of opLeads) add(businessNode(row));
+  leadActivityNodes(leadActivities, nodes);
 
   // Churches the logs point at that the pipeline query did not return.
   const wanted = new Set<string>();

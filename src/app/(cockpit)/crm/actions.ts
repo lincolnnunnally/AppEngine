@@ -6,9 +6,13 @@ import { canAccessEngineOwner } from "@/lib/auth/access";
 import {
   createOrg,
   editOrg,
+  logBusinessVisit,
   logChurchVisit,
+  removeBusinessContact,
   removeChurchContact,
+  saveBusinessContact,
   saveChurchContact,
+  undoBusinessDoNotContact,
   undoChurchDoNotContact,
   type OrgInput,
   type OrgMatch,
@@ -29,17 +33,26 @@ async function ownerEmail(): Promise<string> {
   return (session?.user?.email || process.env.APP_ENGINE_OWNER_EMAIL || "owner").trim().toLowerCase();
 }
 
+// The same forms serve a church and a business lead: a form carries either
+// church_id (saved through ChurchConnect) or lead_id (a business lead, saved
+// to op_leads / op_lead_activities). Never both.
+const leadOf = (formData: FormData) => field(formData, "lead_id").trim();
+
 const refused = (): CrmFormState => ({ ok: false, message: "Only the owner can save here.", at: Date.now() });
 
 export async function saveChurchContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
   if (!(await canAccessEngineOwner())) return refused();
-  const result = await saveChurchContact(await ownerEmail(), field(formData, "church_id"), {
+  const lead = leadOf(formData);
+  const contact = {
     id: field(formData, "contact_id"),
     name: field(formData, "name"),
     title: field(formData, "title"),
     email: field(formData, "email"),
     phone: field(formData, "phone")
-  });
+  };
+  const result = lead
+    ? await saveBusinessContact(await ownerEmail(), lead, contact)
+    : await saveChurchContact(await ownerEmail(), field(formData, "church_id"), contact);
   if (result.ok) revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now() };
 }
@@ -47,12 +60,15 @@ export async function saveChurchContactAction(_prev: CrmFormState, formData: For
 export async function logChurchVisitAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
   if (!(await canAccessEngineOwner())) return refused();
   const email = await ownerEmail();
-  const churchId = field(formData, "church_id");
+  const lead = leadOf(formData);
+  const churchId = lead ? "" : field(formData, "church_id");
+  const saveContact = (input: Parameters<typeof saveChurchContact>[2]) =>
+    lead ? saveBusinessContact(email, lead, input) : saveChurchContact(email, churchId, input);
   let contact: { id: string; name: string; title: string } | null = null;
 
   if (field(formData, "contact_mode") === "new" && field(formData, "new_name").trim()) {
     // Save the new person first, so the visit points at a real contact.
-    const saved = await saveChurchContact(email, churchId, {
+    const saved = await saveContact({
       id: field(formData, "new_contact_id"),
       name: field(formData, "new_name"),
       title: field(formData, "new_title"),
@@ -65,8 +81,9 @@ export async function logChurchVisitAction(_prev: CrmFormState, formData: FormDa
     contact = { id: field(formData, "contact_id"), name: field(formData, "contact_name"), title: field(formData, "contact_title") };
   }
 
-  const result = await logChurchVisit(email, {
+  const result = await (lead ? logBusinessVisit : logChurchVisit)(email, {
     churchId,
+    ...(lead ? { leadId: lead } : {}),
     kind: field(formData, "kind") as VisitKind,
     day: field(formData, "day"),
     contact,
@@ -84,14 +101,20 @@ export async function logChurchVisitAction(_prev: CrmFormState, formData: FormDa
 
 export async function removeChurchContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
   if (!(await canAccessEngineOwner())) return refused();
-  const result = await removeChurchContact(await ownerEmail(), field(formData, "church_id"), field(formData, "contact_id"));
+  const lead = leadOf(formData);
+  const result = lead
+    ? await removeBusinessContact(await ownerEmail(), lead, field(formData, "contact_id"))
+    : await removeChurchContact(await ownerEmail(), field(formData, "church_id"), field(formData, "contact_id"));
   if (result.ok) revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now() };
 }
 
 export async function undoDoNotContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
   if (!(await canAccessEngineOwner())) return refused();
-  const result = await undoChurchDoNotContact(await ownerEmail(), field(formData, "church_id"));
+  const lead = leadOf(formData);
+  const result = lead
+    ? await undoBusinessDoNotContact(await ownerEmail(), lead)
+    : await undoChurchDoNotContact(await ownerEmail(), field(formData, "church_id"));
   revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now() };
 }

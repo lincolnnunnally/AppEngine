@@ -48,7 +48,7 @@ export default async function CrmPage() {
           One card for each church, business lead, place, or person across ChurchConnect, Laser, Presence, and business leads. If any app reached out in the
           last {DONT_REPEAT_DAYS} days ({DROP_OFF_REST_DAYS} after a drop-off), the card says to let it rest.
           {canSave
-            ? " You can add a church or business, pick its apps, and log a visit or save a contact on a church here; for anything else, open the app that owns the record."
+            ? " You can add a church or business, pick its apps,, and log a visit or drop-off or save a contact on a church or business here; for anything else, open the app that owns the record."
             : " To act, open the app that owns the record."}
         </p>
         {snapshot.configured ? (

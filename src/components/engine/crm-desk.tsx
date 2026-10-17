@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChurchTools } from "@/components/engine/crm-church-tools";
+import { PeopleTools } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import {
   CRM_APP_LABEL,
@@ -238,7 +238,7 @@ function CardView({
       </dl>
 
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
-      <ChurchTools card={card} canSave={canSave} />
+      <PeopleTools card={card} canSave={canSave} />
 
       <details className="crm-more" open={open}>
         <summary>

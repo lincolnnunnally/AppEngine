@@ -8,7 +8,8 @@
 // Each call carries a pass that lives at most 2 minutes and is bound to that
 // one method and exact path. The only direct writes here are the shared
 // do-not-contact list (a visit that ends with "asked not to be contacted") and
-// business leads (op_leads), which no app owns yet.
+// business leads (op_leads, its contacts, and its visit log op_lead_activities),
+// which no app owns yet.
 // Nothing here logs a body, a contact detail, or the pass. Nothing is sent to
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
@@ -36,6 +37,8 @@ export type ContactInput = { id: string; name: string; title: string; email: str
 
 export type VisitInput = {
   churchId: string;
+  /** A business lead (op_leads) instead of a church. Exactly one of churchId / leadId is used. */
+  leadId?: string;
   kind: VisitKind;
   day: string;
   contact: { id: string; name: string; title: string } | null;
@@ -108,8 +111,10 @@ export function cleanContactInput(input: Partial<ContactInput>): ContactInput | 
 }
 
 export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string {
-  const churchId = text(input.churchId, 64);
-  if (!UUID_RE.test(churchId)) return "Visits can only be logged on a ChurchConnect church.";
+  const leadId = text(input.leadId, 64);
+  const churchId = leadId ? "" : text(input.churchId, 64);
+  if (leadId ? !UUID_RE.test(leadId) : !UUID_RE.test(churchId)) return "Visits can only be logged on a church or business lead on this desk.";
+  const who = leadId ? "business" : "church";
   const kind = VISIT_KINDS.includes(input.kind as VisitKind) ? (input.kind as VisitKind) : null;
   if (!kind) return "Pick visit or drop-off.";
   const day = text(input.day, 10);
@@ -117,7 +122,7 @@ export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string
   const clientRef = text(input.clientRef, 64);
   if (!REF_RE.test(clientRef)) return "Reload the page and try again.";
   const outcomeCode = OUTCOME_CODES.includes(input.outcomeCode as OutcomeCode) ? (input.outcomeCode as OutcomeCode) : "";
-  if (outcomeCode === "do_not_contact" && input.confirmDnc !== true) return "Tick \"Yes, never contact this church\" to save this.";
+  if (outcomeCode === "do_not_contact" && input.confirmDnc !== true) return `Tick "Yes, never contact this ${who}" to save this.`;
   const nextStep = outcomeCode === "do_not_contact" ? "" : text(input.nextStep, 200);
   const nextDate = outcomeCode === "do_not_contact" ? "" : text(input.nextDate, 10);
   if (nextDate && !validDay(nextDate)) return "Pick a real day for the next step.";
@@ -127,6 +132,7 @@ export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string
     : null;
   return {
     churchId,
+    ...(leadId ? { leadId } : {}),
     kind,
     day,
     contact,
@@ -202,6 +208,7 @@ export async function logChurchVisit(ownerEmail: string, raw: Partial<VisitInput
   if (!config) return { ok: false, message: savingOffMessage() };
   const visit = cleanVisitInput(raw);
   if (typeof visit === "string") return { ok: false, message: visit };
+  if (visit.leadId || !visit.churchId) return { ok: false, message: "Visits can only be logged on a ChurchConnect church." };
   const label = visit.kind === "visit" ? "Visit" : "Drop-off";
   const path = `/api/church-crm/leads/${visit.churchId}/activities`;
   const description = [
@@ -623,6 +630,7 @@ async function insertBusinessLead(org: CleanOrg): Promise<OrgSaveResult> {
           status: "new",
           send_invite: false,
           source: "appengine_crm",
+          services: org.offers,
           signals: { services: org.offers, added_from: "owner_desk", site_scored: false }
         })
       });
@@ -704,6 +712,7 @@ export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw
         phone: org.phone || null,
         email: org.email || null,
         website_url: org.website || null,
+        services: org.offers,
         signals,
         updated_at: new Date().toISOString()
       })
@@ -713,4 +722,238 @@ export async function editOrg(ownerEmail: string, kind: OrgKind, id: string, raw
   } catch {
     return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
   }
+}
+
+// ── Business leads: contacts, visits and drop-offs, do-not-contact ─────────
+// The same forms as a church; the saves go straight to the shared database
+// (op_leads.contacts, op_lead_activities), which only this desk writes.
+
+type LeadRow = {
+  id: string;
+  business_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website_url?: string | null;
+  status?: string | null;
+  signals?: Record<string, unknown> | null;
+  contacts?: unknown;
+  updated_at?: string | null;
+};
+
+function lplHeaders(config: LplConfig): Record<string, string> {
+  return { apikey: config.serviceKey, Authorization: `Bearer ${config.serviceKey}` };
+}
+
+async function readLead(config: LplConfig, leadId: string): Promise<LeadRow | null | "error"> {
+  try {
+    const response = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${leadId}&select=id,business_name,email,phone,website_url,status,signals,contacts,updated_at&limit=1`, {
+      method: "GET",
+      headers: lplHeaders(config),
+      cache: "no-store"
+    });
+    if (!response.ok) return "error";
+    const [row] = ((await response.json()) as LeadRow[]) ?? [];
+    return row ?? null;
+  } catch {
+    return "error";
+  }
+}
+
+/**
+ * Change one lead only if nobody else changed it since we read it (updated_at
+ * must still match). Returns false when the row moved or the write failed.
+ */
+async function patchLeadIfUnchanged(config: LplConfig, lead: LeadRow, patch: Record<string, unknown>): Promise<boolean> {
+  try {
+    const guard = lead.updated_at ? `&updated_at=eq.${encodeURIComponent(lead.updated_at)}` : "";
+    const response = await fetch(`${config.url}/rest/v1/op_leads?id=eq.${lead.id}${guard}&select=id`, {
+      method: "PATCH",
+      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=representation" },
+      cache: "no-store",
+      body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() })
+    });
+    if (!response.ok) return false;
+    const rows = (await response.json()) as unknown[];
+    return Array.isArray(rows) && rows.length === 1;
+  } catch {
+    return false;
+  }
+}
+
+type StoredContact = { id: string; name: string; role: string; email: string; phone: string };
+
+/** op_leads.contacts in the same shape as ChurchConnect staff_contacts. */
+export function leadContacts(value: unknown): StoredContact[] {
+  const list = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+  return list
+    .filter((item) => item && typeof item === "object" && text(item.name, 120))
+    .map((item) => ({
+      id: text(item.id, 64),
+      name: text(item.name, 120),
+      role: text(item.role ?? item.title, 80),
+      email: normEmail(item.email),
+      phone: text(item.phone, 40)
+    }));
+}
+
+const LEAD_CONTACT_LIMIT = 25;
+const BUSY = "Someone else just changed this business. Reload and try again.";
+
+export async function saveBusinessContact(_ownerEmail: string, leadId: string, raw: Partial<ContactInput>): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "Contacts can only be saved on a business lead." };
+  const contact = cleanContactInput(raw);
+  if (typeof contact === "string") return { ok: false, message: contact };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The business couldn't be read. Nothing was saved." };
+  if (!lead) return { ok: false, message: "That business isn't there any more." };
+  const contacts = leadContacts(lead.contacts);
+  const entry: StoredContact = { id: contact.id, name: contact.name, role: contact.title, email: contact.email, phone: contact.phone };
+  const at = contacts.findIndex((item) => item.id === contact.id);
+  if (at >= 0) contacts[at] = entry;
+  else if (contacts.length >= LEAD_CONTACT_LIMIT) return { ok: false, message: `A business can have up to ${LEAD_CONTACT_LIMIT} contacts.` };
+  else contacts.push(entry);
+  if (!(await patchLeadIfUnchanged(config, lead, { contacts }))) return { ok: false, message: BUSY };
+  return { ok: true, message: `Saved ${contact.name}.`, contactId: contact.id };
+}
+
+export async function removeBusinessContact(_ownerEmail: string, leadId: string, contactId: string): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "Contacts can only be removed on a business lead." };
+  if (!CONTACT_ID_RE.test(contactId)) return { ok: false, message: "That contact can't be removed. Reload the page and try again." };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The business couldn't be read. Nothing was removed." };
+  if (!lead) return { ok: false, message: "That business isn't there any more." };
+  const contacts = leadContacts(lead.contacts);
+  const kept = contacts.filter((item) => item.id !== contactId);
+  if (kept.length === contacts.length) return { ok: true, message: "Contact removed." };
+  if (!(await patchLeadIfUnchanged(config, lead, { contacts: kept }))) return { ok: false, message: BUSY };
+  return { ok: true, message: "Contact removed." };
+}
+
+/** Do-not-contact rows this desk adds for a business carry its id, so an undo removes only those. */
+export function leadSuppressionSource(leadId: string): string {
+  return `crm_visit:op_lead:${leadId}`;
+}
+
+/** Every way to reach this business, normalized the way the desk matches them. */
+export function leadSuppressionRows(lead: LeadRow): SuppressionRow[] {
+  return suppressionRowsFor({
+    email: lead.email,
+    phone: lead.phone,
+    website: lead.website_url,
+    staff_contacts: leadContacts(lead.contacts)
+  });
+}
+
+/** A day typed on the form, stored as noon Eastern (16:00 UTC) so the reader shows the same calendar day. */
+export function leadDayStamp(day: string): string {
+  return `${day}T16:00:00.000Z`;
+}
+
+export async function logBusinessVisit(ownerEmail: string, raw: Partial<VisitInput>): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const visit = cleanVisitInput(raw);
+  if (typeof visit === "string") return { ok: false, message: visit };
+  if (!visit.leadId) return { ok: false, message: "Visits can only be logged on a church or business lead on this desk." };
+  const label = visit.kind === "visit" ? "Visit" : "Drop-off";
+  const lead = await readLead(config, visit.leadId);
+  if (lead === "error") return { ok: false, message: "The business couldn't be read. Nothing was saved." };
+  if (!lead) return { ok: false, message: "That business isn't there any more." };
+  let duplicate = false;
+  try {
+    // client_ref is unique: a double tap or a retry returns nothing new instead of a second row.
+    const response = await fetch(`${config.url}/rest/v1/op_lead_activities?on_conflict=client_ref&select=id`, {
+      method: "POST",
+      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=representation" },
+      cache: "no-store",
+      body: JSON.stringify({
+        lead_id: visit.leadId,
+        type: visit.kind,
+        occurred_at: leadDayStamp(visit.day),
+        contact: visit.contact,
+        left_item: visit.leftItem || null,
+        outcome_code: visit.outcomeCode || null,
+        outcome: visit.outcomeNote || null,
+        next_step: visit.nextStep || null,
+        next_action_date: visit.nextDate || null,
+        created_by: ownerEmail,
+        client_ref: visit.clientRef,
+        source: "appengine_crm"
+      })
+    });
+    if (!response.ok) return { ok: false, message: `The ${label.toLowerCase()} couldn't be saved. Nothing was saved — try again.` };
+    const rows = (await response.json()) as unknown[];
+    duplicate = Array.isArray(rows) && rows.length === 0;
+  } catch {
+    return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
+  }
+  if (visit.outcomeCode === "do_not_contact") {
+    const listed = await addLeadToDoNotContact(config, lead);
+    if (!listed) {
+      return { ok: false, message: `${label} saved, but the business couldn't be put on the do-not-contact list. Try saving again.` };
+    }
+  }
+  return { ok: true, duplicate, message: duplicate ? `${label} was already saved.` : `${label} saved.` };
+}
+
+async function addLeadToDoNotContact(config: LplConfig, lead: LeadRow): Promise<boolean> {
+  try {
+    for (const row of leadSuppressionRows(lead)) {
+      const insert = await fetch(`${config.url}/rest/v1/outreach_suppressions`, {
+        method: "POST",
+        headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ ...row, brand: "all", reason: "do_not_contact", source: leadSuppressionSource(lead.id) }),
+        cache: "no-store"
+      });
+      if (!insert.ok && insert.status !== 409) return false;
+    }
+    if (lead.status === "suppressed") return true;
+    const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}), dnc_source: "crm_visit", dnc_prev_status: lead.status || "new" };
+    return await patchLeadIfUnchanged(config, lead, { status: "suppressed", signals });
+  } catch {
+    return false;
+  }
+}
+
+/** Count (or with remove=true, delete) the do-not-contact rows this desk added for one business. */
+async function leadSuppressions(config: LplConfig, leadId: string, remove: boolean): Promise<number | null> {
+  const where = `source=eq.${encodeURIComponent(leadSuppressionSource(leadId))}&reason=eq.do_not_contact`;
+  try {
+    const response = await fetch(`${config.url}/rest/v1/outreach_suppressions?${where}&select=id`, {
+      method: remove ? "DELETE" : "GET",
+      headers: { ...lplHeaders(config), Prefer: "return=representation" },
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const rows = (await response.json()) as unknown[];
+    return Array.isArray(rows) ? rows.length : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function undoBusinessDoNotContact(_ownerEmail: string, leadId: string): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "Only a business lead can be undone here." };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The business couldn't be read. Nothing was changed." };
+  if (!lead) return { ok: false, message: "That business isn't there any more." };
+  const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
+  // Only a do-not-contact this desk set can be undone here.
+  if (signals.dnc_source !== "crm_visit") return { ok: false, message: "This business wasn't marked do-not-contact from this desk." };
+  const prev = typeof signals.dnc_prev_status === "string" && signals.dnc_prev_status !== "suppressed" ? signals.dnc_prev_status : "new";
+  delete signals.dnc_source;
+  delete signals.dnc_prev_status;
+  const removed = await leadSuppressions(config, leadId, true);
+  const left = await leadSuppressions(config, leadId, false);
+  if (removed === null || left !== 0) return { ok: false, message: "The do-not-contact list couldn't be cleared. Nothing else was changed — try again." };
+  if (!(await patchLeadIfUnchanged(config, lead, { status: prev, signals }))) {
+    return { ok: false, message: "The do-not-contact entries were removed, but the business couldn't be put back. Reload and undo again." };
+  }
+  return { ok: true, message: `Undone. Removed ${removed} do-not-contact ${removed === 1 ? "entry" : "entries"}; the business is back on the list.` };
 }

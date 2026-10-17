@@ -532,7 +532,9 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assert(!/console\.(log|error|warn)/.test(writer), "writer never logs");
   assertIncludes(writer, 'if (env.VERCEL_ENV === "production") return {};', "preview bypass never sent from production");
   // PATCH: only a church's basics through ChurchConnect (pass-bound) and a business lead row.
-  assert((writer.match(/method: "PATCH"/g) || []).length === 1 && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}`, {\n      method: "PATCH"'), "the only direct PATCH is one business lead");
+  // Direct PATCHes: a business lead's basics (editOrg) and the guarded lead update (contacts, do-not-contact). Never a church.
+  assert((writer.match(/method: "PATCH"/g) || []).length === 2 && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}`, {\n      method: "PATCH"') && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${lead.id}${guard}&select=id`, {\n      method: "PATCH"'), "direct PATCHes are business leads only");
+  assert(!/rest\/v1\/cc_churches[^`]*`,\s*\{\s*method: "(PATCH|POST|DELETE)"/.test(writer), "never writes cc_churches directly");
   assertIncludes(writer, 'callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail', "church edits go through ChurchConnect");
   // The only deletes: one saved contact (through ChurchConnect, pass-bound) and this desk's own do-not-contact rows for one church.
   assertIncludes(writer, 'callChurchConnect(config, "DELETE", `/api/church-crm/leads/${churchId}/contacts/${contactId}`, ownerEmail)', "contact removal goes through ChurchConnect");
@@ -548,7 +550,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(tools, 'name="client_ref" value={clientRef}', "one-time key per form");
   assertIncludes(tools, "disabled={pending}", "button locks while saving");
   assertIncludes(tools, 'name="confirm_dnc" value="yes" required', "confirm tick for do-not-contact");
-  assertIncludes(tools, "Yes, never contact this church", "confirm wording");
+  assertIncludes(tools, "Yes, never contact this {target.noun}", "confirm wording (church or business)");
   assertIncludes(tools, "card.deskDoNotContact && !mode ? <UndoDoNotContact", "undo shows only for a desk do-not-contact");
   assertIncludes(tools, "Yes, remove", "remove asks first");
   assertIncludes(tools, "(contact.email || contact.phone) && mode !== `edit:${contact.id}`", "details not shown twice while editing");
@@ -595,7 +597,7 @@ await runStep("pass secret: env var first, else the shared database row; cached;
   assert((await mod.resolveCrmSecret({ APPENGINE_CC_CRM_SECRET: "tooshort" }, fetcher, 0)) === "", "a short env value is refused");
   const writer = read("src/lib/engine/lpl-crm-write.ts");
   assertIncludes(writer, 'return env.VERCEL_ENV === "production" ? "Saving isn\'t switched on yet." : "Saving isn\'t available on this preview.";', "clear fail-closed wording");
-  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 5, "every save (visit, contact, remove, undo, business lead) fails closed");
+  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 9, "every save (church and business: visit, contact, remove, undo; business lead) fails closed");
   // Nothing that runs in the browser may import the secret module.
   for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx", "src/components/engine/crm-org-tools.tsx"]) {
     const text = read(rel);
@@ -725,6 +727,65 @@ await runStep("slice 2: adding looks for duplicates first; churches hidden; noth
   assertIncludes(desk, "{canSave ? <AddOrg onOpen={openOrg} /> : null}", "add is owner-only");
   const page = read("src/app/(cockpit)/crm/page.tsx");
   assertIncludes(page, "org: orgForViewer(card.org, isOwner)", "page strips org contact details for admins");
+});
+
+await runStep("slice 3: business contacts, visits and drop-offs reuse the church forms; rest 14 / 7; do-not-contact with undo", async () => {
+  // Cards: a business-only card saves to its lead; a church card never saves to a lead.
+  const biz = node({ id: "op:lead:L1", app: "business", name: "Fixture Tires", leadId: "11111111-2222-4333-8444-555555555555",
+    contacts: [{ id: "c-owner-1", name: "Sam Owner", title: "Owner", email: "sam@fixture-tires.test", phone: "555-010-0100", source: "saved" }],
+    touches: [{ at: daysAgo(3), app: "business", kind: "visit", what: "Visit, met Sam O.", outreach: true, restDays: 14 }] });
+  const church = node({ id: "cc:church:C1", name: "Fixture Chapel", churchId: "99999999-2222-4333-8444-555555555555", contacts: [] });
+  const cards = buildCards([biz, church], none(), NOW);
+  const b = cardFor(cards, "Fixture Tires");
+  const c = cardFor(cards, "Fixture Chapel");
+  assert(b.leadId === "11111111-2222-4333-8444-555555555555" && b.churchId === null, "business card saves to its lead");
+  assert(c.churchId && c.leadId === null, "church card never saves to a lead");
+  assert(b.contacts.length === 1 && b.contacts[0].source === "saved", "business contacts are editable");
+  assert(b.repeat.level === "hold" && b.repeat.text.startsWith("You visited 3 days ago."), `business visit rests 14 days: ${b.repeat.text}`);
+  const dropCards = buildCards([node({ ...biz, touches: [{ at: daysAgo(8), app: "business", kind: "drop_off", what: "Drop-off", outreach: true, restDays: 7 }] })], none(), NOW);
+  assert(dropCards[0].repeat.level !== "hold", "business drop-off rests 7 days");
+  const dnc = buildCards([node({ ...biz, deskDoNotContact: true, declined: "Asked not to be contacted. Do not reach out from any app." })], none(), NOW);
+  assert(dnc[0].deskDoNotContact === true, "a desk do-not-contact on a business can be undone");
+  const listed = buildCards([node({ ...biz, phones: ["7705550111"], deskDoNotContact: true, declined: "Asked not to be contacted. Do not reach out from any app." })], { emails: new Set(), domains: new Set(), phones: new Set(["7705550111"]) }, NOW);
+  assert(listed[0].stops.length === 1 && listed[0].stops[0].reason === "declined", `one stop, not two: ${JSON.stringify(listed[0].stops)}`);
+  const onlyListed = buildCards([node({ ...biz, phones: ["7705550111"] })], { emails: new Set(), domains: new Set(), phones: new Set(["7705550111"]) }, NOW);
+  assert(onlyListed[0].stops.some((stop) => stop.reason === "suppressed"), "the list alone still stops the card");
+  const viewer = core.contactsForViewer(b.contacts, false);
+  assert(viewer[0].email === "" && viewer[0].phone === "", "admins never see business contact details");
+
+  // Writer: same validation, its own table, idempotent, guarded, undo removes only its rows.
+  const writer = read("src/lib/engine/lpl-crm-write.ts");
+  for (const needle of [
+    "/rest/v1/op_lead_activities?on_conflict=client_ref&select=id",
+    'Prefer: "resolution=ignore-duplicates,return=representation"',
+    "created_by: ownerEmail",
+    "return `crm_visit:op_lead:${leadId}`;",
+    'status: "suppressed", signals',
+    'if (signals.dnc_source !== "crm_visit") return',
+    "if (removed === null || left !== 0)",
+    "const LEAD_CONTACT_LIMIT = 25;",
+    "updated_at=eq.${encodeURIComponent(lead.updated_at)}",
+    "return `${day}T16:00:00.000Z`;",
+    "if (visit.leadId || !visit.churchId) return"
+  ]) assertIncludes(writer, needle, "business writer contract");
+  assert(!/send_invite:\s*true/.test(writer), "never turns on an invite");
+  const actions = read("src/app/(cockpit)/crm/actions.ts");
+  assertIncludes(actions, 'const leadOf = (formData: FormData) => field(formData, "lead_id").trim();', "forms carry lead_id for a business");
+  for (const fn of ["saveBusinessContact", "logBusinessVisit", "removeBusinessContact", "undoBusinessDoNotContact"]) assertIncludes(actions, fn, "business action wired");
+
+  // Reader: the visit log feeds the timeline, the rest and the next step.
+  const reader = read("src/lib/engine/lpl-crm.ts");
+  assertIncludes(reader, 'read("op_lead_activities"', "reads the business visit log");
+  assertIncludes(reader, 'const touch = visitTouch(entry, type, "business");', "business visits use the same touch (rest 14 / 7)");
+  assertIncludes(reader, "deskDoNotContact: status === \"suppressed\" && s(signals.dnc_source) === \"crm_visit\"", "undo only for a desk do-not-contact");
+  assertIncludes(reader, "leadId: id,", "business node carries its lead id");
+
+  // UI: one set of forms, the target decides where it saves.
+  const tools = read("src/components/engine/crm-church-tools.tsx");
+  assertIncludes(tools, '<input type="hidden" name={target.field} value={target.id} />', "forms post church_id or lead_id");
+  assert(!tools.includes('name="church_id"'), "no hard-wired church field left");
+  assertIncludes(tools, 'if (card.churchId) return { field: "church_id"', "a church wins over a lead");
+  assert(!/export function (Business|Lead)\w*Tools/.test(tools), "no parallel business component");
 });
 
 await runStep("plain words on screen — no vendor names", () => {
