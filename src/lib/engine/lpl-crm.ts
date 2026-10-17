@@ -7,6 +7,7 @@
 // lpl-crm-write.ts (through ChurchConnect's own CRM routes).
 import crypto from "node:crypto";
 import {
+  DONT_REPEAT_DAYS,
   DROP_OFF_REST_DAYS,
   VISIT_REST_DAYS,
   buildCards,
@@ -1191,6 +1192,43 @@ export async function loadAvProspects(): Promise<AvProspectList> {
   let read = 0;
   let prospects: AvProspect[] = [];
   const fetchedMate = new Set<string>();
+  // Visits rest 14 days and drop-offs rest 7, the same rule as the desk. If that log can't be read, list nothing.
+  const readRests = async (rows: Row[]): Promise<boolean> => {
+    const ids = [...new Set(rows.map((row) => s(row.id)).filter((id) => id && !fetchedMate.has(`rest:${id}`)))];
+    if (!ids.length) return true;
+    const since = isoDaysAgo(DONT_REPEAT_DAYS, new Date());
+    const byId = new Map(rows.map((row) => [s(row.id), row]));
+    for (let index = 0; index < ids.length; index += 30) {
+      const chunk = ids.slice(index, index + 30);
+      for (const id of chunk) fetchedMate.add(`rest:${id}`);
+      const or = chunk.map((id) => `doc->>church_id.eq.${encodeURIComponent(id)}`).join(",");
+      const batch = await readRows(
+        config,
+        "cc_church_crm_activities",
+        `select=church_id:doc->>church_id,type:doc->>type,activity_type:doc->>activity_type,description:doc->>description,at:doc->>created_at,occurred_at:doc->>occurred_at&or=(${or})&created_at=gte.${since}&order=created_at.desc&limit=${AV_PAGE}`,
+        sources,
+        { label: "Church activity log", app: "churchconnect" }
+      );
+      if (unreadable() || batch.length >= AV_PAGE) return false;
+      for (const activity of batch) {
+        const row = byId.get(s(activity.church_id));
+        if (!row) continue;
+        const type = s(activity.type).toLowerCase() || s(activity.activity_type).toLowerCase();
+        const at = s(activity.occurred_at) || s(activity.at);
+        if (!at) continue;
+        const outreach = ["invite", "email", "call", "sms", "visit", "drop_off", "meeting", "text"].includes(type) && !/FAILED|did not send/i.test(s(activity.description));
+        const list = Array.isArray(row.desk_touches) ? [...(row.desk_touches as unknown[])] : [];
+        list.push({
+          at,
+          kind: type,
+          outreach,
+          restDays: type === "drop_off" ? DROP_OFF_REST_DAYS : type === "visit" ? VISIT_REST_DAYS : undefined
+        });
+        row.desk_touches = list;
+      }
+    }
+    return true;
+  };
   // Copies with no website, and copies outside the ring, still count. A do-not-contact
   // or stopped member keeps the whole group off the list.
   const readGroupMates = async (focus: Row[]): Promise<Row[] | null> => {
@@ -1231,7 +1269,9 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         sources,
         { label: "Churches for AV prospects", app: "churchconnect" }
       );
-      if (unreadable() || batch.length >= 40) return null;
+      if (unreadable()) return null;
+      // A name lookup that returns 40 or more rows is too wide for this one church. Skip that grouping and keep the list.
+      if (batch.length >= 40) continue;
       mates.push(...batch);
     }
     return mates;
@@ -1244,11 +1284,17 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
       }
       let pool = [...kept, ...tierRows];
+      if (!(await readRests(pool))) {
+        return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
+      }
       for (let pass = 0; pass < 3; pass += 1) {
         const preview = rankAvProspects(pool, suppressed);
         const focus = pool.filter((row) => preview.some((item) => item.churchId === s(row.id)));
         const mates = await readGroupMates(focus);
         if (!mates) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
+        if (!(await readRests(mates))) {
+          return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
+        }
         pool = [...pool, ...mates];
         prospects = rankAvProspects(pool, suppressed);
         if (mates.length === 0) break;

@@ -1,3 +1,5 @@
+import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, repeatRule, type Touch } from "@/lib/engine/lpl-crm-core";
+
 // AV prospects (Messenger AVL kit, Oct 17 2026): which ChurchConnect churches
 // might want help with sound, video, lighting or streaming, in Lincoln's
 // territory order (Oct 17, 4:58 PM): central & South Georgia first, then the
@@ -145,10 +147,18 @@ const DIRECTORY_HOSTS = ["churchangel.com", "placestars.com", "churchfinder.com"
 // A denomination or platform root on a single church's record: not their own site, and not a key that proves two rows are the same church.
 const DENOMINATION_HOSTS = [
   "nationalbaptist.com", "sbc.net", "umc.org", "cogic.org", "ag.org", "gabaptist.org", "namb.net", "elca.org", "pcusa.org",
-  "ame-church.com", "thecme.church", "watchtower.org", "jw.org", "upci.org", "church-of-christ.org", "churchofjesuschrist.org", "lds.org"
+  "ame-church.com", "thecme.church", "watchtower.org", "jw.org", "upci.org", "church-of-christ.org", "churchofjesuschrist.org", "lds.org",
+  "churchofgod.cc", "churchofgod.org", "sgaumc.org", "nazarene.org"
 ];
-const FREE_BUILDER_HOSTS = ["wix.com", "wixsite.com", "weebly.com", "blogspot.com", "sites.google.com", "godaddysites.com", "square.site", "webs.com", "tripod.com", "angelfire.com", "wordpress.com", "faithlife.com"];
-const PLATFORM_HOSTS = ["facebook.com", "fb.com", "instagram.com", "youtube.com", "youtu.be", "tiktok.com", "linktr.ee"];
+const FREE_BUILDER_HOSTS = [
+  "wix.com", "wixsite.com", "weebly.com", "blogspot.com", "sites.google.com", "godaddysites.com", "square.site", "webs.com",
+  "tripod.com", "angelfire.com", "wordpress.com", "faithlife.com", "squarespace.com", "business.site"
+];
+const PLATFORM_HOSTS = [
+  "facebook.com", "fb.com", "instagram.com", "youtube.com", "youtu.be", "tiktok.com", "linktr.ee",
+  "subsplash.com", "google.com", "goo.gl", "ourchurch.com", "ministrybrands.com",
+  "chamberofcommerce.com", "bizapedia.com", "giv.li", "netministries.org", "paypal.com", "cash.app"
+];
 
 const onHost = (host: string, list: string[]) => list.some((item) => host === item || host.endsWith(`.${item}`));
 
@@ -177,20 +187,32 @@ const WEAKNESS_REASON: Record<"giving" | "directory" | "denomination" | "free_bu
 const PLACE_TOKENS = [
   "savannah", "augusta", "atlanta", "macon", "valdosta", "columbus", "athens", "brunswick", "albany", "milledgeville",
   "dublin", "statesboro", "waycross", "tifton", "americus", "jacksonville", "tallahassee", "orlando", "tampa", "miami",
-  "charleston", "columbia", "greenville", "florida", "alabama", "tennessee", "carolina"
+  "charleston", "columbia", "greenville", "florida", "alabama", "tennessee", "carolina",
+  "dallas", "nashville", "houston", "austin", "charlotte", "birmingham", "mobile", "memphis", "texas"
 ];
 
-/** True when the website host names a different city or state than the row. */
-export function websitePlaceMismatch(url: string, city: string, state: string): boolean {
+/** A town that sits in a larger city's area, so that city's name in a host is still theirs. */
+const METRO: Record<string, string[]> = {
+  savannah: ["pooler", "garden city", "port wentworth", "richmond hill", "rincon"],
+  augusta: ["martinez", "evans", "grovetown"],
+  jacksonville: ["orange park", "jacksonville beach"],
+  atlanta: ["marietta", "decatur", "smyrna"]
+};
+
+/** True when the website host names a different city or state than this church. */
+export function websitePlaceMismatch(url: string, city: string, state: string, name = ""): boolean {
   const host = hostOf(url).host.replace(/\.(com|org|net|church|us|info)$/g, "");
   const flat = host.replace(/[^a-z0-9]/g, "");
   if (flat.length < 5 || websiteWeakness(url)) return false;
   const cityFlat = s(city).toLowerCase().replace(/[^a-z]/g, "");
+  const nameFlat = s(name).toLowerCase().replace(/[^a-z]/g, "");
   const stateFlat = s(state).toLowerCase();
-  const ownState = stateFlat === "fl" || stateFlat === "florida" ? "florida" : stateFlat === "sc" || stateFlat === "south carolina" ? "carolina" : stateFlat === "al" || stateFlat === "alabama" ? "alabama" : stateFlat === "ga" || stateFlat === "georgia" ? "georgia" : "";
+  const ownState = stateFlat === "fl" || stateFlat === "florida" ? "florida" : stateFlat === "sc" || stateFlat === "south carolina" ? "carolina" : stateFlat === "al" || stateFlat === "alabama" ? "alabama" : stateFlat === "ga" || stateFlat === "georgia" ? "georgia" : stateFlat === "tx" || stateFlat === "texas" ? "texas" : stateFlat === "tn" || stateFlat === "tennessee" ? "tennessee" : "";
   for (const place of PLACE_TOKENS) {
     if (!flat.includes(place)) continue;
     if (cityFlat && (cityFlat.includes(place) || place.includes(cityFlat))) continue;
+    if (nameFlat.includes(place)) continue;
+    if ((METRO[place] ?? []).some((town) => cityFlat === town.replace(/[^a-z]/g, ""))) continue;
     if (ownState && place === ownState) continue;
     return true;
   }
@@ -223,38 +245,84 @@ function nameWords(name: string): string[] {
   return s(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter(Boolean);
 }
 
+const CHRISTIAN_WORDS = new Set([
+  "church", "churches", "baptist", "ministries", "ministry", "ame", "methodist", "worship", "fellowship",
+  "chapel", "tabernacle", "assembly", "cathedral", "pentecostal", "holiness", "missionary", "faith", "bethel"
+]);
+
+function foldedName(name: string): string {
+  return s(name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function hasChristianWord(raw: string, words: string[]): boolean {
+  if (words.some((word) => CHRISTIAN_WORDS.has(word))) return true;
+  return /\ba\s*\.?\s*m\s*\.?\s*e\b/.test(raw);
+}
+
 /**
  * Places that are not a Christian church, matched on the name because
- * religion_guess is empty on most rows. "Temple Baptist Church" stays
- * (it says church). "Hindu Temple", "Kingdom Hall", and "Baptist Association" do not.
+ * religion_guess is empty on most rows. A Christian word (church, baptist,
+ * ministries, AME, and the rest of that list) keeps a temple, school, camp,
+ * or Jehovah name. Kingdom Hall always goes. An office (diocese, foundation)
+ * goes even when the name says Episcopal, Catholic, or Baptist.
  */
 export function avNameExcluded(name: string): boolean {
-  const raw = s(name).toLowerCase();
-  const words = nameWords(name);
+  const raw = foldedName(name);
+  if (raw.replace(/[^a-z]/g, "").includes("kingdomhall")) return true;
+  const street = raw.replace(/\bmosque\s+street\b/g, " ");
+  const words = nameWords(street);
   const has = (word: string) => words.includes(word);
-  const church = has("church") || has("churches");
-  if (raw.includes("kingdom hall") || has("jehovah")) return true;
-  if (["islamic", "islam", "masjid", "mosque", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
-  if (["hindu", "buddhist", "buddhism", "buddha"].some(has)) return true;
-  if (has("synagogue") || has("messianic")) return true;
-  if (has("lds") || raw.includes("latter-day") || raw.includes("latter day") || raw.includes("latterday")) return true;
-  if (has("association")) return true;
-  if (has("cemetery") || has("cemetary")) return true;
-  if (has("temple") && !church) return true;
-  if (["school", "academy", "seminary", "college"].some(has) && !church) return true;
-  if (has("camp") && !church) return true;
+  const christian = hasChristianWord(raw, words);
+  if (["unitarian", "universalist", "diocese", "foundation", "preschool", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
+  if (has("mosque")) return true;
+  if (/\blatter\s*-?\s*day\b/.test(raw) || raw.includes("latterday")) return true;
+  if (/\bward\b/.test(street) || /\bstake\s+center\b/.test(raw) || /\bconference\s+center\b/.test(raw)) return true;
+  if (/\bbeth\s+israel\b/.test(raw) || /\bchristian\s+science\b/.test(raw) || /\bbaha['’]?i\b/.test(raw)) return true;
+  if (/\bcongregation\b/.test(raw) && /\bisrael\b/.test(raw)) return true;
+  if (/\bfood\s+(bank|pantry)\b/.test(raw) && !christian) return true;
+  if (!christian && ["temple", "school", "camp", "college", "seminary", "jehovah", "association", "academy"].some(has)) return true;
   return false;
 }
 
-/** The desk would not offer outreach: stopped, invited, resting, or contacted in the last 30 days. */
+/** Touches the desk would rest on: the invite on the church, plus visits and drop-offs the loader attached. */
+export function avDeskTouches(row: AvRow): Touch[] {
+  const touches: Touch[] = [];
+  const invitedAt = s(row.last_invited_at);
+  const invite = s(row.invite_status).toLowerCase();
+  if (invitedAt && invite !== "failed") {
+    touches.push({ at: invitedAt, app: "churchconnect", kind: "invite", what: "Invite", outreach: true });
+  }
+  const extra = Array.isArray(row.desk_touches) ? row.desk_touches : [];
+  for (const item of extra) {
+    if (!item || typeof item !== "object") continue;
+    const touch = item as Record<string, unknown>;
+    const at = s(touch.at);
+    if (!at || Number.isNaN(Date.parse(at))) continue;
+    const kind = s(touch.kind).toLowerCase();
+    const outreachKind = kind === "visit" || kind === "drop_off" || kind === "invite" || kind === "email" || kind === "call" || kind === "sms" || kind === "meeting" || kind === "text";
+    touches.push({
+      at,
+      app: "churchconnect",
+      kind: kind === "drop_off" ? "drop_off" : kind === "visit" ? "visit" : kind === "invite" ? "invite" : kind === "email" ? "email" : kind === "call" ? "call" : "note",
+      what: s(touch.what) || kind || "Activity",
+      outreach: touch.outreach === false ? false : outreachKind || touch.outreach === true,
+      restDays: kind === "drop_off" ? DROP_OFF_REST_DAYS : kind === "visit" ? VISIT_REST_DAYS : undefined,
+      signal: touch.signal === true
+    });
+  }
+  return touches.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+}
+
+/** The desk would not offer outreach: stopped, invited, or inside a visit, drop-off, or other outreach rest. */
 export function avDeskBlocked(row: AvRow, now = new Date()): boolean {
   const status = s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_");
   if (STOPPED_STATUS.has(status)) return true;
   const invite = s(row.invite_status).toLowerCase();
   if (invite === "sent" || invite === "accepted") return true;
-  const invitedAt = Date.parse(s(row.last_invited_at));
-  if (!Number.isNaN(invitedAt) && now.getTime() - invitedAt <= 30 * 86_400_000) return true;
-  return false;
+  return repeatRule(avDeskTouches(row), now).level === "hold";
 }
 
 /** Never on the list: stopped, lost, inactive, not a church, or already the partner's own work. */
@@ -272,28 +340,29 @@ export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now 
   return suppressed(row);
 }
 
-/** Score and plain reasons for one church, from real columns only. */
-export function scoreAvProspect(row: AvRow): { score: number; reasons: string[]; streams: boolean } {
+/** Score and plain reasons for one church, from real columns only. A generic or shared host is not also "has a website". */
+export function scoreAvProspect(row: AvRow, sharedHosts: ReadonlySet<string> = new Set()): { score: number; reasons: string[]; streams: boolean } {
   const reasons: string[] = [];
   let score = 0;
   const website = s(row.website);
   const facebook = s(row.facebook_url);
-  const weak = websiteWeakness(website);
-  const mismatch = websitePlaceMismatch(website, s(row.city), s(row.state));
+  const host = hostOf(website).host;
+  const shared = Boolean(host && sharedHosts.has(host));
+  const weak = websiteWeakness(website) || (shared ? "platform" : "");
+  const mismatch = !weak && websitePlaceMismatch(website, s(row.city), s(row.state), s(row.name));
   const ownSite = Boolean(website) && !weak && !mismatch;
   const streams = Boolean(s(row.live_stream_url) || s(row.livestream_url) || s(row.youtube_url) || s(row.subsplash_url));
   if (streams) {
     reasons.push("Already streams (a stream link is on file)");
     score -= 2;
+  } else if (weak) {
+    reasons.push(WEAKNESS_REASON[weak]);
+    score += 1;
   } else if (ownSite) {
     reasons.push("Has a website, but no livestream or YouTube link on file");
     score += 2;
   } else if (facebook) {
-    reasons.push("Facebook page on file, but no website or stream link");
-    score += 1;
-  }
-  if (weak) {
-    reasons.push(WEAKNESS_REASON[weak]);
+    reasons.push("Facebook page, but no livestream link on file");
     score += 1;
   }
   if (mismatch) {
@@ -336,31 +405,63 @@ function titleCase(text: string): string {
 
 const NAME_DROP = new Set(["inc", "incorporated", "llc", "corp", "corporation", "co"]);
 
-/** Same church name: drop Inc/LLC, read St as Saint, strip punctuation, keep word order. */
-export function churchNameKey(name: string): string {
-  return s(name)
-    .toLowerCase()
+/**
+ * Same church name, in the same town. Drops Inc/LLC and a trailing "church",
+ * reads St as Saint and Mt as Mount, folds A.M.E. to AME, drops a leading
+ * "The" and a trailing "of <town>", and strips punctuation. Word order stays.
+ */
+export function churchNameKey(name: string, city = ""): string {
+  const words = foldedName(name)
+    .replace(/\ba\s*\.\s*m\s*\.\s*e\.?\b/g, " ame ")
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
     .filter(Boolean)
-    .map((word) => (word === "st" ? "saint" : word))
-    .filter((word) => !NAME_DROP.has(word))
-    .join(" ");
+    .map((word) => (word === "st" ? "saint" : word === "mt" ? "mount" : word))
+    .filter((word) => !NAME_DROP.has(word));
+  for (let index = 0; index < words.length - 2; index += 1) {
+    if (words[index] === "a" && words[index + 1] === "m" && words[index + 2] === "e") words.splice(index, 3, "ame");
+  }
+  while (words[0] === "the") words.shift();
+  const town = foldedName(city).replace(/[^a-z0-9]+/g, " ").split(" ").filter(Boolean);
+  if (town.length && words.length > town.length + 1) {
+    const tail = words.slice(-(town.length + 1));
+    if (tail[0] === "of" && tail.slice(1).join(" ") === town.join(" ")) words.splice(-(town.length + 1));
+  }
+  while (words[words.length - 1] === "church" || words[words.length - 1] === "churches") words.pop();
+  return words.join(" ");
 }
 
-/** Host only. www, the path, and a trailing slash do not make a second church. Generic hosts are not a key. */
-export function websiteGroupKey(url: string, city = "", state = ""): string {
+/** Host plus town. www, the path, and a trailing slash do not make a second church. Generic hosts are not a key. */
+export function websiteGroupKey(url: string, city = "", state = "", name = ""): string {
   const host = hostOf(url).host;
-  if (!host || websiteWeakness(url) || websitePlaceMismatch(url, city, state)) return "";
-  return host;
+  if (!host || websiteWeakness(url) || websitePlaceMismatch(url, city, state, name)) return "";
+  const town = foldedName(city).replace(/[^a-z0-9]+/g, " ").trim();
+  return town ? `${host}|${town}` : host;
 }
 
-function groupKeys(row: AvRow): string[] {
+/** A host used by more than one distinct name in a town is not that church's site and is not a group key. */
+export function sharedWebsiteHosts(rows: AvRow[]): Set<string> {
+  const places = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const host = hostOf(s(row.website)).host;
+    if (!host || websiteWeakness(s(row.website))) continue;
+    const place = `${churchNameKey(s(row.name), s(row.city))}|${foldedName(s(row.city)).replace(/[^a-z0-9]+/g, " ").trim()}`;
+    const set = places.get(host) ?? new Set<string>();
+    set.add(place);
+    places.set(host, set);
+  }
+  const shared = new Set<string>();
+  for (const [host, set] of places) if (set.size > 1) shared.add(host);
+  return shared;
+}
+
+function groupKeys(row: AvRow, sharedHosts: ReadonlySet<string>): string[] {
   const id = s(row.id);
-  const site = websiteGroupKey(s(row.website), s(row.city), s(row.state));
-  const name = churchNameKey(s(row.name));
-  const city = s(row.city).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const host = hostOf(s(row.website)).host;
+  const site = host && sharedHosts.has(host) ? "" : websiteGroupKey(s(row.website), s(row.city), s(row.state), s(row.name));
+  const name = churchNameKey(s(row.name), s(row.city));
+  const city = foldedName(s(row.city)).replace(/[^a-z0-9]+/g, " ").trim();
   const sameAs = (Array.isArray(row.possible_same_as) ? row.possible_same_as : []).map((value) => `id:${s(value)}`).filter((value) => value !== "id:");
   return [`id:${id}`, ...sameAs, site ? `site:${site}` : "", name && city ? `name:${name}|${city}` : ""].filter(Boolean);
 }
@@ -377,10 +478,11 @@ export function groupMateLookups(rows: AvRow[]): { ids: string[]; nameCities: Ar
       if (id && !have.has(id)) ids.add(id);
     }
     const city = s(row.city);
-    const key = churchNameKey(s(row.name));
+    const key = churchNameKey(s(row.name), city);
     if (!city || !key) continue;
     const patterns = [key];
     if (key.includes("saint")) patterns.push(key.replace(/\bsaint\b/g, "st"));
+    if (key.includes("mount")) patterns.push(key.replace(/\bmount\b/g, "mt"));
     for (const pattern of patterns) {
       const mark = `${city.toLowerCase()}|${pattern}`;
       if (seen.has(mark)) continue;
@@ -426,18 +528,19 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
     seen.add(id);
     all.push(row);
   }
+  const sharedHosts = sharedWebsiteHosts(all);
   const groups = new UnionFind();
   const blocked = new Set<string>();
   for (const row of all) {
-    const keys = groupKeys(row);
+    const keys = groupKeys(row, sharedHosts);
     for (let i = 1; i < keys.length; i += 1) groups.join(keys[0], keys[i]);
-    if (avExcluded(row, suppressed, now) || scoreAvProspect(row).streams) blocked.add(groups.find(keys[0]));
+    if (avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blocked.add(groups.find(keys[0]));
   }
   // A block discovered before a later join still has to cover the merged root.
   const blockedRoots = new Set<string>();
   for (const row of all) {
     const root = groups.find(`id:${s(row.id)}`);
-    if (blocked.has(root) || avExcluded(row, suppressed, now) || scoreAvProspect(row).streams) blockedRoots.add(root);
+    if (blocked.has(root) || avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blockedRoots.add(root);
   }
   const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
   for (const row of all) {
@@ -455,7 +558,7 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
     const root = groups.find(`id:${s(candidate.row.id)}`);
     if (listed.has(root) || blockedRoots.has(root)) continue;
     const { row, tier, miles } = candidate;
-    const { score, reasons } = scoreAvProspect(row);
+    const { score, reasons } = scoreAvProspect(row, sharedHosts);
     if (score < 1) continue;
     listed.add(root);
     const label = AV_TIERS[tier].label;
