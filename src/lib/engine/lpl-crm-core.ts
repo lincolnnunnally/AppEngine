@@ -235,6 +235,12 @@ export function scrubContact(value: unknown, max = 140): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/** "Oct 22" in Eastern time — for sentences people read. */
+export function friendlyDate(at: Date | string | number): string {
+  const d = at instanceof Date ? at : new Date(at);
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" }).format(d);
+}
+
 export function nyDate(at: Date | string | number): string {
   const date = at instanceof Date ? at : new Date(at);
   if (Number.isNaN(date.getTime())) return "";
@@ -480,7 +486,7 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
     return {
       level: "hold",
       until,
-      text: `${who} reached out ${agoText}. Let it rest until ${nyDate(until)} before any app reaches out again.`
+      text: `${who} reached out ${agoText}. Let it rest until ${friendlyDate(until)} before any app reaches out again.`
     };
   }
   const recent = outreach.filter((touch) => daysBetween(touch.at, now) <= 60);
@@ -497,7 +503,8 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
 // --- daily follow-up list ----------------------------------------------------
 
 function lastTouchOf(card: CrmCard): FollowUp["lastTouch"] {
-  const touch = card.lastOutreach ?? card.lastTouch;
+  // Only an actual reach-out — the list says "Last reached out", never a view or note.
+  const touch = card.lastOutreach;
   return touch ? { app: touch.app, at: touch.at, what: touch.what } : null;
 }
 
@@ -549,7 +556,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
     // Not paid yet.
     for (const touch of card.touches) {
       if (touch.unpaid && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
-        push(card, "unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${nyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
+        push(card, "unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${friendlyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
       }
     }
 
@@ -571,7 +578,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
       if (Number.isNaN(starts) || event.status !== "open") continue;
       const inDays = (starts - now.getTime()) / DAY;
       if (inDays >= 0 && inDays <= UPCOMING_EVENT_DAYS) {
-        push(card, "events", `${event.title} on ${nyDate(event.startsAt!)}${event.place ? ` at ${event.place}` : ""}.`, "Make sure the place knows and tokens are ready.", event.startsAt!);
+        push(card, "events", `${event.title} on ${friendlyDate(event.startsAt!)}${event.place ? ` at ${event.place}` : ""}.`, "Make sure the place knows and tokens are ready.", event.startsAt!);
       }
     }
   }

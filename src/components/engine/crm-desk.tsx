@@ -312,7 +312,7 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
             </h2>
           </div>
         </div>
-        <div className="dx-chips" role="group" aria-label="Filter follow-ups">
+        <div className="dx-chips crm-scroll-chips" role="group" aria-label="Filter follow-ups">
           <button type="button" className={`dx-chip crm-chip${reason === "all" ? " dx-chip--active" : ""}`} onClick={() => setReason("all")} aria-pressed={reason === "all"}>
             All <strong>{followUps.length}</strong>
           </button>
@@ -342,11 +342,11 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
                   <p className="crm-follow-step">
                     <span className="crm-dim">Next:</span> {item.step}
                   </p>
-                  {item.lastTouch ? (
-                    <p className="crm-dim crm-follow-last">
-                      Last touch: {CRM_APP_LABEL[item.lastTouch.app]} · {fmtDate(item.lastTouch.at)}
-                    </p>
-                  ) : null}
+                  <p className="crm-dim crm-follow-last">
+                    {item.lastTouch
+                      ? `Last reached out: ${CRM_APP_LABEL[item.lastTouch.app]} · ${fmtDate(item.lastTouch.at)}`
+                      : "Not reached out yet"}
+                  </p>
                 </div>
                 <button type="button" className="dx-btn crm-follow-open" onClick={() => openCard(item.cardKey)}>
                   Open card

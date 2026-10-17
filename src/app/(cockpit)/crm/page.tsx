@@ -38,7 +38,7 @@ export default async function CrmPage() {
           the record.
         </p>
         {snapshot.configured ? (
-          <div className="dx-stat-grid">
+          <div className="dx-stat-grid crm-stat-grid">
             <a className={`dx-stat ${snapshot.followUps.length ? "dx-stat--lime" : ""}`} href="#crm-today">
               <strong>{snapshot.followUps.length}</strong>
               <span>follow-ups today</span>
@@ -65,7 +65,7 @@ export default async function CrmPage() {
               </strong>
               <span>tokens printed</span>
               <p>
-                {snapshot.presence.events} event{snapshot.presence.events === 1 ? "" : "s"} · {snapshot.presence.places} places
+                {snapshot.presence.events} event{snapshot.presence.events === 1 ? "" : "s"} · {snapshot.presence.places} place{snapshot.presence.places === 1 ? "" : "s"}
               </p>
             </div>
           </div>
