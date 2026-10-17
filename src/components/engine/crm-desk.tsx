@@ -5,6 +5,7 @@ import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
   MATCH_LABEL,
+  adminHomeNote,
   hasClockTime,
   recordLink,
   type CrmApp,
@@ -282,22 +283,20 @@ function CardView({ card, adminUrls, open, onOpen }: { card: CrmCard; adminUrls:
               key={app}
               target={link.href.startsWith("/") ? undefined : "_blank"}
               rel="noreferrer"
-              title={link.exact ? undefined : `${CRM_APP_LABEL[app]} has no page for a single record yet, so this opens its admin.`}
+              title={link.exact ? undefined : adminHomeNote(app)}
             >
               {link.exact ? `Open in ${CRM_APP_LABEL[app]}` : `${CRM_APP_LABEL[app]} admin`}
             </a>
           );
         })}
       </div>
-      {card.apps.some((app) => adminUrls[app] && !card.recordPaths[app]) ? (
-        <p className="crm-dim crm-actions-note">
-          {card.apps
-            .filter((app) => adminUrls[app] && !card.recordPaths[app])
-            .map((app) => CRM_APP_LABEL[app])
-            .join(" and ")}{" "}
-          {card.apps.filter((app) => adminUrls[app] && !card.recordPaths[app]).length === 1 ? "has" : "have"} no page for a single record yet, so the button opens the admin home.
-        </p>
-      ) : null}
+      {card.apps
+        .filter((app) => adminUrls[app] && !card.recordPaths[app])
+        .map((app) => (
+          <p className="crm-dim crm-actions-note" key={`note-${app}`}>
+            {adminHomeNote(app)}
+          </p>
+        ))}
     </article>
   );
 }

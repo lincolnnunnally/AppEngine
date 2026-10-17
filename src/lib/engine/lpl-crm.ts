@@ -147,9 +147,11 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
   return {
     id: `cc:church:${id}`,
     app: "churchconnect",
-    // ChurchConnect super admin opens one church at /admin#crm/lead/<church id>
-    // (SalesCRMDashboard syncLeadFromHash; GET /api/church-crm/leads/{id}).
-    recordPath: UUID_RE.test(id) ? `#crm/lead/${id}` : undefined,
+    // ChurchConnect opens one church's lead panel at /super-admin#crm/lead/<church id>:
+    // SuperAdminDashboard (route /super-admin) reads the hash section "crm" and mounts
+    // SalesCRMDashboard, whose syncLeadFromHash selects the lead (GET /api/church-crm/leads/{id}).
+    // Its /admin route is a different portal (AdminPortal) that ignores the hash.
+    recordPath: UUID_RE.test(id) ? `/super-admin#crm/lead/${id}` : undefined,
     kind: "org",
     name: s(row.name) || s(row.church_name) || "Church",
     town: [s(row.city), s(row.state)].filter(Boolean).join(", "),

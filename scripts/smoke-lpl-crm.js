@@ -62,7 +62,7 @@ function node(overrides) {
 }
 
 const core = await loadCore();
-const { buildCards, buildFollowUps, repeatRule, normDomain, normPhone, normEmail, scrubContact, shortPersonName, followThroughStep, recordLink, hasClockTime, friendlyDay } = core;
+const { buildCards, buildFollowUps, repeatRule, normDomain, normPhone, normEmail, scrubContact, shortPersonName, followThroughStep, recordLink, hasClockTime, friendlyDay, dedupeLines, adminHomeNote } = core;
 
 const cardFor = (cards, name) => cards.find((card) => card.name === name);
 
@@ -261,6 +261,32 @@ await runStep("follow-ups: one row per org, reasons stacked, one next step for l
   }
 });
 
+await runStep("a row never repeats the same line twice (shorter duplicate dropped)", () => {
+  const cards = buildCards(
+    [node({ id: "laser:person:dup", app: "laser", kind: "person", name: "Dana R.", touches: [{ at: daysAgo(5), app: "laser", kind: "order", what: "Order placed", outreach: false, signal: true, purchase: "$38.00 not paid", unpaid: true }] })],
+    NO_SUPPRESS,
+    NOW
+  );
+  const row = rowFor(buildFollowUps(cards, NOW), "Dana R.");
+  assert(row.reasons.join() === "unpaid,warm", `both reasons kept, got ${row.reasons}`);
+  assert(row.items.length === 1, `one line, got ${row.items.map((item) => item.why).join(" | ")}`);
+  assert(row.items[0].why.startsWith("Laser: Order placed ($38.00 not paid), placed"), row.items[0].why);
+  const kept = dedupeLines([
+    { reason: "warm", why: "Laser: Order placed.", step: "a" },
+    { reason: "unpaid", why: "Laser: Order placed ($38.00 not paid), placed Oct 12.", step: "b" },
+    { reason: "tokens", why: "2 tokens not printed yet.", step: "c" },
+    { reason: "events", why: "2 tokens not printed yet.", step: "d" }
+  ]);
+  assert(kept.map((item) => item.reason).join() === "unpaid,tokens", `kept ${kept.map((item) => item.reason)}`);
+});
+
+await runStep("admin-home notes: ChurchConnect says not linked; Laser and Presence say no record page", () => {
+  assert(adminHomeNote("churchconnect") === "Not linked to a ChurchConnect church yet, so this opens the admin home.", adminHomeNote("churchconnect"));
+  assert(adminHomeNote("laser") === "Laser has no page for a single record yet, so this opens the admin home.", adminHomeNote("laser"));
+  assert(adminHomeNote("presence") === "Presence has no page for a single record yet, so this opens the admin home.", adminHomeNote("presence"));
+  assertIncludes(read("src/components/engine/crm-desk.tsx"), "{adminHomeNote(app)}", "desk uses the shared note");
+});
+
 await runStep("wording: follow up through one app so the other doesn't also reach out", () => {
   const cards = buildCards(
     [
@@ -279,7 +305,7 @@ await runStep("Open in <app>: exact record where the app supports it, admin home
   const id = "0b9f6a1e-3c2d-4e5f-8a7b-6c5d4e3f2a1b";
   const cards = buildCards(
     [
-      node({ id: `cc:church:${id}`, name: "Linked", emails: ["a@linked.church"], recordPath: `#crm/lead/${id}` }),
+      node({ id: `cc:church:${id}`, name: "Linked", emails: ["a@linked.church"], recordPath: `/super-admin#crm/lead/${id}` }),
       node({ id: "laser:person:x", app: "laser", kind: "person", name: "L", emails: ["a@linked.church"], recordPath: "#person/a@linked.church" })
     ],
     NO_SUPPRESS,
@@ -288,15 +314,17 @@ await runStep("Open in <app>: exact record where the app supports it, admin home
   const card = cards[0];
   const urls = { churchconnect: "https://cc.example/admin", laser: "https://laser.example/admin" };
   const cc = recordLink("churchconnect", card, urls);
-  assert(cc.exact && cc.href === `https://cc.example/admin#crm/lead/${id}`, cc.href);
+  assert(cc.exact && cc.href === `https://cc.example/super-admin#crm/lead/${id}`, cc.href);
+  const viaDoor = recordLink("churchconnect", card, { churchconnect: "/api/admin/door/churchconnect" });
+  assert(!viaDoor.exact && viaDoor.href === "/api/admin/door/churchconnect", "relative door: no origin to join, open the door");
   const laser = recordLink("laser", card, urls);
   assert(!laser.exact && laser.href === "https://laser.example/admin", "record path with contact details is refused");
   assert(recordLink("presence", card, urls) === null, "no admin URL → no button");
   const reader = read("src/lib/engine/lpl-crm.ts");
-  assertIncludes(reader, "recordPath: UUID_RE.test(id) ? `#crm/lead/${id}` : undefined", "ChurchConnect deep link from the church id");
+  assertIncludes(reader, "recordPath: UUID_RE.test(id) ? `/super-admin#crm/lead/${id}` : undefined", "ChurchConnect deep link from the church id (/super-admin, not /admin)");
   const desk = read("src/components/engine/crm-desk.tsx");
   assertIncludes(desk, "recordLink(app, card, adminUrls)", "buttons use recordLink");
-  assertIncludes(desk, "has no page for a single record yet", "honest label when no record page exists");
+  assertIncludes(desk, "adminHomeNote(app)", "honest label when no record page exists");
   assertIncludes(desk, "onClick={() => onOpen(match.key!)}", "See that card focuses the card even when it is filtered out");
   assertIncludes(desk, "onClick={() => onOpen(row.cardKey)}", "Open card focuses the card");
   assertIncludes(read("src/app/(cockpit)/crm/page.tsx"), "Where this comes from", "sources panel");
@@ -329,6 +357,8 @@ await runStep("readability and tap targets: labels ≥14px, body 16px, controls 
   assertIncludes(block, "font-size: 0.875rem; letter-spacing", "mono labels 14px");
   assertIncludes(block, ".crm-page .crm-chip { font-size: 1rem; min-height: 44px;", "chips 44px");
   assertIncludes(block, ".crm-page .crm-more summary { min-height: 44px; }", "timeline toggle 44px");
+  assertIncludes(css, '.crm-legend summary::before { content: "▸";', "legend toggle has the Timeline chevron");
+  assertIncludes(css, ".crm-legend[open] summary::before { transform: rotate(90deg); }", "legend chevron turns when open");
   assertIncludes(block, "min-height: 44px; font-size: 0.875rem; padding: 8px 14px;", "Open card / Open in buttons 44px");
 });
 

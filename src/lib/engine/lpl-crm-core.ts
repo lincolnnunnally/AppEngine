@@ -84,7 +84,7 @@ export type CrmNode = {
   // true = pulled in only to look for matches (directory row). Dropped when
   // it connects to nothing.
   contextOnly?: boolean;
-  /** Path inside the owning app's admin that opens this record, e.g. "#crm/lead/<id>". */
+  /** Where the owning app opens this record: "/path#hash" from the app origin, or "#hash" on its admin URL. */
   recordPath?: string;
 };
 
@@ -587,6 +587,24 @@ function lastTouchOf(card: CrmCard): FollowUp["lastTouch"] {
   return touch ? { app: touch.app, at: touch.at, what: touch.what } : null;
 }
 
+/**
+ * Drop a line that only repeats the start of a longer one on the same row,
+ * e.g. "Laser: Order placed." next to "Laser: Order placed ($38.00 not paid), …".
+ * The reason tag stays; only the repeated sentence goes.
+ */
+export function dedupeLines(items: FollowUpItem[]): FollowUpItem[] {
+  const stem = (why: string) => why.trim().replace(/[.\s]+$/, "").toLowerCase();
+  return items.filter((item, index) => {
+    const mine = stem(item.why);
+    return !items.some((other, otherIndex) => {
+      if (otherIndex === index) return false;
+      const theirs = stem(other.why);
+      if (theirs === mine) return otherIndex < index; // exact repeat: keep the first
+      return theirs.length > mine.length && theirs.startsWith(mine);
+    });
+  });
+}
+
 /** "Follow up through ChurchConnect only, so Laser doesn't also reach out." */
 export function followThroughStep(card: CrmCard): string {
   const app = card.lastOutreach?.app;
@@ -682,6 +700,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
     items.sort((a, b) => STEP_ORDER.indexOf(a.reason) - STEP_ORDER.indexOf(b.reason));
     const reasons = [...new Set(items.map((item) => item.reason))];
     const nextStep = items[0].step;
+    const lines = dedupeLines(items);
     card.followUpReasons = reasons;
     card.nextStep = nextStep;
     out.push({
@@ -690,7 +709,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
       town: card.town,
       apps: card.apps,
       reasons,
-      items,
+      items: lines,
       nextStep,
       today: reasons.some((reason) => reason !== "wait"),
       restingUntil,
@@ -709,12 +728,25 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
 
 // --- links and times (shared by the page and the smoke test) -------------
 
+/** Why an "admin" button opens the admin home instead of the record. */
+export function adminHomeNote(app: CrmApp): string {
+  // ChurchConnect does have a page per church; this card just has no church id.
+  if (app === "churchconnect") return "Not linked to a ChurchConnect church yet, so this opens the admin home.";
+  return `${CRM_APP_LABEL[app]} has no page for a single record yet, so this opens the admin home.`;
+}
+
 /** Exact record when the app supports it; otherwise the app's admin home. */
 export function recordLink(app: CrmApp, card: Pick<CrmCard, "recordPaths">, adminUrls: Partial<Record<CrmApp, string>>): { href: string; exact: boolean } | null {
   const base = adminUrls[app];
   if (!base) return null;
   const path = card.recordPaths[app];
   if (!path) return { href: base, exact: false };
+  if (path.startsWith("/")) {
+    // Path from the app's own origin (e.g. ChurchConnect "/super-admin#crm/lead/<id>").
+    // A relative admin door (handoff route on this desk) has no origin to join, so open the door.
+    if (!/^https?:\/\//.test(base)) return { href: base, exact: false };
+    return { href: `${new URL(base).origin}${path}`, exact: true };
+  }
   return { href: `${base.replace(/#.*$/, "").replace(/\/$/, "")}${path}`, exact: true };
 }
 
