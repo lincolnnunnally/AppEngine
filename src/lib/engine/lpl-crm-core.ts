@@ -52,6 +52,8 @@ export type Touch = {
   restDays?: number;
   /** The record holds a calendar day, not a moment: show the date without a time. */
   dateOnly?: boolean;
+  /** What was left on a visit or drop-off, in plain words (no contact details). */
+  left?: string;
 };
 
 export type TokenRow = {
@@ -680,11 +682,17 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
       ? Math.round((Date.parse(`${nyDate(now.toISOString())}T12:00:00Z`) - Date.parse(`${dayOf(holder.at)}T12:00:00Z`)) / DAY)
       : daysBetween(holder.at, now);
     const heldAgo = heldAge <= 0 ? "today" : heldAge === 1 ? "yesterday" : `${heldAge} days ago`;
-    const what = holder.kind === "visit" ? "visited" : holder.kind === "drop_off" ? "dropped something off" : "reached out";
+    // In person it was you, so say so; anything an app sent is named by the app.
+    const lead =
+      holder.kind === "visit"
+        ? `You visited ${heldAgo}.`
+        : holder.kind === "drop_off"
+          ? `You dropped off ${holder.left || "something"} ${heldAgo}.`
+          : `${CRM_APP_LABEL[holder.app]} reached out ${heldAgo}.`;
     return {
       level: "hold",
       until,
-      text: `${CRM_APP_LABEL[holder.app]} ${what} ${heldAgo}. Let it rest until ${friendlyDate(until)} before any app reaches out again.`
+      text: `${lead} Let it rest until ${friendlyDate(until)} before any app reaches out again.`
     };
   }
   const who = CRM_APP_LABEL[last.app];

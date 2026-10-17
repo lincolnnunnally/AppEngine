@@ -250,7 +250,8 @@ function visitTouch(row: Row, type: "visit" | "drop_off"): Touch | null {
     outreach: true,
     response: outcome || undefined,
     restDays: type === "drop_off" ? DROP_OFF_REST_DAYS : VISIT_REST_DAYS,
-    dateOnly: dayOnly || undefined
+    dateOnly: dayOnly || undefined,
+    left: s(row.left_item) ? scrubContact(row.left_item, 60) : undefined
   };
 }
 

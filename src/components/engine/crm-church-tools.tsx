@@ -211,7 +211,8 @@ export function ChurchTools({ card, canSave }: { card: CrmCard; canSave: boolean
                 {contact.title ? <span className="crm-dim"> · {contact.title}</span> : null}
                 {SOURCE_LABEL[contact.source] ? <span className="crm-contact-note">{SOURCE_LABEL[contact.source]}</span> : null}
               </div>
-              {contact.email || contact.phone ? (
+              {/* While this contact is being edited, the form shows the phone and email; don't show them twice. */}
+              {(contact.email || contact.phone) && mode !== `edit:${contact.id}` ? (
                 <div className="crm-contact-links">
                   {contact.phone ? (
                     <a className="crm-contact-link" href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}>

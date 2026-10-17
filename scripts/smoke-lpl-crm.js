@@ -469,17 +469,20 @@ await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins"
   const visit = (n) => ({ at: daysAgo(n), app: "churchconnect", kind: "visit", what: "Visit", outreach: true, restDays: 14 });
   const drop = (n) => ({ at: daysAgo(n), app: "churchconnect", kind: "drop_off", what: "Drop-off", outreach: true, restDays: 7 });
   assert(repeatRule([visit(10)], NOW).level === "hold", "visit 10 days ago → resting");
-  assert(repeatRule([visit(10)], NOW).text.includes("visited"), "says visited");
+  assert(repeatRule([visit(10)], NOW).text.startsWith("You visited 10 days ago."), repeatRule([visit(10)], NOW).text);
   assert(repeatRule([drop(6)], NOW).level === "hold", "drop-off 6 days ago → resting");
-  assert(repeatRule([drop(6)], NOW).text.includes("dropped something off"), "says dropped off");
+  assert(repeatRule([drop(6)], NOW).text.startsWith("You dropped off something 6 days ago."), repeatRule([drop(6)], NOW).text);
+  assert(repeatRule([{ ...drop(2), left: "a gift box" }], NOW).text.startsWith("You dropped off a gift box 2 days ago."), "names what was left");
+  assert(!repeatRule([visit(10)], NOW).text.includes("ChurchConnect visited"), "in person it was you");
+  assert(repeatRule([{ at: daysAgo(3), app: "laser", kind: "sample", what: "Left a sample", outreach: true, restDays: 7 }], NOW).text.startsWith("Laser reached out 3 days ago."), "apps still named for their own touches");
   assert(repeatRule([drop(8)], NOW).level === "soon", "drop-off 8 days ago → go gently");
   // A drop-off yesterday after a visit 3 days ago: the visit's rest ends later and wins.
   const both = repeatRule([drop(1), visit(3)], NOW);
   assert(both.level === "hold" && both.until.slice(0, 10) === daysAgo(3 - 14).slice(0, 10), `longest rest wins, got ${both.until}`);
-  assert(both.text.includes("visited 3 days ago"), both.text);
+  assert(both.text.includes("You visited 3 days ago"), both.text);
   // A typed day counts calendar days in Eastern time.
   const typed = repeatRule([{ at: "2026-10-14T16:00:00.000Z", dateOnly: true, app: "churchconnect", kind: "visit", what: "Visit", outreach: true, restDays: 14 }], new Date("2026-10-17T13:00:00Z"));
-  assert(typed.text.includes("visited 3 days ago"), typed.text);
+  assert(typed.text.includes("You visited 3 days ago"), typed.text);
   // Laser samples are drop-offs too when the reader marks them.
   assert(repeatRule([{ at: daysAgo(8), app: "laser", kind: "sample", what: "Left a sample", outreach: true, restDays: 7 }], NOW).level === "soon", "sample rests 7");
   const reader = read("src/lib/engine/lpl-crm.ts");
@@ -535,6 +538,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assert(!tools.includes("lpl-crm-write") && !tools.includes("process.env") && !tools.includes("SERVICE_ROLE"), "client never touches the writer or env");
   assertIncludes(tools, 'name="client_ref" value={clientRef}', "one-time key per form");
   assertIncludes(tools, "disabled={pending}", "button locks while saving");
+  assertIncludes(tools, "(contact.email || contact.phone) && mode !== `edit:${contact.id}`", "details not shown twice while editing");
   const desk = read("src/components/engine/crm-desk.tsx");
   assert(!desk.includes("lpl-crm-write"), "desk never imports the writer");
 });
