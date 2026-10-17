@@ -276,6 +276,7 @@ export function OrgTools({ card, canSave, onOpen }: { card: CrmCard; canSave: bo
           <form action={action} className="crm-form" data-testid="crm-edit-org-form">
             <input type="hidden" name="org_kind" value={org.kind} />
             <input type="hidden" name="org_id" value={org.id} />
+            {org.version ? <input type="hidden" name="org_version" value={org.version} /> : null}
             <OrgFields kind={org.kind} draft={draft} setDraft={setDraft} />
             {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} confirmNew={confirmNew} setConfirmNew={setConfirmNew} /> : null}
             <div className="crm-form-actions">

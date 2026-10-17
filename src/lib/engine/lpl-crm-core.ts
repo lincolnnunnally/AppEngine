@@ -30,6 +30,8 @@ export type CrmOrg = {
   email: string;
   /** Apps the owner picked (church: the church rule's ids; business: the business list). */
   offers: string[];
+  /** Business: the row's updated_at, sent back on edit so a stale form can't overwrite a newer save. */
+  version?: string;
 };
 
 // Church words (MAP: port of EasyPeazy is_church + a name list). Unclear = church.
@@ -166,14 +168,19 @@ export type CrmNode = {
   recordPath?: string;
   /** ChurchConnect church id the desk may log visits and save contacts on (UUID churches only). */
   churchId?: string;
+  /** Business lead id (op_leads) the desk may log visits and save contacts on. */
+  leadId?: string;
   contacts?: CrmContact[];
-  /** A visit logged from the desk marked this church do-not-contact (the desk may undo it). */
+  /** A visit logged from the desk marked this church or business do-not-contact (the desk may undo it). */
   deskDoNotContact?: boolean;
   /** Basics the owner can edit from the desk (ChurchConnect church or business lead). */
   org?: CrmOrg;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
+
+/** Declined lines that already mean "on the do-not-contact list". */
+export const DNC_DECLINED_RE = /^(Asked not to be contacted|Opted out|Email bounced|On the do-not-contact list)\b/;
 
 export type CrmStop = { reason: "suppressed" | "customer" | "declined"; text: string; app?: CrmApp };
 
@@ -213,7 +220,9 @@ export type CrmCard = {
   recordPaths: Partial<Record<CrmApp, string>>;
   /** The ChurchConnect church this card can log visits and save contacts on, if any. */
   churchId: string | null;
-  /** People at this org (church contacts). Contact details are removed for viewers who are not the owner. */
+  /** The business lead this card saves to when it has no church (one lead only). */
+  leadId: string | null;
+  /** People at this org (church or business contacts). Contact details are removed for viewers who are not the owner. */
   contacts: CrmContact[];
   /** A visit logged from the desk set do-not-contact on this church; the owner can undo it. */
   deskDoNotContact: boolean;
@@ -276,7 +285,9 @@ const DAY = 86_400_000;
 const FREEMAIL = new Set([
   "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "hotmail.com", "outlook.com", "live.com", "msn.com",
   "icloud.com", "me.com", "mac.com", "aol.com", "comcast.net", "att.net", "bellsouth.net", "windstream.net",
-  "charter.net", "verizon.net", "protonmail.com", "proton.me", "gmx.com", "mail.com", "example.com", "example.org"
+  "charter.net", "verizon.net", "protonmail.com", "proton.me", "gmx.com", "mail.com", "example.com", "example.org",
+  "sbcglobal.net", "cox.net", "earthlink.net", "frontier.com", "rr.com", "juno.com", "embarqmail.com", "centurylink.net",
+  "aim.com"
 ]);
 
 // Hosts many unrelated orgs share — never proof of "same org".
@@ -500,6 +511,20 @@ function churchIdOf(members: CrmNode[]): string | null {
   return ids.length === 1 ? ids[0] : null;
 }
 
+/** A card saves to a business lead only when it has no church and exactly one lead. */
+function leadIdOf(members: CrmNode[], churchId: string | null): string | null {
+  if (churchId) return null;
+  const ids = [...new Set(members.filter((member) => member.leadId && !member.contextOnly).map((member) => member.leadId as string))];
+  return ids.length === 1 ? ids[0] : null;
+}
+
+/** The members whose people and do-not-contact state the card's save target owns. */
+function targetMembers(members: CrmNode[], churchId: string | null, leadId: string | null): CrmNode[] {
+  if (churchId) return members.filter((member) => member.churchId === churchId || !member.leadId);
+  if (leadId) return members.filter((member) => member.leadId === leadId || !member.churchId);
+  return members;
+}
+
 function contactsOf(members: CrmNode[]): CrmContact[] {
   const out: CrmContact[] = [];
   const seen = new Set<string>();
@@ -594,7 +619,10 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       keys.some((k) => k.email.some((e) => allEmails.has(e))) ||
       keys.some((k) => k.domain.some((d) => allDomains.has(d))) ||
       keys.some((k) => k.phone.some((p) => allPhones.has(p)));
-    if (suppressed) {
+    // A member's own do-not-contact line ("Asked not to be contacted", "Opted out", "Email bounced")
+    // already says it; don't stack a second, generic stop under it.
+    const askedNot = members.some((member) => DNC_DECLINED_RE.test(member.declined ?? ""));
+    if (suppressed && !askedNot) {
       stops.push({ reason: "suppressed", text: "On the do-not-contact list. Do not reach out from any app." });
     }
     const customerApps = [...new Set(members.flatMap((member) => member.customerOf ?? []))];
@@ -614,6 +642,8 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       .filter((item) => item.date)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
+    const saveChurch = churchIdOf(members);
+    const saveLead = leadIdOf(members, saveChurch);
     const card: CrmCard = {
       // Hashed so an id that contains contact details never reaches the page.
       key: `c${hashKey(root)}`,
@@ -640,9 +670,10 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       nextStep: nextDates[0]?.action ?? "",
       followUpReasons: [],
       recordPaths: recordPathsOf(members),
-      churchId: churchIdOf(members),
-      contacts: contactsOf(members),
-      deskDoNotContact: members.some((member) => member.deskDoNotContact && !member.contextOnly),
+      churchId: saveChurch,
+      leadId: saveLead,
+      contacts: contactsOf(targetMembers(members, saveChurch, saveLead)),
+      deskDoNotContact: targetMembers(members, saveChurch, saveLead).some((member) => member.deskDoNotContact && !member.contextOnly),
       org: orgOf(members)
     };
     applyRestRule(card, now);
@@ -741,13 +772,21 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
   if (holder) {
     const until = new Date(holdEnd).toISOString();
     // A typed day ("I went on Oct 14") counts in calendar days, not hours.
-    const heldAge = holder.dateOnly
-      ? Math.round((Date.parse(`${nyDate(now.toISOString())}T12:00:00Z`) - Date.parse(`${dayOf(holder.at)}T12:00:00Z`)) / DAY)
-      : daysBetween(holder.at, now);
-    const heldAgo = heldAge <= 0 ? "today" : heldAge === 1 ? "yesterday" : `${heldAge} days ago`;
+    const agoOf = (touch: Touch) => {
+      const days = touch.dateOnly
+        ? Math.round((Date.parse(`${nyDate(now.toISOString())}T12:00:00Z`) - Date.parse(`${dayOf(touch.at)}T12:00:00Z`)) / DAY)
+        : daysBetween(touch.at, now);
+      return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+    };
+    const heldAgo = agoOf(holder);
+    // The longest rest still wins (the "until" date), but when the newest time you were
+    // there was a drop-off after a visit, don't say "You visited" for that day.
+    const newest = outreach[0];
+    const lastThere = newest !== holder && newest.kind === "drop_off" && holder.kind === "visit";
     // In person it was you, so say so; anything an app sent is named by the app.
-    const lead =
-      holder.kind === "visit"
+    const lead = lastThere
+      ? `You were last there ${agoOf(newest)}.`
+      : holder.kind === "visit"
         ? `You visited ${heldAgo}.`
         : holder.kind === "drop_off"
           ? `You dropped off ${holder.left || "something"} ${heldAgo}.`
