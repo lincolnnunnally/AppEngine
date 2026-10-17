@@ -164,7 +164,7 @@ function VisitForm({ card, onDone, onCancel }: { card: CrmCard; onDone: () => vo
             Saving this marks the church lost and adds its emails, phones, and website to the do-not-contact list. No app will
             reach out again. You can undo it from this card.
           </p>
-          <label className="crm-field crm-confirm">
+          <label className="crm-confirm">
             <input type="checkbox" name="confirm_dnc" value="yes" required /> <span>Yes, never contact this church</span>
           </label>
         </>
