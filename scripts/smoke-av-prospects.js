@@ -196,7 +196,6 @@ await step("reads tier by tier in rings (jsonb number filters), never the whole 
   assert(body.includes("groupMateLookups") && body.includes("possible_same_as"), "also reads copies outside the ring, including ones with no website");
   assert(!body.includes("limit=5000") && body.includes("batch.length < DNC_PAGE"), "do-not-contact list is paged until it ends");
   assert(body.includes("cc_church_crm_activities") && body.includes("DONT_REPEAT_DAYS"), "visit and drop-off rests are read with the desk's window");
-  assert(body.includes("wideNameLookupBlock("), "the loader uses the wide-lookup block");
 });
 
 await step("read only, on tap, owner only, fail closed", () => {
@@ -223,7 +222,7 @@ await step("read only, on tap, owner only, fail closed", () => {
   ]) assert(!/messengeravl\.com/i.test(read(rel)), `no partner link in ${rel}`);
   assert(!/messengeravl\.com|Messenger AVL|our partner/i.test(visible), "no vendor name, partner wording, or outbound link");
   assert(/your territory/i.test(visible) && !/Lincoln/.test(visible), "owner copy");
-  assert(visible.includes("Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream, are resting or recently contacted, were invited, said no, are not public, are inactive, or are not a church."), "one footer line");
+  assert(visible.includes("Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream, are resting or recently contacted, were invited, said no, were already won, are already being worked, are not public, are inactive, or are not a church."), "one footer line");
   assert(!visible.includes("33.25"), "the latitude line stays in comments");
   assert(visible.includes("subline(item)") && visible.includes("avReasonText"), "tier once in the subline; bullets are the reason");
   assert(visible.includes("Open in ChurchConnect") && !visible.includes("Open card"), "one action label");
@@ -245,8 +244,9 @@ await step("name rules leave churches and drop other places", () => {
     "Christ Temple of Refuge", "Christ Deliverance Temple", "Macon Full Gospel Holy Temple", "Restoration Temple of Praise",
     "Calvary Apostolic Temple", "Baxley-Harvest Temple COG", "Sparks Temple COGIU", "Everette Temple CME", "Tremount Temple MBC", "Tremount Temple M.B.C",
     "Life UPC Richmond Hill campus", "Needwood Baptist Church and School", "Journey Church North Campus",
-    "Old School (Primitive) Baptist Church", "Victory Academy of Praise Church",
-    "Bible Baptist Christian Academy", "Faith Baptist Christian Academy",
+    "Old School (Primitive) Baptist Church", "Victory Academy of Praise Church", "Faith Baptist Christian Academy Church",
+    "Trinity Pooler Church and Preschool",
+    "The Living Word Christian Center", "Abundant Life Christian Center", "John Wesley Center",
     "Holsey Temple", "Hightower Memorial Temple", "James Temple", "Prayer Temple of Savannah",
     "Miracle Temple", "Miracle Healing Temple", "Eley's Healing Temple",
     "Solomon Temple", "Solomon's Temple International", "Temple of Truth",
@@ -265,11 +265,13 @@ await step("name rules leave churches and drop other places", () => {
     "Christian Science Church", "Church of Scientology", "Spiritualist Church", "Jehovah",
     "Queen of Victory MBA", "Emanuel MBA", "Zion MBA", "Mt Vernon BA", "Altamaha–New Sunbury BA", "Second Washington BA",
     "Georgia Union Missionary Association", "Union Baptist Association of Churches", "Holiness Baptist Association Campgrounds",
-    "Emanuel Baptist Association",
+    "Emanuel Baptist Association", "Bible Baptist Christian Academy", "Faith Baptist Christian Academy",
     "Christian Life School of Ministry", "Episcopal Campus Ministry", "Kudzu College Ministry", "First Church of Christ, Scientist",
-    "First Baptist Preschool", "First Baptist Preschool Gray", "Trinity Pooler Church and Preschool",
+    "First Baptist Preschool", "First Baptist Preschool Gray", "First Baptist Preschool Gray Ga",
     "Kingdom Kids", "South Georgia Conference Council", "Faith Temple Outreach Community Center",
-    "Swaminarayan Temple", "Temple Beth El", "Hindu Shrine"
+    "Swaminarayan Temple", "Temple Beth El", "Hindu Shrine",
+    "Fitzgerald Hebrew Congregation", "Waycross Hebrew Center", "Temple Mickve Israel", "Chabad of Savannah", "B'nai B'rith", "Bnai Brith",
+    "Southwest District UMC", "Macon East District AMEC", "Children's Home", "Children's Homes"
   ];
   for (const name of keep) assert(!av.avNameExcluded(name), `keep ${name}`);
   for (const name of drop) assert(av.avNameExcluded(name), `drop ${name}`);
@@ -342,14 +344,16 @@ await step("duplicate copies and stopped rows stay off the list (probe)", () => 
   ]);
   const first = named.nameCities.find((item) => item.pattern === "first baptist");
   assert(first && first.churchIds.includes("wide") && first.churchIds.includes("copy") && !first.churchIds.includes("other"), "a wide lookup knows which church it belongs to");
-  const blocked = av.wideNameLookupBlock(40, first.churchIds);
-  assert(av.wideNameLookupBlock(39, first.churchIds).length === 0, "a lookup under 40 blocks nobody");
-  assert(blocked.includes("wide") && blocked.includes("copy"), "a lookup of 40 blocks every church in that group");
+  const group = new Set();
+  assert(av.consumeWideNameLookup(40, first.churchIds, group) === "block" && group.has("wide") && group.has("copy"), "a lookup of 40 blocks every church in that group");
+  assert(av.consumeWideNameLookup(39, first.churchIds, new Set()) === "use", "a lookup under 40 is used");
+  const missing = new Set();
+  assert(av.consumeWideNameLookup(40, [], missing) === "fail" && missing.size === 0, "40 rows and no church id fails the list closed");
   assert(av.rankAvProspects([
     r({ id: "wide", name: "First Baptist Church", city: "Vidalia" }),
     r({ id: "copy", name: "First Baptist", city: "Vidalia" }),
     r({ id: "other", name: "Grace Chapel", city: "Lyons" })
-  ], none, { blockedIds: blocked }).map((item) => item.churchId).join(",") === "other", "a too-wide name lookup blocks that church and its group");
+  ], none, { blockedIds: group }).map((item) => item.churchId).join(",") === "other", "a too-wide name lookup blocks that church and its group");
 });
 
 await step("desk names, shared sites, rests, and the churches that must come back", () => {

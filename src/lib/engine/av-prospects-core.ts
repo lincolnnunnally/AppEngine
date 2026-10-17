@@ -276,12 +276,15 @@ function hasChristianWord(raw: string, words: string[]): boolean {
  * Places that are not a Christian church, matched on the name because
  * religion_guess is empty on most rows. Kingdom Hall and Kingdom Kids always
  * go. Association goes unless the name ends in Church. A trailing MBA or BA,
- * college ministry, Church of Christ Scientist, a name ending in Preschool or
- * Community Center, and a conference council go even when the name says Baptist.
- * School, academy, and campus go only when the name has no church or baptist
- * word ("Christian Academy" still goes; "old school" is the Primitive Baptist
- * phrase, not a school). A bare temple stays. Hindu, mandir, Swaminarayan,
- * Temple Beth, and shrine still go.
+ * college ministry, Church of Christ Scientist, Community Center, and a
+ * conference council go even when the name says Baptist. Preschool goes
+ * anywhere in the name unless the name also says Church. School, academy, and
+ * campus go only when the name has no church or baptist word. "Christian
+ * Academy" and "Christian School" still go when Baptist is present, unless the
+ * name also says Church. "Old school" is the Primitive Baptist phrase, not a
+ * school. A bare temple stays. Hebrew, Chabad, B'nai, and Temple with Israel
+ * go. A district and a children's home go. A bare center stays: dropping it
+ * would also remove Christian Center churches.
  */
 export function avNameExcluded(name: string): boolean {
   const raw = collapseInitials(foldedName(name));
@@ -292,25 +295,29 @@ export function avNameExcluded(name: string): boolean {
   const has = (word: string) => words.includes(word);
   const christian = hasChristianWord(raw, nameWords(raw)) || /\bold\s+school\b/.test(raw);
   const churchOrBaptist = words.some((word) => CHURCH_OR_BAPTIST.has(word));
+  const hasChurch = has("church") || has("churches");
   const significant = words.filter((word) => !NAME_DROP.has(word));
   const endsWithChurch = significant[significant.length - 1] === "church";
   const tail = (phrase: string[]) => phrase.length <= significant.length && phrase.every((word, index) => significant[significant.length - phrase.length + index] === word);
-  if (["unitarian", "universalist", "diocese", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "swaminarayan", "shrine", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
+  if (["unitarian", "universalist", "diocese", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "swaminarayan", "shrine", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem", "hebrew", "chabad", "district"].some(has)) return true;
   if (has("mosque")) return true;
+  if (/\bb['’]?nai\b/.test(raw)) return true;
   if (/\blatter\s*-?\s*day\b/.test(raw) || raw.includes("latterday")) return true;
   // "1st Ward" is an LDS ward. A bare "ward" is too, unless the name is a church (Ward Grove Baptist, Ward Memorial UMC).
   if (/\b\d+(st|nd|rd|th)\s+ward\b/.test(street) || (has("ward") && !christian)) return true;
   if (/\bstake\s+center\b/.test(raw) || /\bconference\s+center\b/.test(raw) || /\bconference\s+council\b/.test(raw)) return true;
   if (/\bbeth\s+israel\b/.test(raw) || /\btemple\s+beth\b/.test(raw) || /\bchristian\s+science\b/.test(raw) || /\bbaha['’]?i\b/.test(raw)) return true;
-  if (/\bcongregation\b/.test(raw) && /\bisrael\b/.test(raw)) return true;
+  if ((/\bcongregation\b/.test(raw) && /\bisrael\b/.test(raw)) || (has("temple") && has("israel"))) return true;
   if (/\bchurch\s+of\s+christ,?\s+scientist\b/.test(raw)) return true;
+  if (/\bchildrens?\s+homes?\b/.test(raw.replace(/['’]/g, ""))) return true;
   if (has("association") && !endsWithChurch) return true;
+  if (/\bchristian\s+(academy|schools?)\b/.test(street) && !hasChurch) return true;
   if ((has("academy") || has("school") || has("schools") || has("campus")) && !churchOrBaptist) return true;
   if (/\bcollege\s+ministr(?:y|ies)\b/.test(raw)) return true;
   const last = significant[significant.length - 1];
   if (last === "mba" || last === "ba") return true;
   if (tail(["community", "center"])) return true;
-  if (last === "preschool" || (significant.length >= 2 && significant[significant.length - 2] === "preschool")) return true;
+  if (has("preschool") && !hasChurch) return true;
   if (/\bfood\s+(bank|pantry)\b/.test(raw) && !christian) return true;
   if (has("foundation") && !christian) return true;
   if (!christian && ["camp", "college", "seminary", "jehovah"].some(has)) return true;
@@ -318,12 +325,30 @@ export function avNameExcluded(name: string): boolean {
 }
 
 /**
- * A name lookup of 40 or more rows is too wide to trust. The church ids that
- * asked for it are blocked; a shorter lookup blocks nobody.
+ * A name lookup of 40 or more rows is too wide to trust, whether or not a
+ * church id was recorded. Under 40, nothing is blocked.
  */
+export function decideWideNameLookup(batchLength: number, churchIds: readonly string[]): { blocked: boolean; churchIds: string[] } {
+  if (batchLength < 40) return { blocked: false, churchIds: [] };
+  return { blocked: true, churchIds: [...new Set(churchIds.map((id) => s(id)).filter(Boolean))] };
+}
+
+/** Church ids to block for a wide lookup. Empty when the lookup is narrow, or when it is wide but no id was recorded. */
 export function wideNameLookupBlock(batchLength: number, churchIds: readonly string[]): string[] {
-  if (batchLength < 40) return [];
-  return [...new Set(churchIds.map((id) => s(id)).filter(Boolean))];
+  return decideWideNameLookup(batchLength, churchIds).churchIds;
+}
+
+/**
+ * The loader's choice for one name lookup. "fail" means 40 or more rows and
+ * no church id, so the whole list stops. "block" keeps those churches off.
+ * "use" means the rows are safe to group.
+ */
+export function consumeWideNameLookup(batchLength: number, churchIds: readonly string[], blocked: Set<string>): "use" | "block" | "fail" {
+  const decision = decideWideNameLookup(batchLength, churchIds);
+  if (!decision.blocked) return "use";
+  if (!decision.churchIds.length) return "fail";
+  for (const id of decision.churchIds) blocked.add(id);
+  return "block";
 }
 
 /** Touches the desk would rest on: the invite on the church, plus visits and drop-offs the loader attached. */

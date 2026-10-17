@@ -29,7 +29,7 @@ import {
   type Touch
 } from "@/lib/engine/lpl-crm-core";
 import { BUSINESS_OFFER_IDS, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { AV_LIST_SIZE, AV_RINGS_MILES, groupMateLookups, rankAvProspects, tierRingFilters, wideNameLookupBlock, type AvProspect, type AvRow, type AvTierIndex } from "@/lib/engine/av-prospects-core";
+import { AV_LIST_SIZE, AV_RINGS_MILES, consumeWideNameLookup, groupMateLookups, rankAvProspects, tierRingFilters, type AvProspect, type AvRow, type AvTierIndex } from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
 
@@ -1276,11 +1276,11 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         { label: "Churches for AV prospects", app: "churchconnect" }
       );
       if (unreadable()) return null;
-      // A name lookup that returns 40 or more rows is too wide for this one church. Leave it off the list.
-      const wideBlock = wideNameLookupBlock(batch.length, item.churchIds);
-      if (wideBlock.length) {
+      // 40 or more rows is too wide. Block those churches, or stop the list if no id was recorded.
+      const wide = consumeWideNameLookup(batch.length, item.churchIds, nameLookupBlocked);
+      if (wide === "fail") return null;
+      if (wide === "block") {
         wideNames.add(mark);
-        for (const id of wideBlock) nameLookupBlocked.add(id);
         continue;
       }
       mates.push(...batch);
