@@ -701,7 +701,8 @@ await runStep("slice 2: adding looks for duplicates first; churches hidden; noth
   assertIncludes(tools, "Not sure is saved as a church", "not-sure wording");
   assertIncludes(tools, "Yes, this is a business, not a church", "church-name guard wording");
   assertIncludes(tools, "Open it", "offer to open the existing one");
-  assertIncludes(tools, "key={offerKind}", "switching kind clears the app picks");
+  assertIncludes(tools, "if ((next === \"business\") !== (kind === \"business\")) setDraft((current) => ({ ...current, offers: [] }));", "switching kind clears the app picks");
+  assertIncludes(tools, "value={draft.name}", "fields are controlled, so a match answer never wipes what was typed");
   assertIncludes(tools, "disabled={pending}", "button locks while saving");
   const desk = read("src/components/engine/crm-desk.tsx");
   assertIncludes(desk, "{canSave ? <AddOrg onOpen={openOrg} /> : null}", "add is owner-only");

@@ -21,7 +21,19 @@ export function offerLabel(kind: OrgKind, id: string): string {
   return list[id] ?? "";
 }
 
-function Matches({ matches, onOpen, allowNew }: { matches: Match[]; onOpen: (match: Match) => void; allowNew: boolean }) {
+function Matches({
+  matches,
+  onOpen,
+  allowNew,
+  confirmNew,
+  setConfirmNew
+}: {
+  matches: Match[];
+  onOpen: (match: Match) => void;
+  allowNew: boolean;
+  confirmNew: boolean;
+  setConfirmNew: (value: boolean) => void;
+}) {
   return (
     <div className="crm-matches" data-testid="crm-org-matches">
       <ul className="crm-list">
@@ -43,7 +55,7 @@ function Matches({ matches, onOpen, allowNew }: { matches: Match[]; onOpen: (mat
       </ul>
       {allowNew ? (
         <label className="crm-confirm">
-          <input type="checkbox" name="confirm_new" value="yes" />
+          <input type="checkbox" name="confirm_new" value="yes" checked={confirmNew} onChange={(event) => setConfirmNew(event.target.checked)} />
           <span>None of these. It&apos;s a different one.</span>
         </label>
       ) : null}
@@ -51,42 +63,62 @@ function Matches({ matches, onOpen, allowNew }: { matches: Match[]; onOpen: (mat
   );
 }
 
-function OrgFields({ kind, org, kindLocked, onName }: { kind: OrgKind | "unsure"; org: CrmOrg | null; kindLocked: boolean; onName?: (value: string) => void }) {
+type Draft = { name: string; city: string; state: string; website: string; phone: string; email: string; offers: string[] };
+
+function draftOf(org: CrmOrg | null): Draft {
+  return {
+    name: org?.name ?? "",
+    city: org?.city ?? "",
+    state: org?.state || "GA",
+    website: org?.website ?? "",
+    phone: org?.phone ?? "",
+    email: org?.email ?? "",
+    offers: org ? [...org.offers] : []
+  };
+}
+
+const FIELDS: Array<{ key: keyof Omit<Draft, "offers">; label: string; type?: string; max: number; required?: boolean; mode?: "url" }> = [
+  { key: "city", label: "Town", max: 80, required: true },
+  { key: "state", label: "State", max: 40 },
+  { key: "website", label: "Website", max: 300, mode: "url" },
+  { key: "phone", label: "Phone", type: "tel", max: 40 },
+  { key: "email", label: "Email", type: "email", max: 200 }
+];
+
+// Controlled on purpose: a form action resets plain inputs after each submit,
+// and the owner must not lose what they typed when the match check answers.
+function OrgFields({ kind, draft, setDraft }: { kind: OrgKind | "unsure"; draft: Draft; setDraft: (next: Draft) => void }) {
   const offerKind: OrgKind = kind === "business" ? "business" : "church";
+  const set = (key: keyof Draft, value: string) => setDraft({ ...draft, [key]: value });
+  const toggle = (id: string, on: boolean) => setDraft({ ...draft, offers: on ? [...new Set([...draft.offers, id])] : draft.offers.filter((item) => item !== id) });
   return (
     <>
       <label className="crm-field">
         <span>Name</span>
-        <input name="name" required maxLength={160} defaultValue={org?.name ?? ""} autoComplete="off" onInput={onName ? (event) => onName(event.currentTarget.value) : undefined} />
+        <input name="name" required maxLength={160} value={draft.name} onChange={(event) => set("name", event.target.value)} autoComplete="off" />
       </label>
       <div className="crm-form-group">
-        <label className="crm-field">
-          <span>Town</span>
-          <input name="city" required maxLength={80} defaultValue={org?.city ?? ""} autoComplete="off" />
-        </label>
-        <label className="crm-field">
-          <span>State</span>
-          <input name="state" maxLength={40} defaultValue={org?.state ?? "GA"} autoComplete="off" />
-        </label>
-        <label className="crm-field">
-          <span>Website</span>
-          <input name="website" maxLength={300} defaultValue={org?.website ?? ""} autoComplete="off" inputMode="url" />
-        </label>
-        <label className="crm-field">
-          <span>Phone</span>
-          <input name="phone" type="tel" maxLength={40} defaultValue={org?.phone ?? ""} autoComplete="off" />
-        </label>
-        <label className="crm-field">
-          <span>Email</span>
-          <input name="email" type="email" maxLength={200} defaultValue={org?.email ?? ""} autoComplete="off" />
-        </label>
+        {FIELDS.map((field) => (
+          <label className="crm-field" key={field.key}>
+            <span>{field.label}</span>
+            <input
+              name={field.key}
+              type={field.type ?? "text"}
+              required={field.required}
+              maxLength={field.max}
+              inputMode={field.mode}
+              value={draft[field.key]}
+              onChange={(event) => set(field.key, event.target.value)}
+              autoComplete="off"
+            />
+          </label>
+        ))}
       </div>
-      {/* key: switching church/business clears the picks, so a business app can't ride along to a church. */}
-      <fieldset className="crm-field crm-choice crm-offers" key={offerKind} data-testid="crm-org-offers">
+      <fieldset className="crm-field crm-choice crm-offers" data-testid="crm-org-offers">
         <legend>{offerKind === "church" ? "Apps for this church" : "Apps for this business"}</legend>
         {offerChoices(offerKind).map((choice) => (
           <label key={choice.id}>
-            <input type="checkbox" name="offers" value={choice.id} defaultChecked={!kindLocked ? false : Boolean(org?.offers.includes(choice.id))} />
+            <input type="checkbox" name="offers" value={choice.id} checked={draft.offers.includes(choice.id)} onChange={(event) => toggle(choice.id, event.target.checked)} />
             {choice.label}
           </label>
         ))}
@@ -98,23 +130,30 @@ function OrgFields({ kind, org, kindLocked, onName }: { kind: OrgKind | "unsure"
 /** "Add a church or business" — top of the cards list. */
 export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string }) => void }) {
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<OrgKind | "unsure">("church");
-  const [name, setName] = useState("");
+  const [kind, setKindRaw] = useState<OrgKind | "unsure">("church");
+  const [draft, setDraft] = useState<Draft>(() => draftOf(null));
+  const [confirmBusiness, setConfirmBusiness] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
   const [state, action, pending] = useActionState<OrgFormState, FormData>(addOrgAction, null);
-  const [formKey, setFormKey] = useState(0);
+  // Switching church ↔ business clears the app picks, so a business app can't ride along to a church.
+  const setKind = (next: OrgKind | "unsure") => {
+    if ((next === "business") !== (kind === "business")) setDraft((current) => ({ ...current, offers: [] }));
+    setKindRaw(next);
+  };
   const [lastAdded, setLastAdded] = useState<{ kind: OrgKind; id: string; message: string } | null>(null);
 
   useEffect(() => {
     if (state?.ok && state.kind && state.id) {
       setLastAdded({ kind: state.kind, id: state.id, message: state.message });
       setOpen(false);
-      setFormKey((value) => value + 1);
-      setKind("church");
-      setName("");
+      setKindRaw("church");
+      setDraft(draftOf(null));
+      setConfirmBusiness(false);
+      setConfirmNew(false);
     }
   }, [state]);
 
-  const churchy = kind === "business" && looksLikeChurch(name);
+  const churchy = kind === "business" && looksLikeChurch(draft.name);
   const matches = !state?.ok ? state?.matches ?? [] : [];
   const hard = matches.some((match) => match.hard);
 
@@ -133,7 +172,7 @@ export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string
           Add a church or business
         </button>
       ) : (
-        <form action={action} className="crm-form" data-testid="crm-add-org-form" key={formKey}>
+        <form action={action} className="crm-form" data-testid="crm-add-org-form">
           <fieldset className="crm-field crm-choice">
             <legend>What is it?</legend>
             {(["church", "business", "unsure"] as const).map((value) => (
@@ -144,10 +183,10 @@ export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string
             ))}
           </fieldset>
           {kind === "unsure" ? <p className="crm-dim">Not sure is saved as a church, with church apps only.</p> : null}
-          <OrgFields kind={kind} org={null} kindLocked={false} onName={setName} />
+          <OrgFields kind={kind} draft={draft} setDraft={setDraft} />
           {churchy ? (
             <label className="crm-confirm">
-              <input type="checkbox" name="confirm_business" value="yes" />
+              <input type="checkbox" name="confirm_business" value="yes" checked={confirmBusiness} onChange={(event) => setConfirmBusiness(event.target.checked)} />
               <span>Yes, this is a business, not a church</span>
             </label>
           ) : null}
@@ -156,7 +195,7 @@ export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string
               ? "Saved as a business lead. Nothing is sent to anyone."
               : "Saved in ChurchConnect, hidden from the public directory until it's real. Nothing is sent to anyone."}
           </p>
-          {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} /> : null}
+          {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} confirmNew={confirmNew} setConfirmNew={setConfirmNew} /> : null}
           <div className="crm-form-actions">
             <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
               {pending ? "Checking…" : matches.length && !hard ? "Add anyway" : "Check and add"}
@@ -175,12 +214,21 @@ export function AddOrg({ onOpen }: { onOpen: (match: { kind: OrgKind; id: string
 /** Org basics and picked apps on a card; the owner can edit them. */
 export function OrgTools({ card, canSave, onOpen }: { card: CrmCard; canSave: boolean; onOpen: (match: { kind: OrgKind; id: string }) => void }) {
   const org = card.org;
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditingRaw] = useState(false);
   const [notice, setNotice] = useState("");
+  const [draft, setDraft] = useState<Draft>(() => draftOf(org));
+  const [confirmNew, setConfirmNew] = useState(false);
   const [state, action, pending] = useActionState<OrgFormState, FormData>(editOrgAction, null);
+  const setEditing = (on: boolean) => {
+    if (on) {
+      setDraft(draftOf(org));
+      setConfirmNew(false);
+    }
+    setEditingRaw(on);
+  };
   useEffect(() => {
     if (state?.ok) {
-      setEditing(false);
+      setEditingRaw(false);
       setNotice(state.message);
     }
   }, [state]);
@@ -211,8 +259,8 @@ export function OrgTools({ card, canSave, onOpen }: { card: CrmCard; canSave: bo
             <input type="hidden" name="org_kind" value={org.kind} />
             <input type="hidden" name="org_id" value={org.id} />
             <p className="crm-dim">{KIND_LABEL[org.kind]}</p>
-            <OrgFields kind={org.kind} org={org} kindLocked />
-            {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} /> : null}
+            <OrgFields kind={org.kind} draft={draft} setDraft={setDraft} />
+            {matches.length ? <Matches matches={matches} onOpen={onOpen} allowNew={!hard} confirmNew={confirmNew} setConfirmNew={setConfirmNew} /> : null}
             <div className="crm-form-actions">
               <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
                 {pending ? "Saving…" : matches.length && !hard ? "Save anyway" : "Save details"}

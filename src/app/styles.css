@@ -7403,3 +7403,5 @@ button.compose-arch:hover {
 .crm-page .crm-matches .crm-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .crm-page .crm-matches .dx-btn { min-height: 44px; }
 .crm-page .crm-org-tools h4 { margin-bottom: 6px; }
+.crm-page .crm-org-tools .dx-btn, .crm-page .crm-add-org .dx-btn { min-height: 44px; font-size: 1rem; padding: 8px 16px; }
+.crm-page .crm-add-org .crm-link-btn { min-height: 44px; }
