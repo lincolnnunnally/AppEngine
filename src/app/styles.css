@@ -7283,3 +7283,69 @@ button.compose-arch:hover {
 }
 .crm-stat-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 @media (max-width: 720px) { .crm-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+
+/* CRM v1 — readability + tap targets (VAD pass): mono labels and stat captions
+   ≥14px, body text 16px, every control ≥44px tall. Scoped to the CRM page. */
+.crm-page .dx-label,
+.crm-page .dx-stat span,
+.crm-page .crm-follow-tag,
+.crm-page .crm-facts dt,
+.crm-page .crm-sub h4,
+.crm-page .crm-touch-when,
+.crm-page .crm-pill { font-size: 0.875rem; letter-spacing: 0.08em; }
+.crm-page .dx-stat p,
+.crm-page .crm-card-sub,
+.crm-page .crm-follow-last,
+.crm-page .crm-touch-kind,
+.crm-page .crm-touch-meta,
+.crm-page .crm-focus-note,
+.crm-page .crm-count { font-size: 0.875rem; }
+.crm-page .dx-lede,
+.crm-page .crm-follow-why,
+.crm-page .crm-follow-step,
+.crm-page .crm-banner,
+.crm-page .crm-facts div,
+.crm-page .crm-touch,
+.crm-page .crm-list li,
+.crm-page .crm-pad,
+.crm-page .crm-empty,
+.crm-page .crm-more summary,
+.crm-page .crm-search input { font-size: 1rem; }
+.crm-page .crm-follow-name { font-size: 1.05rem; }
+.crm-page .crm-chip { font-size: 1rem; min-height: 44px; padding-inline: 14px; }
+.crm-page .crm-follow-open,
+.crm-page .crm-actions .dx-btn,
+.crm-page .crm-more-wrap .dx-btn { min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
+.crm-page .crm-more summary { min-height: 44px; }
+.crm-page .crm-search input { min-height: 44px; }
+.crm-page .crm-link-btn, .crm-page .crm-link { display: inline-flex; align-items: center; min-height: 44px; }
+.crm-page .crm-follow-row { grid-template-columns: 190px 1fr auto; }
+.crm-page .crm-facts div { grid-template-columns: 170px 1fr; }
+.crm-page .crm-touch { grid-template-columns: 130px 1fr; }
+.crm-banner--ok { color: var(--ink); border-color: color-mix(in srgb, var(--lime) 45%, transparent); background: color-mix(in srgb, var(--lime) 8%, transparent); }
+.crm-banner--ok strong { color: var(--lime); }
+@media (max-width: 720px) {
+  .crm-page .crm-follow-row { grid-template-columns: 1fr; }
+  .crm-page .crm-facts div { grid-template-columns: 1fr; gap: 2px; }
+  .crm-page .crm-touch { grid-template-columns: 1fr; gap: 2px; }
+}
+.crm-legend { margin: 6px 0 4px; border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; background: var(--panel); }
+.crm-legend summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 1rem; }
+.crm-legend dl { margin: 0 0 12px; display: grid; gap: 8px; }
+.crm-legend dl div { display: grid; grid-template-columns: 200px 1fr; gap: 10px; font-size: 1rem; }
+.crm-legend dt { font-weight: 700; }
+.crm-legend dd { margin: 0; color: var(--muted); }
+.crm-section-note { margin: 6px 0 0; font-size: 1rem; }
+.crm-follow-tags { display: flex; flex-direction: column; gap: 6px; }
+.crm-follow-tag--wait { color: var(--muted); }
+.crm-follow-tag--due { color: var(--lime); }
+.crm-follow-tag--warm { color: var(--pink); }
+.crm-follow-tag--unpaid { color: var(--gold); }
+.crm-follow-row--wait { border-left-color: var(--muted); }
+.crm-follow-items { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+.crm-wait-group { margin-top: 14px; }
+.crm-actions-note { margin: 8px 0 0; font-size: 0.875rem; }
+@media (max-width: 720px) {
+  .crm-legend dl div { grid-template-columns: 1fr; gap: 2px; }
+  .crm-follow-tags { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; }
+}
