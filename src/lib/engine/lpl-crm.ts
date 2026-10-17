@@ -119,6 +119,8 @@ function inviteWhat(row: Row): string {
   return campaign ? `Invite sent (${campaign.replace(/[-_]+/g, " ")})` : "Invite sent";
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
   if (s(row.merged_into) || s(row.deleted_at) || s(row.active) === "false") return null;
   const id = s(row.id);
@@ -145,6 +147,9 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
   return {
     id: `cc:church:${id}`,
     app: "churchconnect",
+    // ChurchConnect super admin opens one church at /admin#crm/lead/<church id>
+    // (SalesCRMDashboard syncLeadFromHash; GET /api/church-crm/leads/{id}).
+    recordPath: UUID_RE.test(id) ? `#crm/lead/${id}` : undefined,
     kind: "org",
     name: s(row.name) || s(row.church_name) || "Church",
     town: [s(row.city), s(row.state)].filter(Boolean).join(", "),
@@ -762,7 +767,8 @@ export async function crmFollowUpCount(): Promise<number | null> {
   if (!lplCrmConfigured()) return null;
   try {
     const snapshot = await loadCrmSnapshot();
-    return snapshot.followUps.length;
+    // Orgs/people on today's list — resting ("wait") rows do not count.
+    return snapshot.followUps.filter((row) => row.today).length;
   } catch {
     return null;
   }

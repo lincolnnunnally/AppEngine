@@ -5,6 +5,8 @@ import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
   MATCH_LABEL,
+  hasClockTime,
+  recordLink,
   type CrmApp,
   type CrmCard,
   type FollowUp,
@@ -22,45 +24,52 @@ type Props = {
   adminUrls: Partial<Record<CrmApp, string>>;
 };
 
-type CardFilter = "active" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet" | "all";
+type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
 
 const FILTER_LABEL: Record<CardFilter, string> = {
-  active: "Reached or active",
+  all: "Everyone",
+  today: "On today's list",
   multi: "In more than one app",
   resting: "Resting (14 days)",
   stops: "Do not pitch",
   possible: "Possible matches",
   presence: "Tokens & events",
-  quiet: "Not reached yet",
-  all: "Everyone"
+  quiet: "Not reached out yet"
 };
 
-const REASONS: FollowUpReason[] = ["due", "warm", "waiting", "unpaid", "events", "tokens"];
+const REASONS: FollowUpReason[] = ["due", "warm", "unpaid", "events", "tokens", "wait"];
 const PAGE = 24;
 
 const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric" });
-const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" });
+const yearFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric" });
 
 function fmtDate(at: string | null | undefined): string {
   if (!at) return "";
-  const date = new Date(at.length === 10 ? `${at}T12:00:00Z` : at);
-  return Number.isNaN(date.getTime()) ? "" : dateFmt.format(date);
+  const date = new Date(hasClockTime(at) ? at : `${at.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  // "Oct 8" this year, "Oct 8, 2025" otherwise.
+  return yearFmt.format(date) === yearFmt.format(new Date()) ? dayFmt.format(date) : dateFmt.format(date);
 }
 
 function fmtTime(at: string | null | undefined): string {
   if (!at) return "";
+  if (!hasClockTime(at)) return fmtDate(at);
   const date = new Date(at);
-  return Number.isNaN(date.getTime()) ? "" : `${timeFmt.format(date)} ET`;
+  if (Number.isNaN(date.getTime())) return "";
+  const time = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).format(date);
+  return `${fmtDate(at)}, ${time} ET`;
 }
 
+/** Same test the card uses for "Last reached out: Not yet". */
 function isQuiet(card: CrmCard): boolean {
-  return !card.touches.length && !card.tokens.length && !card.events.length && !card.stops.length && !card.possibleMatches.length && card.apps.length < 2;
+  return !card.lastOutreach;
 }
 
 function matches(card: CrmCard, filter: CardFilter): boolean {
   switch (filter) {
-    case "active":
-      return !isQuiet(card);
+    case "today":
+      return card.followUpReasons.some((reason) => reason !== "wait");
     case "multi":
       return card.apps.length > 1;
     case "resting":
@@ -103,7 +112,7 @@ function TouchLine({ touch }: { touch: Touch }) {
   );
 }
 
-function CardView({ card, adminUrls, open }: { card: CrmCard; adminUrls: Props["adminUrls"]; open: boolean }) {
+function CardView({ card, adminUrls, open, onOpen }: { card: CrmCard; adminUrls: Props["adminUrls"]; open: boolean; onOpen: (key: string) => void }) {
   const printed = card.tokens.filter((token) => token.printed === true).length;
   const notPrinted = card.tokens.filter((token) => token.printed === false).length;
   const matchText = card.matchedBy.length
@@ -133,8 +142,8 @@ function CardView({ card, adminUrls, open }: { card: CrmCard; adminUrls: Props["
         </p>
       ))}
       {card.repeat.level ? (
-        <p className={`crm-banner ${card.repeat.level === "hold" ? "crm-banner--hold" : "crm-banner--soon"}`}>
-          <strong>{card.repeat.level === "hold" ? "Resting." : "Go gently."}</strong> {card.repeat.text}
+        <p className={`crm-banner ${card.repeat.level === "hold" ? "crm-banner--hold" : card.repeat.level === "replied" ? "crm-banner--ok" : "crm-banner--soon"}`}>
+          <strong>{card.repeat.level === "hold" ? "Resting." : card.repeat.level === "replied" ? "Replied." : "Go gently."}</strong> {card.repeat.text}
         </p>
       ) : null}
       {card.possibleMatches.map((match, index) => (
@@ -143,9 +152,9 @@ function CardView({ card, adminUrls, open }: { card: CrmCard; adminUrls: Props["
           {match.town ? ` (${match.town})` : ""} in {match.apps.map((app) => CRM_APP_LABEL[app]).join(", ")} has the same name and town.
           Check before treating them as one.{" "}
           {match.key ? (
-            <a className="crm-link" href={`#${match.key}`}>
+            <button type="button" className="crm-link-btn" onClick={() => onOpen(match.key!)}>
               See that card
-            </a>
+            </button>
           ) : null}
         </p>
       ))}
@@ -169,17 +178,21 @@ function CardView({ card, adminUrls, open }: { card: CrmCard; adminUrls: Props["
         </div>
         <div>
           <dt>Next step</dt>
-          <dd>
-            {card.nextActionDate ? (
-              <>
-                {card.nextAction || "Next step on file"}
-                <span className="crm-dim"> · due {fmtDate(card.nextActionDate)}</span>
-              </>
-            ) : (
-              <span className="crm-dim">None on file</span>
-            )}
-          </dd>
+          <dd>{card.nextStep ? card.nextStep : <span className="crm-dim">{card.stops.some((stop) => stop.reason !== "customer") ? "None. Do not pitch." : "None on file"}</span>}</dd>
         </div>
+        {card.nextActionDate && card.nextStep !== card.nextAction ? (
+          <div>
+            <dt>On file</dt>
+            <dd>
+              {card.nextAction || "Next step"}
+              <span className="crm-dim">
+                {" "}
+                · due {fmtDate(card.nextActionDate)}
+                {card.nextActionMovedFrom ? ` (moved from ${fmtDate(card.nextActionMovedFrom)} while resting)` : ""}
+              </span>
+            </dd>
+          </div>
+        ) : null}
         {card.tokens.length ? (
           <div>
             <dt>Tokens</dt>
@@ -192,9 +205,11 @@ function CardView({ card, adminUrls, open }: { card: CrmCard; adminUrls: Props["
 
       <details className="crm-more" open={open}>
         <summary>
-          Timeline <span className="crm-count">{card.touches.length}</span>
-          {card.tokens.length || card.events.length || card.locations.length ? " · tokens, events and places" : ""}
+          Timeline ({card.touches.length})
         </summary>
+        {card.tokens.length || card.events.length || card.locations.length ? (
+          <p className="crm-dim crm-pad">Messages and visits first, then this card&apos;s tokens, events and places.</p>
+        ) : null}
         {card.touches.length ? (
           <ol className="crm-timeline">
             {card.touches.slice(0, 40).map((touch, index) => (
@@ -257,28 +272,87 @@ function CardView({ card, adminUrls, open }: { card: CrmCard; adminUrls: Props["
       </details>
 
       <div className="crm-actions">
-        {card.apps.map((app) =>
-          adminUrls[app] ? (
-            <a className="dx-btn" href={adminUrls[app]} key={app} target={adminUrls[app]!.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
-              Open in {CRM_APP_LABEL[app]}
+        {card.apps.map((app) => {
+          const link = recordLink(app, card, adminUrls);
+          if (!link) return null;
+          return (
+            <a
+              className="dx-btn"
+              href={link.href}
+              key={app}
+              target={link.href.startsWith("/") ? undefined : "_blank"}
+              rel="noreferrer"
+              title={link.exact ? undefined : `${CRM_APP_LABEL[app]} has no page for a single record yet, so this opens its admin.`}
+            >
+              {link.exact ? `Open in ${CRM_APP_LABEL[app]}` : `${CRM_APP_LABEL[app]} admin`}
             </a>
-          ) : null
-        )}
+          );
+        })}
       </div>
+      {card.apps.some((app) => adminUrls[app] && !card.recordPaths[app]) ? (
+        <p className="crm-dim crm-actions-note">
+          {card.apps
+            .filter((app) => adminUrls[app] && !card.recordPaths[app])
+            .map((app) => CRM_APP_LABEL[app])
+            .join(" and ")}{" "}
+          {card.apps.filter((app) => adminUrls[app] && !card.recordPaths[app]).length === 1 ? "has" : "have"} no page for a single record yet, so the button opens the admin home.
+        </p>
+      ) : null}
     </article>
+  );
+}
+
+function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => void }) {
+  const lead = row.reasons[0];
+  return (
+    <li className={`crm-follow-row crm-follow-row--${lead}`}>
+      <span className="crm-follow-tags">
+        {row.reasons.map((item) => (
+          <span className={`crm-follow-tag crm-follow-tag--${item}`} key={item}>
+            {FOLLOW_UP_LABEL[item]}
+          </span>
+        ))}
+      </span>
+      <div className="crm-follow-main">
+        <p className="crm-follow-name">
+          <b>{row.name}</b>
+          {row.town ? <span className="crm-dim"> · {row.town}</span> : null}
+        </p>
+        <ul className="crm-follow-items">
+          {row.items.map((item, index) => (
+            <li className="crm-follow-why" key={`${item.reason}-${index}`}>
+              {item.why}
+            </li>
+          ))}
+        </ul>
+        <p className="crm-follow-step">
+          <span className="crm-dim">Next step:</span> {row.nextStep}
+        </p>
+        <p className="crm-dim crm-follow-last">
+          {row.lastTouch ? `Last reached out: ${CRM_APP_LABEL[row.lastTouch.app]} · ${fmtDate(row.lastTouch.at)}` : "Not reached out yet"}
+        </p>
+      </div>
+      <button type="button" className="dx-btn crm-follow-open" onClick={() => onOpen(row.cardKey)}>
+        Open card
+      </button>
+    </li>
   );
 }
 
 export function CrmDesk({ cards, followUps, adminUrls }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
-  const [filter, setFilter] = useState<CardFilter>("active");
+  const [filter, setFilter] = useState<CardFilter>("all");
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
 
+  const todayRows = useMemo(() => followUps.filter((row) => row.today), [followUps]);
+  const waitOnlyRows = useMemo(() => followUps.filter((row) => !row.today), [followUps]);
+
+  // Counts are orgs/people, not reasons: one row per card.
   const reasonCounts = useMemo(() => {
     const counts = Object.fromEntries(REASONS.map((item) => [item, 0])) as Record<FollowUpReason, number>;
-    for (const item of followUps) counts[item.reason] += 1;
+    for (const row of followUps) for (const item of row.reasons) counts[item] += 1;
     return counts;
   }, [followUps]);
 
@@ -288,7 +362,7 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
     return out;
   }, [cards]);
 
-  const shownFollowUps = reason === "all" ? followUps : followUps.filter((item) => item.reason === reason);
+  const shownFollowUps = reason === "all" ? todayRows : followUps.filter((row) => row.reasons.includes(reason));
 
   const shownCards = useMemo(() => {
     if (focus) return cards.filter((card) => card.key === focus);
@@ -308,13 +382,16 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
           <div>
             <p className="dx-label">Today</p>
             <h2 id="crm-today-title" className="crm-h2">
-              Follow-ups <span className="crm-count crm-count--lg">{followUps.length}</span>
+              Follow-ups <span className="crm-count crm-count--lg">{todayRows.length}</span>
             </h2>
+            <p className="crm-dim crm-section-note">
+              One row per church, place, or person. Resting ones wait below and do not count as today.
+            </p>
           </div>
         </div>
         <div className="dx-chips crm-scroll-chips" role="group" aria-label="Filter follow-ups">
           <button type="button" className={`dx-chip crm-chip${reason === "all" ? " dx-chip--active" : ""}`} onClick={() => setReason("all")} aria-pressed={reason === "all"}>
-            All <strong>{followUps.length}</strong>
+            Today <strong>{todayRows.length}</strong>
           </button>
           {REASONS.map((item) => (
             <button
@@ -330,33 +407,24 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
         </div>
         {shownFollowUps.length ? (
           <ol className="crm-follow">
-            {shownFollowUps.map((item, index) => (
-              <li className={`crm-follow-row crm-follow-row--${item.reason}`} key={`${item.reason}-${item.cardKey}-${index}`}>
-                <span className="crm-follow-tag">{FOLLOW_UP_LABEL[item.reason]}</span>
-                <div className="crm-follow-main">
-                  <p className="crm-follow-name">
-                    <b>{item.name}</b>
-                    {item.town ? <span className="crm-dim"> · {item.town}</span> : null}
-                  </p>
-                  <p className="crm-follow-why">{item.why}</p>
-                  <p className="crm-follow-step">
-                    <span className="crm-dim">Next:</span> {item.step}
-                  </p>
-                  <p className="crm-dim crm-follow-last">
-                    {item.lastTouch
-                      ? `Last reached out: ${CRM_APP_LABEL[item.lastTouch.app]} · ${fmtDate(item.lastTouch.at)}`
-                      : "Not reached out yet"}
-                  </p>
-                </div>
-                <button type="button" className="dx-btn crm-follow-open" onClick={() => openCard(item.cardKey)}>
-                  Open card
-                </button>
-              </li>
+            {shownFollowUps.map((row) => (
+              <FollowRow row={row} key={row.cardKey} onOpen={openCard} />
             ))}
           </ol>
         ) : (
-          <p className="crm-empty">Nothing waiting{reason === "all" ? " today" : ` under “${FOLLOW_UP_LABEL[reason as FollowUpReason]}”`}. Nice.</p>
+          <p className="crm-empty">Nothing{reason === "all" ? " for today" : ` under “${FOLLOW_UP_LABEL[reason as FollowUpReason]}”`}. Nice.</p>
         )}
+        {reason === "all" && waitOnlyRows.length ? (
+          <details className="crm-more crm-wait-group">
+            <summary>Resting, wait ({waitOnlyRows.length})</summary>
+            <p className="crm-dim crm-pad">Someone reached out in the last 14 days and they have not replied. Let it rest until the date shown.</p>
+            <ol className="crm-follow">
+              {waitOnlyRows.map((row) => (
+                <FollowRow row={row} key={row.cardKey} onOpen={openCard} />
+              ))}
+            </ol>
+          </details>
+        ) : null}
       </section>
 
       <section className="panel" id="crm-cards" aria-labelledby="crm-cards-title">
@@ -398,6 +466,18 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
             </button>
           ))}
         </div>
+        <details className="crm-legend">
+          <summary>What the words mean</summary>
+          <dl>
+            <div><dt>Resting</dt><dd>An app reached out in the last 14 days and they have not replied. Wait until the date shown.</dd></div>
+            <div><dt>Replied</dt><dd>They answered after our last reach-out, so it is fine to follow up now.</dd></div>
+            <div><dt>Go gently</dt><dd>Fine to follow up, but we reached out recently or more than once, so keep it soft.</dd></div>
+            <div><dt>Stop</dt><dd>Do not pitch: on the do-not-contact list, already a customer for that offer, or they said no.</dd></div>
+            <div><dt>Possible match</dt><dd>Same name and town in another app. Not joined, so check before treating them as one.</dd></div>
+            <div><dt>Matched by same website</dt><dd>Records joined into one card because they share a website (or a linked record, email, or phone).</dd></div>
+            <div><dt>Tokens printed</dt><dd>A Presence token counts as printed once it is engraved (or released or found).</dd></div>
+          </dl>
+        </details>
         {focus ? (
           <p className="crm-focus-note">
             Showing one card.{" "}
@@ -409,7 +489,7 @@ export function CrmDesk({ cards, followUps, adminUrls }: Props) {
         {shownCards.length ? (
           <div className="crm-grid">
             {shownCards.slice(0, limit).map((card) => (
-              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} />
+              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} />
             ))}
           </div>
         ) : (

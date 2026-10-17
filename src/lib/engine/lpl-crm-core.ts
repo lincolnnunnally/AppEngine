@@ -84,13 +84,18 @@ export type CrmNode = {
   // true = pulled in only to look for matches (directory row). Dropped when
   // it connects to nothing.
   contextOnly?: boolean;
+  /** Path inside the owning app's admin that opens this record, e.g. "#crm/lead/<id>". */
+  recordPath?: string;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
 
 export type CrmStop = { reason: "suppressed" | "customer" | "declined"; text: string; app?: CrmApp };
 
-export type CrmRepeat = { level: "hold" | "soon" | null; text: string; until?: string };
+// hold    = resting: an app reached out < 14 days ago and nobody replied since.
+// replied = they answered after our last reach-out, so the rest is lifted.
+// soon    = fine to follow up, but go gently.
+export type CrmRepeat = { level: "hold" | "replied" | "soon" | null; text: string; until?: string };
 
 export type CrmPossibleMatch = { key: string | null; name: string; town: string; apps: CrmApp[] };
 
@@ -112,28 +117,49 @@ export type CrmCard = {
   events: EventRow[];
   locations: LocationRow[];
   nextActionDate: string | null;
+  /** Set when the app's own due date fell inside a rest; nextActionDate was moved to the rest end. */
+  nextActionMovedFrom: string | null;
   nextAction: string;
+  /** Single source for "Next step" on both the card and the list. Set by buildFollowUps. */
+  nextStep: string;
+  /** Reasons this card is on the follow-up list (empty = not on it). */
+  followUpReasons: FollowUpReason[];
+  /** Per-app path inside that app's admin that opens this exact record (only where the app supports it). */
+  recordPaths: Partial<Record<CrmApp, string>>;
 };
 
-export type FollowUpReason = "due" | "waiting" | "warm" | "unpaid" | "tokens" | "events";
+// "wait" = an outreach step for a resting card. It is held until the rest
+// ends and never counts as today's work. Events and token prep are not
+// outreach, so they stay on today's list.
+export type FollowUpReason = "due" | "warm" | "unpaid" | "events" | "tokens" | "wait";
 
 export const FOLLOW_UP_LABEL: Record<FollowUpReason, string> = {
   due: "Due today",
-  waiting: "Waiting on a reply",
   warm: "Warm, no follow-up yet",
   unpaid: "Not paid yet",
+  events: "Upcoming events",
   tokens: "Tokens to print",
-  events: "Upcoming events"
+  wait: "Resting, wait"
 };
 
+/** Reasons that mean contacting them. A rest holds these. */
+export const OUTREACH_REASONS: FollowUpReason[] = ["due", "warm", "unpaid"];
+
+export type FollowUpItem = { reason: FollowUpReason; why: string; step: string };
+
+/** One row per org or person, with every reason stacked. */
 export type FollowUp = {
-  reason: FollowUpReason;
   cardKey: string;
   name: string;
   town: string;
   apps: CrmApp[];
-  why: string;
-  step: string;
+  reasons: FollowUpReason[];
+  items: FollowUpItem[];
+  /** The one next step — the card shows this same text. */
+  nextStep: string;
+  /** true = on today's list; false = only held ("wait") items. */
+  today: boolean;
+  restingUntil: string | null;
   lastTouch: { app: CrmApp; at: string; what: string } | null;
   sortAt: string;
 };
@@ -235,6 +261,12 @@ export function scrubContact(value: unknown, max = 140): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/** "Oct 22" for a calendar day (YYYY-MM-DD) — no time zone shift. */
+export function friendlyDay(ymd: string): string {
+  const d = new Date(`${ymd.slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? ymd : new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(d);
+}
+
 /** "Oct 22" in Eastern time — for sentences people read. */
 export function friendlyDate(at: Date | string | number): string {
   const d = at instanceof Date ? at : new Date(at);
@@ -315,6 +347,19 @@ function nodeKeys(node: CrmNode): { email: string[]; domain: string[]; phone: st
 
 function sortTouches(touches: Touch[]): Touch[] {
   return [...touches].sort((a, b) => (ms(b.at) || 0) - (ms(a.at) || 0));
+}
+
+const SAFE_RECORD_PATH = /^[#/A-Za-z0-9_.\-]+$/;
+
+/** First record path per app (non-context records first). Never carries contact details. */
+function recordPathsOf(members: CrmNode[]): Partial<Record<CrmApp, string>> {
+  const out: Partial<Record<CrmApp, string>> = {};
+  const ordered = [...members].sort((a, b) => Number(Boolean(a.contextOnly)) - Number(Boolean(b.contextOnly)));
+  for (const member of ordered) {
+    const path = member.recordPath;
+    if (path && !out[member.app] && SAFE_RECORD_PATH.test(path) && !path.includes("@")) out[member.app] = path;
+  }
+  return out;
 }
 
 export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Date): CrmCard[] {
@@ -424,15 +469,20 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       touches,
       lastOutreach,
       lastTouch: touches[0] ?? null,
-      repeat: repeatRule(touches, now),
+      repeat: { level: null, text: "" },
       stops,
       possibleMatches: [],
       tokens: members.flatMap((member) => member.tokens ?? []),
       events: members.flatMap((member) => member.events ?? []).sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt))),
       locations: members.flatMap((member) => member.locations ?? []),
       nextActionDate: nextDates[0]?.date ?? null,
-      nextAction: nextDates[0]?.action ?? ""
+      nextActionMovedFrom: null,
+      nextAction: nextDates[0]?.action ?? "",
+      nextStep: nextDates[0]?.action ?? "",
+      followUpReasons: [],
+      recordPaths: recordPathsOf(members)
     };
+    applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));
     drafts.push({ card, nameKeys, contextOnly: members.every((member) => member.contextOnly), memberApps: [...new Set(members.map((member) => member.app))] });
   }
@@ -474,6 +524,31 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
 
 // --- don't repeat ----------------------------------------------------------
 
+/**
+ * One answer per card — never "resting" and "due today" at once.
+ * 1. A hard stop (do-not-contact or said no) wins over everything: no rest
+ *    banner, no due date in the follow-up list.
+ * 2. They replied after our last reach-out → the rest is lifted
+ *    ("They replied Oct 15 — OK to follow up"); a due task stays due.
+ * 3. Still resting → a due date inside the rest moves to the rest end.
+ */
+export function applyRestRule(card: CrmCard, now: Date): void {
+  const blocked = card.stops.some((stop) => stop.reason === "suppressed" || stop.reason === "declined");
+  if (blocked) {
+    card.repeat = { level: null, text: "" };
+    return;
+  }
+  card.repeat = repeatRule(card.touches, now);
+  if (card.repeat.level === "hold" && card.repeat.until && card.nextActionDate) {
+    const restEnd = nyDate(card.repeat.until);
+    const due = card.nextActionDate.slice(0, 10);
+    if (due < restEnd) {
+      card.nextActionMovedFrom = due;
+      card.nextActionDate = restEnd;
+    }
+  }
+}
+
 export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
   const outreach = touchesNewestFirst.filter((touch) => touch.outreach && !Number.isNaN(ms(touch.at)));
   const last = outreach[0];
@@ -481,6 +556,10 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
   const age = daysBetween(last.at, now);
   const who = CRM_APP_LABEL[last.app];
   const agoText = age <= 0 ? "today" : age === 1 ? "yesterday" : `${age} days ago`;
+  const reply = touchesNewestFirst.find((touch) => touch.signal && !touch.outreach && ms(touch.at) > ms(last.at));
+  if (reply && age <= SOFT_REPEAT_DAYS) {
+    return { level: "replied", text: `They replied ${friendlyDate(reply.at)} — OK to follow up.` };
+  }
   if (age < DONT_REPEAT_DAYS) {
     const until = addDaysIso(last.at, DONT_REPEAT_DAYS);
     return {
@@ -508,83 +587,141 @@ function lastTouchOf(card: CrmCard): FollowUp["lastTouch"] {
   return touch ? { app: touch.app, at: touch.at, what: touch.what } : null;
 }
 
+/** "Follow up through ChurchConnect only, so Laser doesn't also reach out." */
+export function followThroughStep(card: CrmCard): string {
+  const app = card.lastOutreach?.app;
+  if (!app) return "Follow up through one app only.";
+  const others = card.apps.filter((other) => other !== app).map((other) => CRM_APP_LABEL[other]);
+  const tail = others.length ? `, so ${others.join(" or ")} ${others.length === 1 ? "doesn't" : "don't"} also reach out` : "";
+  return `Follow up through ${CRM_APP_LABEL[app]} only${tail}.`;
+}
+
+const STEP_ORDER: FollowUpReason[] = ["due", "unpaid", "warm", "events", "tokens", "wait"];
+
 export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
   const today = nyDate(now);
   const out: FollowUp[] = [];
-  const push = (card: CrmCard, reason: FollowUpReason, why: string, step: string, sortAt: string) =>
-    out.push({ reason, cardKey: card.key, name: card.name, town: card.town, apps: card.apps, why, step, lastTouch: lastTouchOf(card), sortAt });
 
   for (const card of cards) {
-    const suppressed = card.stops.some((stop) => stop.reason === "suppressed");
-    const declined = card.stops.some((stop) => stop.reason === "declined");
-    const outreachBlocked = suppressed || declined;
+    const items: FollowUpItem[] = [];
+    let sortAt = "";
+    const add = (reason: FollowUpReason, why: string, step: string, at: string) => {
+      items.push({ reason, why, step });
+      if (!sortAt || String(at).localeCompare(sortAt) < 0) sortAt = at;
+    };
+    // Hard stops win over everything: nothing for this card on the list.
+    const blocked = card.stops.some((stop) => stop.reason === "suppressed" || stop.reason === "declined");
+    card.followUpReasons = [];
+    card.nextStep = card.nextAction;
+    if (blocked) {
+      card.nextStep = "";
+      continue;
+    }
     const recentOutreach = card.lastOutreach ? daysBetween(card.lastOutreach.at, now) : Number.POSITIVE_INFINITY;
+    const resting = card.repeat.level === "hold";
+    const restingUntil = resting && card.repeat.until ? card.repeat.until : null;
 
-    // Due today — the app's own next-action date.
-    if (card.nextActionDate && !declined && !suppressed) {
+    // Due — the app's own next-action date (already moved past any rest).
+    if (card.nextActionDate) {
       const due = card.nextActionDate.slice(0, 10);
       if (due <= today) {
-        push(card, "due", due < today ? `Next step was due ${due}.` : "Next step is due today.", card.nextAction || "Do the next step on file.", card.nextActionDate);
-      }
-    }
-
-    // Waiting on a reply — reached out 3–14 days ago and heard nothing since.
-    if (card.lastOutreach && !outreachBlocked) {
-      const age = recentOutreach;
-      const since = ms(card.lastOutreach.at);
-      const heard = card.touches.some((touch) => touch.signal && ms(touch.at) >= since);
-      if (age >= WAITING_MIN_DAYS && age <= DONT_REPEAT_DAYS && !heard) {
-        push(
-          card,
-          "waiting",
-          `${CRM_APP_LABEL[card.lastOutreach.app]}: ${card.lastOutreach.what} — ${age} days, no reply yet.`,
-          age < DONT_REPEAT_DAYS ? "Check in with the same app that reached out. No second app yet." : "A gentle check-in is fine now.",
-          card.lastOutreach.at
-        );
+        add("due", due < today ? `Next step was due ${friendlyDay(due)}.` : "Next step is due today.", card.nextAction || "Do the next step on file.", card.nextActionDate);
       }
     }
 
     // Warm — they did something in the last 7 days and nobody followed up.
     const signal = card.touches.find((touch) => touch.signal && !touch.outreach);
-    if (signal && !outreachBlocked && daysBetween(signal.at, now) <= WARM_DAYS) {
+    if (signal && daysBetween(signal.at, now) <= WARM_DAYS) {
       const followed = card.touches.some((touch) => touch.outreach && ms(touch.at) > ms(signal.at));
       if (!followed && recentOutreach >= WAITING_MIN_DAYS) {
-        push(card, "warm", `${CRM_APP_LABEL[signal.app]}: ${signal.what}.`, "Follow up while it is fresh.", signal.at);
+        add("warm", `${CRM_APP_LABEL[signal.app]}: ${signal.what}.`, card.lastOutreach ? `Follow up while it is fresh. ${followThroughStep(card)}` : "Follow up while it is fresh.", signal.at);
       }
     }
 
     // Not paid yet.
     for (const touch of card.touches) {
       if (touch.unpaid && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
-        push(card, "unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${friendlyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
+        add("unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${friendlyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
       }
     }
 
-    // Tokens to print.
-    const unprinted = card.tokens.filter((token) => token.printed === false);
-    if (unprinted.length) {
-      push(
-        card,
-        "tokens",
-        `${unprinted.length} token${unprinted.length === 1 ? "" : "s"} not printed yet.`,
-        "Send them to the engraver, then mark them engraved in Presence.",
-        now.toISOString()
-      );
+    // Resting: every outreach item is held — one "wait" line instead.
+    if (resting && restingUntil) {
+      const held = items.filter((item) => OUTREACH_REASONS.includes(item.reason));
+      for (const item of held) items.splice(items.indexOf(item), 1);
+      const last = card.lastOutreach!;
+      if (held.length || recentOutreach >= WAITING_MIN_DAYS) {
+        const ago = recentOutreach <= 0 ? "today" : recentOutreach === 1 ? "yesterday" : `${recentOutreach} days ago`;
+        const heldText = held.length ? ` Held: ${held.map((item) => FOLLOW_UP_LABEL[item.reason].toLowerCase()).join(", ")}.` : "";
+        add(
+          "wait",
+          `Resting until ${friendlyDate(restingUntil)}. ${CRM_APP_LABEL[last.app]}: ${last.what}, ${ago}, no reply yet.${heldText}`,
+          `Wait until ${friendlyDate(restingUntil)}. Then ${followThroughStep(card).replace(/^F/, "f")}`,
+          restingUntil
+        );
+      }
     }
 
-    // Upcoming events.
+    // Tokens to print — prep, not outreach.
+    const unprinted = card.tokens.filter((token) => token.printed === false);
+    if (unprinted.length) {
+      add("tokens", `${unprinted.length} token${unprinted.length === 1 ? "" : "s"} not printed yet.`, "Send them to the engraver, then mark them engraved in Presence.", now.toISOString());
+    }
+
+    // Upcoming events — prep, not outreach.
     for (const event of card.events) {
       const starts = ms(event.startsAt);
       if (Number.isNaN(starts) || event.status !== "open") continue;
       const inDays = (starts - now.getTime()) / DAY;
       if (inDays >= 0 && inDays <= UPCOMING_EVENT_DAYS) {
-        push(card, "events", `${event.title} on ${friendlyDate(event.startsAt!)}${event.place ? ` at ${event.place}` : ""}.`, "Make sure the place knows and tokens are ready.", event.startsAt!);
+        add("events", `${event.title} on ${friendlyDate(event.startsAt!)}${event.place ? ` at ${event.place}` : ""}.`, "Make sure the place knows and tokens are ready.", event.startsAt!);
       }
     }
+
+    if (!items.length) continue;
+    items.sort((a, b) => STEP_ORDER.indexOf(a.reason) - STEP_ORDER.indexOf(b.reason));
+    const reasons = [...new Set(items.map((item) => item.reason))];
+    const nextStep = items[0].step;
+    card.followUpReasons = reasons;
+    card.nextStep = nextStep;
+    out.push({
+      cardKey: card.key,
+      name: card.name,
+      town: card.town,
+      apps: card.apps,
+      reasons,
+      items,
+      nextStep,
+      today: reasons.some((reason) => reason !== "wait"),
+      restingUntil,
+      lastTouch: lastTouchOf(card),
+      sortAt
+    });
   }
 
-  const order: FollowUpReason[] = ["due", "warm", "waiting", "unpaid", "events", "tokens"];
   return out.sort(
-    (a, b) => order.indexOf(a.reason) - order.indexOf(b.reason) || String(a.sortAt).localeCompare(String(b.sortAt))
+    (a, b) =>
+      Number(b.today) - Number(a.today) ||
+      STEP_ORDER.indexOf(a.reasons[0]) - STEP_ORDER.indexOf(b.reasons[0]) ||
+      String(a.sortAt).localeCompare(String(b.sortAt))
   );
 }
+
+// --- links and times (shared by the page and the smoke test) -------------
+
+/** Exact record when the app supports it; otherwise the app's admin home. */
+export function recordLink(app: CrmApp, card: Pick<CrmCard, "recordPaths">, adminUrls: Partial<Record<CrmApp, string>>): { href: string; exact: boolean } | null {
+  const base = adminUrls[app];
+  if (!base) return null;
+  const path = card.recordPaths[app];
+  if (!path) return { href: base, exact: false };
+  return { href: `${base.replace(/#.*$/, "").replace(/\/$/, "")}${path}`, exact: true };
+}
+
+/** Real time when the record has one; date only when it was stored as a plain day. */
+export function hasClockTime(at: string): boolean {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(at)) return false;
+  // A bare midnight-UTC stamp is a date someone typed, not a moment.
+  return !/T00:00(:00(\.0+)?)?(Z|\+00(:?00)?)$/.test(at);
+}
+

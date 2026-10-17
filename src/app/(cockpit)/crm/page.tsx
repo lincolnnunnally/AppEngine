@@ -13,6 +13,8 @@ export default async function CrmPage() {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const snapshot = await loadCrmSnapshot();
 
+  const todayRows = snapshot.followUps.filter((row) => row.today).length;
+  const waitRows = snapshot.followUps.filter((row) => !row.today).length;
   const resting = snapshot.cards.filter((card) => card.repeat.level === "hold").length;
   const stops = snapshot.cards.filter((card) => card.stops.length > 0).length;
   const multi = snapshot.cards.filter((card) => card.apps.length > 1).length;
@@ -39,10 +41,13 @@ export default async function CrmPage() {
         </p>
         {snapshot.configured ? (
           <div className="dx-stat-grid crm-stat-grid">
-            <a className={`dx-stat ${snapshot.followUps.length ? "dx-stat--lime" : ""}`} href="#crm-today">
-              <strong>{snapshot.followUps.length}</strong>
+            <a className={`dx-stat ${todayRows ? "dx-stat--lime" : ""}`} href="#crm-today">
+              <strong>{todayRows}</strong>
               <span>follow-ups today</span>
-              <p>due, warm, waiting, unpaid, events, tokens</p>
+              <p>
+                {todayRows === 1 ? "1 church, place, or person" : `${todayRows} churches, places, or people`}
+                {waitRows ? ` · ${waitRows} resting` : ""}
+              </p>
             </a>
             <a className="dx-stat dx-stat--cyan" href="#crm-cards">
               <strong>{snapshot.cards.length}</strong>
@@ -63,7 +68,9 @@ export default async function CrmPage() {
               <strong>
                 {snapshot.presence.printed}/{snapshot.presence.tokens}
               </strong>
-              <span>tokens printed</span>
+              <span>
+                {snapshot.presence.printed} of {snapshot.presence.tokens} token{snapshot.presence.tokens === 1 ? "" : "s"} printed
+              </span>
               <p>
                 {snapshot.presence.events} event{snapshot.presence.events === 1 ? "" : "s"} · {snapshot.presence.places} place{snapshot.presence.places === 1 ? "" : "s"}
               </p>
