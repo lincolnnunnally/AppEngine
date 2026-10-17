@@ -1,9 +1,14 @@
-// CRM v1 reader — ChurchConnect, Laser, and Presence, read from the tables
+// CRM reader — ChurchConnect, Laser, and Presence, read from the tables
 // those apps ALREADY write in the shared database. No new tables, no writes,
 // nothing sent. Same pattern as lpl-ops-stats.ts: SERVER ONLY, the service key
 // never leaves this module, and nothing here logs a row. Contact details are
-// used only to match records; the page never prints them.
+// used to match records; church contacts are passed to the page, which strips
+// their email and phone for anyone but the owner. Saving lives in
+// lpl-crm-write.ts (through ChurchConnect's own CRM routes).
+import crypto from "node:crypto";
 import {
+  DROP_OFF_REST_DAYS,
+  VISIT_REST_DAYS,
   buildCards,
   buildFollowUps,
   countTokens,
@@ -14,6 +19,7 @@ import {
   shortPersonName,
   type CrmApp,
   type CrmCard,
+  type CrmContact,
   type CrmNode,
   type FollowUp,
   type Suppressions,
@@ -101,9 +107,10 @@ const CHURCH_FIELDS = [
   "office_email", "secretary_email", "customer_email", "phone", "phone_office", "phone_cell", "website", "domain",
   "crm_status", "crm_next_action", "crm_next_action_date", "invite_status", "last_invited_at", "invite_campaign",
   "website_offer_status", "is_customer", "signed_up", "converted_at", "merged_into", "duplicate_of", "deleted_at",
-  "active", "updated_at"
+  "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
+  "contact_name", "contact_role", "do_not_contact"
 ];
-const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")}`;
+const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts`;
 const CHURCH_TOUCHED = [
   "doc->>crm_status.not.is.null",
   "doc->>crm_next_action_date.not.is.null",
@@ -121,6 +128,42 @@ function inviteWhat(row: Row): string {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CONTACT_ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
+
+const contactText = (value: unknown, limit: number) => s(value).replace(/\s+/g, " ").trim().slice(0, limit);
+
+/**
+ * Same id ChurchConnect gives an older saved contact that has none
+ * (backend/utils/crm_staff_contacts.py stable_contact_id), so an edit from the
+ * desk lands on the same person.
+ */
+export function stableContactId(contact: Row): string {
+  const basis = ["name", "email", "phone", "role"].map((key) => contactText(contact[key], 200).toLowerCase()).join("|");
+  return `sc-${crypto.createHash("sha1").update(basis, "utf8").digest("hex").slice(0, 12)}`;
+}
+
+function churchContacts(row: Row, churchId: string): CrmContact[] {
+  const out: CrmContact[] = [];
+  const saved = Array.isArray(row.staff_contacts) ? (row.staff_contacts as Row[]) : [];
+  for (const item of saved) {
+    if (!item || typeof item !== "object") continue;
+    const name = contactText(item.name, 120);
+    if (!name) continue;
+    const id = CONTACT_ID_RE.test(s(item.id)) ? s(item.id) : stableContactId(item);
+    out.push({ id, name, title: contactText(item.role ?? item.title, 80), email: normEmail(item.email), phone: contactText(item.phone, 40), source: "saved" });
+  }
+  const builtIn: Array<[CrmContact["source"], unknown, string, unknown, unknown]> = [
+    ["pastor", row.pastor_name, "Pastor", row.pastor_email, row.pastor_phone],
+    ["secretary", row.secretary_name, s(row.secretary_title) || "Secretary", row.secretary_email, row.secretary_phone],
+    ["contact", row.contact_name, s(row.contact_role), "", ""]
+  ];
+  for (const [source, rawName, title, email, phone] of builtIn) {
+    const name = contactText(rawName, 120);
+    if (!name || out.some((contact) => contact.name.toLowerCase() === name.toLowerCase())) continue;
+    out.push({ id: `cc-${source}-${churchId}`.slice(0, 64), name, title: contactText(title, 80), email: normEmail(email), phone: contactText(phone, 40), source });
+  }
+  return out;
+}
 
 function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
   if (s(row.merged_into) || s(row.deleted_at) || s(row.active) === "false") return null;
@@ -162,10 +205,52 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     links: [],
     touches,
     customerOf: customer ? ["churchconnect"] : [],
-    declined: status === "lost" ? "Marked lost in the ChurchConnect pipeline. Do not pitch again." : undefined,
+    declined: truthy(row.do_not_contact)
+      ? "Asked not to be contacted. Do not reach out from any app."
+      : status === "lost"
+        ? "Marked lost in the ChurchConnect pipeline. Do not pitch again."
+        : undefined,
     nextActionDate: open ? s(row.crm_next_action_date) || null : null,
     nextAction: scrubContact(row.crm_next_action, 120),
-    contextOnly
+    contextOnly,
+    churchId: UUID_RE.test(id) ? id : undefined,
+    contacts: churchContacts(row, id)
+  };
+}
+
+const OUTCOME_LABEL: Record<string, string> = {
+  interested: "Interested",
+  follow_up: "Follow up",
+  not_now: "Not right now",
+  do_not_contact: "Asked not to be contacted"
+};
+
+/** A visit or drop-off logged on a church (lead panel or this desk). */
+function visitTouch(row: Row, type: "visit" | "drop_off"): Touch | null {
+  const occurred = s(row.occurred_at);
+  const dayOnly = /^\d{4}-\d{2}-\d{2}$/.test(occurred);
+  // A typed day counts from noon Eastern so the rest ends on the right calendar day.
+  const at = dayOnly ? `${occurred}T16:00:00.000Z` : occurred || s(row.at) || s(row.created_at);
+  if (!at || Number.isNaN(Date.parse(at))) return null;
+  const contact = row.contact && typeof row.contact === "object" ? (row.contact as Row) : null;
+  const met = contact ? shortPersonName(contact.name) : "";
+  const title = contact ? scrubContact(contact.title, 40) : "";
+  const parts = [
+    type === "visit" ? "Visit" : "Drop-off",
+    met ? `met ${met}${title ? ` (${title})` : ""}` : "",
+    s(row.left_item) ? `left ${scrubContact(row.left_item, 60)}` : "",
+    s(row.next_step) ? `next: ${scrubContact(row.next_step, 60)}` : ""
+  ].filter(Boolean);
+  const outcome = [OUTCOME_LABEL[s(row.outcome_code)] || "", scrubContact(row.outcome, 60)].filter(Boolean).join(" — ");
+  return {
+    at,
+    app: "churchconnect",
+    kind: type,
+    what: scrubContact(parts.join(", "), 160),
+    outreach: true,
+    response: outcome || undefined,
+    restDays: type === "drop_off" ? DROP_OFF_REST_DAYS : VISIT_REST_DAYS,
+    dateOnly: dayOnly || undefined
   };
 }
 
@@ -255,7 +340,7 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     read("cc_site_invites", "select=id,church_id:doc->>church_id,slug:doc->>slug,updated_at:doc->>updated_at,created_at&limit=1000", "Website preview pages", "churchconnect"),
     read(
       "cc_church_crm_activities",
-      "select=id,church_id:doc->>church_id,lead_id:doc->>lead_id,type:doc->>type,activity_type:doc->>activity_type,description:doc->>description,at:doc->>created_at,created_at&order=created_at.desc&limit=1000",
+      "select=id,church_id:doc->>church_id,lead_id:doc->>lead_id,type:doc->>type,activity_type:doc->>activity_type,description:doc->>description,at:doc->>created_at,occurred_at:doc->>occurred_at,contact:doc->contact,left_item:doc->>left_item,outcome:doc->>outcome,outcome_code:doc->>outcome_code,next_step:doc->>next_step,created_at&order=created_at.desc&limit=1000",
       "Church activity log",
       "churchconnect"
     ),
@@ -363,12 +448,19 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     if (node && at) node.touches.push({ at, app: "churchconnect", kind: "site_offer", what: "Website offer sent", outreach: true });
   }
 
-  const OUTREACH_ACTIVITY = new Set(["invite", "email", "call", "sms", "visit", "meeting", "text"]);
+  const OUTREACH_ACTIVITY = new Set(["invite", "email", "call", "sms", "visit", "drop_off", "meeting", "text"]);
   for (const row of activities) {
     const node = church(s(row.church_id) || s(row.lead_id));
+    const type = s(row.type).toLowerCase() || s(row.activity_type).toLowerCase();
+    if (node && (type === "visit" || type === "drop_off")) {
+      const touch = visitTouch(row, type);
+      if (touch) {
+        node.touches.push(touch);
+        continue;
+      }
+    }
     const at = s(row.at) || s(row.created_at);
     if (!node || !at) continue;
-    const type = s(row.type).toLowerCase() || s(row.activity_type).toLowerCase();
     const outreach = OUTREACH_ACTIVITY.has(type) && !/FAILED|did not send/i.test(s(row.description));
     if (type === "invite" && node.touches.some((touch) => touch.kind === "invite" && touch.at.slice(0, 16) === at.slice(0, 16))) continue;
     const label = type === "status_change" ? "Pipeline step changed" : type === "created" ? "Added to the pipeline" : type === "merge" ? "Duplicate merged" : type === "note" ? "Note" : type || "Activity";
@@ -484,7 +576,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     if (!node || !at) continue;
     const who = shortPersonName(row.received_by);
     const what = `Left a sample (${s(row.sku) || s(row.landing) || "item"})${who ? ` with ${who}` : ""}${s(row.left_at) ? ` at ${scrubContact(row.left_at, 40)}` : ""}`;
-    node.touches.push({ at, app: "laser", kind: "sample", what, outreach: true });
+    // A sample left with someone is a drop-off: it rests 7 days, not 14.
+    node.touches.push({ at, app: "laser", kind: "sample", what, outreach: true, restDays: DROP_OFF_REST_DAYS });
   }
 
   const personIdFor = (email: string, fallback: string) => `laser:person:${email || fallback}`;

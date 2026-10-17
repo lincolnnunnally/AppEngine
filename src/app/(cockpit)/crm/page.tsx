@@ -1,18 +1,25 @@
 import { redirect } from "next/navigation";
-import { canAccessEngineAdmin } from "@/lib/auth/access";
+import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
-import { CRM_APP_LABEL, DONT_REPEAT_DAYS } from "@/lib/engine/lpl-crm-core";
+import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer } from "@/lib/engine/lpl-crm-core";
+import { crmSavingConfigured } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
 
 export const dynamic = "force-dynamic";
 
-// CRM v1 — owner only, read-only. One card per org or person across
+// CRM — owner and admins can view. One card per org or person across
 // ChurchConnect, Laser, and Presence, read from the tables those apps already
-// keep. Nothing on this page sends, saves, or changes anything.
+// keep. Only the owner can save (church visits and contacts, through
+// ChurchConnect); admins see names and titles, never emails or phones.
+// Nothing on this page sends anything to anyone.
 export default async function CrmPage() {
   if (!(await canAccessEngineAdmin())) redirect("/");
+  const isOwner = await canAccessEngineOwner();
+  const canSave = isOwner && crmSavingConfigured();
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
+  // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
+  const viewCards = snapshot.cards.map((card) => ({ ...card, contacts: contactsForViewer(card.contacts, isOwner) }));
 
   const todayRows = snapshot.followUps.filter((row) => row.today).length;
   const waitRows = snapshot.followUps.filter((row) => !row.today).length;
@@ -37,8 +44,10 @@ export default async function CrmPage() {
         </h1>
         <p className="dx-lede">
           One card for each church, place, or person across ChurchConnect, Laser, and Presence. If any app reached out in the
-          last {DONT_REPEAT_DAYS} days, the card says to let it rest. This page only reads. To act, open the app that owns
-          the record.
+          last {DONT_REPEAT_DAYS} days ({DROP_OFF_REST_DAYS} after a drop-off), the card says to let it rest.
+          {canSave
+            ? " On a church you can log a visit or save a contact here; for anything else, open the app that owns the record."
+            : " To act, open the app that owns the record."}
         </p>
         {snapshot.configured ? (
           <div className="dx-stat-grid crm-stat-grid">
@@ -58,7 +67,7 @@ export default async function CrmPage() {
             <div className={`dx-stat ${resting ? "dx-stat--purple" : ""}`}>
               <strong>{resting}</strong>
               <span>resting</span>
-              <p>reached out in the last {DONT_REPEAT_DAYS} days</p>
+              <p>reached out recently ({DONT_REPEAT_DAYS} days, {DROP_OFF_REST_DAYS} after a drop-off)</p>
             </div>
             <div className={`dx-stat ${stops ? "dx-stat--pink" : ""}`}>
               <strong>{stops}</strong>
@@ -91,7 +100,7 @@ export default async function CrmPage() {
       </section>
 
       {snapshot.configured ? (
-        <CrmDesk cards={snapshot.cards} followUps={snapshot.followUps} adminUrls={snapshot.adminUrls} />
+        <CrmDesk cards={viewCards} followUps={snapshot.followUps} adminUrls={snapshot.adminUrls} canSave={canSave} />
       ) : (
         <section className="panel">
           <p className="dx-callout dx-callout--alert">
@@ -106,8 +115,9 @@ export default async function CrmPage() {
           <details>
             <summary>Where this comes from</summary>
             <p className="dx-note">
-              Read live from each app&apos;s own records. People appear by first name and last initial. Emails and phone
-              numbers are used only to match records and are never shown. Tokens count as printed once Presence marks them
+              Read live from each app&apos;s own records. People in timelines appear by first name and last initial. Emails and
+              phone numbers are used to match records. A church&apos;s saved contacts show their email and phone to the
+              owner only. Tokens count as printed once Presence marks them
               engraved.
             </p>
             <ul className="crm-list">

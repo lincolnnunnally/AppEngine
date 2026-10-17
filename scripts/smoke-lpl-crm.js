@@ -425,6 +425,11 @@ await runStep("readability and tap targets: labels ≥14px, body 16px, controls 
   assertIncludes(css, '.crm-legend summary::before { content: "▸";', "legend toggle has the Timeline chevron");
   assertIncludes(css, ".crm-legend[open] summary::before { transform: rotate(90deg); }", "legend chevron turns when open");
   assertIncludes(block, "min-height: 44px; font-size: 0.875rem; padding: 8px 14px;", "Open card / Open in buttons 44px");
+  const v2 = css.slice(css.indexOf("/* CRM v2 slice 1"));
+  assertIncludes(v2, ".crm-field input, .crm-page .crm-field select { min-height: 44px; font-size: 1rem;", "form fields 44px, 16px");
+  assertIncludes(v2, ".crm-field legend { font-size: 0.875rem;", "form labels 14px");
+  assertIncludes(v2, ".crm-contact-link { display: inline-flex; align-items: center; min-height: 44px;", "call/email links 44px");
+  assertIncludes(v2, ".crm-church-tools .dx-btn { min-height: 44px; font-size: 1rem;", "save buttons 44px");
 });
 
 await runStep("privacy helpers: first name + initial, contact details scrubbed", () => {
@@ -457,8 +462,94 @@ await runStep("page is owner-only and lives in the existing desk", () => {
   assertIncludes(read("source-of-truth/super-admin-registry.md"), "### People & places (CRM v1", "registry entry");
 });
 
+await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins", () => {
+  const { restDaysOf, VISIT_REST_DAYS, DROP_OFF_REST_DAYS } = core;
+  assert(VISIT_REST_DAYS === 14 && DROP_OFF_REST_DAYS === 7, "14 and 7");
+  assert(restDaysOf({}) === 14 && restDaysOf({ restDays: 7 }) === 7 && restDaysOf({ restDays: 0 }) === 14, "default 14");
+  const visit = (n) => ({ at: daysAgo(n), app: "churchconnect", kind: "visit", what: "Visit", outreach: true, restDays: 14 });
+  const drop = (n) => ({ at: daysAgo(n), app: "churchconnect", kind: "drop_off", what: "Drop-off", outreach: true, restDays: 7 });
+  assert(repeatRule([visit(10)], NOW).level === "hold", "visit 10 days ago → resting");
+  assert(repeatRule([visit(10)], NOW).text.includes("visited"), "says visited");
+  assert(repeatRule([drop(6)], NOW).level === "hold", "drop-off 6 days ago → resting");
+  assert(repeatRule([drop(6)], NOW).text.includes("dropped something off"), "says dropped off");
+  assert(repeatRule([drop(8)], NOW).level === "soon", "drop-off 8 days ago → go gently");
+  // A drop-off yesterday after a visit 3 days ago: the visit's rest ends later and wins.
+  const both = repeatRule([drop(1), visit(3)], NOW);
+  assert(both.level === "hold" && both.until.slice(0, 10) === daysAgo(3 - 14).slice(0, 10), `longest rest wins, got ${both.until}`);
+  assert(both.text.includes("visited 3 days ago"), both.text);
+  // Laser samples are drop-offs too when the reader marks them.
+  assert(repeatRule([{ at: daysAgo(8), app: "laser", kind: "sample", what: "Left a sample", outreach: true, restDays: 7 }], NOW).level === "soon", "sample rests 7");
+  const reader = read("src/lib/engine/lpl-crm.ts");
+  assertIncludes(reader, 'kind: "sample", what, outreach: true, restDays: DROP_OFF_REST_DAYS', "Laser samples rest 7");
+  assertIncludes(reader, 'restDays: type === "drop_off" ? DROP_OFF_REST_DAYS : VISIT_REST_DAYS', "visit 14 / drop-off 7");
+});
+
+await runStep("church contacts: one list per card, details only for the owner", () => {
+  const { contactsForViewer } = core;
+  const cards = buildCards(
+    [
+      node({ id: "cc:church:11111111-1111-4111-8111-111111111111", churchId: "11111111-1111-4111-8111-111111111111", name: "Contact Church", contacts: [
+        { id: "sc-aaaaaaaaaaaa", name: "Mary Smith", title: "Secretary", email: "mary@contact.church", phone: "555-111-2222", source: "saved" },
+        { id: "cc-pastor-1", name: "Pat Jones", title: "Pastor", email: "", phone: "", source: "pastor" },
+        { id: "cc-contact-1", name: "Mary Smith", title: "", email: "mary@contact.church", phone: "555-111-2222", source: "contact" }
+      ] })
+    ],
+    NO_SUPPRESS,
+    NOW
+  );
+  const card = cards[0];
+  assert(card.churchId === "11111111-1111-4111-8111-111111111111", "card knows its church");
+  assert(card.contacts.length === 2 && card.contacts[0].source === "saved", `deduped, saved first: ${JSON.stringify(card.contacts.map((c) => c.name))}`);
+  const admin = contactsForViewer(card.contacts, false);
+  assert(admin.every((c) => c.email === "" && c.phone === ""), "admins never get email or phone");
+  assert(admin[0].name === "Mary Smith" && admin[0].title === "Secretary", "admins keep name and title");
+  assert(contactsForViewer(card.contacts, true)[0].email === "mary@contact.church", "owner sees details");
+  const page = read("src/app/(cockpit)/crm/page.tsx");
+  assertIncludes(page, "contactsForViewer(card.contacts, isOwner)", "page strips details for non-owners");
+  assertIncludes(page, "cards={viewCards}", "stripped cards reach the browser");
+  assertIncludes(page, "const canSave = isOwner && crmSavingConfigured()", "only the owner gets save forms");
+});
+
+await runStep("saving: owner-only server actions, narrow pass, one save per form", () => {
+  const actions = read("src/app/(cockpit)/crm/actions.ts");
+  assert(actions.startsWith('"use server"'), "server actions file");
+  const gates = actions.match(/if \(!\(await canAccessEngineOwner\(\)\)\) return refused\(\);/g) || [];
+  const exported = actions.match(/export async function \w+Action/g) || [];
+  assert(exported.length >= 2 && gates.length === exported.length, `every action checks the owner first (${gates.length}/${exported.length})`);
+  const writer = read("src/lib/engine/lpl-crm-write.ts");
+  for (const needle of ['iss: CRM_PASS_ISSUER', 'aud: CRM_PASS_AUDIENCE', "htm: method", "htu: path", "CRM_PASS_TTL_SECONDS = 90", '"X-Engine-Pass"', "APPENGINE_CC_CRM_SECRET", "client_ref: visit.clientRef", 'reason: "do_not_contact"', "insert.status !== 409"]) {
+    assertIncludes(writer, needle, "writer contract");
+  }
+  assertIncludes(writer, "/api/church-crm/leads/${visit.churchId}/activities", "visits go through ChurchConnect");
+  assertIncludes(writer, "/api/church-crm/leads/${churchId}/contacts/${contact.id}", "contacts go through ChurchConnect");
+  assert(!/console\.(log|error|warn)/.test(writer), "writer never logs");
+  assert(!/method: "(PATCH|DELETE)"/.test(writer), "no PATCH or DELETE anywhere");
+  assert(!writer.includes('"cc_churches", {') && !/rest\/v1\/cc_church[a-z_]*`?, \{\s*method: "(POST|PATCH|PUT)/.test(writer), "church records are only read directly");
+  const tools = read("src/components/engine/crm-church-tools.tsx");
+  assertIncludes(tools, '"use client"', "client component");
+  assert(!tools.includes("lpl-crm-write") && !tools.includes("process.env") && !tools.includes("SERVICE_ROLE"), "client never touches the writer or env");
+  assertIncludes(tools, 'name="client_ref" value={clientRef}', "one-time key per form");
+  assertIncludes(tools, "disabled={pending}", "button locks while saving");
+  const desk = read("src/components/engine/crm-desk.tsx");
+  assert(!desk.includes("lpl-crm-write"), "desk never imports the writer");
+});
+
+await runStep("church rule: exactly four offers, never a business tool, never 'marketing'", async () => {
+  const src = read("src/lib/engine/church-offer-rule.ts");
+  const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const rule = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
+  // Pinned. ChurchConnect's backend/utils/church_offer_rule.py pins the same list.
+  assert(JSON.stringify(rule.CHURCH_OFFER_IDS) === JSON.stringify(["churchconnect", "easypeazy", "laser", "outreach"]), "exactly four");
+  assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "Outreach" && rule.OUTREACH_URL === "https://www.churchconnect.cloud/mission", "Outreach → Live On Mission");
+  assert(rule.churchProductOf("directory") === "churchconnect", "directory is ChurchConnect");
+  for (const banned of [...rule.NEVER_FOR_CHURCHES, "operate", "toner", "", null, "marketing"]) assert(!rule.allowedForChurch(banned), `never ${banned}`);
+  assert(rule.hasForbiddenChurchWord("church marketing") && !rule.hasForbiddenChurchWord("Outreach with Live On Mission"), "marketing caught");
+  const kept = rule.filterChurchOffers([{ id: "churchconnect", pitch: "Enter once." }, { id: "operate", pitch: "x" }, { id: "outreach", pitch: "Church marketing" }, "laser", "toner"]);
+  assert(JSON.stringify(kept.map((k) => (typeof k === "string" ? k : k.id))) === '["churchconnect","laser"]', "filter checks ids and words");
+});
+
 await runStep("plain words on screen — no vendor names", () => {
-  const screens = read("src/app/(cockpit)/crm/page.tsx") + read("src/components/engine/crm-desk.tsx");
+  const screens = read("src/app/(cockpit)/crm/page.tsx") + read("src/components/engine/crm-desk.tsx") + read("src/components/engine/crm-church-tools.tsx");
   const visible = screens.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/import[^;]+;/g, "");
   for (const vendor of ["Supabase", "supabase", "Vercel", "Stripe", "Resend", "Neon", "PostgREST", "jsonb"]) {
     assert(!visible.includes(vendor), `vendor word on screen: ${vendor}`);
@@ -469,4 +560,4 @@ if (failures) {
   console.error(`\n${failures} CRM smoke step(s) failed.`);
   process.exit(1);
 }
-console.log("\nCRM v1 smoke passed.");
+console.log("\nCRM smoke passed.");

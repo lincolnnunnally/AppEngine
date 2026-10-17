@@ -7357,3 +7357,28 @@ button.compose-arch:hover {
 .crm-legend summary::before { content: "▸"; color: var(--muted); transition: transform 0.15s ease; }
 .crm-legend[open] summary::before { transform: rotate(90deg); }
 .crm-legend summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+/* CRM v2 slice 1 — church people + log a visit. Labels ≥14px, body 16px, every control ≥44px. */
+.crm-page .crm-church-tools h4 { font-size: 0.875rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.crm-page .crm-contacts { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+.crm-page .crm-contact { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 1rem; }
+.crm-page .crm-contact-name { font-size: 1rem; font-weight: 650; color: var(--ink); }
+.crm-page .crm-contact-note { display: block; font-size: 0.875rem; color: var(--muted); }
+.crm-page .crm-contact-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.crm-page .crm-contact-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 1rem; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.crm-page .crm-contact-edit { justify-self: start; }
+.crm-page .crm-church-tools .dx-btn { min-height: 44px; font-size: 1rem; padding: 8px 16px; }
+.crm-page .crm-form { display: grid; gap: 12px; margin: 8px 0 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.crm-page .crm-form-group { display: grid; gap: 12px; }
+@media (min-width: 720px) { .crm-page .crm-form-group { grid-template-columns: 1fr 1fr; } }
+.crm-page .crm-field { display: grid; gap: 6px; margin: 0; border: 0; padding: 0; min-width: 0; }
+.crm-page .crm-field > span, .crm-page .crm-field legend { font-size: 0.875rem; font-weight: 600; color: var(--muted); }
+.crm-page .crm-field input, .crm-page .crm-field select { min-height: 44px; font-size: 1rem; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); width: 100%; box-sizing: border-box; }
+.crm-page .crm-field select option { color: #111; }
+.crm-page .crm-choice { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.crm-page .crm-choice legend { margin-bottom: 6px; width: 100%; }
+.crm-page .crm-choice label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 1rem; }
+.crm-page .crm-choice input { width: 20px; height: 20px; }
+.crm-page .crm-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.crm-page .crm-form-status { font-size: 1rem; margin: 0; }
+.crm-page .crm-form .dx-btn[disabled] { opacity: 0.6; cursor: progress; }
