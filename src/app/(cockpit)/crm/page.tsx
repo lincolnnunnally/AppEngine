@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
-import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer } from "@/lib/engine/lpl-crm-core";
+import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer } from "@/lib/engine/lpl-crm-core";
 import { crmSavingConfigured, savingOffMessage } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
 
@@ -21,7 +21,7 @@ export default async function CrmPage() {
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
   // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
-  const viewCards = snapshot.cards.map((card) => ({ ...card, contacts: contactsForViewer(card.contacts, isOwner) }));
+  const viewCards = snapshot.cards.map((card) => ({ ...card, contacts: contactsForViewer(card.contacts, isOwner), org: orgForViewer(card.org, isOwner) }));
 
   const todayRows = snapshot.followUps.filter((row) => row.today).length;
   const waitRows = snapshot.followUps.filter((row) => !row.today).length;
@@ -45,10 +45,10 @@ export default async function CrmPage() {
           Who we have <em>reached</em>, and who is next.
         </h1>
         <p className="dx-lede">
-          One card for each church, place, or person across ChurchConnect, Laser, and Presence. If any app reached out in the
+          One card for each church, business lead, place, or person across ChurchConnect, Laser, Presence, and business leads. If any app reached out in the
           last {DONT_REPEAT_DAYS} days ({DROP_OFF_REST_DAYS} after a drop-off), the card says to let it rest.
           {canSave
-            ? " On a church you can log a visit or save a contact here; for anything else, open the app that owns the record."
+            ? " You can add a church or business, pick its apps, and log a visit or save a contact on a church here; for anything else, open the app that owns the record."
             : " To act, open the app that owns the record."}
         </p>
         {snapshot.configured ? (
@@ -97,7 +97,7 @@ export default async function CrmPage() {
         ) : null}
         {savingOff ? (
           <p className="dx-callout" role="status">
-            {savingOff} You can look, but visits and contacts can&apos;t be saved from here.
+            {savingOff} You can look, but orgs, visits, and contacts can&apos;t be saved from here.
           </p>
         ) : null}
         <p className="dx-note crm-asof">

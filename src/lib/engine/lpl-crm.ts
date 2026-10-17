@@ -21,11 +21,13 @@ import {
   type CrmCard,
   type CrmContact,
   type CrmNode,
+  type CrmOrg,
   type FollowUp,
   type Suppressions,
   type TokenRow,
   type Touch
 } from "@/lib/engine/lpl-crm-core";
+import { BUSINESS_OFFER_IDS, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
 
@@ -110,7 +112,7 @@ const CHURCH_FIELDS = [
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
   "contact_name", "contact_role", "do_not_contact", "do_not_contact_source"
 ];
-const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts`;
+const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers`;
 const CHURCH_TOUCHED = [
   "doc->>crm_status.not.is.null",
   "doc->>crm_next_action_date.not.is.null",
@@ -215,7 +217,64 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     contextOnly,
     churchId: UUID_RE.test(id) ? id : undefined,
     contacts: churchContacts(row, id),
-    deskDoNotContact: UUID_RE.test(id) && truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit"
+    deskDoNotContact: UUID_RE.test(id) && truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit",
+    org: UUID_RE.test(id) ? churchOrg(row, id) : undefined
+  };
+}
+
+function churchOrg(row: Row, id: string): CrmOrg {
+  return {
+    kind: "church",
+    id,
+    name: s(row.name) || s(row.church_name),
+    city: s(row.city),
+    state: s(row.state),
+    website: s(row.website),
+    phone: contactText(row.phone, 40),
+    email: normEmail(row.email),
+    offers: cleanChurchOfferIds(row.crm_offers)
+  };
+}
+
+export const OP_LEAD_SELECT = "select=id,slug,business_name,category,city,state,phone,email,website_url,status,signals,created_at,updated_at";
+
+/** A business prospect (op_leads). The desk is its only writer today. */
+export function businessNode(row: Row): CrmNode | null {
+  const id = s(row.id);
+  if (!UUID_RE.test(id)) return null;
+  const status = s(row.status).toLowerCase();
+  const signals = row.signals && typeof row.signals === "object" ? (row.signals as Row) : {};
+  const services = Array.isArray(signals.services) ? signals.services.map((value) => s(value)) : [];
+  const created = s(row.created_at);
+  return {
+    id: `op:lead:${id}`,
+    app: "business",
+    kind: "org",
+    name: s(row.business_name) || "Business",
+    town: [s(row.city), s(row.state)].filter(Boolean).join(", "),
+    emails: [s(row.email)],
+    domains: [s(row.website_url)],
+    phones: [s(row.phone)],
+    links: [],
+    touches: created ? [{ at: created, app: "business", kind: "note", what: "Added as a business lead", outreach: false }] : [],
+    customerOf: [],
+    declined:
+      status === "suppressed"
+        ? "Asked not to be contacted. Do not reach out from any app."
+        : status === "declined"
+          ? "Said no as a business lead. Do not pitch again."
+          : undefined,
+    org: {
+      kind: "business",
+      id,
+      name: s(row.business_name),
+      city: s(row.city),
+      state: s(row.state),
+      website: s(row.website_url),
+      phone: contactText(row.phone, 40),
+      email: normEmail(row.email),
+      offers: BUSINESS_OFFER_IDS.filter((offer) => services.includes(offer))
+    }
   };
 }
 
@@ -336,7 +395,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     pCoins,
     pMoments,
     pScans,
-    suppressionRows
+    suppressionRows,
+    opLeads
   ] = await Promise.all([
     read("cc_churches", `${CHURCH_SELECT}&or=(${CHURCH_TOUCHED})&limit=1500`, "Churches in the pipeline", "churchconnect"),
     read("cc_site_invites", "select=id,church_id:doc->>church_id,slug:doc->>slug,updated_at:doc->>updated_at,created_at&limit=1000", "Website preview pages", "churchconnect"),
@@ -378,7 +438,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     read("presence_coins", "select=id,batch_id,serial,code,kind,place_id,moment_id,status,released_where,released_at,found_at,created_at&limit=5000", "Tokens", "presence"),
     read("presence_moments", "select=id,title,activity,kind,starts_at,place,city,state,place_id,coin_batch_id,status,created_at&limit=1000", "Events", "presence"),
     read("presence_coin_scans", "select=coin_id,kind,created_at&order=created_at.desc&limit=5000", "Token scans", "presence"),
-    read("outreach_suppressions", "select=email,domain,phone&limit=5000", "Do-not-contact list", "shared")
+    read("outreach_suppressions", "select=email,domain,phone&limit=5000", "Do-not-contact list", "shared"),
+    read("op_leads", `${OP_LEAD_SELECT}&order=created_at.desc&limit=1000`, "Business leads", "business")
   ]);
 
   const nodes = new Map<string, CrmNode>();
@@ -411,6 +472,9 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
 
   // --- ChurchConnect ---------------------------------------------------------
   for (const row of churches) add(churchNode(row, false));
+
+  // --- Business leads (op_leads) ---------------------------------------------
+  for (const row of opLeads) add(businessNode(row));
 
   // Churches the logs point at that the pipeline query did not return.
   const wanted = new Set<string>();

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChurchTools } from "@/components/engine/crm-church-tools";
+import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -14,6 +15,7 @@ import {
   type CrmCard,
   type FollowUp,
   type FollowUpReason,
+  type OrgKind,
   type Touch
 } from "@/lib/engine/lpl-crm-core";
 
@@ -105,7 +107,8 @@ function TouchLine({ touch }: { touch: Touch }) {
       <span className="crm-touch-when">{touch.dateOnly ? fmtDate(touch.at) : fmtTime(touch.at)}</span>
       <span className="crm-touch-body">
         <span className="crm-touch-head">
-          <AppPill app={touch.app} />
+          {/* A business lead's own notes don't need a second "Business lead" pill. */}
+          {touch.app === "business" ? null : <AppPill app={touch.app} />}
           <span className="crm-touch-kind">{touch.kind === "visit" ? "We visited" : touch.kind === "drop_off" ? "We dropped off" : touch.outreach ? "We reached out" : touch.signal ? "They responded" : "Noted"}</span>
         </span>
         <span className="crm-touch-what">{touch.what}</span>
@@ -120,10 +123,33 @@ function TouchLine({ touch }: { touch: Touch }) {
   );
 }
 
-function CardView({ card, adminUrls, open, onOpen, canSave }: { card: CrmCard; adminUrls: Props["adminUrls"]; open: boolean; onOpen: (key: string) => void; canSave: boolean }) {
+function CardView({
+  card,
+  adminUrls,
+  open,
+  onOpen,
+  onOpenOrg,
+  canSave
+}: {
+  card: CrmCard;
+  adminUrls: Props["adminUrls"];
+  open: boolean;
+  onOpen: (key: string) => void;
+  onOpenOrg: (match: { kind: OrgKind; id: string }) => void;
+  canSave: boolean;
+}) {
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
-  const matchText = card.matchedBy.length
+  // A card that is only a business lead: say which apps were picked (or none yet): "Only in Operate", "In Operate and AI Website Design".
+  const businessOnly = card.apps.length === 1 && card.apps[0] === "business" && card.org?.kind === "business";
+  const businessApps = businessOnly ? (card.org?.offers ?? []).map((id) => offerLabel("business", id)).filter(Boolean) : [];
+  const matchText = businessOnly
+    ? businessApps.length === 1
+      ? `Only in ${businessApps[0]}`
+      : businessApps.length
+        ? `In ${businessApps.slice(0, -1).join(", ")} and ${businessApps[businessApps.length - 1]}`
+        : "Not in any app yet"
+    : card.matchedBy.length
     ? `Matched by ${card.matchedBy.map((kind) => MATCH_LABEL[kind]).join(", ")}`
     : card.recordCount > 1
       ? "Several records in one app"
@@ -211,6 +237,7 @@ function CardView({ card, adminUrls, open, onOpen, canSave }: { card: CrmCard; a
         ) : null}
       </dl>
 
+      <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
       <ChurchTools card={card} canSave={canSave} />
 
       <details className="crm-more" open={open}>
@@ -383,6 +410,24 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false }: Props)
     requestAnimationFrame(() => document.getElementById("crm-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
+  // "Open it" from an add/edit match: the card on this desk, or the record in ChurchConnect.
+  const [orgNote, setOrgNote] = useState("");
+  const openOrg = (match: { kind: OrgKind; id: string }) => {
+    const card = cards.find((item) => item.org?.id === match.id || (match.kind === "church" && item.churchId === match.id));
+    if (card) {
+      setOrgNote("");
+      openCard(card.key);
+      return;
+    }
+    const link = match.kind === "church" ? recordLink("churchconnect", { recordPaths: { churchconnect: `/super-admin#crm/lead/${match.id}` } }, adminUrls) : null;
+    if (link) {
+      window.open(link.href, "_blank", "noopener,noreferrer");
+      setOrgNote("That church isn't on this desk yet (nothing logged on it), so it opened in ChurchConnect.");
+    } else {
+      setOrgNote("That one isn't on this desk yet. Reload in a moment.");
+    }
+  };
+
   return (
     <>
       <section className="panel" id="crm-today" aria-labelledby="crm-today-title">
@@ -486,6 +531,12 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false }: Props)
             <div><dt>Tokens printed</dt><dd>A Presence token counts as printed once it is engraved (or released or found).</dd></div>
           </dl>
         </details>
+        {canSave ? <AddOrg onOpen={openOrg} /> : null}
+        {orgNote ? (
+          <p className="crm-form-status crm-warn-text" role="status">
+            {orgNote}
+          </p>
+        ) : null}
         {focus ? (
           <p className="crm-focus-note">
             Showing one card.{" "}
@@ -497,7 +548,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false }: Props)
         {shownCards.length ? (
           <div className="crm-grid">
             {shownCards.slice(0, limit).map((card) => (
-              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} canSave={canSave} />
+              <CardView card={card} adminUrls={adminUrls} key={card.key} open={Boolean(focus)} onOpen={openCard} onOpenOrg={openOrg} canSave={canSave} />
             ))}
           </div>
         ) : (

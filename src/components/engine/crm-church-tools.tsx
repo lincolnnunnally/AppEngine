@@ -16,7 +16,7 @@ const SOURCE_LABEL: Record<CrmContact["source"], string> = {
   contact: "From the church record"
 };
 
-function newId(): string {
+export function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -24,7 +24,7 @@ function todayEastern(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
-function Status({ state }: { state: CrmFormState }) {
+export function Status({ state }: { state: CrmFormState }) {
   if (!state) return null;
   return (
     <p className={`crm-form-status ${state.ok ? "crm-ok-text" : "crm-warn-text"}`} role={state.ok ? "status" : "alert"}>

@@ -531,7 +531,9 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(writer, "/api/church-crm/leads/${churchId}/contacts/${contact.id}", "contacts go through ChurchConnect");
   assert(!/console\.(log|error|warn)/.test(writer), "writer never logs");
   assertIncludes(writer, 'if (env.VERCEL_ENV === "production") return {};', "preview bypass never sent from production");
-  assert(!/method: "PATCH"/.test(writer), "no PATCH anywhere");
+  // PATCH: only a church's basics through ChurchConnect (pass-bound) and a business lead row.
+  assert((writer.match(/method: "PATCH"/g) || []).length === 1 && writer.includes('fetch(`${config.url}/rest/v1/op_leads?id=eq.${id}`, {\n      method: "PATCH"'), "the only direct PATCH is one business lead");
+  assertIncludes(writer, 'callChurchConnect(cc as CcConfig, "PATCH", `/api/church-crm/leads/${id}`, ownerEmail', "church edits go through ChurchConnect");
   // The only deletes: one saved contact (through ChurchConnect, pass-bound) and this desk's own do-not-contact rows for one church.
   assertIncludes(writer, 'callChurchConnect(config, "DELETE", `/api/church-crm/leads/${churchId}/contacts/${contactId}`, ownerEmail)', "contact removal goes through ChurchConnect");
   assertIncludes(writer, "return `crm_visit:${churchId}`;", "desk rows carry the church id");
@@ -593,9 +595,9 @@ await runStep("pass secret: env var first, else the shared database row; cached;
   assert((await mod.resolveCrmSecret({ APPENGINE_CC_CRM_SECRET: "tooshort" }, fetcher, 0)) === "", "a short env value is refused");
   const writer = read("src/lib/engine/lpl-crm-write.ts");
   assertIncludes(writer, 'return env.VERCEL_ENV === "production" ? "Saving isn\'t switched on yet." : "Saving isn\'t available on this preview.";', "clear fail-closed wording");
-  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 4, "every save (visit, contact, remove, undo) fails closed");
+  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 5, "every save (visit, contact, remove, undo, business lead) fails closed");
   // Nothing that runs in the browser may import the secret module.
-  for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx"]) {
+  for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx", "src/components/engine/crm-org-tools.tsx"]) {
     const text = read(rel);
     assert(!text.includes("crm-pass-secret") && !text.includes("app_shared_secrets"), `${rel} never touches the secret`);
   }
@@ -630,7 +632,7 @@ await runStep("church rule: exactly four offers, never a business tool, never 'm
   const rule = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
   // Pinned. ChurchConnect's backend/utils/church_offer_rule.py pins the same list.
   assert(JSON.stringify(rule.CHURCH_OFFER_IDS) === JSON.stringify(["churchconnect", "easypeazy", "laser", "outreach"]), "exactly four");
-  assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "Outreach" && rule.OUTREACH_URL === "https://www.churchconnect.cloud/mission", "Outreach → Live On Mission");
+  assert(rule.CHURCH_ALLOWED_OFFERS.outreach === "ChurchConnect: Outreach (Live on Mission)" && rule.OUTREACH_URL === "https://live-on-mission.com/outreach", "Outreach → Live On Mission");
   assert(rule.churchProductOf("directory") === "churchconnect", "directory is ChurchConnect");
   for (const banned of [...rule.NEVER_FOR_CHURCHES, "operate", "toner", "", null, "marketing"]) assert(!rule.allowedForChurch(banned), `never ${banned}`);
   assert(rule.hasForbiddenChurchWord("church marketing") && !rule.hasForbiddenChurchWord("Outreach with Live On Mission"), "marketing caught");
@@ -638,8 +640,95 @@ await runStep("church rule: exactly four offers, never a business tool, never 'm
   assert(JSON.stringify(kept.map((k) => (typeof k === "string" ? k : k.id))) === '["churchconnect","laser"]', "filter checks ids and words");
 });
 
+await runStep("slice 2: church or business — unclear is a church; a church only sees church apps", async () => {
+  const core = await loadCore();
+  const src = read("src/lib/engine/church-offer-rule.ts");
+  const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const rule = await import(`data:text/javascript;base64,${Buffer.from(out).toString("base64")}`);
+  assert(core.resolveOrgKind("unsure", "Joe's Tires", false).kind === "church", "not sure = church");
+  assert(core.resolveOrgKind("", "Anything", false).kind === "church", "blank = church");
+  assert(core.resolveOrgKind("church", "Joe's Tires", false).kind === "church", "church stays church");
+  assert(core.resolveOrgKind("business", "Joe's Tires", false).kind === "business", "a plain business");
+  assert("error" in core.resolveOrgKind("business", "Grace Baptist Church", false), "church-sounding business needs a tick");
+  assert(core.resolveOrgKind("business", "Grace Baptist Church", true).kind === "business", "…and then it's a business");
+  for (const name of ["First Baptist", "St. Mark AME", "New Hope Fellowship", "Canton Chapel"]) assert(core.looksLikeChurch(name), `church word: ${name}`);
+  for (const name of ["Joe's Tires", "Canton Florist", "Main Street Market"]) assert(!core.looksLikeChurch(name), `not a church: ${name}`);
+  const churchIds = rule.offerChoices("church").map((choice) => choice.id);
+  assert(JSON.stringify(churchIds) === JSON.stringify(rule.CHURCH_OFFER_IDS), "church choices are exactly the rule");
+  for (const choice of rule.offerChoices("church")) assert(!rule.hasForbiddenChurchWord(choice.label), `no 'marketing' for a church: ${choice.label}`);
+  assert(!churchIds.some((id) => ["operate", "awd", "marketing_campaign", "toner", "presence"].includes(id)), "never a business tool for a church");
+  assert(JSON.stringify(rule.cleanChurchOfferIds(["operate", "outreach", "directory", "marketing_campaign", "laser"])) === '["churchconnect","laser","outreach"]', "server cleans church picks");
+  assert(JSON.stringify(rule.cleanBusinessOfferIds(["operate", "nope", "laser"])) === '["operate","laser"]', "server cleans business picks");
+  // Domains are addresses, not words: Laser's .market domain no longer drops Laser.
+  assert(rule.filterChurchOffers([{ id: "laser", name: "Laser church gifts", url: "https://laser.engrave.market" }]).length === 1, "laser survives the word check");
+  // Admins never see an org's phone or email.
+  const org = { kind: "church", id: "1", name: "A", city: "B", state: "GA", website: "", phone: "770-555-0100", email: "a@b.org", offers: [] };
+  const seen = core.orgForViewer(org, false);
+  assert(seen.phone === "" && seen.email === "" && seen.name === "A", "admin view strips phone and email");
+  assert(core.orgForViewer(org, true).phone === "770-555-0100", "owner sees them");
+  // A church card that also has a business lead edits the church.
+  const cards = core.buildCards(
+    [
+      node({ id: "cc:church:1", domains: ["grace.example"], org: { ...org, id: "c1", kind: "church" } }),
+      node({ id: "op:lead:1", app: "business", domains: ["grace.example"], org: { ...org, id: "b1", kind: "business" } })
+    ],
+    none(),
+    NOW
+  );
+  assert(cards.length === 1 && cards[0].org.kind === "church" && cards[0].apps.includes("business"), "church first on a joined card");
+  assert(core.CRM_APP_LABEL.business === "Business lead", "business pill label");
+  // Church apps all read as ChurchConnect; EasyPeazy is one word; Marketing campaign hidden until it exists.
+  assert(JSON.stringify(rule.offerChoices("church").map((c) => c.label)) === JSON.stringify(["ChurchConnect", "ChurchConnect: church website", "ChurchConnect: Laser church gifts", "ChurchConnect: Outreach (Live on Mission)"]), "church labels");
+  const biz = rule.offerChoices("business");
+  assert(JSON.stringify(biz.map((c) => c.id)) === '["operate","awd","easypeazy","laser"]' && rule.MARKETING_CAMPAIGN_LIVE === false, "marketing campaign hidden behind the flag");
+  assert(JSON.stringify(rule.cleanBusinessOfferIds(["marketing_campaign", "operate"])) === '["operate"]', "a hidden offer can't be saved");
+  assert(biz.find((c) => c.id === "awd").hint && biz.find((c) => c.id === "easypeazy").hint && biz.find((c) => c.id === "easypeazy").label === "EasyPeazy website", "hints + EasyPeazy one word");
+  assert(!/Easy Peazy/.test(JSON.stringify([...rule.offerChoices("church"), ...biz])), "never 'Easy Peazy'");
+});
+
+await runStep("slice 2: adding looks for duplicates first; churches hidden; nothing sent", () => {
+  const writer = read("src/lib/engine/lpl-crm-write.ts");
+  const create = writer.slice(writer.indexOf("export async function createOrg"), writer.indexOf("async function insertBusinessLead"));
+  const check = create.indexOf("findOrgMatches(org)");
+  assert(check > 0 && check < create.indexOf("callChurchConnect") && check < create.indexOf("insertBusinessLead(org)"), "match check runs before any save");
+  assertIncludes(writer, "if (matches === null) return { ok: false", "no check = no save");
+  assertIncludes(writer, "if (matches.some((match) => match.hard))", "same name + town is never added twice");
+  for (const needle of ['"same name and town"', '"same website"', '"same phone"', '"same email"']) assertIncludes(writer, needle, "match reasons");
+  assertIncludes(writer, 'callChurchConnect(cc as CcConfig, "POST", "/api/church-crm/leads", ownerEmail', "churches go through ChurchConnect");
+  assertIncludes(writer, "send_invite: false", "a business lead never queues an invite");
+  assertIncludes(writer, 'source: "appengine_crm"', "business rows are marked as desk rows");
+  assert(!/is_public:\s*true/.test(writer), "never makes a church public");
+  assert((writer.match(/if \(org\.kind === "church" && !cc\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 1, "add fails closed without the pass");
+  assert((writer.match(/if \(kind === "church" && !cc\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 1, "edit fails closed without the pass");
+  const actions = read("src/app/(cockpit)/crm/actions.ts");
+  for (const name of ["addOrgAction", "editOrgAction"]) assertIncludes(actions, `export async function ${name}`, "org actions");
+  const tools = read("src/components/engine/crm-org-tools.tsx");
+  assertIncludes(tools, '"use client"', "client component");
+  assert(!tools.includes("lpl-crm-write") && !tools.includes("process.env"), "client never touches the writer or env");
+  assertIncludes(tools, "Not sure is saved as a church", "not-sure wording");
+  assertIncludes(tools, "Yes, this is a business, not a church", "church-name guard wording");
+  assertIncludes(tools, "Open it", "offer to open the existing one");
+  assertIncludes(tools, "if ((next === \"business\") !== (kind === \"business\")) setDraft((current) => ({ ...current, offers: [] }));", "switching kind clears the app picks");
+  assertIncludes(tools, "{hard ? null : (", "same name + town hides the add button");
+  assertIncludes(tools, "disabled={pending || (matches.length > 0 && !confirmNew)}", "'Add anyway' waits for the different-one tick");
+  assertIncludes(tools, "This name sounds like a church. Tick to confirm it&apos;s a business.", "church-name line above the tick");
+  assertIncludes(tools, "{matches.length ? null : <Status state={state} />}", "one duplicate message, not two");
+  assertIncludes(tools, "Name (required)", "required marked");
+  const deskSrc = read("src/components/engine/crm-desk.tsx");
+  assertIncludes(deskSrc, "`Only in ${businessApps[0]}`", "one app: 'Only in Operate'");
+  assertIncludes(deskSrc, "`In ${businessApps.slice(0, -1).join(\", \")} and ${businessApps[businessApps.length - 1]}`", "several apps: 'In Operate and AI Website Design'");
+  assertIncludes(tools, '{editing ? "Edit details and apps"', "edit form has its own heading");
+  assertIncludes(writer, "if (current !== null && current !== org.email) body.contact_email = org.email;", "church email sent only when it changed");
+  assertIncludes(tools, "value={draft.name}", "fields are controlled, so a match answer never wipes what was typed");
+  assertIncludes(tools, "disabled={pending}", "button locks while saving");
+  const desk = read("src/components/engine/crm-desk.tsx");
+  assertIncludes(desk, "{canSave ? <AddOrg onOpen={openOrg} /> : null}", "add is owner-only");
+  const page = read("src/app/(cockpit)/crm/page.tsx");
+  assertIncludes(page, "org: orgForViewer(card.org, isOwner)", "page strips org contact details for admins");
+});
+
 await runStep("plain words on screen — no vendor names", () => {
-  const screens = read("src/app/(cockpit)/crm/page.tsx") + read("src/components/engine/crm-desk.tsx") + read("src/components/engine/crm-church-tools.tsx");
+  const screens = read("src/app/(cockpit)/crm/page.tsx") + read("src/components/engine/crm-desk.tsx") + read("src/components/engine/crm-church-tools.tsx") + read("src/components/engine/crm-org-tools.tsx");
   const visible = screens.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/import[^;]+;/g, "");
   for (const vendor of ["Supabase", "supabase", "Vercel", "Stripe", "Resend", "Neon", "PostgREST", "jsonb"]) {
     assert(!visible.includes(vendor), `vendor word on screen: ${vendor}`);

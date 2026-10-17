@@ -3,7 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
-import { logChurchVisit, removeChurchContact, saveChurchContact, undoChurchDoNotContact, type OutcomeCode, type VisitKind } from "@/lib/engine/lpl-crm-write";
+import {
+  createOrg,
+  editOrg,
+  logChurchVisit,
+  removeChurchContact,
+  saveChurchContact,
+  undoChurchDoNotContact,
+  type OrgInput,
+  type OrgMatch,
+  type OutcomeCode,
+  type VisitKind
+} from "@/lib/engine/lpl-crm-write";
 
 // Saves from the CRM desk. OWNER ONLY: every action checks the owner gate on
 // the server before anything is read from the form. Admins can view the desk
@@ -83,4 +94,44 @@ export async function undoDoNotContactAction(_prev: CrmFormState, formData: Form
   const result = await undoChurchDoNotContact(await ownerEmail(), field(formData, "church_id"));
   revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+// ── Add or edit an org ─────────────────────────────────────────────────────
+
+export type OrgFormState = { ok: boolean; message: string; at: number; matches?: OrgMatch[]; kind?: "church" | "business"; id?: string } | null;
+
+function orgInput(formData: FormData): Partial<OrgInput> {
+  return {
+    kind: field(formData, "kind"),
+    confirmBusiness: field(formData, "confirm_business") === "yes",
+    name: field(formData, "name"),
+    city: field(formData, "city"),
+    state: field(formData, "state"),
+    website: field(formData, "website"),
+    phone: field(formData, "phone"),
+    email: field(formData, "email"),
+    offers: formData.getAll("offers").map((value) => String(value)),
+    confirmNew: field(formData, "confirm_new") === "yes"
+  };
+}
+
+export async function addOrgAction(_prev: OrgFormState, formData: FormData): Promise<OrgFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const result = await createOrg(await ownerEmail(), orgInput(formData));
+  if (result.ok) {
+    revalidatePath("/crm");
+    return { ok: true, message: result.message, at: Date.now(), kind: result.kind, id: result.id };
+  }
+  return { ok: false, message: result.message, at: Date.now(), matches: result.matches };
+}
+
+export async function editOrgAction(_prev: OrgFormState, formData: FormData): Promise<OrgFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const kind = field(formData, "org_kind") === "business" ? "business" : "church";
+  const result = await editOrg(await ownerEmail(), kind, field(formData, "org_id"), orgInput(formData));
+  if (result.ok) {
+    revalidatePath("/crm");
+    return { ok: true, message: result.message, at: Date.now(), kind: result.kind, id: result.id };
+  }
+  return { ok: false, message: result.message, at: Date.now(), matches: result.matches };
 }
