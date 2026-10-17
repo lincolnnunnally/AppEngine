@@ -6,6 +6,7 @@ import {
   FOLLOW_UP_LABEL,
   MATCH_LABEL,
   adminHomeNote,
+  countTokens,
   hasClockTime,
   recordLink,
   type CrmApp,
@@ -114,8 +115,8 @@ function TouchLine({ touch }: { touch: Touch }) {
 }
 
 function CardView({ card, adminUrls, open, onOpen }: { card: CrmCard; adminUrls: Props["adminUrls"]; open: boolean; onOpen: (key: string) => void }) {
-  const printed = card.tokens.filter((token) => token.printed === true).length;
-  const notPrinted = card.tokens.filter((token) => token.printed === false).length;
+  const printed = countTokens(card.tokens, true);
+  const notPrinted = countTokens(card.tokens, false);
   const matchText = card.matchedBy.length
     ? `Matched by ${card.matchedBy.map((kind) => MATCH_LABEL[kind]).join(", ")}`
     : card.recordCount > 1

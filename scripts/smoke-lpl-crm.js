@@ -62,7 +62,7 @@ function node(overrides) {
 }
 
 const core = await loadCore();
-const { buildCards, buildFollowUps, repeatRule, normDomain, normPhone, normEmail, scrubContact, shortPersonName, followThroughStep, recordLink, hasClockTime, friendlyDay, dedupeLines, adminHomeNote } = core;
+const { buildCards, buildFollowUps, repeatRule, normDomain, normPhone, normEmail, scrubContact, shortPersonName, followThroughStep, recordLink, hasClockTime, friendlyDay, dedupeLines, adminHomeNote, countTokens, dedupeTouches, dayOf } = core;
 
 const cardFor = (cards, name) => cards.find((card) => card.name === name);
 
@@ -285,6 +285,71 @@ await runStep("admin-home notes: ChurchConnect says not linked; Laser and Presen
   assert(adminHomeNote("laser") === "Laser has no page for a single record yet, so this opens the admin home.", adminHomeNote("laser"));
   assert(adminHomeNote("presence") === "Presence has no page for a single record yet, so this opens the admin home.", adminHomeNote("presence"));
   assertIncludes(read("src/components/engine/crm-desk.tsx"), "{adminHomeNote(app)}", "desk uses the shared note");
+});
+
+await runStep("fail closed: unreadable do-not-contact list → no outreach suggested, prep stays", () => {
+  const cards = buildCards(
+    [
+      node({ id: "cc:church:fc1", name: "Due Here", nextActionDate: TODAY, nextAction: "Call", touches: [heard(1), out(20)] }),
+      node({ id: "cc:church:fc2", name: "Resting Here", touches: [out(5)] }),
+      node({ id: "presence:batch:fc3", app: "presence", kind: "batch", name: "Prep Batch", tokens: [{ label: "T", status: "approved", printed: false }], events: [{ title: "Walk", startsAt: daysAhead(3), status: "open", place: "Park" }] })
+    ],
+    NO_SUPPRESS,
+    NOW
+  );
+  const rows = buildFollowUps(cards, NOW, { outreachHidden: true });
+  assert(!rows.some((row) => row.reasons.some((reason) => ["due", "warm", "unpaid", "wait"].includes(reason))), `outreach leaked: ${rows.map((row) => row.name + ":" + row.reasons).join(" ")}`);
+  assert(rowFor(rows, "Prep Batch").reasons.join() === "events,tokens", "prep stays");
+  assert(rows.every((row) => row.nextStep === ""), "no next step while the list is unreadable");
+  const reader = read("src/lib/engine/lpl-crm.ts");
+  assertIncludes(reader, 'source.id === "outreach_suppressions" && !source.ok', "reader detects an unreadable list");
+  assertIncludes(reader, "buildFollowUps(cards, now, { outreachHidden: suppressionsUnreadable })", "reader fails closed");
+  assertIncludes(read("src/app/(cockpit)/crm/page.tsx"), "The do-not-contact list could not be read", "page says why");
+});
+
+await runStep("same record from two rows keeps every identity key (phone on the order still suppresses)", () => {
+  const reader = read("src/lib/engine/lpl-crm.ts");
+  assertIncludes(reader, 'for (const key of ["emails", "domains", "phones", "links"] as const)', "coalesce merges identity keys");
+  // Behaviour: a card whose phone is on the do-not-contact list stops, whichever row carried it.
+  const merged = node({ id: "laser:person:p", app: "laser", kind: "person", name: "P", emails: ["p@x.test"], phones: ["555-010-0177"], touches: [out(20)] });
+  const cards = buildCards([merged], { emails: new Set(), domains: new Set(), phones: new Set(["5550100177"]) }, NOW);
+  assert(cards[0].stops[0]?.reason === "suppressed", "phone suppression applies");
+});
+
+await runStep("tokens: a planned batch of 100 counts as 100", () => {
+  const tokens = [{ label: "100 tokens planned", status: "draft", printed: false, count: 100 }, { label: "A", status: "engraved", printed: true }, { label: "R", status: "retired", printed: null }];
+  assert(countTokens(tokens) === 101 && countTokens(tokens, false) === 100 && countTokens(tokens, true) === 1, "weighted counts");
+  const cards = buildCards([node({ id: "presence:batch:q", app: "presence", kind: "batch", name: "Big Batch", tokens })], NO_SUPPRESS, NOW);
+  assert(rowFor(buildFollowUps(cards, NOW), "Big Batch").items[0].why === "100 tokens not printed yet.", "follow-up uses the weighted count");
+  const reader = read("src/lib/engine/lpl-crm.ts");
+  assertIncludes(reader, "count: Math.max(1, Number.parseInt(s(batch.quantity), 10) || 1)", "batch quantity carried");
+  assertIncludes(reader, "events: looseMoments.filter((moment) => s(moment.coin_batch_id) === id).map(eventRow)", "events stay with an empty batch");
+  assertIncludes(reader, "doc->>domain.ilike.", "directory lookup searches the domain field too");
+});
+
+await runStep("one send from two sources is one touch; ISO due dates compare in Eastern time", () => {
+  const a = { at: "2026-10-12T14:00:00Z", app: "churchconnect", kind: "invite", what: "Invite sent", outreach: true };
+  const b = { at: "2026-10-12T14:03:00Z", app: "churchconnect", kind: "invite", what: "Invite sent (fall)", outreach: true, response: "Accepted the invite" };
+  const kept = dedupeTouches([b, a]);
+  assert(kept.length === 1 && kept[0].response === "Accepted the invite", "deduped, response kept");
+  assert(dedupeTouches([a, { ...a, at: "2026-10-12T15:00:00Z" }]).length === 2, "an hour apart is two sends");
+  assert(dayOf("2026-10-18T00:00:00Z") === "2026-10-17", `ET day ${dayOf("2026-10-18T00:00:00Z")}`);
+  assert(dayOf("2026-10-18") === "2026-10-18", "plain day unchanged");
+  const cards = buildCards([node({ id: "cc:church:iso", name: "ISO Due", nextActionDate: "2026-10-18T00:00:00Z", nextAction: "Call" })], NO_SUPPRESS, NOW);
+  assert(rowFor(buildFollowUps(cards, NOW), "ISO Due").reasons.includes("due"), "midnight UTC Oct 18 is due on Oct 17 ET");
+});
+
+await runStep("owner deck never waits on the full CRM read", () => {
+  const reader = read("src/lib/engine/lpl-crm.ts");
+  assertIncludes(reader, "const DECK_COUNT_BUDGET_MS = 2_500;", "time budget");
+  assertIncludes(reader, "const DECK_COUNT_TTL_MS = 5 * 60_000;", "short cache");
+  assertIncludes(read("src/app/(cockpit)/crm/page.tsx"), "rememberCrmFollowUpCount(snapshot)", "page shares its count");
+});
+
+await runStep("registry entry carries release, deployment, health and logs fields", () => {
+  const reg = read("source-of-truth/super-admin-registry.md");
+  const entry = reg.slice(reg.indexOf("### People & places (CRM v1"), reg.indexOf("### Testimony doors"));
+  for (const field of ['"release"', '"gateStatus": "owner_approved"', '"deployment"', '"healthUrl"', '"logsUrl": "planned"', '"superAdminActions"']) assertIncludes(entry, field, field);
 });
 
 await runStep("wording: follow up through one app so the other doesn't also reach out", () => {

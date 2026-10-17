@@ -52,7 +52,16 @@ export type TokenRow = {
   label: string;
   status: string;
   printed: boolean | null; // null = retired / not counted
+  /** How many tokens this line stands for (a planned batch with no coins yet). Default 1. */
+  count?: number;
 };
+
+/** Tokens counted by line weight — a planned batch of 100 counts as 100. */
+export function countTokens(tokens: TokenRow[], printed?: boolean | null): number {
+  return tokens
+    .filter((token) => (printed === undefined ? token.printed !== null : token.printed === printed))
+    .reduce((sum, token) => sum + Math.max(1, Math.floor(token.count ?? 1)), 0);
+}
 
 export type EventRow = {
   title: string;
@@ -261,6 +270,11 @@ export function scrubContact(value: unknown, max = 140): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/** A calendar day in Eastern time: "YYYY-MM-DD" stays as is; a timestamp is converted. */
+export function dayOf(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : nyDate(value);
+}
+
 /** "Oct 22" for a calendar day (YYYY-MM-DD) — no time zone shift. */
 export function friendlyDay(ymd: string): string {
   const d = new Date(`${ymd.slice(0, 10)}T12:00:00Z`);
@@ -349,6 +363,31 @@ function sortTouches(touches: Touch[]): Touch[] {
   return [...touches].sort((a, b) => (ms(b.at) || 0) - (ms(a.at) || 0));
 }
 
+const SAME_SEND_MS = 10 * 60_000;
+
+/**
+ * One send recorded by two sources (e.g. a church's last_invited_at and its
+ * invite row) is one touch: same app, same kind, same direction, within 10 min.
+ */
+export function dedupeTouches(touchesNewestFirst: Touch[]): Touch[] {
+  const kept: Touch[] = [];
+  for (const touch of touchesNewestFirst) {
+    const twin = kept.find(
+      (other) =>
+        other.app === touch.app &&
+        other.kind === touch.kind &&
+        other.outreach === touch.outreach &&
+        Math.abs((ms(other.at) || 0) - (ms(touch.at) || 0)) <= SAME_SEND_MS
+    );
+    if (!twin) kept.push(touch);
+    else {
+      twin.response = twin.response ?? touch.response;
+      twin.purchase = twin.purchase ?? touch.purchase;
+    }
+  }
+  return kept;
+}
+
 const SAFE_RECORD_PATH = /^[#/A-Za-z0-9_.\-]+$/;
 
 /** First record path per app (non-context records first). Never carries contact details. */
@@ -426,7 +465,7 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
     const matchedBy = [
       ...new Set(edges.filter((edge) => ids.has(edge.a) && ids.has(edge.b)).map((edge) => edge.kind))
     ] as MatchKind[];
-    const touches = sortTouches(members.flatMap((member) => member.touches));
+    const touches = dedupeTouches(sortTouches(members.flatMap((member) => member.touches)));
     const lastOutreach = touches.find((touch) => touch.outreach) ?? null;
     const stops: CrmStop[] = [];
 
@@ -541,7 +580,7 @@ export function applyRestRule(card: CrmCard, now: Date): void {
   card.repeat = repeatRule(card.touches, now);
   if (card.repeat.level === "hold" && card.repeat.until && card.nextActionDate) {
     const restEnd = nyDate(card.repeat.until);
-    const due = card.nextActionDate.slice(0, 10);
+    const due = dayOf(card.nextActionDate);
     if (due < restEnd) {
       card.nextActionMovedFrom = due;
       card.nextActionDate = restEnd;
@@ -616,7 +655,16 @@ export function followThroughStep(card: CrmCard): string {
 
 const STEP_ORDER: FollowUpReason[] = ["due", "unpaid", "warm", "events", "tokens", "wait"];
 
-export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
+export type FollowUpOptions = {
+  /**
+   * Fail closed: when the do-not-contact list could not be read, nothing that
+   * means contacting someone is suggested (no due, warm, unpaid or wait rows,
+   * no next step). Only prep that touches nobody stays: events and tokens.
+   */
+  outreachHidden?: boolean;
+};
+
+export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOptions = {}): FollowUp[] {
   const today = nyDate(now);
   const out: FollowUp[] = [];
 
@@ -631,17 +679,17 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
     const blocked = card.stops.some((stop) => stop.reason === "suppressed" || stop.reason === "declined");
     card.followUpReasons = [];
     card.nextStep = card.nextAction;
-    if (blocked) {
+    if (blocked || options.outreachHidden) {
       card.nextStep = "";
-      continue;
+      if (blocked) continue;
     }
     const recentOutreach = card.lastOutreach ? daysBetween(card.lastOutreach.at, now) : Number.POSITIVE_INFINITY;
     const resting = card.repeat.level === "hold";
     const restingUntil = resting && card.repeat.until ? card.repeat.until : null;
 
     // Due — the app's own next-action date (already moved past any rest).
-    if (card.nextActionDate) {
-      const due = card.nextActionDate.slice(0, 10);
+    if (card.nextActionDate && !options.outreachHidden) {
+      const due = dayOf(card.nextActionDate);
       if (due <= today) {
         add("due", due < today ? `Next step was due ${friendlyDay(due)}.` : "Next step is due today.", card.nextAction || "Do the next step on file.", card.nextActionDate);
       }
@@ -649,7 +697,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
 
     // Warm — they did something in the last 7 days and nobody followed up.
     const signal = card.touches.find((touch) => touch.signal && !touch.outreach);
-    if (signal && daysBetween(signal.at, now) <= WARM_DAYS) {
+    if (signal && !options.outreachHidden && daysBetween(signal.at, now) <= WARM_DAYS) {
       const followed = card.touches.some((touch) => touch.outreach && ms(touch.at) > ms(signal.at));
       if (!followed && recentOutreach >= WAITING_MIN_DAYS) {
         add("warm", `${CRM_APP_LABEL[signal.app]}: ${signal.what}.`, card.lastOutreach ? `Follow up while it is fresh. ${followThroughStep(card)}` : "Follow up while it is fresh.", signal.at);
@@ -658,13 +706,13 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
 
     // Not paid yet.
     for (const touch of card.touches) {
-      if (touch.unpaid && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
+      if (touch.unpaid && !options.outreachHidden && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
         add("unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${friendlyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
       }
     }
 
     // Resting: every outreach item is held — one "wait" line instead.
-    if (resting && restingUntil) {
+    if (resting && restingUntil && !options.outreachHidden) {
       const held = items.filter((item) => OUTREACH_REASONS.includes(item.reason));
       for (const item of held) items.splice(items.indexOf(item), 1);
       const last = card.lastOutreach!;
@@ -681,9 +729,9 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
     }
 
     // Tokens to print — prep, not outreach.
-    const unprinted = card.tokens.filter((token) => token.printed === false);
-    if (unprinted.length) {
-      add("tokens", `${unprinted.length} token${unprinted.length === 1 ? "" : "s"} not printed yet.`, "Send them to the engraver, then mark them engraved in Presence.", now.toISOString());
+    const unprinted = countTokens(card.tokens, false);
+    if (unprinted) {
+      add("tokens", `${unprinted} token${unprinted === 1 ? "" : "s"} not printed yet.`, "Send them to the engraver, then mark them engraved in Presence.", now.toISOString());
     }
 
     // Upcoming events — prep, not outreach.
@@ -699,7 +747,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date): FollowUp[] {
     if (!items.length) continue;
     items.sort((a, b) => STEP_ORDER.indexOf(a.reason) - STEP_ORDER.indexOf(b.reason));
     const reasons = [...new Set(items.map((item) => item.reason))];
-    const nextStep = items[0].step;
+    const nextStep = options.outreachHidden ? "" : items[0].step;
     const lines = dedupeLines(items);
     card.followUpReasons = reasons;
     card.nextStep = nextStep;

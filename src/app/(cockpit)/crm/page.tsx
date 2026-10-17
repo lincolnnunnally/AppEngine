@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
-import { loadCrmSnapshot } from "@/lib/engine/lpl-crm";
+import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS } from "@/lib/engine/lpl-crm-core";
 import { CrmDesk } from "@/components/engine/crm-desk";
 
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function CrmPage() {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const snapshot = await loadCrmSnapshot();
+  rememberCrmFollowUpCount(snapshot);
 
   const todayRows = snapshot.followUps.filter((row) => row.today).length;
   const waitRows = snapshot.followUps.filter((row) => !row.today).length;
@@ -76,6 +77,12 @@ export default async function CrmPage() {
               </p>
             </div>
           </div>
+        ) : null}
+        {snapshot.outreachHidden ? (
+          <p className="dx-callout dx-callout--alert" role="alert">
+            The do-not-contact list could not be read, so no outreach is suggested right now. Only event and token prep is
+            listed. Reload in a minute.
+          </p>
         ) : null}
         <p className="dx-note crm-asof">
           As of {asOf} ET. Times are Eastern.

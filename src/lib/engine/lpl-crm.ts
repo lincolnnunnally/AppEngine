@@ -6,6 +6,7 @@
 import {
   buildCards,
   buildFollowUps,
+  countTokens,
   normDomain,
   normEmail,
   normPhone,
@@ -176,6 +177,8 @@ export type CrmSnapshot = {
   sources: CrmSourceStatus[];
   adminUrls: Partial<Record<CrmApp, string>>;
   presence: { tokens: number; printed: number; notPrinted: number; events: number; places: number };
+  /** true = the do-not-contact list could not be read, so outreach suggestions are hidden. */
+  outreachHidden: boolean;
 };
 
 function adminUrls(): Partial<Record<CrmApp, string>> {
@@ -221,7 +224,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     followUps: [],
     sources: [],
     adminUrls: adminUrls(),
-    presence: { tokens: 0, printed: 0, notPrinted: 0, events: 0, places: 0 }
+    presence: { tokens: 0, printed: 0, notPrinted: 0, events: 0, places: 0 },
+    outreachHidden: false
   };
   if (!config) return empty;
 
@@ -298,8 +302,24 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
       nodes.set(node.id, node);
       return;
     }
+    // Same record from two rows (e.g. a Laser customer and their order):
+    // keep every identity key so matching and the do-not-contact check see them all.
     existing.contextOnly = existing.contextOnly && node.contextOnly;
     existing.touches.push(...node.touches);
+    for (const key of ["emails", "domains", "phones", "links"] as const) {
+      existing[key] = [...new Set([...existing[key], ...node[key]])];
+    }
+    if (node.customerOf?.length) existing.customerOf = [...new Set([...(existing.customerOf ?? []), ...node.customerOf])];
+    existing.declined = existing.declined || node.declined;
+    if (node.nextActionDate && (!existing.nextActionDate || node.nextActionDate < existing.nextActionDate)) {
+      existing.nextActionDate = node.nextActionDate;
+      existing.nextAction = node.nextAction;
+    }
+    if (node.tokens?.length) existing.tokens = [...(existing.tokens ?? []), ...node.tokens];
+    if (node.events?.length) existing.events = [...(existing.events ?? []), ...node.events];
+    if (node.locations?.length) existing.locations = [...(existing.locations ?? []), ...node.locations];
+    existing.recordPath = existing.recordPath || node.recordPath;
+    if (!existing.town && node.town) existing.town = node.town;
   };
 
   // --- ChurchConnect ---------------------------------------------------------
@@ -669,7 +689,16 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
       phones: [],
       links: [],
       touches: [],
-      tokens: [{ label: `${s(batch.quantity) || "?"} tokens planned (no tokens made yet)`, status, printed }]
+      tokens: [
+        {
+          label: `${s(batch.quantity) || "?"} tokens planned (no tokens made yet)`,
+          status,
+          printed,
+          count: Math.max(1, Number.parseInt(s(batch.quantity), 10) || 1)
+        }
+      ],
+      // Events tied to this batch (no place yet) stay with it.
+      events: looseMoments.filter((moment) => s(moment.coin_batch_id) === id).map(eventRow)
     });
   }
 
@@ -716,7 +745,8 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     );
   }
   for (const domain of lookupDomains) {
-    lookups.push(read("cc_churches", `${CHURCH_SELECT}&doc->>website=ilike.*${encodeURIComponent(domain)}*&limit=5`, "Church directory (matches only)", "churchconnect"));
+    const like = `*${encodeURIComponent(domain)}*`;
+    lookups.push(read("cc_churches", `${CHURCH_SELECT}&or=(doc->>website.ilike.${like},doc->>domain.ilike.${like})&limit=5`, "Church directory (matches only)", "churchconnect"));
   }
   for (const name of lookupNames) {
     lookups.push(read("cc_churches", `${CHURCH_SELECT}&doc->>name=ilike.${encodeURIComponent(name.replace(/[*,()]/g, " "))}&limit=5`, "Church directory (matches only)", "churchconnect"));
@@ -737,14 +767,17 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     if (phone) suppressions.phones.add(phone);
   }
 
+  // Fail closed: if the do-not-contact list could not be read, suggest no outreach.
+  const suppressionsUnreadable = sources.some((source) => source.id === "outreach_suppressions" && !source.ok);
   const cards = buildCards([...nodes.values()], suppressions, now);
-  const followUps = buildFollowUps(cards, now);
+  const followUps = buildFollowUps(cards, now, { outreachHidden: suppressionsUnreadable });
   const allTokens = cards.flatMap((card) => card.tokens);
   return {
     configured: true,
     generatedAt: now.toISOString(),
     cards,
     followUps,
+    outreachHidden: suppressionsUnreadable,
     sources: sources.reduce<CrmSourceStatus[]>((acc, source) => {
       const existing = acc.find((item) => item.label === source.label);
       if (existing) {
@@ -755,23 +788,48 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     }, []),
     adminUrls: adminUrls(),
     presence: {
-      tokens: allTokens.filter((token) => token.printed !== null).length,
-      printed: allTokens.filter((token) => token.printed === true).length,
-      notPrinted: allTokens.filter((token) => token.printed === false).length,
+      tokens: countTokens(allTokens),
+      printed: countTokens(allTokens, true),
+      notPrinted: countTokens(allTokens, false),
       events: pMoments.length,
       places: pPlaces.length
     }
   };
 }
 
-// Owner-deck glance: how many follow-ups are waiting today. Null = not wired.
+// Owner-deck glance: how many orgs are on today's follow-up list. Null = not
+// wired or not ready yet. The deck never waits on the full CRM read: it uses a
+// count from the last 5 minutes, or waits at most 2.5s, then shows "—" and the
+// read finishes in the background for the next visit.
+const DECK_COUNT_TTL_MS = 5 * 60_000;
+const DECK_COUNT_BUDGET_MS = 2_500;
+let deckCount: { at: number; value: number } | null = null;
+let deckCountInFlight: Promise<number | null> | null = null;
+
+function todayCount(snapshot: CrmSnapshot): number {
+  // Resting ("wait") rows do not count as today.
+  return snapshot.followUps.filter((row) => row.today).length;
+}
+
 export async function crmFollowUpCount(): Promise<number | null> {
   if (!lplCrmConfigured()) return null;
-  try {
-    const snapshot = await loadCrmSnapshot();
-    // Orgs/people on today's list — resting ("wait") rows do not count.
-    return snapshot.followUps.filter((row) => row.today).length;
-  } catch {
-    return null;
-  }
+  if (deckCount && Date.now() - deckCount.at < DECK_COUNT_TTL_MS) return deckCount.value;
+  deckCountInFlight ??= loadCrmSnapshot()
+    .then((snapshot) => {
+      const value = todayCount(snapshot);
+      deckCount = { at: Date.now(), value };
+      return value;
+    })
+    .catch(() => null)
+    .finally(() => {
+      deckCountInFlight = null;
+    });
+  const budget = new Promise<null>((resolve) => setTimeout(() => resolve(null), DECK_COUNT_BUDGET_MS));
+  const value = await Promise.race([deckCountInFlight, budget]);
+  return value ?? deckCount?.value ?? null;
+}
+
+/** The /crm page already did the full read — share its count with the deck. */
+export function rememberCrmFollowUpCount(snapshot: CrmSnapshot): void {
+  if (snapshot.configured) deckCount = { at: Date.now(), value: todayCount(snapshot) };
 }
