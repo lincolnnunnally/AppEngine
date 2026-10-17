@@ -675,7 +675,10 @@ export function repeatRule(touchesNewestFirst: Touch[], now: Date): CrmRepeat {
   }
   if (holder) {
     const until = new Date(holdEnd).toISOString();
-    const heldAge = daysBetween(holder.at, now);
+    // A typed day ("I went on Oct 14") counts in calendar days, not hours.
+    const heldAge = holder.dateOnly
+      ? Math.round((Date.parse(`${nyDate(now.toISOString())}T12:00:00Z`) - Date.parse(`${dayOf(holder.at)}T12:00:00Z`)) / DAY)
+      : daysBetween(holder.at, now);
     const heldAgo = heldAge <= 0 ? "today" : heldAge === 1 ? "yesterday" : `${heldAge} days ago`;
     const what = holder.kind === "visit" ? "visited" : holder.kind === "drop_off" ? "dropped something off" : "reached out";
     return {

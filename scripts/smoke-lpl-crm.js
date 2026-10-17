@@ -477,6 +477,9 @@ await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins"
   const both = repeatRule([drop(1), visit(3)], NOW);
   assert(both.level === "hold" && both.until.slice(0, 10) === daysAgo(3 - 14).slice(0, 10), `longest rest wins, got ${both.until}`);
   assert(both.text.includes("visited 3 days ago"), both.text);
+  // A typed day counts calendar days in Eastern time.
+  const typed = repeatRule([{ at: "2026-10-14T16:00:00.000Z", dateOnly: true, app: "churchconnect", kind: "visit", what: "Visit", outreach: true, restDays: 14 }], new Date("2026-10-17T13:00:00Z"));
+  assert(typed.text.includes("visited 3 days ago"), typed.text);
   // Laser samples are drop-offs too when the reader marks them.
   assert(repeatRule([{ at: daysAgo(8), app: "laser", kind: "sample", what: "Left a sample", outreach: true, restDays: 7 }], NOW).level === "soon", "sample rests 7");
   const reader = read("src/lib/engine/lpl-crm.ts");

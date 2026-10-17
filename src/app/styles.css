@@ -7371,7 +7371,7 @@ button.compose-arch:hover {
 .crm-page .crm-form { display: grid; gap: 12px; margin: 8px 0 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .crm-page .crm-form-group { display: grid; gap: 12px; }
 @media (min-width: 720px) { .crm-page .crm-form-group { grid-template-columns: 1fr 1fr; } }
-.crm-page .crm-field { display: grid; gap: 6px; margin: 0; border: 0; padding: 0; min-width: 0; }
+.crm-page .crm-field { display: grid; gap: 6px; margin: 0; border: 0; padding: 0; min-width: 0; font-size: 1rem; }
 .crm-page .crm-field > span, .crm-page .crm-field legend { font-size: 0.875rem; font-weight: 600; color: var(--muted); }
 .crm-page .crm-field input, .crm-page .crm-field select { min-height: 44px; font-size: 1rem; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); width: 100%; box-sizing: border-box; }
 .crm-page .crm-field select option { color: #111; }
@@ -7381,4 +7381,5 @@ button.compose-arch:hover {
 .crm-page .crm-choice input { width: 20px; height: 20px; }
 .crm-page .crm-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .crm-page .crm-form-status { font-size: 1rem; margin: 0; }
+.crm-page .crm-form .crm-field > span, .crm-page .crm-form .crm-field legend, .crm-page .crm-choice label { text-transform: none; letter-spacing: normal; font-family: inherit; }
 .crm-page .crm-form .dx-btn[disabled] { opacity: 0.6; cursor: progress; }
