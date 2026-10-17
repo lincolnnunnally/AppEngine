@@ -41,7 +41,8 @@ async function ownerEmail(): Promise<string> {
 // to op_leads / op_lead_activities). Never both.
 const leadOf = (formData: FormData) => field(formData, "lead_id").trim();
 
-const refused = (): CrmFormState => ({ ok: false, message: "Only the owner can save here.", at: Date.now() });
+const refused = (message = "Only the owner can save here."): CrmFormState => ({ ok: false, message, at: Date.now() });
+const SUGGEST_OWNER_ONLY = "Only the owner can use this.";
 
 export async function saveChurchContactAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
   if (!(await canAccessEngineOwner())) return refused();
@@ -171,7 +172,7 @@ export async function editOrgAction(_prev: OrgFormState, formData: FormData): Pr
 export type SuggestState = { ok: boolean; message: string; at: number; suggestion?: Suggestion } | null;
 
 export async function suggestNextStepAction(_prev: SuggestState, formData: FormData): Promise<SuggestState> {
-  if (!(await canAccessEngineOwner())) return refused();
+  if (!(await canAccessEngineOwner())) return refused(SUGGEST_OWNER_ONLY);
   const key = field(formData, "card_key").trim().slice(0, 200);
   const snapshot = await loadCrmSnapshot().catch(() => null);
   const card = snapshot?.cards.find((item) => item.key === key);

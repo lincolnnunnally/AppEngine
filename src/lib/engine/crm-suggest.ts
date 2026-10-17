@@ -12,6 +12,7 @@
 // Fail closed: no key, a timeout, an error, or an answer that doesn't pass the
 // rules → "Suggestions aren't available right now." / "No suggestion…".
 
+import "server-only";
 import { hasAiProvider, xaiJson } from "@/lib/xai";
 import {
   SUGGEST_NONE,
@@ -36,6 +37,8 @@ export function suggestPrompt(input: SuggestInput): { system: string; user: stri
       ? "This is a church. Use warm, plain words. Never use the word marketing. Never suggest business tools."
       : "This is a local business. Use plain words.",
     "Do not invent names, emails, phone numbers or facts. Keep next_step under 120 characters and why under 160.",
+    "Never promise anything: no free things, discounts, prices, dollar amounts, deals, specific dates or guarantees. Suggest what the owner does, not what the organization gets.",
+    "next_step_type is the kind of next step already on file (one word); next_step_due is when it's due.",
     'Answer with JSON only: {"next_step": string, "app": string, "when_days": integer 0-30, "why": string}.'
   ].join(" ");
   return { system, user: JSON.stringify(input) };

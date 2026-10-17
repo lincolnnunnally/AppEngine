@@ -45,6 +45,97 @@ export const NEVER_FOR_CHURCHES: ReadonlySet<string> = new Set([
 
 const FORBIDDEN_RE = /\bmarket(ing|er|ers)?\b/i;
 
+// ── Normalizing text before any word check (EA r1: the filter is also the
+// main prompt-injection defense, so tricks must not slip past it) ──────────
+// Cyrillic and Greek letters that look like Latin ones (both cases, mapped
+// before lower-casing so Greek "Μ" reads as "m", not "μ" → "u").
+const CONFUSABLES: Record<string, string> = {
+  // Cyrillic
+  "А": "a", "а": "a", "В": "b", "в": "b", "Е": "e", "е": "e", "Ё": "e", "ё": "e", "К": "k", "к": "k",
+  "М": "m", "м": "m", "Н": "h", "н": "h", "О": "o", "о": "o", "Р": "p", "р": "p", "С": "c", "с": "c",
+  "Т": "t", "т": "t", "У": "y", "у": "y", "Х": "x", "х": "x", "Ѕ": "s", "ѕ": "s", "І": "i", "і": "i",
+  "Ї": "i", "ї": "i", "Ј": "j", "ј": "j", "Ԁ": "d", "ԁ": "d", "Һ": "h", "һ": "h", "Ԛ": "q", "ԛ": "q",
+  "Ԝ": "w", "ԝ": "w", "Ӏ": "l", "ӏ": "l", "Ь": "b", "ь": "b", "Г": "r", "г": "r", "П": "n", "п": "n",
+  // Greek
+  "Α": "a", "α": "a", "Β": "b", "β": "b", "Γ": "r", "γ": "y", "Ε": "e", "ε": "e", "Ζ": "z", "Η": "h",
+  "η": "n", "Ι": "i", "ι": "i", "Κ": "k", "κ": "k", "Μ": "m", "μ": "u", "Ν": "n", "ν": "v", "Ο": "o",
+  "ο": "o", "Ρ": "p", "ρ": "p", "Τ": "t", "τ": "t", "Υ": "y", "υ": "u", "Χ": "x", "χ": "x", "ω": "w",
+  "ϲ": "c", "Ϲ": "c", "ϳ": "j"
+};
+const CONFUSABLE_RE = new RegExp(`[${Object.keys(CONFUSABLES).join("")}]`, "gu");
+
+/**
+ * The one way text is read before any church or business word check:
+ * NFKC (full-width letters → plain ones), drop zero-width/soft-hyphen characters and
+ * accents, fold Cyrillic/Greek look-alikes to Latin, lower-case, join letters
+ * spelled out one by one ("O-p-e-r-a-t-e", "S E O" → "operate", "seo"),
+ * and turn hyphens, dots, slashes and underscores between words into spaces.
+ */
+export function normalizeOfferText(text: unknown): string {
+  let out = String(text ?? "").normalize("NFKC");
+  out = out.replace(/[\u00AD\u200B-\u200F\u2060\uFEFF]/g, "");
+  out = out.replace(CONFUSABLE_RE, (ch) => CONFUSABLES[ch] ?? ch);
+  out = out.normalize("NFKD").replace(/\p{M}+/gu, "").normalize("NFKC");
+  out = out.toLowerCase();
+  // Single letters or digits separated by - . _ * · • / or spaces: join them.
+  out = out.replace(/(?<![\p{L}\p{N}])[\p{L}\p{N}](?:[\s.\-_*·•/]+[\p{L}\p{N}](?![\p{L}\p{N}])){2,}/gu, (run) => run.replace(/[\s.\-_*·•/]+/g, ""));
+  out = out.replace(/[\-_./·•*]+/g, " ").replace(/\s+/g, " ").trim();
+  return out;
+}
+
+/** Words that never reach a church, matched on normalizeOfferText output. */
+const CHURCH_NEVER_RE = new RegExp(
+  [
+    "\\bmarket(ing|er|ers|s)?\\b",
+    "\\boperate\\b",
+    "\\boperations?\\s+(app|tool|software)\\b",
+    "\\bops\\b",
+    "\\btoners?\\b",
+    "\\bgroup\\s*buy(s|ing)?\\b",
+    "\\bneighbou?rly\\b",
+    "\\bweb(site)?\\s*design(s|er|ers|ing)?\\b",
+    "\\bawd\\b",
+    "\\bpresence\\b",
+    "\\bspark\\b",
+    "\\bbest\\s*life\\b",
+    "\\blocal\\s*leads?\\b",
+    "\\bbusiness\\s+tools?\\b",
+    // Ads and campaigns: a church is never sold advertising.
+    "\\bads?\\b",
+    "\\badverti[sz]\\w*",
+    "\\bcampaigns?\\b",
+    "\\bsocial\\s*media\\b",
+    "\\bseo\\b",
+    "\\bpromot(e|es|ed|ing|ion|ions|ional)\\b",
+    "\\bgrow\\s+(your|their|the|an?)\\s+(\\w+\\s+)?audiences?\\b",
+    "\\baudience\\s+growth\\b"
+  ].join("|"),
+  "i"
+);
+
+/** While "Marketing campaign" is hidden, a business suggestion may not offer one by any name. */
+const HIDDEN_BUSINESS_WORDS_RE =
+  /\bmarketing\s*campaigns?\b|\bcampaigns?\b|\bads?\b|\badverti[sz]\w*|\bsocial\s*media\b|\bseo\b/i;
+
+/** Promises a suggestion must never make: free things, discounts, prices, guarantees, deals. */
+const PROMISE_RE =
+  /\bfree\b|\bfor\s+nothing\b|\bno\s+(cost|charge)\b|\bdiscount\w*|\d+\s*%\s*off\b|%\s*off\b|\bpercent\s+off\b|\bguarante\w*|\bdeals?\b|\$\s*\d|\d\s*\$|\b\d+\s*(dollars|bucks|usd)\b|\bcoupons?\b|\bpromo\s*codes?\b/i;
+
+/** Church text check (after normalizing): any never-for-churches word or "marketing". */
+export function churchTextBlocked(text: unknown): boolean {
+  return CHURCH_NEVER_RE.test(normalizeOfferText(text));
+}
+
+/** Business text check while the campaign offer is hidden. */
+export function hiddenBusinessTextBlocked(text: unknown): boolean {
+  return !MARKETING_CAMPAIGN_LIVE && HIDDEN_BUSINESS_WORDS_RE.test(normalizeOfferText(text));
+}
+
+/** Any promise of free things, discounts, prices, dates-as-guarantees or deals. */
+export function promiseTextBlocked(text: unknown): boolean {
+  return PROMISE_RE.test(normalizeOfferText(text));
+}
+
 export function churchProductOf(doorId: unknown): ChurchOffer | "" {
   return DOOR_PRODUCT[String(doorId ?? "").trim().toLowerCase()] ?? "";
 }
@@ -54,7 +145,7 @@ export function allowedForChurch(doorId: unknown): boolean {
 }
 
 export function hasForbiddenChurchWord(text: unknown): boolean {
-  return FORBIDDEN_RE.test(String(text ?? ""));
+  return FORBIDDEN_RE.test(normalizeOfferText(text));
 }
 
 /** Addresses, not words a church reads (laser.engrave.market is a domain). */

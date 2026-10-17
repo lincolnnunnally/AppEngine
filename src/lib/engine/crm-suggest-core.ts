@@ -12,8 +12,13 @@
 //    at most "Resting until <date>". If the do-not-contact list couldn't be read,
 //    nothing is suggested.
 //  * Minimal data goes to the model (see suggestInput): org type, town, apps,
-//    status, recent activity types and dates, and the next step. Never the org's
-//    name, contact names, emails, phones, or visit notes.
+//    status, recent activity types and dates, and the KIND of next step on file
+//    (one word from a fixed list) with its due date. Never the next step's own
+//    words, the org's name, contact names, emails, phones, or visit notes.
+//  * Every word check reads normalized text (church-offer-rule.ts
+//    normalizeOfferText), so look-alike letters, full-width letters and
+//    spelled-out words can't slip a forbidden product past the filter.
+//  * No promises: free things, discounts, prices, deals or guarantees drop the suggestion.
 //  * Screens never name the vendor: the feature is "Suggested next step".
 
 import {
@@ -21,9 +26,10 @@ import {
   BUSINESS_OFFER_IDS,
   CHURCH_ALLOWED_OFFERS,
   CHURCH_OFFER_IDS,
-  NEVER_FOR_CHURCHES,
   churchProductOf,
-  hasForbiddenChurchWord,
+  churchTextBlocked,
+  hiddenBusinessTextBlocked,
+  promiseTextBlocked,
   type BusinessOffer,
   type ChurchOffer
 } from "./church-offer-rule";
@@ -37,7 +43,7 @@ export const SUGGEST_NONE = "No suggestion for this one right now. Use your own 
 export type SuggestCard = Pick<
   CrmCard,
   "key" | "name" | "town" | "apps" | "touches" | "repeat" | "stops" | "followUpReasons" | "nextStep" | "nextActionDate" | "churchId" | "leadId" | "org"
-> & { contacts?: Array<{ name: string }> };
+>;
 
 export type SuggestKind = "church" | "business";
 
@@ -88,9 +94,10 @@ export function suggestGate(card: SuggestCard, outreachHidden: boolean): Suggest
 }
 
 const EMAIL_RE = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
-const PHONE_RE = /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g;
+// Any run of 7+ digits with the usual separators (+1 404.555.0143, 404 555 0143 x12, 4045550143…).
+const PHONE_RE = /\+?\d[\d\s().\-\/]{5,}\d(?:\s*(?:x|ext\.?)\s*\d+)?/gi;
 
-/** Remove anything that looks like an email or phone, collapse spaces, cap length. */
+/** The model's answer only: remove anything that looks like an email or phone, collapse spaces, cap length. */
 export function scrub(text: unknown, max = 160): string {
   return String(text ?? "")
     .replace(EMAIL_RE, "")
@@ -100,16 +107,40 @@ export function scrub(text: unknown, max = 160): string {
     .slice(0, max);
 }
 
+/**
+ * Which offers the card shows this org already buys, from the signals the CRM
+ * snapshot has today:
+ *  - ChurchConnect: a "customer" stop for churchconnect (is_customer / signed_up /
+ *    accepted invite / converted_at in ChurchConnect).
+ *  - Laser: a "customer" stop for laser (a paid Laser order).
+ *  - EasyPeazy / church website, Outreach, Operate, AI Website Design: NO signal
+ *    on the card yet (noted in the registry). They're matched by id here so a
+ *    customer stop for them is honored the day the snapshot starts carrying one.
+ * A "customer" touch (e.g. "Became a ChurchConnect customer") counts for its app too.
+ */
+const BOUGHT_SIGNAL: Record<string, string[]> = {
+  churchconnect: ["churchconnect"],
+  laser: ["laser"],
+  easypeazy: ["easypeazy"],
+  outreach: ["outreach"],
+  operate: ["operate"],
+  awd: ["awd"]
+};
+
+export function alreadyBuys(card: SuggestCard): Set<string> {
+  const apps = new Set<string>();
+  for (const stop of card.stops) if (stop.reason === "customer" && stop.app) apps.add(String(stop.app));
+  for (const touch of card.touches) if (touch.kind === "customer") apps.add(String(touch.app));
+  const bought = new Set<string>();
+  for (const app of apps) for (const id of BOUGHT_SIGNAL[app] ?? []) bought.add(id);
+  return bought;
+}
+
 /** Offers the model may pick for this org: the church rule, or live business apps, minus what they already buy. */
 export function allowedOffers(kind: SuggestKind, card: SuggestCard): Array<{ id: string; label: string }> {
-  const customerOf = new Set(card.stops.filter((stop) => stop.reason === "customer").map((stop) => String(stop.app ?? "")));
-  if (kind === "church") {
-    return CHURCH_OFFER_IDS.filter((id) => !(customerOf.has("churchconnect") && id === "churchconnect") && !(customerOf.has("laser") && id === "laser")).map((id) => ({
-      id,
-      label: CHURCH_ALLOWED_OFFERS[id]
-    }));
-  }
-  return BUSINESS_OFFER_IDS.filter((id) => !(customerOf.has("laser") && id === "laser")).map((id) => ({ id, label: BUSINESS_OFFERS[id] }));
+  const bought = alreadyBuys(card);
+  if (kind === "church") return CHURCH_OFFER_IDS.filter((id) => !bought.has(id)).map((id) => ({ id, label: CHURCH_ALLOWED_OFFERS[id] }));
+  return BUSINESS_OFFER_IDS.filter((id) => !bought.has(id)).map((id) => ({ id, label: BUSINESS_OFFERS[id] }));
 }
 
 /** The status in a few words (no free text from the record). */
@@ -125,21 +156,20 @@ function statusOf(card: SuggestCard): string {
   return parts.join("; ") || "no open follow-up";
 }
 
-function escapeRe(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+/** The fixed list of next-step kinds the model may see (never the next step's own words). */
+export const NEXT_STEP_TYPES = ["visit", "call", "email", "drop_off", "follow_up", "other", "none"] as const;
+export type NextStepType = (typeof NEXT_STEP_TYPES)[number];
 
-/** The next step on file without the org's name or any saved person's name (they stay on the card, not in the request). */
-export function withoutNames(text: string, card: SuggestCard, kind: SuggestKind): string {
-  let out = text;
-  const orgName = String(card.name ?? "").trim();
-  if (orgName.length >= 3) out = out.replace(new RegExp(escapeRe(orgName), "gi"), kind === "church" ? "the church" : "the business");
-  const words = new Set<string>();
-  for (const contact of card.contacts ?? []) {
-    for (const word of String(contact.name ?? "").split(/\s+/)) if (word.replace(/\W/g, "").length >= 2) words.add(word.replace(/[^\p{L}\p{N}'-]/gu, ""));
-  }
-  for (const word of words) if (word) out = out.replace(new RegExp(`\\b${escapeRe(word)}\\b`, "gi"), "them");
-  return out.replace(/\b(them)(\s+them)+\b/gi, "them").replace(/\s+(at|or|and)(\s+(at|or|and))*\s*$/i, "").replace(/\s+/g, " ").trim();
+/** Keyword match on the server; the text itself never leaves. First match wins. */
+export function nextStepType(text: unknown): NextStepType {
+  const words = String(text ?? "").toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!words) return "none";
+  if (/\b(drop(ped|ping)?\s+(it\s+|them\s+|something\s+)?off|drop off|leave|leaving|deliver\w*|bring\w*|sample|gift|flyer|brochure)\b/.test(words)) return "drop_off";
+  if (/\b(e ?mail\w*|send (a |an )?(note|message)|write)\b/.test(words)) return "email";
+  if (/\b(call\w*|phone|ring|text|voicemail)\b/.test(words)) return "call";
+  if (/\b(visit\w*|stop (by|in)|drop (by|in)|swing by|go by|come by|meet\w*|see (the|them|him|her)|in person|sunday|service)\b/.test(words)) return "visit";
+  if (/\b(follow\w*|check (in|back)|circle back|reach out|touch base|wait|remind\w*)\b/.test(words)) return "follow_up";
+  return "other";
 }
 
 export type SuggestInput = {
@@ -149,7 +179,7 @@ export type SuggestInput = {
   apps_picked: string[];
   status: string;
   recent_activity: Array<{ type: string; date: string; by_us: boolean; they_responded: boolean }>;
-  next_step: string;
+  next_step_type: NextStepType;
   next_step_due: string;
   allowed_apps: Array<{ id: string; label: string }>;
   today: string;
@@ -157,9 +187,8 @@ export type SuggestInput = {
 
 /**
  * EXACTLY what is sent to the model. No org name, no contact names, emails or
- * phones, no visit notes or "what was said". The next step on file is scrubbed
- * of anything that looks like an email or phone, the org's name, and the names
- * of the people saved on the card.
+ * phones, no visit notes or "what was said", and none of the next step's own
+ * words: only its kind (NEXT_STEP_TYPES, matched on the server) and due date.
  */
 export function suggestInput(card: SuggestCard, kind: SuggestKind, now: Date): SuggestInput {
   const picked = (card.org?.offers ?? [])
@@ -176,7 +205,7 @@ export function suggestInput(card: SuggestCard, kind: SuggestKind, now: Date): S
     apps_picked: picked,
     status: statusOf(card),
     recent_activity: recent,
-    next_step: withoutNames(scrub(card.nextStep, 160), card, kind).slice(0, 120),
+    next_step_type: nextStepType(card.nextStep),
     next_step_due: card.nextActionDate ? easternDay(card.nextActionDate.length === 10 ? `${card.nextActionDate}T12:00:00Z` : card.nextActionDate) : "",
     allowed_apps: allowedOffers(kind, card),
     today: easternDay(now)
@@ -192,30 +221,6 @@ export type Suggestion = {
   why: string;
 };
 
-/** Product names that must never reach a church, as words a model might write. */
-const CHURCH_NEVER_WORDS_RE = new RegExp(
-  `\\b(${[
-    // "live_on_mission" is how Outreach is named for a church, and "leads" is an everyday word: both stay allowed as text.
-    ...[...NEVER_FOR_CHURCHES].filter((id) => id !== "live_on_mission" && id !== "leads"),
-    "operate",
-    "toner",
-    "ai website design",
-    "neighborly",
-    "presence",
-    "group buy",
-    "spark",
-    "best life",
-    "local leads",
-    "business tool",
-    "business tools"
-  ]
-    .map((word) => word.replace(/_/g, "[ _]").replace(/\s+/g, "\\s+"))
-    .join("|")})\\b`,
-  "i"
-);
-
-const HIDDEN_BUSINESS_RE = /\bmarketing\s+campaigns?\b/i;
-
 function addDays(day: string, days: number): string {
   const date = new Date(`${day}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -225,9 +230,12 @@ function addDays(day: string, days: number): string {
 /**
  * Filter the model's answer through the same rules. Returns null when nothing
  * safe is left (the screen then says SUGGEST_NONE).
+ *  - All text is normalized first (look-alike letters, full-width, spelled-out words).
  *  - church: the app must be on the church rule; any text naming a product that
- *    is never for churches, or the word "marketing", drops the whole suggestion.
- *  - business: the app must be a live business app; text about a hidden offer drops it.
+ *    is never for churches, ads/campaign words, or "marketing" drops the whole suggestion.
+ *  - business: the app must be a live business app; text about a hidden offer
+ *    (a marketing campaign, ads) drops it while MARKETING_CAMPAIGN_LIVE is false.
+ *  - both: a promise (free, discount, % off, guarantee, deal, a $ amount) drops it.
  *  - emails and phones are removed from every line.
  */
 export function cleanSuggestion(kind: SuggestKind, raw: unknown, card: SuggestCard, today: string): Suggestion | null {
@@ -246,19 +254,21 @@ export function cleanSuggestion(kind: SuggestKind, raw: unknown, card: SuggestCa
   const nextStep = scrub(data.next_step, 120);
   const why = scrub(data.why, 160);
   if (!nextStep) return null;
+  // Checked on the model's raw words too, so a phone-like run can't hide a word from the filter.
+  const said = `${String(data.next_step ?? "")} ${String(data.why ?? "")} ${nextStep} ${why}`;
+  if (promiseTextBlocked(said)) return null;
   const allowed = new Map(allowedOffers(kind, card).map((offer) => [offer.id, offer.label]));
   const rawApp = String(data.app ?? "").trim().toLowerCase();
   let appId = "";
   if (kind === "church") {
     const product = churchProductOf(rawApp);
     appId = product && allowed.has(product) ? product : "";
-    const words = `${nextStep} ${why}`;
-    if (CHURCH_NEVER_WORDS_RE.test(words) || hasForbiddenChurchWord(words)) return null;
+    if (churchTextBlocked(said)) return null;
     // An app outside the rule means the model went off the list: drop the whole thing, not just the app.
     if (rawApp && !appId) return null;
   } else {
     appId = allowed.has(rawApp) ? rawApp : "";
-    if (HIDDEN_BUSINESS_RE.test(`${nextStep} ${why}`) && !allowed.has("marketing_campaign")) return null;
+    if (!allowed.has("marketing_campaign") && hiddenBusinessTextBlocked(said)) return null;
     if (rawApp && !appId) return null;
   }
   const days = Math.max(0, Math.min(30, Math.round(Number(data.when_days) || 0)));

@@ -478,7 +478,7 @@ await runStep("rest: a visit rests 14 days, a drop-off 7, the longest rest wins"
   assert(repeatRule([drop(8)], NOW).level === "soon", "drop-off 8 days ago → go gently");
   // VAD slice 4 r1: Go gently after an in-person visit says "You visited", like the rest banner; drop-off and app wording unchanged.
   assert(repeatRule([visit(20)], NOW).text === "You visited 20 days ago. Fine to follow up, but go gently.", repeatRule([visit(20)], NOW).text);
-  assert(repeatRule([drop(8)], NOW).text === "You dropped off something 8 days ago. Fine to follow up, but go gently.", repeatRule([drop(8)], NOW).text);
+  assert(repeatRule([drop(8)], NOW).text === "You dropped something off 8 days ago. Fine to follow up, but go gently.", repeatRule([drop(8)], NOW).text);
   assert(repeatRule([{ at: daysAgo(20), app: "churchconnect", kind: "invite", what: "Invite", outreach: true }], NOW).text === "ChurchConnect reached out 20 days ago. Fine to follow up, but go gently.", "an app's own reach-out is still named by the app");
   // A drop-off yesterday after a visit 3 days ago: the visit's rest ends later and wins.
   const both = repeatRule([drop(1), visit(3)], NOW);
@@ -528,7 +528,7 @@ await runStep("church contacts: one list per card, details only for the owner", 
 await runStep("saving: owner-only server actions, narrow pass, one save per form", () => {
   const actions = read("src/app/(cockpit)/crm/actions.ts");
   assert(actions.startsWith('"use server"'), "server actions file");
-  const gates = actions.match(/if \(!\(await canAccessEngineOwner\(\)\)\) return refused\(\);/g) || [];
+  const gates = actions.match(/if \(!\(await canAccessEngineOwner\(\)\)\) return refused\((SUGGEST_OWNER_ONLY)?\);/g) || [];
   const exported = actions.match(/export async function \w+Action/g) || [];
   assert(exported.length >= 2 && gates.length === exported.length, `every action checks the owner first (${gates.length}/${exported.length})`);
   const writer = read("src/lib/engine/lpl-crm-write.ts");

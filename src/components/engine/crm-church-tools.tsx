@@ -182,7 +182,8 @@ function VisitForm({
   const [newContactId] = useState(() => newId());
   const [contactChoice, setContactChoice] = useState("");
   const [outcome, setOutcome] = useState("");
-  const [kind, setKind] = useState<"visit" | "drop_off">("visit");
+  // From a suggestion nothing is picked for you: the owner says what happened and when, after being there.
+  const [kind, setKind] = useState<"" | "visit" | "drop_off">(draft ? "" : "visit");
   // Do-not-contact: Save stays off until the tick, the same way "Add anyway" waits for its tick.
   const [confirmed, setConfirmed] = useState(false);
   const stopping = outcome === "do_not_contact";
@@ -209,7 +210,7 @@ function VisitForm({
       <fieldset className="crm-field crm-choice">
         <legend>What happened</legend>
         <label>
-          <input type="radio" name="kind" value="visit" checked={kind === "visit"} onChange={() => setKind("visit")} /> I visited
+          <input type="radio" name="kind" value="visit" required checked={kind === "visit"} onChange={() => setKind("visit")} /> I visited
         </label>
         <label>
           <input type="radio" name="kind" value="drop_off" checked={kind === "drop_off"} onChange={() => setKind("drop_off")} /> I dropped something off
@@ -217,7 +218,7 @@ function VisitForm({
       </fieldset>
       <label className="crm-field">
         <span>Day</span>
-        <input name="day" type="date" required defaultValue={todayEastern()} max={todayEastern()} />
+        <input name="day" type="date" required defaultValue={draft ? "" : todayEastern()} max={todayEastern()} />
       </label>
       <label className="crm-field">
         <span>Who you met</span>
@@ -300,7 +301,11 @@ function VisitForm({
           </label>
         </div>
       )}
-      {draft ? <p className="crm-dim crm-from-suggestion">Next step filled in from the suggestion. Change it as you like.</p> : null}
+      {draft ? (
+        <p className="crm-dim crm-from-suggestion">
+          Next step and When filled in from the suggestion. Change them as you like. Save only after you&apos;ve been there.
+        </p>
+      ) : null}
       <p className="crm-dim">
         A visit lets the {target.noun} rest {VISIT_REST_DAYS} days; a drop-off rests {DROP_OFF_REST_DAYS}.
       </p>

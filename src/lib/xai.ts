@@ -3,7 +3,10 @@
 // provider the same way: plain fetch to the OpenAI-compatible chat endpoint, no
 // SDK. The key is read from XAI_API_KEY and is never logged or returned.
 // SERVER ONLY: import this from server actions and server modules, never from a
-// "use client" file (the smoke test checks the browser bundle for it).
+// "use client" file (the smoke test checks the browser bundle for it, and
+// "server-only" makes the build fail if a client file ever imports it).
+
+import "server-only";
 
 const XAI_URL = "https://api.x.ai/v1/chat/completions";
 
