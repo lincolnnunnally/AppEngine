@@ -437,6 +437,52 @@ await step("EA r3 (Lincoln's call): business drops Facebook posting, email blast
   assert(lom && lom.appId === "outreach", "church Outreach still passes");
 });
 
+// EA r4 re-probe.
+await step("EA r4: the name capture stops at joining words, verbs and app names (the 7 EA cases)", () => {
+  const cases = [
+    ["Pastor Jim Will Visit", "The pastor Will Visit"],
+    // Sue has no title but is clearly a second person: replaced too, so no name survives.
+    ["Pastor Jim And Sue", "The pastor and another person"],
+    ["Ask Pastor Jim If He Wants Laser", "Ask the pastor If He Wants Laser"],
+    ["Thank Pastor Mike For The Welcome", "Thank the pastor For The Welcome"],
+    ["Show Pastor Outreach", "Show Pastor Outreach"],
+    ["Pastor ChurchConnect demo", "Pastor ChurchConnect demo"],
+    ["Pastor Laser gift", "Pastor Laser gift"],
+    // Two titled people stay two phrases; "and" before a title is not swallowed.
+    ["Thank Elder Brown and Deacon Wells", "Thank the elder and the deacon"],
+    ["Ask Pastor Jim and Sue Ellen Park about gifts", "Ask the pastor and another person about gifts"]
+  ];
+  for (const [input, want] of cases) {
+    const got = core.withoutMadeUpNames(input);
+    console.log(`     ${JSON.stringify(input)} -> ${JSON.stringify(got)}`);
+    assert(got === want, `names(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+  }
+});
+
+await step("EA r4: farmer's market (either apostrophe) passes", () => {
+  for (const text of ["Say hello at their booth at the farmer's market", "Say hello at their booth at the farmer\u2019s market", "Say hello at their booth at the farmers' market"]) {
+    const out = core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY);
+    assert(out && out.nextStep === text, `must pass: ${text} -> ${JSON.stringify(out)}`);
+  }
+});
+
+await step("EA r4: dates need a real month and day and can't run into more digits", () => {
+  for (const text of ["Call 05-55-0101 today", "Call 5-55-0101 today", "Call 2026-10-20-0101 today"]) {
+    assert(core.scrub(text) === "Call today", `not a date, scrubbed as a phone: ${text} -> ${core.scrub(text)}`);
+  }
+  for (const text of ["Stop by on 10/20/2026 after lunch", "Stop by on 2026/10/20 after lunch", "Stop by on 20261020 after lunch", "Stop by on 2026-10-20 after lunch", "Stop by on 1-5-2026 after lunch"]) {
+    assert(core.scrub(text) === text, `date kept: ${text} -> ${core.scrub(text)}`);
+  }
+  assert(core.scrub("Stop by on 13/45/2026 after lunch") === "Stop by on after lunch", "month 13 / day 45 is not a date");
+});
+
+await step("EA r4: more promise words drop", () => {
+  for (const text of ["Gift boxes for 5 grand", "A gift box costs only 99", "Each card is ninety-nine cents", "Gift boxes are priced low"]) {
+    assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `church must drop: ${text}`);
+    assert(core.cleanSuggestion("business", { next_step: text, app: "" }, business(), TODAY) === null, `business must drop: ${text}`);
+  }
+});
+
 await step("minimal data: no name, contacts, emails, phones, visit notes, or the next step's words are sent", () => {
   const input = core.suggestInput(card(), "church", NOW);
   const text = JSON.stringify(input);

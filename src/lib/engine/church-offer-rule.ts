@@ -100,7 +100,7 @@ const SAFE_PHRASES_RE = new RegExp(
     "\\ba\\s+(great|good)\\s+deal\\s+of\\b",
     "\\bad\\s+hoc\\b",
     `\\bmarket\\s+${STREET}\\b`,
-    "\\bfarmers?'?\\s+markets?\\b",
+    "\\bfarmers?['\u2019]?s?\\s+markets?\\b", // farmers market, farmers' market, farmer's market (either apostrophe)
     "\\bpromoted\\s+to\\s+(senior\\s+|associate\\s+|youth\\s+|lead\\s+|executive\\s+)?(pastor|minister|deacon|elder|bishop)\\b"
   ].join("|"),
   "g"
@@ -183,7 +183,10 @@ const PROMISE_RE = new RegExp(
     "\\bdeals?\\s+(on|for)\\b",
     "\\$\\s*\\d",
     "\\d\\s*\\$",
-    "\\b\\d+\\s*(dollars|bucks|usd)\\b",
+    "\\b\\d+\\s*(dollars|bucks|usd|grand|cents)\\b",
+    "\\bcosts?\\s+(only\\s+|just\\s+|about\\s+|around\\s+|under\\s+|less\\s+than\\s+)?\\d",
+    "\\bpriced?\\s+(low|right|cheap|to\\s+sell)\\b",
+    "\\blow\\s*priced?\\b",
     "\\bcoupons?\\b",
     "\\bpromo\\s*codes?\\b",
     "\\bcomplimentary\\b",
@@ -204,7 +207,7 @@ const PROMISE_RE = new RegExp(
     "\\bfreebies?\\b",
     "\\bgive\\s*aways?\\b",
     "\\blow(er|est)?\\s+prices?\\b",
-    `\\b${SPELLED_NUMBER}(\\s+${SPELLED_NUMBER})*\\s+(bucks|dollars|grand)\\b`,
+    `\\b${SPELLED_NUMBER}(\\s+${SPELLED_NUMBER})*\\s+(bucks|dollars|grand|cents)\\b`,
     "\\bcosts?\\s*\\$",
     "\\bat\\s+cost\\b",
     "\\bcheap(er|est|ly)?\\b"

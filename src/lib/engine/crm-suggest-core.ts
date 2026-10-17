@@ -99,10 +99,16 @@ export function suggestGate(card: SuggestCard, outreachHidden: boolean): Suggest
 // non-breaking hyphen or an en dash is caught like "912-555-0101".
 const DASHES_RE = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g;
 // Dates are not phones (EA r3): 2026-10-20, 2026/10/20, 10/20/2026, 10-20-2026, 20261020.
+// EA r4: a real month (1-12) and day (1-31), and never running into more digits
+// ("2026-10-20-0101", "05-55-0101" and "5-55-0101" are not dates; the phone scrub takes them).
+const MONTH = "(?:0?[1-9]|1[0-2])";
+const DAY = "(?:0?[1-9]|[12]\\d|3[01])";
+const NOT_BEFORE = "(?<![\\d/-])";
+const NOT_AFTER = "(?![\\d]|[-/]\\d)";
 const DATE_RES = [
-  /\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b/g,
-  /\b\d{1,2}[-/]\d{1,2}[-/](?:\d{4}|\d{2})\b/g,
-  /\b(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\b/g
+  new RegExp(`${NOT_BEFORE}\\d{4}([-/])${MONTH}\\1${DAY}${NOT_AFTER}`, "g"),
+  new RegExp(`${NOT_BEFORE}${MONTH}([-/])${DAY}\\1(?:\\d{4}|\\d{2})${NOT_AFTER}`, "g"),
+  new RegExp(`${NOT_BEFORE}(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])${NOT_AFTER}`, "g")
 ];
 // Emails, including "x at y dot org" and "x(at)y.org" / "x [at] y [dot] org".
 const EMAIL_RES = [
@@ -138,22 +144,48 @@ const TITLE_PHRASE: Record<string, string> = {
   elder: "the elder", deacon: "the deacon", father: "the priest", bishop: "the bishop"
 };
 const TITLES = "(?:Pastor|Reverend|Rev|Brother|Sister|Mrs|Mr|Ms|Dr|Elder|Deacon|Father|Bishop)";
-// Capitalized words after a title that are not a name ("Deacon Board", "Sister Church", "Pastor Easter Sunday").
-const NOT_A_NAME = `(?!(?:${[
+// Capitalized words after a title that are not a name ("Deacon Board", "Sister Church", "Pastor Easter Sunday"),
+// joining words and common verbs in Title Case ("Pastor Jim Will Visit"), and the app names
+// ("Pastor ChurchConnect demo", "Show Pastor Outreach"). The name capture stops at any of them.
+const NOT_NAME_WORDS = [
+  // church words and days
   "Appreciation", "Anniversary", "Day", "Days", "Week", "Month", "Weekend", "Night", "Morning", "Evening",
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Today", "Tomorrow", "Tonight",
   "Board", "Boards", "Church", "Churches", "Ministries", "Ministry", "Committee", "Committees", "Council", "Team", "Teams",
   "Office", "Offices", "Service", "Services", "Meeting", "Meetings", "Fellowship", "Choir", "School", "Study", "Group",
   "Retreat", "Conference", "Breakfast", "Lunch", "Dinner", "Supper", "Program", "Class", "Training", "Installation",
-  "Easter", "Christmas", "Thanksgiving", "Advent", "Lent", "Revival", "Homecoming", "Search"
-].join("|")})\\b)`;
+  "Easter", "Christmas", "Thanksgiving", "Advent", "Lent", "Revival", "Homecoming", "Search", "Welcome",
+  // joining words
+  "And", "Or", "But", "Nor", "So", "Yet", "If", "When", "While", "Then", "Than", "Because", "Since", "Until", "Unless",
+  "For", "The", "A", "An", "To", "At", "About", "With", "Without", "From", "Of", "On", "In", "Into", "By", "After",
+  "Before", "During", "Over", "Under", "Up", "Out", "Off", "Again", "Back", "Next", "Soon", "Also", "Only", "Just",
+  "Not", "No", "Yes", "Please", "Here", "There", "Now", "Who", "What", "Which", "Where", "Why", "How", "That", "This",
+  "These", "Those", "He", "She", "They", "We", "You", "I", "It", "His", "Her", "Hers", "Their", "Our", "Your", "My",
+  "Its", "Him", "Them", "Us", "Me",
+  // common verbs
+  "Will", "Would", "Can", "Could", "Should", "Shall", "Might", "Must", "Is", "Are", "Was", "Were", "Be", "Been",
+  "Has", "Have", "Had", "Do", "Does", "Did", "Wants", "Want", "Wanted", "Needs", "Need", "Needed", "Said", "Says",
+  "Asked", "Asks", "Ask", "Likes", "Like", "Liked", "Loves", "Love", "Visit", "Visits", "Visited", "Call", "Calls",
+  "Called", "Come", "Comes", "Came", "Go", "Goes", "Went", "Get", "Gets", "Got", "Know", "Knows", "Knew", "Think",
+  "Thinks", "Thought", "Mentioned", "Mention", "Give", "Gives", "Gave", "Take", "Takes", "Took", "Thank", "Thanks",
+  "Meet", "Met", "See", "Saw", "Seen", "Say", "Tell", "Told", "Hope", "Hopes", "Agreed", "Leads", "Runs", "Run",
+  // app names (church-offer-rule.ts and the rest of the portfolio)
+  "ChurchConnect", "EasyPeazy", "Laser", "Outreach", "Operate", "Neighborly", "Neighbourly", "Presence", "Spark",
+  "Toner", "Toners", "AWD", "AI", "Live", "Best", "Local", "Directory", "Find"
+];
+const NOT_A_NAME = `(?!(?:${NOT_NAME_WORDS.join("|")})(?![\\p{L}]))`;
 const NAME_WORD = `(?:[A-Z]\\.\\s*)?${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+|['\u2019][A-Z][\\p{L}]*)*`;
-const TITLED_NAME_RE = new RegExp(`\\b(?:(the|a|an)\\s+)?((?:${TITLES}\\.?\\s+)+)${NAME_WORD}(?:\\s+${NAME_WORD}){0,2}`, "gu");
+// "Pastor Jim and Sue": the second name goes too (as "another person"), unless it has its own title.
+const AND_NAME = `(\\s+(?:and|And|&)\\s+(?!${TITLES}\\b)${NAME_WORD}(?:\\s+${NAME_WORD}){0,2})?`;
+const TITLED_NAME_RE = new RegExp(`\\b(?:(the|a|an)\\s+)?((?:${TITLES}\\.?\\s+)+)${NAME_WORD}(?:\\s+${NAME_WORD}){0,2}${AND_NAME}`, "gu");
 
 /** Replace "Title Name" spans with the generic phrase for that title. */
 export function withoutMadeUpNames(text: string): string {
   return text
-    .replace(TITLED_NAME_RE, (_span, _article: string | undefined, titles: string) => TITLE_PHRASE[(titles.match(/[A-Za-z]+/)?.[0] ?? "").toLowerCase()] ?? "them")
+    .replace(TITLED_NAME_RE, (_span, _article: string | undefined, titles: string, andName: string | undefined) => {
+      const phrase = TITLE_PHRASE[(titles.match(/[A-Za-z]+/)?.[0] ?? "").toLowerCase()] ?? "them";
+      return andName ? `${phrase} and another person` : phrase;
+    })
     .replace(/(^|[.!?]\s+)the (pastor|member|contact|elder|deacon|priest|bishop)/g, (_m, lead: string, who: string) => `${lead}The ${who}`)
     .replace(/\s+/g, " ")
     .trim();
