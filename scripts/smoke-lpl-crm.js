@@ -809,8 +809,19 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
   const cundo = writer.slice(writer.indexOf("export async function undoChurchDoNotContact"), writer.indexOf("// ── Add or edit an org"));
   assert(cundo.indexOf("releaseClaim(lpl, deskSuppressionSource(churchId))") < cundo.indexOf("/do-not-contact/undo"), "church: claim released before ChurchConnect undo (retryable)");
   assertIncludes(cundo, "if (result.json?.still_stopped === true)", "church: ChurchConnect's own other reason keeps it blocked");
-  assertIncludes(cundo, "const still = reach ? await existingSuppressions(lpl, reach.rows) : null;", "church: re-checks email, phone and website on the shared list");
+  assertIncludes(cundo, "const still = await existingSuppressions(lpl, reach.rows);", "church: re-checks email, phone and website on the shared list");
+  // EA r3 shoulds: a failed check or a failed ChurchConnect undo leaves the desk stop, so Undo stays and can be retried.
+  assert(cundo.indexOf("if (still === null) {") < cundo.indexOf("/do-not-contact/undo"), "church: shared list checked before ChurchConnect is touched");
+  assert(/if \(still === null\) \{\s*return \{ ok: false/.test(cundo), "church: unchecked list fails (Undo stays), not a success");
+  assertIncludes(cundo, "ChurchConnect didn't confirm the undo, so this church stays stopped. Try Undo again.", "church: CC undo failure after release keeps it stopped and retryable");
+  assert(!cundo.includes("Still blocked for now"), "no 'treat as blocked' success that hides Undo");
+  assert(cundo.indexOf("readChurchReach(lpl, churchId)") < cundo.indexOf("releaseClaim("), "church: reach read before anything changes");
   assertIncludes(cundo, "Still on the do-not-contact list. ${stillListedReason(name", "church: says it's still blocked");
+  // Every writer sends phone as 10 digits (registry rule); both claim paths go through suppressionRowsFor.
+  assert(core.normPhone("+1 (404) 555-0143") === "4045550143" && core.normPhone("555-0143") === "", "phone normalized to 10 digits before suppress()");
+  assertIncludes(writer, "claimSuppressions(config, suppressionRowsFor(church)", "church claims use normalized rows");
+  assertIncludes(writer, "claimSuppressions(config, leadSuppressionRows(lead)", "business claims use normalized rows");
+  assertIncludes(read("source-of-truth/super-admin-registry.md"), "phone as exactly 10 digits", "registry: writers send phone as 10 digits");
   // Domains are added from the website only (never an email provider's domain).
   const rowsFn = writer.slice(writer.indexOf("export function suppressionRowsFor"), writer.indexOf("async function addChurchToDoNotContact"));
   assert(!rowsFn.includes("domainFromEmail"), "no domain rows from email addresses");

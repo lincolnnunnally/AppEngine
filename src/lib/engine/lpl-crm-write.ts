@@ -385,23 +385,29 @@ export async function undoChurchDoNotContact(ownerEmail: string, churchId: strin
   const lpl = lplConfig();
   if (!config || !lpl) return { ok: false, message: savingOffMessage() };
   if (!UUID_RE.test(churchId)) return { ok: false, message: "Only a ChurchConnect church can be undone here." };
+  // 0. Every way to reach the church, read first: if it can't be read, nothing is changed and Undo stays.
+  const reach = await readChurchReach(lpl, churchId);
+  if (!reach) return { ok: false, message: "The church couldn't be read, so it stays stopped. Nothing was changed — try Undo again." };
+  const name = reach.name;
   // 1. Remove only this desk's claim on the shared list (read back: none left). Retryable.
   const released = await releaseClaim(lpl, deskSuppressionSource(churchId));
   if (!released || released.remaining !== 0) {
     return { ok: false, message: "The do-not-contact list couldn't be cleared. Nothing else was changed — try again." };
   }
-  // 2. ChurchConnect removes only the desk's claim and keeps the church stopped for any other reason.
+  // 2. Still on the shared list another way (its email, phone or website, any source)? Checked before
+  // ChurchConnect is touched, so a failed check leaves the desk stop (and the Undo button) in place.
+  const still = await existingSuppressions(lpl, reach.rows);
+  if (still === null) {
+    return { ok: false, message: `The do-not-contact list couldn't be checked, so ${name} stays stopped. Try Undo again in a minute.` };
+  }
+  // 3. ChurchConnect removes only the desk's claim and keeps the church stopped for any other reason.
   const result = await callChurchConnect(config, "POST", `/api/church-crm/leads/${churchId}/do-not-contact/undo`, ownerEmail, {});
-  if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
-  // 3. Still on the shared list another way (its email, phone or website, any source)?
-  const reach = await readChurchReach(lpl, churchId);
-  const name = reach?.name || "This church";
+  if (!result.ok) {
+    // The desk's claim is still on the church in ChurchConnect, so it stays stopped and Undo stays available.
+    return { ok: false, message: "ChurchConnect didn't confirm the undo, so this church stays stopped. Try Undo again." };
+  }
   if (result.json?.still_stopped === true) {
     return { ok: true, warn: true, message: `Still blocked. ${churchStopReason(name, result.json?.reason)}, so it stays blocked. Don't contact it.` };
-  }
-  const still = reach ? await existingSuppressions(lpl, reach.rows) : null;
-  if (still === null) {
-    return { ok: true, warn: true, message: `Still blocked for now. The do-not-contact list couldn't be checked, so treat ${name} as blocked. Don't contact it yet.` };
   }
   if (still.length) {
     return { ok: true, warn: true, message: `Still on the do-not-contact list. ${stillListedReason(name, still.map((row) => row.reason ?? ""))}, so it stays blocked. Don't contact it.` };
