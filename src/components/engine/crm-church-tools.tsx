@@ -318,7 +318,7 @@ function VisitForm({
           aria-busy={pending}
           data-testid="crm-visit-save"
         >
-          {pending ? "Saving…" : stopping && confirmed ? "Save and stop contact" : kind === "drop_off" ? "Save drop-off" : "Save visit"}
+          {pending ? "Saving…" : stopping && confirmed ? "Save and stop contact" : kind === "drop_off" ? "Save drop-off" : kind === "visit" ? "Save visit" : "Save"}
         </button>
         <button type="button" className="dx-btn" onClick={onCancel} disabled={pending}>
           Cancel

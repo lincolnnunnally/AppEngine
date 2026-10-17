@@ -52,7 +52,7 @@ const TIMEOUT_MS = 12_000;
 const MAX_TOKENS = 300;
 const CACHE_MAX = 500;
 
-const cache = new Map<string, Suggestion | null>();
+const cache = new Map<string, Suggestion>();
 let spent = { day: "", calls: 0 };
 
 function dailyCap(): number {
@@ -89,10 +89,8 @@ export async function suggestNextStep(
   const kind = suggestKind(card);
   const input = suggestInput(card, kind, now);
   const key = suggestCacheKey(card.key, input);
-  if (cache.has(key)) {
-    const hit = cache.get(key) ?? null;
-    return hit ? { ok: true, suggestion: hit, cached: true } : { ok: false, message: SUGGEST_NONE, reason: "none" };
-  }
+  const hit = cache.get(key);
+  if (hit) return { ok: true, suggestion: hit, cached: true };
   const mock = mockAnswer(kind);
   if (!mock && !hasAiProvider()) return { ok: false, message: SUGGEST_UNAVAILABLE, reason: "unavailable" };
   if (spent.day !== input.today) spent = { day: input.today, calls: 0 };
@@ -107,7 +105,11 @@ export async function suggestNextStep(
     return { ok: false, message: SUGGEST_UNAVAILABLE, reason: "unavailable" };
   }
   const suggestion = cleanSuggestion(kind, answer, card, input.today);
-  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
-  cache.set(key, suggestion);
+  // EA r2: only a good answer is cached; a filtered one isn't, so a retry asks
+  // again (and still counts toward the daily cap above).
+  if (suggestion) {
+    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
+    cache.set(key, suggestion);
+  }
   return suggestion ? { ok: true, suggestion, cached: false } : { ok: false, message: SUGGEST_NONE, reason: "none" };
 }

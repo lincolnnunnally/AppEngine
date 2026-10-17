@@ -236,6 +236,142 @@ await step("do-not-contact and rest: no outreach suggestion, at most 'Resting un
   assert(!core.allowedOffers("church", card({ stops: [{ reason: "customer", text: "", app: "laser" }] })).some((o) => o.id === "laser"), "minus what they already buy");
 });
 
+// EA r2 re-probe: more promises, Unicode-dash phones, fewer false positives, more leaks closed.
+const PROMISES_R2 = [
+  "Bring a complimentary gift box",
+  "Tell them the first box is on us",
+  "Offer to waive the setup fee",
+  "Mention the fee is waived this month",
+  "Gift boxes are half price this week",
+  "Gift boxes are half off",
+  "Mention the 2-for-1 gift boxes",
+  "Mention the two for one gift boxes",
+  "Buy one get one on Laser gifts",
+  "Mention the BOGO on gift boxes",
+  "Offer the website gratis",
+  "Mention there is no obligation",
+  "Offer a free trial of the church website",
+  "Offer a 30-day trial of ChurchConnect",
+  "Mention the special offer",
+  "It's a limited time offer",
+  "Mention the rebate on gifts",
+  "Gift boxes are 25 bucks",
+  "Show them how to save money on gifts",
+  "Show them how to save a lot of money",
+  "Gift boxes are cheap",
+  "Mention a deal on Laser gifts",
+  "Offer a special deal",
+  "They get a great deal on gift boxes"
+];
+const CHURCH_LEAKS_R2 = ["Introduce neighbor-ly", "Introduce neighbor ly", "Talk about an advert in the bulletin"];
+const BUSINESS_DROPS_R2 = ["Talk about marketing", "Offer to promote the shop", "Offer to write Facebook posts", "Offer to boost your Google listing", "Help boost their Google listing"];
+const CHURCH_PASS_R2 = [
+  "Stop by the Free Will Baptist church office and leave a card",
+  "Visit the Free Methodist church after Sunday service",
+  "Thank them; they gave a great deal of help at the food drive",
+  "Ask about the ad hoc welcome team",
+  "Stop by the church on Market Street",
+  "Say hello at their booth at the farmers market",
+  "Visit the church on Campaign Street",
+  "Congratulate the new youth leader who was promoted to pastor",
+  "Use the free parking behind the church when you visit",
+  "Leave the welcome gift by the free-standing sign",
+  "Drop off Laser church gifts for the welcome table on 2026-10-20"
+];
+
+await step("EA r2: more promise words drop (churches and businesses)", () => {
+  for (const text of PROMISES_R2) {
+    assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `church promise must drop: ${text}`);
+    assert(core.cleanSuggestion("business", { next_step: text, app: "" }, business(), TODAY) === null, `business promise must drop: ${text}`);
+  }
+});
+
+await step("EA r2: church leaks closed; business drops bare marketing, promote, posts, Google listing while hidden", () => {
+  for (const text of CHURCH_LEAKS_R2) assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `church must drop: ${text}`);
+  for (const text of BUSINESS_DROPS_R2) assert(core.cleanSuggestion("business", { next_step: text, app: "" }, business(), TODAY) === null, `business must drop: ${text}`);
+  // Safe phrases don't shield the rest of the sentence.
+  for (const text of ["Visit the Free Will Baptist church with a free gift", "Stop by on Market Street and talk about marketing", "Ask about the ad hoc team and run some ads"]) {
+    assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `still drops: ${text}`);
+  }
+  // Every earlier must-drop still drops with the narrower patterns.
+  for (const text of [...CHURCH_MUST_DROP, ...PROMISES]) assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `earlier must-drop: ${text}`);
+});
+
+await step("EA r2: good church answers are not over-blocked", () => {
+  for (const text of [...CHURCH_PASS_R2, ...CHURCH_MUST_PASS]) {
+    const out = core.cleanSuggestion("church", { next_step: text, app: "laser", when_days: 2 }, card(), TODAY);
+    assert(out && out.nextStep === text, `must pass: ${text} -> ${JSON.stringify(out)}`);
+  }
+});
+
+await step("EA r2: output scrub — Unicode-dash and spaced phones, obfuscated emails gone; ISO dates kept", () => {
+  const cases = [
+    ["Call 912\u2011555\u20110101 to set a visit", "Call to set a visit"],
+    ["Call 912\u2013555\u20130101 to set a visit", "Call to set a visit"],
+    ["Call 912\u2212555\u22120101 to set a visit", "Call to set a visit"],
+    ["Call \uFF19\uFF11\uFF12\uFF0D555\uFF0D0101 to set a visit", "Call to set a visit"],
+    ["Call (912) 555 0101 to set a visit", "Call to set a visit"],
+    ["Email office at grace dot org to set a visit", "Email to set a visit"],
+    ["Email office(at)grace.org to set a visit", "Email to set a visit"],
+    ["Email office [at] grace [dot] org to set a visit", "Email to set a visit"],
+    ["Email office@grace.org to set a visit", "Email to set a visit"],
+    ["Stop by on 2026-10-20 after lunch", "Stop by on 2026-10-20 after lunch"],
+    ["Stop by on 2026-10-20 or call 912-555-0101", "Stop by on 2026-10-20 or call"]
+  ];
+  for (const [input, want] of cases) {
+    const got = core.scrub(input);
+    assert(got === want, `scrub(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+  }
+});
+
+await step("EA r2: made-up names become a generic phrase (span replaced, suggestion kept)", () => {
+  const cases = [
+    ["Call Pastor James back next week", "Call the pastor back next week"],
+    ["Pastor James Okafor said to come Sunday", "The pastor said to come Sunday"],
+    ["Ask Rev. Okafor about the gift table", "Ask the pastor about the gift table"],
+    ["Ask Reverend Mary-Ann Lee about the gift table", "Ask the pastor about the gift table"],
+    ["Visit Brother Jerome after service", "Visit the member after service"],
+    ["Visit Sister Mary Lou after service", "Visit the member after service"],
+    ["Ask Mr Smith, Mrs. Jones and Ms Diaz", "Ask the contact, the contact and the contact"],
+    ["Bring Dr. Okafor's gift box", "Bring the contact's gift box"],
+    ["Thank Elder Brown and Deacon Wells", "Thank the elder and the deacon"],
+    ["Visit Father Michael and Bishop T. Jakes", "Visit the priest and the bishop"],
+    ["Ask the Pastor James about Sunday", "Ask the pastor about Sunday"],
+    ["Bring a gift for Pastor Appreciation Sunday", "Bring a gift for Pastor Appreciation Sunday"],
+    ["Call the pastor back", "Call the pastor back"]
+  ];
+  for (const [input, want] of cases) {
+    const got = core.withoutMadeUpNames(input);
+    assert(got === want, `names(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+  }
+  const out = core.cleanSuggestion("church", { next_step: "Call Pastor James back", why: "Sister Mary asked about gifts", app: "laser" }, card(), TODAY);
+  assert(out && out.nextStep === "Call the pastor back" && out.why === "The member asked about gifts", JSON.stringify(out));
+});
+
+await step("EA r2: a filtered answer is not cached (a retry asks again and counts toward the cap)", async () => {
+  process.env.XAI_API_KEY = "test-only-not-a-key";
+  const prevCap = process.env.CRM_SUGGEST_DAILY_CAP;
+  let calls = 0;
+  const answers = [JSON.stringify({ next_step: "Offer a free gift", app: "" }), JSON.stringify({ next_step: "Stop by with a gift box", app: "laser", when_days: 1 })];
+  const ask = async () => answers[Math.min(calls++, answers.length - 1)];
+  const first = await server.suggestNextStep(card({ key: "church:retry" }), false, NOW, ask);
+  const second = await server.suggestNextStep(card({ key: "church:retry" }), false, NOW, ask);
+  const third = await server.suggestNextStep(card({ key: "church:retry" }), false, NOW, ask);
+  assert(!first.ok && first.reason === "none" && second.ok && !second.cached && third.ok && third.cached && calls === 2, `retry: ${JSON.stringify({ first, second, third, calls })}`);
+  // Retries count: with a cap already used up, a retry is refused without asking.
+  process.env.CRM_SUGGEST_DAILY_CAP = "0";
+  const capped = await server.suggestNextStep(card({ key: "church:capped" }), false, NOW, ask);
+  assert(!capped.ok && capped.reason === "unavailable" && calls === 2, "cap still applies to retries");
+  if (prevCap === undefined) delete process.env.CRM_SUGGEST_DAILY_CAP;
+  else process.env.CRM_SUGGEST_DAILY_CAP = prevCap;
+  delete process.env.XAI_API_KEY;
+});
+
+await step("EA r2: after Use this the button says Save until a type is picked", () => {
+  const tools = read("src/components/engine/crm-church-tools.tsx");
+  assert(tools.includes('kind === "drop_off" ? "Save drop-off" : kind === "visit" ? "Save visit" : "Save"'), "Save / Save visit / Save drop-off");
+});
+
 await step("minimal data: no name, contacts, emails, phones, visit notes, or the next step's words are sent", () => {
   const input = core.suggestInput(card(), "church", NOW);
   const text = JSON.stringify(input);

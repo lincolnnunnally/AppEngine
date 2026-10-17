@@ -83,7 +83,50 @@ export function normalizeOfferText(text: unknown): string {
   return out;
 }
 
-/** Words that never reach a church, matched on normalizeOfferText output. */
+/**
+ * Everyday phrases that contain a filtered word but are not an offer or a
+ * promise (EA r2). They are cut out of the normalized text before the checks,
+ * so the rest of the sentence is still checked: "Free Will Baptist" passes,
+ * "Free Will Baptist, free gift" does not.
+ */
+const STREET = "(street|st|road|rd|avenue|ave|square|sq|place|pl|lane|ln|drive|dr|boulevard|blvd|way|plaza)";
+const SAFE_PHRASES_RE = new RegExp(
+  [
+    "\\bfree\\s+will\\b", // Free Will Baptist
+    "\\bfree\\s+methodists?\\b",
+    "\\bfree\\s+parking\\b",
+    "\\bfree\\s*standing\\b", // "free-standing" reads as "free standing"
+    "\\ba\\s+(great|good)\\s+deal\\s+of\\b",
+    "\\bad\\s+hoc\\b",
+    `\\bmarket\\s+${STREET}\\b`,
+    "\\bfarmers?'?\\s+markets?\\b",
+    `\\bcampaign\\s+${STREET}\\b`,
+    "\\bpromoted\\s+to\\s+(senior\\s+|associate\\s+|youth\\s+|lead\\s+|executive\\s+)?(pastor|minister|deacon|elder|bishop)\\b"
+  ].join("|"),
+  "g"
+);
+
+/** Normalized, with the safe everyday phrases cut out. Every word check below reads this. */
+function checkText(text: unknown): string {
+  return normalizeOfferText(text).replace(SAFE_PHRASES_RE, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Ads, campaigns and posts: never sold to a church, and hidden for businesses while the campaign offer is off. */
+const AD_WORDS = [
+  "\\bads?\\b",
+  "\\badvert\\w*",
+  "\\bcampaigns?\\b",
+  "\\bsocial\\s*media\\b",
+  "\\bseo\\b",
+  "\\bpromot(e|es|ed|ing|ion|ions|ional)\\b",
+  "\\bgrow\\s+(your|their|the|an?)\\s+(\\w+\\s+)?audiences?\\b",
+  "\\baudience\\s+growth\\b",
+  "\\b(facebook|instagram|tiktok|twitter|social|youtube)\\s+(posts?|ads?|reels?|page\\s+posts?)\\b",
+  "\\bboost(s|ed|ing)?\\s+(your|their|the|its|a)\\s+(google|online|search|listing|reach|visibility|ranking|page|posts?)\\w*",
+  "\\bgoogle\\s+(listing|ranking|business\\s+profile|maps\\s+listing)s?\\b"
+];
+
+/** Words that never reach a church, matched on checkText output. */
 const CHURCH_NEVER_RE = new RegExp(
   [
     "\\bmarket(ing|er|ers|s)?\\b",
@@ -92,7 +135,7 @@ const CHURCH_NEVER_RE = new RegExp(
     "\\bops\\b",
     "\\btoners?\\b",
     "\\bgroup\\s*buy(s|ing)?\\b",
-    "\\bneighbou?rly\\b",
+    "\\bneighbou?r\\s*ly\\b", // also "neighbor-ly" / "neighbor ly"
     "\\bweb(site)?\\s*design(s|er|ers|ing)?\\b",
     "\\bawd\\b",
     "\\bpresence\\b",
@@ -100,40 +143,64 @@ const CHURCH_NEVER_RE = new RegExp(
     "\\bbest\\s*life\\b",
     "\\blocal\\s*leads?\\b",
     "\\bbusiness\\s+tools?\\b",
-    // Ads and campaigns: a church is never sold advertising.
-    "\\bads?\\b",
-    "\\badverti[sz]\\w*",
-    "\\bcampaigns?\\b",
-    "\\bsocial\\s*media\\b",
-    "\\bseo\\b",
-    "\\bpromot(e|es|ed|ing|ion|ions|ional)\\b",
-    "\\bgrow\\s+(your|their|the|an?)\\s+(\\w+\\s+)?audiences?\\b",
-    "\\baudience\\s+growth\\b"
+    ...AD_WORDS
   ].join("|"),
   "i"
 );
 
 /** While "Marketing campaign" is hidden, a business suggestion may not offer one by any name. */
-const HIDDEN_BUSINESS_WORDS_RE =
-  /\bmarketing\s*campaigns?\b|\bcampaigns?\b|\bads?\b|\badverti[sz]\w*|\bsocial\s*media\b|\bseo\b/i;
+const HIDDEN_BUSINESS_WORDS_RE = new RegExp(["\\bmarketing\\b", "\\bmarketing\\s*campaigns?\\b", ...AD_WORDS].join("|"), "i");
 
-/** Promises a suggestion must never make: free things, discounts, prices, guarantees, deals. */
-const PROMISE_RE =
-  /\bfree\b|\bfor\s+nothing\b|\bno\s+(cost|charge)\b|\bdiscount\w*|\d+\s*%\s*off\b|%\s*off\b|\bpercent\s+off\b|\bguarante\w*|\bdeals?\b|\$\s*\d|\d\s*\$|\b\d+\s*(dollars|bucks|usd)\b|\bcoupons?\b|\bpromo\s*codes?\b/i;
+/** Promises a suggestion must never make: free things, discounts, prices, guarantees, deals, offers. */
+const PROMISE_RE = new RegExp(
+  [
+    "\\bfree\\b",
+    "\\bfor\\s+nothing\\b",
+    "\\bno\\s+(cost|charge|obligation)\\b",
+    "\\bdiscount\\w*",
+    "\\d+\\s*%\\s*off\\b",
+    "%\\s*off\\b",
+    "\\bpercent\\s+off\\b",
+    "\\bhalf\\s+(price|off)\\b",
+    "\\bguarante\\w*",
+    // "deal" only as a promise: "a deal", "special deal", "great deal on" (not "a great deal of", cut above).
+    "\\b(a|special|great|good|better|best|big|sweet|exclusive|package|holiday)\\s+deals?\\b",
+    "\\bdeals?\\s+(on|for)\\b",
+    "\\$\\s*\\d",
+    "\\d\\s*\\$",
+    "\\b\\d+\\s*(dollars|bucks|usd)\\b",
+    "\\bcoupons?\\b",
+    "\\bpromo\\s*codes?\\b",
+    "\\bcomplimentary\\b",
+    "\\bon\\s+us\\b",
+    "\\bwaiv(e|ed|es|er|ing)\\b",
+    "\\b(2|two)\\s*for\\s*(1|one)\\b",
+    "\\bbuy\\s+one\\s+get\\s+one\\b",
+    "\\bbogo\\b",
+    "\\bgratis\\b",
+    "\\btrials?\\b", // covers "free trial"
+    "\\bspecial\\s+offers?\\b",
+    "\\blimited\\s+time\\b",
+    "\\brebates?\\b",
+    "\\bsave\\s+(\\w+\\s+){0,3}money\\b",
+    "\\bcheap(er|est|ly)?\\b"
+  ].join("|"),
+  "i"
+);
 
 /** Church text check (after normalizing): any never-for-churches word or "marketing". */
 export function churchTextBlocked(text: unknown): boolean {
-  return CHURCH_NEVER_RE.test(normalizeOfferText(text));
+  return CHURCH_NEVER_RE.test(checkText(text));
 }
 
 /** Business text check while the campaign offer is hidden. */
 export function hiddenBusinessTextBlocked(text: unknown): boolean {
-  return !MARKETING_CAMPAIGN_LIVE && HIDDEN_BUSINESS_WORDS_RE.test(normalizeOfferText(text));
+  return !MARKETING_CAMPAIGN_LIVE && HIDDEN_BUSINESS_WORDS_RE.test(checkText(text));
 }
 
-/** Any promise of free things, discounts, prices, dates-as-guarantees or deals. */
+/** Any promise of free things, discounts, prices, guarantees, deals or special offers. */
 export function promiseTextBlocked(text: unknown): boolean {
-  return PROMISE_RE.test(normalizeOfferText(text));
+  return PROMISE_RE.test(checkText(text));
 }
 
 export function churchProductOf(doorId: unknown): ChurchOffer | "" {
@@ -145,7 +212,7 @@ export function allowedForChurch(doorId: unknown): boolean {
 }
 
 export function hasForbiddenChurchWord(text: unknown): boolean {
-  return FORBIDDEN_RE.test(normalizeOfferText(text));
+  return FORBIDDEN_RE.test(checkText(text));
 }
 
 /** Addresses, not words a church reads (laser.engrave.market is a domain). */

@@ -564,7 +564,7 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(tools, "disabled={pending || (stopping && !confirmed)}", "do-not-contact Save waits for the tick");
   assertIncludes(tools, 'stopping && confirmed ? "Save and stop contact"', "ticked: 'Save and stop contact'");
   assertIncludes(tools, 'stopping && confirmed ? "dx-btn--danger" : "dx-btn--primary"', "ticked: stop style");
-  assertIncludes(tools, 'kind === "drop_off" ? "Save drop-off" : "Save visit"', "drop-off button label");
+  assertIncludes(tools, 'kind === "drop_off" ? "Save drop-off" : kind === "visit" ? "Save visit" : "Save"', "drop-off / visit button label; plain Save until a type is picked");
   assertIncludes(tools, "Yes, remove", "remove asks first");
   assertIncludes(tools, "(contact.email || contact.phone) && mode !== `edit:${contact.id}`", "details not shown twice while editing");
   const desk = read("src/components/engine/crm-desk.tsx");

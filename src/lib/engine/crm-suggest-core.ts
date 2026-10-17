@@ -93,18 +93,57 @@ export function suggestGate(card: SuggestCard, outreachHidden: boolean): Suggest
   return { kind: "ok" };
 }
 
-const EMAIL_RE = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
-// Any run of 7+ digits with the usual separators (+1 404.555.0143, 404 555 0143 x12, 4045550143…).
-const PHONE_RE = /\+?\d[\d\s().\-\/]{5,}\d(?:\s*(?:x|ext\.?)\s*\d+)?/gi;
+// EA r2: the output scrub reads normalized text first: NFKC (full-width digits
+// and the full-width at sign become ASCII), then every Unicode dash (U+2010-2015,
+// U+2212, U+FE58, U+FE63, U+FF0D) becomes "-", so a phone written with a
+// non-breaking hyphen or an en dash is caught like "912-555-0101".
+const DASHES_RE = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g;
+const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
+// Emails, including "x at y dot org" and "x(at)y.org" / "x [at] y [dot] org".
+const EMAIL_RES = [
+  /[^\s@()]+\s*@\s*[^\s@]+\.[^\s@]+/g,
+  /[\w.+-]+\s*[([]\s*at\s*[)\]]\s*[\w-]+(?:\s*(?:\.|[([]\s*dot\s*[)\]]|\s+dot\s+)\s*[\w-]+)+/gi,
+  /[\w.+-]+\s+at\s+[\w-]+(?:\s+dot\s+[\w-]+)+/gi
+];
+// Any run of 7+ digits with the usual separators, parentheses included
+// (+1 404.555.0143, (912) 555 0101, 404 555 0143 x12, 4045550143…).
+const PHONE_RE = /\+?\(?\d[\d\s().\-/]{5,}\d\)?(?:\s*(?:x|ext\.?)\s*\d+)?/gi;
 
-/** The model's answer only: remove anything that looks like an email or phone, collapse spaces, cap length. */
+/** The model's answer only: remove anything that looks like an email or phone, collapse spaces, cap length. ISO dates stay. */
 export function scrub(text: unknown, max = 160): string {
-  return String(text ?? "")
-    .replace(EMAIL_RE, "")
-    .replace(PHONE_RE, "")
+  let out = String(text ?? "").normalize("NFKC").replace(DASHES_RE, "-");
+  // Keep ISO dates (2026-10-20) out of the phone match, then put them back.
+  const dates: string[] = [];
+  out = out.replace(ISO_DATE_RE, (date) => `\u0000${dates.push(date) - 1}\u0000`);
+  for (const re of EMAIL_RES) out = out.replace(re, "");
+  out = out.replace(PHONE_RE, (run) => ((run.match(/\d/g) || []).length >= 7 ? "" : run));
+  out = out.replace(/\(\s*\)/g, "").replace(/\u0000(\d+)\u0000/g, (_m, index) => dates[Number(index)] ?? "");
+  return out.replace(/\s+([,.;:!?])/g, "$1").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+// EA r2: the model must not make up people. A title followed by a capitalized
+// word ("Pastor James", "Sister Mary Lou", "Dr. Okafor's") is replaced with a
+// generic phrase ("the pastor", "the member", "the contact"…). Replacing keeps
+// a useful step and is as safe as dropping: no name survives either way.
+const TITLE_PHRASE: Record<string, string> = {
+  pastor: "the pastor", rev: "the pastor", reverend: "the pastor",
+  brother: "the member", sister: "the member",
+  mr: "the contact", mrs: "the contact", ms: "the contact", dr: "the contact",
+  elder: "the elder", deacon: "the deacon", father: "the priest", bishop: "the bishop"
+};
+const NOT_A_NAME = "(?!(?:Appreciation|Anniversary|Day|Week|Month|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\\b)";
+const TITLED_NAME_RE = new RegExp(
+  `\\b(?:(the|a|an)\\s+)?(Pastor|Rev|Reverend|Brother|Sister|Mr|Mrs|Ms|Dr|Elder|Deacon|Father|Bishop)\\.?\\s+(?:[A-Z]\\.\\s*)?${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+)?(?:\\s+[A-Z]\\.)?(?:\\s+${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+)?)?`,
+  "gu"
+);
+
+/** Replace "Title Name" spans with the generic phrase for that title. */
+export function withoutMadeUpNames(text: string): string {
+  return text
+    .replace(TITLED_NAME_RE, (_span, _article: string | undefined, title: string) => TITLE_PHRASE[title.toLowerCase()] ?? "them")
+    .replace(/(^|[.!?]\s+)the (pastor|member|contact|elder|deacon|priest|bishop)/g, (_m, lead: string, who: string) => `${lead}The ${who}`)
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, max);
+    .trim();
 }
 
 /**
@@ -236,7 +275,8 @@ function addDays(day: string, days: number): string {
  *  - business: the app must be a live business app; text about a hidden offer
  *    (a marketing campaign, ads) drops it while MARKETING_CAMPAIGN_LIVE is false.
  *  - both: a promise (free, discount, % off, guarantee, deal, a $ amount) drops it.
- *  - emails and phones are removed from every line.
+ *  - emails and phones are removed from every line (ISO dates stay), and a made-up
+ *    "Title Name" becomes a generic phrase ("Pastor James" → "the pastor").
  */
 export function cleanSuggestion(kind: SuggestKind, raw: unknown, card: SuggestCard, today: string): Suggestion | null {
   let data: Record<string, unknown> | null = null;
@@ -251,8 +291,8 @@ export function cleanSuggestion(kind: SuggestKind, raw: unknown, card: SuggestCa
     data = raw as Record<string, unknown>;
   }
   if (!data) return null;
-  const nextStep = scrub(data.next_step, 120);
-  const why = scrub(data.why, 160);
+  const nextStep = withoutMadeUpNames(scrub(data.next_step, 120));
+  const why = withoutMadeUpNames(scrub(data.why, 160));
   if (!nextStep) return null;
   // Checked on the model's raw words too, so a phone-like run can't hide a word from the filter.
   const said = `${String(data.next_step ?? "")} ${String(data.why ?? "")} ${nextStep} ${why}`;
