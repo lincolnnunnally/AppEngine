@@ -247,8 +247,10 @@ function nameWords(name: string): string[] {
 
 const CHRISTIAN_WORDS = new Set([
   "church", "churches", "baptist", "ministries", "ministry", "ame", "methodist", "worship", "fellowship",
-  "chapel", "tabernacle", "assembly", "cathedral", "pentecostal", "holiness", "missionary", "faith", "bethel"
+  "chapel", "tabernacle", "assembly", "cathedral", "pentecostal", "holiness", "missionary", "faith", "bethel",
+  "christ", "gospel", "apostolic", "deliverance", "praise", "holy", "cog", "cogic", "cogiu", "cme", "mbc", "umc"
 ]);
+const NAME_DROP = new Set(["inc", "incorporated", "llc", "corp", "corporation", "co"]);
 
 function foldedName(name: string): string {
   return s(name)
@@ -264,10 +266,11 @@ function hasChristianWord(raw: string, words: string[]): boolean {
 
 /**
  * Places that are not a Christian church, matched on the name because
- * religion_guess is empty on most rows. A Christian word (church, baptist,
- * ministries, AME, and the rest of that list) keeps a temple, school, camp,
- * or Jehovah name. Kingdom Hall always goes. An office (diocese, foundation)
- * goes even when the name says Episcopal, Catholic, or Baptist.
+ * religion_guess is empty on most rows. A Christian word keeps a temple, camp,
+ * college, seminary, Jehovah, foundation, or preschool name. Kingdom Hall always
+ * goes. So do association (unless the name ends in Church), a trailing MBA or BA,
+ * academy, school, campus, college ministry, and Church of Christ, Scientist.
+ * Diocese and the other-faith list go even when the name says Episcopal, Catholic, or Baptist.
  */
 export function avNameExcluded(name: string): boolean {
   const raw = foldedName(name);
@@ -276,14 +279,25 @@ export function avNameExcluded(name: string): boolean {
   const words = nameWords(street);
   const has = (word: string) => words.includes(word);
   const christian = hasChristianWord(raw, words);
-  if (["unitarian", "universalist", "diocese", "foundation", "preschool", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
+  const significant = words.filter((word) => !NAME_DROP.has(word));
+  const endsWithChurch = significant[significant.length - 1] === "church";
+  if (["unitarian", "universalist", "diocese", "retreat", "distribution", "masjed", "musalla", "mormon", "sikh", "gurdwara", "mandir", "scientology", "spiritualist", "cemetery", "cemetary", "hindu", "buddhist", "buddhism", "buddha", "synagogue", "messianic", "lds", "islamic", "islam", "masjid", "muhammad", "mohammed", "muslim", "moslem"].some(has)) return true;
   if (has("mosque")) return true;
   if (/\blatter\s*-?\s*day\b/.test(raw) || raw.includes("latterday")) return true;
-  if (/\bward\b/.test(street) || /\bstake\s+center\b/.test(raw) || /\bconference\s+center\b/.test(raw)) return true;
+  // "1st Ward" is an LDS ward. A bare "ward" is too, unless the name is a church (Ward Grove Baptist, Ward Memorial UMC).
+  if (/\b\d+(st|nd|rd|th)\s+ward\b/.test(street) || (has("ward") && !christian)) return true;
+  if (/\bstake\s+center\b/.test(raw) || /\bconference\s+center\b/.test(raw)) return true;
   if (/\bbeth\s+israel\b/.test(raw) || /\bchristian\s+science\b/.test(raw) || /\bbaha['’]?i\b/.test(raw)) return true;
   if (/\bcongregation\b/.test(raw) && /\bisrael\b/.test(raw)) return true;
+  if (/\bchurch\s+of\s+christ,?\s+scientist\b/.test(raw)) return true;
+  if (has("association") && !endsWithChurch) return true;
+  if (has("academy") || has("school") || has("campus")) return true;
+  if (/\bcollege\s+ministr(?:y|ies)\b/.test(raw)) return true;
+  const last = significant[significant.length - 1];
+  if (last === "mba" || last === "ba") return true;
   if (/\bfood\s+(bank|pantry)\b/.test(raw) && !christian) return true;
-  if (!christian && ["temple", "school", "camp", "college", "seminary", "jehovah", "association", "academy"].some(has)) return true;
+  if ((has("foundation") || has("preschool")) && !christian) return true;
+  if (!christian && ["temple", "camp", "college", "seminary", "jehovah"].some(has)) return true;
   return false;
 }
 
@@ -403,8 +417,6 @@ function titleCase(text: string): string {
     .join("");
 }
 
-const NAME_DROP = new Set(["inc", "incorporated", "llc", "corp", "corporation", "co"]);
-
 /**
  * Same church name, in the same town. Drops Inc/LLC and a trailing "church",
  * reads St as Saint and Mt as Mount, folds A.M.E. to AME, drops a leading
@@ -467,11 +479,11 @@ function groupKeys(row: AvRow, sharedHosts: ReadonlySet<string>): string[] {
 }
 
 /** What the loader should read next so a do-not-contact copy outside the ring still blocks the group. */
-export function groupMateLookups(rows: AvRow[]): { ids: string[]; nameCities: Array<{ city: string; pattern: string }> } {
+export function groupMateLookups(rows: AvRow[]): { ids: string[]; nameCities: Array<{ city: string; pattern: string; churchIds: string[] }> } {
   const have = new Set(rows.map((row) => s(row.id)).filter(Boolean));
   const ids = new Set<string>();
-  const nameCities: Array<{ city: string; pattern: string }> = [];
-  const seen = new Set<string>();
+  const nameCities: Array<{ city: string; pattern: string; churchIds: string[] }> = [];
+  const seen = new Map<string, { city: string; pattern: string; churchIds: string[] }>();
   for (const row of rows) {
     for (const value of Array.isArray(row.possible_same_as) ? row.possible_same_as : []) {
       const id = s(value);
@@ -483,11 +495,16 @@ export function groupMateLookups(rows: AvRow[]): { ids: string[]; nameCities: Ar
     const patterns = [key];
     if (key.includes("saint")) patterns.push(key.replace(/\bsaint\b/g, "st"));
     if (key.includes("mount")) patterns.push(key.replace(/\bmount\b/g, "mt"));
+    const churchId = s(row.id);
     for (const pattern of patterns) {
       const mark = `${city.toLowerCase()}|${pattern}`;
-      if (seen.has(mark)) continue;
-      seen.add(mark);
-      nameCities.push({ city, pattern });
+      let entry = seen.get(mark);
+      if (!entry) {
+        entry = { city, pattern, churchIds: [] };
+        seen.set(mark, entry);
+        nameCities.push(entry);
+      }
+      if (churchId && !entry.churchIds.includes(churchId)) entry.churchIds.push(churchId);
     }
   }
   return { ids: [...ids], nameCities };
@@ -517,9 +534,10 @@ class UnionFind {
  * Copies of one church are one group (union-find). A stopped copy, even one
  * with no website or outside the ring, keeps the whole group off the list.
  */
-export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boolean, options: { size?: number; now?: Date } = {}): AvProspect[] {
+export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boolean, options: { size?: number; now?: Date; blockedIds?: Iterable<string> } = {}): AvProspect[] {
   const size = options.size ?? AV_LIST_SIZE;
   const now = options.now ?? new Date();
+  const forced = new Set(Array.from(options.blockedIds ?? [], (id) => s(id)).filter(Boolean));
   const seen = new Set<string>();
   const all: AvRow[] = [];
   for (const row of rows) {
@@ -534,13 +552,13 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
   for (const row of all) {
     const keys = groupKeys(row, sharedHosts);
     for (let i = 1; i < keys.length; i += 1) groups.join(keys[0], keys[i]);
-    if (avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blocked.add(groups.find(keys[0]));
+    if (forced.has(s(row.id)) || avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blocked.add(groups.find(keys[0]));
   }
   // A block discovered before a later join still has to cover the merged root.
   const blockedRoots = new Set<string>();
   for (const row of all) {
     const root = groups.find(`id:${s(row.id)}`);
-    if (blocked.has(root) || avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blockedRoots.add(root);
+    if (blocked.has(root) || forced.has(s(row.id)) || avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blockedRoots.add(root);
   }
   const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
   for (const row of all) {

@@ -196,7 +196,8 @@ await step("reads tier by tier in rings (jsonb number filters), never the whole 
   assert(body.includes("groupMateLookups") && body.includes("possible_same_as"), "also reads copies outside the ring, including ones with no website");
   assert(!body.includes("limit=5000") && body.includes("batch.length < DNC_PAGE"), "do-not-contact list is paged until it ends");
   assert(body.includes("cc_church_crm_activities") && body.includes("DONT_REPEAT_DAYS"), "visit and drop-off rests are read with the desk's window");
-  assert(body.includes("too wide for this one church") && !/batch\.length >= 40\) return null/.test(body), "a wide name lookup skips that church instead of failing the list");
+  assert(body.includes("too wide for this one church") && body.includes("nameLookupBlocked.add") && body.includes("blockedIds: nameLookupBlocked"), "a wide name lookup blocks that church");
+  assert(!/if \(batch\.length >= 40\) return null/.test(body) && !/if \(batch\.length >= 40\) continue/.test(body), "a wide name lookup does not fail the whole list and does not leave the church on it");
 });
 
 await step("read only, on tap, owner only, fail closed", () => {
@@ -223,7 +224,7 @@ await step("read only, on tap, owner only, fail closed", () => {
   ]) assert(!/messengeravl\.com/i.test(read(rel)), `no partner link in ${rel}`);
   assert(!/messengeravl\.com|Messenger AVL|our partner/i.test(visible), "no vendor name, partner wording, or outbound link");
   assert(/your territory/i.test(visible) && !/Lincoln/.test(visible), "owner copy");
-  assert(visible.includes("Up to 30 churches with a website or Facebook page, nearest first within each area. Leaves out do-not-contact churches, churches that already stream, churches that are resting or invited, churches that are not public, inactive churches, and places that are not a church."), "one footer line");
+  assert(visible.includes("Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream or asked not to be contacted."), "one footer line");
   assert(!visible.includes("33.25"), "the latitude line stays in comments");
   assert(visible.includes("subline(item)") && visible.includes("avReasonText"), "tier once in the subline; bullets are the reason");
   assert(visible.includes("Open in ChurchConnect") && !visible.includes("Open card"), "one action label");
@@ -237,22 +238,32 @@ await step("name rules leave churches and drop other places", () => {
     "First Baptist Church", "Temple Baptist Church", "Camp Creek Baptist Church", "College Park Baptist Church", "Grace Chapel",
     "Vidalia Baptist Temple", "Phillips Temple Ministries", "Healing Temple Ministries", "Faith Temple", "Allen Temple AME", "Bethel Temple",
     "Jehovah Jireh Church", "Jehovah Jireh Ministries", "Jehovah Nissi Worship Center", "College Place Methodist", "Seminary Hill Baptist",
-    "Camp Creek Missionary Baptist", "Fellowship Association Church", "Mosque Street Baptist", "Emanuel Baptist Association", "Baptist Seminary",
-    "First Baptist Food Pantry"
+    "Camp Creek Missionary Baptist", "Fellowship Association Church", "Mosque Street Baptist", "Baptist Seminary",
+    "First Baptist Food Pantry",
+    "West Ward Church of God", "Ward Grove Baptist", "Ward Chapel Baptist", "Ward Memorial UMC",
+    "Foundation Church", "True Foundation COG", "New Foundation Holiness", "Faith Foundation COGIC", "Christ Foundation Ministries",
+    "Trinity Pooler Church and Preschool", "Baptist Foundation", "First Baptist Preschool",
+    "Christ Temple of Refuge", "Christ Deliverance Temple", "Macon Full Gospel Holy Temple", "Restoration Temple of Praise",
+    "Calvary Apostolic Temple", "Baxley-Harvest Temple COG", "Sparks Temple COGIU", "Everette Temple CME", "Tremount Temple MBC"
   ];
   const drop = [
     "Kingdom Hall of Jehovah's Witnesses", "Kingdom-Hall", "KingdomHall", "Kingdom  Hall",
     "Bulloch County Islamic Center", "Masjid Al-Noor", "Muhammad Mosque", "Hindu Temple", "Buddhist Temple",
     "Beth Israel Synagogue", "Messianic Jewish Congregation", "The Church of Jesus Christ of Latter-day Saints", "LDS Chapel",
     "Vidalia Christian Academy", "Toombs Christian School", "Brewton-Parker College", "Pine Grove Cemetery", "Youth Camp",
-    "Unitarian Fellowship", "Universalist Society", "Episcopal Diocese of Georgia", "Catholic Diocese", "Baptist Foundation",
-    "Georgia Conference Center", "First Baptist Preschool", "Church Retreat Center", "Food Distribution Center",
-    "Community Food Bank", "Community Food Pantry", "Masjed Noor", "Musalla", "Stake Center", "First Ward", "Mormon Chapel",
+    "Unitarian Fellowship", "Universalist Society", "Episcopal Diocese of Georgia", "Catholic Diocese",
+    "Georgia Conference Center", "Church Retreat Center", "Food Distribution Center",
+    "Community Food Bank", "Community Food Pantry", "Masjed Noor", "Musalla", "Stake Center", "First Ward", "1st Ward", "3rd Ward", "Mormon Chapel",
     "Sikh Temple", "Gurdwara", "Baha'i Center", "Bahá'í Center", "Hindu Mandir", "Beth Israel", "Congregation Beth Israel",
-    "Christian Science Church", "Church of Scientology", "Spiritualist Church", "Jehovah"
+    "Christian Science Church", "Church of Scientology", "Spiritualist Church", "Jehovah",
+    "Queen of Victory MBA", "Emanuel MBA", "Zion MBA", "Mt Vernon BA", "Altamaha–New Sunbury BA", "Second Washington BA",
+    "Georgia Union Missionary Association", "Union Baptist Association of Churches", "Holiness Baptist Association Campgrounds",
+    "Emanuel Baptist Association", "Bible Baptist Christian Academy", "Faith Baptist Christian Academy",
+    "Christian Life School of Ministry", "Episcopal Campus Ministry", "Kudzu College Ministry", "First Church of Christ, Scientist"
   ];
   for (const name of keep) assert(!av.avNameExcluded(name), `keep ${name}`);
   for (const name of drop) assert(av.avNameExcluded(name), `drop ${name}`);
+  console.log(`     name fixtures: ${keep.length} kept, ${drop.length} dropped`);
   const temple = av.rankAvProspects([row({ id: "temple", name: "TEMPLE BAPTIST CHURCH" })], none);
   assert(temple.length === 1 && temple[0].name === "Temple Baptist Church", "Temple Baptist Church can be listed");
 });
@@ -314,6 +325,17 @@ await step("duplicate copies and stopped rows stay off the list (probe)", () => 
   assert(ids([r({ id: "A", name: "Invited Church", city: "Vidalia", invite_status: "sent" })]).length === 0, "already invited");
   const lookups = av.groupMateLookups([r({ id: "B", name: "Saint Paul AME", city: "Vidalia", possible_same_as: ["A"] })]);
   assert(lookups.ids.includes("A") && lookups.nameCities.some((item) => item.city === "Vidalia" && item.pattern.includes("saint")), "loader asks for the missing copy");
+  const named = av.groupMateLookups([
+    r({ id: "wide", name: "First Baptist", city: "Vidalia" }),
+    r({ id: "other", name: "Grace Chapel", city: "Lyons" })
+  ]);
+  const first = named.nameCities.find((item) => item.pattern === "first baptist");
+  assert(first && first.churchIds.includes("wide") && !first.churchIds.includes("other"), "a wide lookup knows which church it belongs to");
+  assert(av.rankAvProspects([
+    r({ id: "wide", name: "First Baptist Church", city: "Vidalia" }),
+    r({ id: "copy", name: "First Baptist", city: "Vidalia" }),
+    r({ id: "other", name: "Grace Chapel", city: "Lyons" })
+  ], none, { blockedIds: ["wide"] }).map((item) => item.churchId).join(",") === "other", "a too-wide name lookup blocks that church and its group");
 });
 
 await step("desk names, shared sites, rests, and the churches that must come back", () => {

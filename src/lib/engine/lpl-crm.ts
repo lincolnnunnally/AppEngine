@@ -1192,6 +1192,9 @@ export async function loadAvProspects(): Promise<AvProspectList> {
   let read = 0;
   let prospects: AvProspect[] = [];
   const fetchedMate = new Set<string>();
+  const wideNames = new Set<string>();
+  // A name lookup of 40 or more rows cannot prove the church is not a stopped copy. Those churches stay off the list.
+  const nameLookupBlocked = new Set<string>();
   // Visits rest 14 days and drop-offs rest 7, the same rule as the desk. If that log can't be read, list nothing.
   const readRests = async (rows: Row[]): Promise<boolean> => {
     const ids = [...new Set(rows.map((row) => s(row.id)).filter((id) => id && !fetchedMate.has(`rest:${id}`)))];
@@ -1259,7 +1262,10 @@ export async function loadAvProspects(): Promise<AvProspectList> {
     }
     for (const item of lookups.nameCities) {
       const mark = `${item.city.toLowerCase()}|${item.pattern}`;
-      if (fetchedMate.has(mark)) continue;
+      if (fetchedMate.has(mark)) {
+        if (wideNames.has(mark)) for (const id of item.churchIds) nameLookupBlocked.add(id);
+        continue;
+      }
       fetchedMate.add(mark);
       const pattern = `*${item.pattern.split(" ").join("*")}*`;
       const batch = await readRows(
@@ -1270,8 +1276,12 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         { label: "Churches for AV prospects", app: "churchconnect" }
       );
       if (unreadable()) return null;
-      // A name lookup that returns 40 or more rows is too wide for this one church. Skip that grouping and keep the list.
-      if (batch.length >= 40) continue;
+      // A name lookup that returns 40 or more rows is too wide for this one church. Leave it off the list.
+      if (batch.length >= 40) {
+        wideNames.add(mark);
+        for (const id of item.churchIds) nameLookupBlocked.add(id);
+        continue;
+      }
       mates.push(...batch);
     }
     return mates;
@@ -1288,7 +1298,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
       }
       for (let pass = 0; pass < 3; pass += 1) {
-        const preview = rankAvProspects(pool, suppressed);
+        const preview = rankAvProspects(pool, suppressed, { blockedIds: nameLookupBlocked });
         const focus = pool.filter((row) => preview.some((item) => item.churchId === s(row.id)));
         const mates = await readGroupMates(focus);
         if (!mates) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
@@ -1296,7 +1306,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
           return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
         }
         pool = [...pool, ...mates];
-        prospects = rankAvProspects(pool, suppressed);
+        prospects = rankAvProspects(pool, suppressed, { blockedIds: nameLookupBlocked });
         if (mates.length === 0) break;
       }
       // Settled: earlier tiers plus this tier's churches inside the ring already fill the list.
