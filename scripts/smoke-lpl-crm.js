@@ -552,10 +552,17 @@ await runStep("saving: owner-only server actions, narrow pass, one save per form
   assertIncludes(tools, 'name="confirm_dnc" value="yes" required', "confirm tick for do-not-contact");
   assertIncludes(tools, "Yes, never contact this {target.noun}", "confirm wording (church or business)");
   assertIncludes(tools, "card.deskDoNotContact && !mode ? <UndoDoNotContact", "undo shows only for a desk do-not-contact");
+  assert(tools.indexOf("Add a contact\n              </button>") < tools.indexOf("card.deskDoNotContact && !mode ? <UndoDoNotContact"), "undo sits below Log a visit / Add a contact");
+  assertIncludes(tools, "disabled={pending || (stopping && !confirmed)}", "do-not-contact Save waits for the tick");
+  assertIncludes(tools, 'stopping && confirmed ? "Save and stop contact"', "ticked: 'Save and stop contact'");
+  assertIncludes(tools, 'stopping && confirmed ? "dx-btn--danger" : "dx-btn--primary"', "ticked: stop style");
+  assertIncludes(tools, 'kind === "drop_off" ? "Save drop-off" : "Save visit"', "drop-off button label");
   assertIncludes(tools, "Yes, remove", "remove asks first");
   assertIncludes(tools, "(contact.email || contact.phone) && mode !== `edit:${contact.id}`", "details not shown twice while editing");
   const desk = read("src/components/engine/crm-desk.tsx");
   assert(!desk.includes("lpl-crm-write"), "desk never imports the writer");
+  assert(!/We visited|We dropped off/.test(desk + tools), "in person it was you: no 'We visited' / 'We dropped off'");
+  assertIncludes(desk, '"You visited" : touch.kind === "drop_off" ? "You dropped off"', "timeline says You visited / You dropped off");
 });
 
 await runStep("pass secret: env var first, else the shared database row; cached; fails closed", async () => {

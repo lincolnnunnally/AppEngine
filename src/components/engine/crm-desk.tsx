@@ -109,7 +109,7 @@ function TouchLine({ touch }: { touch: Touch }) {
         <span className="crm-touch-head">
           {/* A business lead's own notes don't need a second "Business lead" pill. */}
           {touch.app === "business" ? null : <AppPill app={touch.app} />}
-          <span className="crm-touch-kind">{touch.kind === "visit" ? "We visited" : touch.kind === "drop_off" ? "We dropped off" : touch.outreach ? "We reached out" : touch.signal ? "They responded" : "Noted"}</span>
+          <span className="crm-touch-kind">{touch.kind === "visit" ? "You visited" : touch.kind === "drop_off" ? "You dropped off" : touch.outreach ? "We reached out" : touch.signal ? "They responded" : "Noted"}</span>
         </span>
         <span className="crm-touch-what">{touch.what}</span>
         {touch.response || touch.purchase ? (

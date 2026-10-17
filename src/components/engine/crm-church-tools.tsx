@@ -88,6 +88,10 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
   const [newContactId] = useState(() => newId());
   const [contactChoice, setContactChoice] = useState("");
   const [outcome, setOutcome] = useState("");
+  const [kind, setKind] = useState<"visit" | "drop_off">("visit");
+  // Do-not-contact: Save stays off until the tick, the same way "Add anyway" waits for its tick.
+  const [confirmed, setConfirmed] = useState(false);
+  const stopping = outcome === "do_not_contact";
   const [state, action, pending] = useActionState<CrmFormState, FormData>(logChurchVisitAction, null);
   useEffect(() => {
     if (state?.ok) {
@@ -108,10 +112,10 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
       <fieldset className="crm-field crm-choice">
         <legend>What happened</legend>
         <label>
-          <input type="radio" name="kind" value="visit" defaultChecked /> I visited
+          <input type="radio" name="kind" value="visit" checked={kind === "visit"} onChange={() => setKind("visit")} /> I visited
         </label>
         <label>
-          <input type="radio" name="kind" value="drop_off" /> I dropped something off
+          <input type="radio" name="kind" value="drop_off" checked={kind === "drop_off"} onChange={() => setKind("drop_off")} /> I dropped something off
         </label>
       </fieldset>
       <label className="crm-field">
@@ -157,7 +161,14 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
       </label>
       <label className="crm-field">
         <span>How it went</span>
-        <select name="outcome_code" value={outcome} onChange={(event) => setOutcome(event.target.value)}>
+        <select
+          name="outcome_code"
+          value={outcome}
+          onChange={(event) => {
+            setOutcome(event.target.value);
+            setConfirmed(false);
+          }}
+        >
           <option value="">Not sure yet</option>
           <option value="interested">Interested</option>
           <option value="follow_up">Follow up</option>
@@ -169,14 +180,15 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
         <span>Notes on how it went</span>
         <input name="outcome_note" maxLength={300} autoComplete="off" />
       </label>
-      {outcome === "do_not_contact" ? (
+      {stopping ? (
         <>
           <p className="crm-banner crm-banner--stop">
             {target.noun === "church" ? "Saving this marks the church lost" : "Saving this marks the business do-not-contact"} and adds its emails, phones,
             and website to the do-not-contact list. No app will reach out again. You can undo it from this card.
           </p>
           <label className="crm-confirm">
-            <input type="checkbox" name="confirm_dnc" value="yes" required /> <span>Yes, never contact this {target.noun}</span>
+            <input type="checkbox" name="confirm_dnc" value="yes" required checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{" "}
+            <span>Yes, never contact this {target.noun}</span>
           </label>
         </>
       ) : (
@@ -195,8 +207,14 @@ function VisitForm({ card, target, onDone, onCancel }: { card: CrmCard; target: 
         A visit lets the {target.noun} rest {VISIT_REST_DAYS} days; a drop-off rests {DROP_OFF_REST_DAYS}.
       </p>
       <div className="crm-form-actions">
-        <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
-          {pending ? "Saving…" : "Save visit"}
+        <button
+          type="submit"
+          className={`dx-btn ${stopping && confirmed ? "dx-btn--danger" : "dx-btn--primary"}`}
+          disabled={pending || (stopping && !confirmed)}
+          aria-busy={pending}
+          data-testid="crm-visit-save"
+        >
+          {pending ? "Saving…" : stopping && confirmed ? "Save and stop contact" : kind === "drop_off" ? "Save drop-off" : "Save visit"}
         </button>
         <button type="button" className="dx-btn" onClick={onCancel} disabled={pending}>
           Cancel
@@ -312,7 +330,6 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
           ) : null}
           {mode === "add" ? <ContactForm target={target} contact={null} onDone={close("Contact saved.")} onCancel={close("")} /> : null}
           {mode === "visit" ? <VisitForm card={card} target={target} onDone={close("Saved. The card updates in a moment.")} onCancel={close("")} /> : null}
-          {card.deskDoNotContact && !mode ? <UndoDoNotContact target={target} /> : null}
           {!mode ? (
             <div className="crm-actions">
               <button type="button" className="dx-btn dx-btn--primary" onClick={() => setMode("visit")}>
@@ -323,6 +340,8 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
               </button>
             </div>
           ) : null}
+          {/* Below the everyday buttons, so it's hard to hit by accident. */}
+          {card.deskDoNotContact && !mode ? <UndoDoNotContact target={target} /> : null}
         </>
       ) : null}
     </section>

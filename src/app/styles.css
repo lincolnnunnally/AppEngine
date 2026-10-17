@@ -7382,6 +7382,8 @@ button.compose-arch:hover {
 .crm-page .crm-confirm { padding: 8px 0; cursor: pointer; text-transform: none; letter-spacing: normal; font-family: inherit; color: var(--ink); }
 .crm-page .crm-confirm-box p { margin: 0; font-size: 1rem; }
 .crm-page .dx-btn--danger { color: var(--pink, #ff6b9a); border-color: color-mix(in srgb, var(--pink, #ff6b9a) 55%, transparent); }
+.crm-page .crm-undo { margin-top: 10px; }
+.crm-page .crm-undo .dx-btn { min-height: 44px; font-size: 0.875rem; }
 .crm-page .crm-field { display: grid; gap: 6px; margin: 0; border: 0; padding: 0; min-width: 0; font-size: 1rem; }
 .crm-page .crm-field > span, .crm-page .crm-field legend { font-size: 0.875rem; font-weight: 600; color: var(--muted); }
 .crm-page .crm-field input, .crm-page .crm-field select { min-height: 44px; font-size: 1rem; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); width: 100%; box-sizing: border-box; }
