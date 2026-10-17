@@ -272,7 +272,6 @@ const CHURCH_PASS_R2 = [
   "Ask about the ad hoc welcome team",
   "Stop by the church on Market Street",
   "Say hello at their booth at the farmers market",
-  "Visit the church on Campaign Street",
   "Congratulate the new youth leader who was promoted to pastor",
   "Use the free parking behind the church when you visit",
   "Leave the welcome gift by the free-standing sign",
@@ -370,6 +369,72 @@ await step("EA r2: a filtered answer is not cached (a retry asks again and count
 await step("EA r2: after Use this the button says Save until a type is picked", () => {
   const tools = read("src/components/engine/crm-church-tools.tsx");
   assert(tools.includes('kind === "drop_off" ? "Save drop-off" : kind === "visit" ? "Save visit" : "Save"'), "Save / Save visit / Save drop-off");
+});
+
+// EA r3 re-probe.
+await step("EA r3: campaign carve-out gone; market carve-out only street/st/avenue/ave/road", () => {
+  // "Campaign Street" passed in r2; EA r3 dropped that carve-out (street names never go to the model).
+  const drops = ["Visit the church on Campaign Street", "Start a campaign drive", "Plan a campaign way bigger", "Set up a campaign place", "Run a campaign lane", "Meet at campaign square", "Meet at campaign plaza", "Stop by on Campaign Rd"];
+  for (const text of drops) {
+    assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `church must drop: ${text}`);
+    assert(core.cleanSuggestion("business", { next_step: text, app: "" }, business(), TODAY) === null, `business must drop while hidden: ${text}`);
+  }
+  for (const text of ["Market Square fundraiser booth", "Talk about market plaza signs", "Stop by Market Drive marketing"]) {
+    assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `church must drop (market outside the street carve-out): ${text}`);
+  }
+  for (const text of ["Stop by the church on Market Street", "Stop by the church on Market St.", "Visit the church on Market Avenue", "Visit the church on Market Ave", "Visit the church on Market Road", "Say hello at their booth at the farmers market"]) {
+    const out = core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY);
+    assert(out && out.nextStep === text, `must pass: ${text} -> ${JSON.stringify(out)}`);
+  }
+});
+
+await step("EA r3: stacked titles and up to 3 name words; not-a-name words left alone", () => {
+  const cases = [
+    ["Ask Rev. Dr. Mary-Ann O\u2019Brien about the gift table", "Ask the pastor about the gift table"],
+    ["Ask Rev. Dr. Mary-Ann O'Brien about the gift table", "Ask the pastor about the gift table"],
+    ["Ask Rev Dr Mary-Ann O'Brien about the gift table", "Ask the pastor about the gift table"],
+    ["Visit Sister Mary Lou Hart after service", "Visit the member after service"],
+    ["Call Pastor Sam Q. Rivers back", "Call the pastor back"],
+    ["Bring Dr. Okafor's gift box", "Bring the contact's gift box"],
+    ["Ask the Deacon Board about a gift table", "Ask the Deacon Board about a gift table"],
+    ["Stop by before the Elder Board meeting", "Stop by before the Elder Board meeting"],
+    ["Mention their Sister Church in Macon", "Mention their Sister Church in Macon"],
+    ["Visit Bishop Ministries downtown", "Visit Bishop Ministries downtown"],
+    ["Bring gifts before Pastor Easter Sunday", "Bring gifts before Pastor Easter Sunday"],
+    ["Drop off cards for the Pastor Christmas service", "Drop off cards for the Pastor Christmas service"]
+  ];
+  for (const [input, want] of cases) {
+    const got = core.withoutMadeUpNames(input);
+    assert(got === want, `names(${JSON.stringify(input)}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+  }
+  const out = core.cleanSuggestion("church", { next_step: "Ask Rev. Dr. Mary-Ann O'Brien about gifts", app: "laser" }, card(), TODAY);
+  assert(out && out.nextStep === "Ask the pastor about gifts" && !/Mary|Brien/.test(out.nextStep), JSON.stringify(out));
+});
+
+await step("EA r3: more promise words drop", () => {
+  const drops = ["Tell them they save 20% on gift boxes", "Tell them they save up to 30 percent", "Mention the 15% savings", "The first box is on the house", "Bring a freebie", "Bring some freebies", "Mention the giveaway", "Mention the low price on gift boxes", "Gift boxes are fifty bucks", "Gift boxes are twenty five bucks", "Gift boxes are twenty-five dollars", "It costs $ less than they think", "Offer gifts at cost"];
+  for (const text of drops) {
+    assert(core.cleanSuggestion("church", { next_step: text, app: "" }, card(), TODAY) === null, `church must drop: ${text}`);
+    assert(core.cleanSuggestion("business", { next_step: text, app: "" }, business(), TODAY) === null, `business must drop: ${text}`);
+  }
+});
+
+await step("EA r3: dates are not scrubbed as phones; phones still are", () => {
+  const keep = ["Stop by on 10/20/2026 after lunch", "Stop by on 2026/10/20 after lunch", "Stop by on 20261020 after lunch", "Stop by on 2026-10-20 after lunch", "Stop by on 10-20-2026 after lunch"];
+  for (const text of keep) assert(core.scrub(text) === text, `date kept: ${text} -> ${core.scrub(text)}`);
+  assert(core.scrub("Stop by on 10/20/2026 or call (912) 555 0101") === "Stop by on 10/20/2026 or call", core.scrub("Stop by on 10/20/2026 or call (912) 555 0101"));
+  for (const phone of ["9125550101", "912-555-0101", "912 555 0101", "(912) 555-0101", "+1 912 555 0101"]) {
+    assert(core.scrub(`Call ${phone} today`) === "Call today", `phone ${phone}: ${core.scrub(`Call ${phone} today`)}`);
+  }
+});
+
+await step("EA r3 (Lincoln's call): business drops Facebook posting, email blasts, newsletters, digital outreach while hidden", () => {
+  for (const text of ["Offer to post on Facebook for them", "Offer an email blast", "Offer a monthly newsletter", "Pitch digital outreach"]) {
+    assert(core.cleanSuggestion("business", { next_step: text, app: "" }, business(), TODAY) === null, `business must drop: ${text}`);
+  }
+  // Church-side Outreach (Live on Mission) is untouched by the business-only words.
+  const lom = core.cleanSuggestion("church", { next_step: "Share the Live on Mission outreach idea", app: "outreach" }, card(), TODAY);
+  assert(lom && lom.appId === "outreach", "church Outreach still passes");
 });
 
 await step("minimal data: no name, contacts, emails, phones, visit notes, or the next step's words are sent", () => {

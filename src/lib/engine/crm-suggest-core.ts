@@ -98,7 +98,12 @@ export function suggestGate(card: SuggestCard, outreachHidden: boolean): Suggest
 // U+2212, U+FE58, U+FE63, U+FF0D) becomes "-", so a phone written with a
 // non-breaking hyphen or an en dash is caught like "912-555-0101".
 const DASHES_RE = /[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g;
-const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
+// Dates are not phones (EA r3): 2026-10-20, 2026/10/20, 10/20/2026, 10-20-2026, 20261020.
+const DATE_RES = [
+  /\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b/g,
+  /\b\d{1,2}[-/]\d{1,2}[-/](?:\d{4}|\d{2})\b/g,
+  /\b(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\b/g
+];
 // Emails, including "x at y dot org" and "x(at)y.org" / "x [at] y [dot] org".
 const EMAIL_RES = [
   /[^\s@()]+\s*@\s*[^\s@]+\.[^\s@]+/g,
@@ -109,38 +114,46 @@ const EMAIL_RES = [
 // (+1 404.555.0143, (912) 555 0101, 404 555 0143 x12, 4045550143…).
 const PHONE_RE = /\+?\(?\d[\d\s().\-/]{5,}\d\)?(?:\s*(?:x|ext\.?)\s*\d+)?/gi;
 
-/** The model's answer only: remove anything that looks like an email or phone, collapse spaces, cap length. ISO dates stay. */
+/** The model's answer only: remove anything that looks like an email or phone, collapse spaces, cap length. Dates stay. */
 export function scrub(text: unknown, max = 160): string {
   let out = String(text ?? "").normalize("NFKC").replace(DASHES_RE, "-");
-  // Keep ISO dates (2026-10-20) out of the phone match, then put them back.
+  // Keep dates out of the phone match, then put them back.
   const dates: string[] = [];
-  out = out.replace(ISO_DATE_RE, (date) => `\u0000${dates.push(date) - 1}\u0000`);
+  for (const re of DATE_RES) out = out.replace(re, (date) => `\u0000${dates.push(date) - 1}\u0000`);
   for (const re of EMAIL_RES) out = out.replace(re, "");
   out = out.replace(PHONE_RE, (run) => ((run.match(/\d/g) || []).length >= 7 ? "" : run));
   out = out.replace(/\(\s*\)/g, "").replace(/\u0000(\d+)\u0000/g, (_m, index) => dates[Number(index)] ?? "");
   return out.replace(/\s+([,.;:!?])/g, "$1").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-// EA r2: the model must not make up people. A title followed by a capitalized
-// word ("Pastor James", "Sister Mary Lou", "Dr. Okafor's") is replaced with a
-// generic phrase ("the pastor", "the member", "the contact"…). Replacing keeps
-// a useful step and is as safe as dropping: no name survives either way.
+// EA r2/r3: the model must not make up people. One or more titles ("Pastor",
+// "Rev. Dr.") followed by up to 3 capitalized name words ("Sister Mary Lou
+// Hart", "Rev. Dr. Mary-Ann O'Brien", "Dr. Okafor's") are replaced with a
+// generic phrase for the first title ("the pastor", "the member", "the contact"…).
+// Replacing keeps a useful step and is as safe as dropping: no name survives.
 const TITLE_PHRASE: Record<string, string> = {
   pastor: "the pastor", rev: "the pastor", reverend: "the pastor",
   brother: "the member", sister: "the member",
   mr: "the contact", mrs: "the contact", ms: "the contact", dr: "the contact",
   elder: "the elder", deacon: "the deacon", father: "the priest", bishop: "the bishop"
 };
-const NOT_A_NAME = "(?!(?:Appreciation|Anniversary|Day|Week|Month|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\\b)";
-const TITLED_NAME_RE = new RegExp(
-  `\\b(?:(the|a|an)\\s+)?(Pastor|Rev|Reverend|Brother|Sister|Mr|Mrs|Ms|Dr|Elder|Deacon|Father|Bishop)\\.?\\s+(?:[A-Z]\\.\\s*)?${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+)?(?:\\s+[A-Z]\\.)?(?:\\s+${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+)?)?`,
-  "gu"
-);
+const TITLES = "(?:Pastor|Reverend|Rev|Brother|Sister|Mrs|Mr|Ms|Dr|Elder|Deacon|Father|Bishop)";
+// Capitalized words after a title that are not a name ("Deacon Board", "Sister Church", "Pastor Easter Sunday").
+const NOT_A_NAME = `(?!(?:${[
+  "Appreciation", "Anniversary", "Day", "Days", "Week", "Month", "Weekend", "Night", "Morning", "Evening",
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+  "Board", "Boards", "Church", "Churches", "Ministries", "Ministry", "Committee", "Committees", "Council", "Team", "Teams",
+  "Office", "Offices", "Service", "Services", "Meeting", "Meetings", "Fellowship", "Choir", "School", "Study", "Group",
+  "Retreat", "Conference", "Breakfast", "Lunch", "Dinner", "Supper", "Program", "Class", "Training", "Installation",
+  "Easter", "Christmas", "Thanksgiving", "Advent", "Lent", "Revival", "Homecoming", "Search"
+].join("|")})\\b)`;
+const NAME_WORD = `(?:[A-Z]\\.\\s*)?${NOT_A_NAME}[A-Z][\\p{L}]*(?:-[\\p{L}]+|['\u2019][A-Z][\\p{L}]*)*`;
+const TITLED_NAME_RE = new RegExp(`\\b(?:(the|a|an)\\s+)?((?:${TITLES}\\.?\\s+)+)${NAME_WORD}(?:\\s+${NAME_WORD}){0,2}`, "gu");
 
 /** Replace "Title Name" spans with the generic phrase for that title. */
 export function withoutMadeUpNames(text: string): string {
   return text
-    .replace(TITLED_NAME_RE, (_span, _article: string | undefined, title: string) => TITLE_PHRASE[title.toLowerCase()] ?? "them")
+    .replace(TITLED_NAME_RE, (_span, _article: string | undefined, titles: string) => TITLE_PHRASE[(titles.match(/[A-Za-z]+/)?.[0] ?? "").toLowerCase()] ?? "them")
     .replace(/(^|[.!?]\s+)the (pastor|member|contact|elder|deacon|priest|bishop)/g, (_m, lead: string, who: string) => `${lead}The ${who}`)
     .replace(/\s+/g, " ")
     .trim();

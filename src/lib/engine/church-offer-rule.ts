@@ -89,7 +89,8 @@ export function normalizeOfferText(text: unknown): string {
  * so the rest of the sentence is still checked: "Free Will Baptist" passes,
  * "Free Will Baptist, free gift" does not.
  */
-const STREET = "(street|st|road|rd|avenue|ave|square|sq|place|pl|lane|ln|drive|dr|boulevard|blvd|way|plaza)";
+// EA r3: only the common street words, and only after "market" (street names never go to the model).
+const STREET = "(street|st|avenue|ave|road)";
 const SAFE_PHRASES_RE = new RegExp(
   [
     "\\bfree\\s+will\\b", // Free Will Baptist
@@ -100,7 +101,6 @@ const SAFE_PHRASES_RE = new RegExp(
     "\\bad\\s+hoc\\b",
     `\\bmarket\\s+${STREET}\\b`,
     "\\bfarmers?'?\\s+markets?\\b",
-    `\\bcampaign\\s+${STREET}\\b`,
     "\\bpromoted\\s+to\\s+(senior\\s+|associate\\s+|youth\\s+|lead\\s+|executive\\s+)?(pastor|minister|deacon|elder|bishop)\\b"
   ].join("|"),
   "g"
@@ -149,7 +149,22 @@ const CHURCH_NEVER_RE = new RegExp(
 );
 
 /** While "Marketing campaign" is hidden, a business suggestion may not offer one by any name. */
-const HIDDEN_BUSINESS_WORDS_RE = new RegExp(["\\bmarketing\\b", "\\bmarketing\\s*campaigns?\\b", ...AD_WORDS].join("|"), "i");
+const HIDDEN_BUSINESS_WORDS_RE = new RegExp(
+  [
+    "\\bmarketing\\b",
+    "\\bmarketing\\s*campaigns?\\b",
+    ...AD_WORDS,
+    // Business only (Lincoln, EA r3): borderline for a shop, and "outreach" is a church offer, so not on the church list.
+    "\\bpost(s|ed|ing)?\\s+(it\\s+|them\\s+)?(on|to)\\s+(facebook|instagram|tiktok|twitter|social|youtube|nextdoor)\\b",
+    "\\be ?mail\\s*blasts?\\b",
+    "\\bnewsletters?\\b",
+    "\\bdigital\\s+outreach\\b"
+  ].join("|"),
+  "i"
+);
+
+const SPELLED_NUMBER =
+  "(a\\s+few|a\\s+couple(\\s+of)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)";
 
 /** Promises a suggestion must never make: free things, discounts, prices, guarantees, deals, offers. */
 const PROMISE_RE = new RegExp(
@@ -183,6 +198,15 @@ const PROMISE_RE = new RegExp(
     "\\blimited\\s+time\\b",
     "\\brebates?\\b",
     "\\bsave\\s+(\\w+\\s+){0,3}money\\b",
+    "\\bsave\\s+(up\\s+to\\s+)?\\d+\\s*(%|percent)",
+    "\\d+\\s*(%|percent)\\s+savings?\\b",
+    "\\bon\\s+the\\s+house\\b",
+    "\\bfreebies?\\b",
+    "\\bgive\\s*aways?\\b",
+    "\\blow(er|est)?\\s+prices?\\b",
+    `\\b${SPELLED_NUMBER}(\\s+${SPELLED_NUMBER})*\\s+(bucks|dollars|grand)\\b`,
+    "\\bcosts?\\s*\\$",
+    "\\bat\\s+cost\\b",
     "\\bcheap(er|est|ly)?\\b"
   ].join("|"),
   "i"
