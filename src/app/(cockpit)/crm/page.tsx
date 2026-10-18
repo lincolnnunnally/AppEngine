@@ -4,7 +4,6 @@ import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm"
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer } from "@/lib/engine/lpl-crm-core";
 import { crmSavingConfigured, savingOffMessage } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
-import { rankTopProspects, type AvRow } from "@/lib/engine/av-prospects-core";
 import type { TopProspectState } from "@/app/(cockpit)/crm/actions";
 
 export const dynamic = "force-dynamic";
@@ -15,14 +14,17 @@ export const dynamic = "force-dynamic";
 // ChurchConnect); admins see names and titles, never emails or phones.
 // Nothing on this page sends anything to anyone.
 export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+  if (!(await canAccessEngineAdmin())) redirect("/");
   const params = await searchParams;
-  const previewTop = process.env.NODE_ENV === "development" && params.preview === "top";
+  const previewTop = process.env.NODE_ENV !== "production" && params.preview === "top";
   let topInitial: TopProspectState = null;
-  if (previewTop) {
+  // Dev preview only. The non-production guard keeps the fixture out of the production bundle.
+  if (process.env.NODE_ENV !== "production" && params.preview === "top") {
+    const { rankTopProspects } = await import("@/lib/engine/av-prospects-core");
     const fixture = (await import("../../../../scripts/fixtures/top-prospects-golden.json")).default as {
       now: string;
       tier: 0 | 1 | 2 | 3;
-      rows: AvRow[];
+      rows: Array<Record<string, unknown>>;
       suppressions?: { emails?: string[]; domains?: string[]; phones?: string[] };
     };
     const blockedEmails = new Set((fixture.suppressions?.emails ?? []).map((value) => value.trim().toLowerCase()));
@@ -33,7 +35,6 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
     );
     topInitial = { ok: true, message: "", at: Date.parse(fixture.now), tier: fixture.tier, open: ranked.open, won: ranked.won, counts: ranked.counts };
   }
-  if (!(await canAccessEngineAdmin())) redirect("/");
   const isOwner = await canAccessEngineOwner();
   const canSave = isOwner && (await crmSavingConfigured());
   // Owner-only note when this deploy can't save (an AppEngine preview has no server key).

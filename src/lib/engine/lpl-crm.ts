@@ -13,6 +13,7 @@ import {
   buildCards,
   buildFollowUps,
   countTokens,
+  avSuppressionMatcher,
   normDomain,
   normEmail,
   normPhone,
@@ -1162,7 +1163,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
   if (!suppressionRows) {
     return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
   }
-  const suppressed = suppressionMatcher(suppressionRows);
+  const suppressed = avSuppressionMatcher(suppressionRows);
   const kept: Row[] = [];
   let read = 0;
   let prospects: AvProspect[] = [];
@@ -1187,7 +1188,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
       for (let pass = 0; pass < 3; pass += 1) {
         const preview = rankAvProspects(pool, suppressed, { blockedIds: nameLookupBlocked });
         const focus = pool.filter((row) => preview.some((item) => item.churchId === s(row.id)));
-        const mates = await readProspectMates(config, focus, AV_SELECT, sources, fetchedMate, wideNames, nameLookupBlocked);
+        const mates = await readProspectMates(config, focus, AV_SELECT, sources, fetchedMate, wideNames, nameLookupBlocked, "av");
         if (!mates) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
         if (!(await readProspectRests(config, mates, sources, fetchedMate))) {
           return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
@@ -1252,7 +1253,7 @@ export async function loadTopProspects(tier: AvTierIndex): Promise<TopProspectLi
   const fetchedMate = new Set<string>();
   const wideNames = new Set<string>();
   const nameLookupBlocked = new Set<string>();
-  const mates = await readProspectMates(config, rows, TOP_SELECT, sources, fetchedMate, wideNames, nameLookupBlocked);
+  const mates = await readProspectMates(config, rows, TOP_SELECT, sources, fetchedMate, wideNames, nameLookupBlocked, "top");
   if (!mates) return { ok: false, ...emptyTop(), message: "Churches couldn't be read just now. Try again in a minute." };
   const pool = [...rows, ...mates];
   if (!(await readProspectRests(config, pool, sources, fetchedMate))) {
@@ -1378,6 +1379,8 @@ async function readProspectRests(config: LplConfig, rows: Row[], sources: CrmSou
 
 // Copies with no website, and copies outside the ring, still count. A do-not-contact
 // or stopped member keeps the whole group off the list.
+// mode "av" is the #416 read: one hop, one page. mode "top" pages both link
+// directions and then reads the copies those copies point at.
 async function readProspectMates(
   config: LplConfig,
   focus: Row[],
@@ -1385,8 +1388,10 @@ async function readProspectMates(
   sources: CrmSourceStatus[],
   fetchedMate: Set<string>,
   wideNames: Set<string>,
-  nameLookupBlocked: Set<string>
+  nameLookupBlocked: Set<string>,
+  mode: "av" | "top" = "av"
 ): Promise<Row[] | null> {
+  if (mode !== "top") return readAvProspectMates(config, focus, select, sources, fetchedMate, wideNames, nameLookupBlocked);
   const lookups = groupMateLookups(focus);
   const mates: Row[] = [];
   const linked = await readLinkedCopies(config, select, sources, fetchedMate, lookups.ids, focus.map((row) => s(row.id)));
@@ -1420,6 +1425,70 @@ async function readProspectMates(
       { label: "Churches for AV prospects", app: "churchconnect" }
     );
     if (sources.slice(mark).some((source) => !source.ok)) return null;
+    // 40 or more rows is too wide. Block those churches, or stop the list if no id was recorded.
+    const wide = consumeWideNameLookup(batch.length, item.churchIds, nameLookupBlocked);
+    if (wide === "fail") return null;
+    if (wide === "block") {
+      wideNames.add(markName);
+      continue;
+    }
+    mates.push(...batch);
+  }
+  return mates;
+}
+
+/** #416 mate read. One hop, one page. The id lookup does not fail on a full page; the pointed lookup does. */
+async function readAvProspectMates(
+  config: LplConfig,
+  focus: Row[],
+  select: string,
+  sources: CrmSourceStatus[],
+  fetchedMate: Set<string>,
+  wideNames: Set<string>,
+  nameLookupBlocked: Set<string>
+): Promise<Row[] | null> {
+  const unreadable = () => sources.some((source) => !source.ok);
+  const lookups = groupMateLookups(focus);
+  const mates: Row[] = [];
+  const ids = lookups.ids.filter((id) => !fetchedMate.has(`id:${id}`));
+  for (let index = 0; index < ids.length; index += 40) {
+    const chunk = ids.slice(index, index + 40);
+    for (const id of chunk) fetchedMate.add(`id:${id}`);
+    const batch = await readRows(
+      config,
+      "cc_churches",
+      `${select}&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})&limit=${AV_PAGE}`,
+      sources,
+      { label: "Churches for AV prospects", app: "churchconnect" }
+    );
+    if (unreadable()) return null;
+    mates.push(...batch);
+  }
+  const pointed = [...new Set(focus.map((row) => s(row.id)).filter(Boolean))].filter((id) => !fetchedMate.has(`cs:${id}`));
+  for (let index = 0; index < pointed.length; index += 12) {
+    const chunk = pointed.slice(index, index + 12);
+    for (const id of chunk) fetchedMate.add(`cs:${id}`);
+    const or = chunk.map((id) => `doc->possible_same_as.cs.${encodeURIComponent(JSON.stringify([id]))}`).join(",");
+    const batch = await readRows(config, "cc_churches", `${select}&or=(${or})&limit=${AV_PAGE}`, sources, { label: "Churches for AV prospects", app: "churchconnect" });
+    if (unreadable() || batch.length >= AV_PAGE) return null;
+    mates.push(...batch);
+  }
+  for (const item of lookups.nameCities) {
+    const markName = `${item.city.toLowerCase()}|${item.pattern}`;
+    if (fetchedMate.has(markName)) {
+      if (wideNames.has(markName)) for (const id of item.churchIds) nameLookupBlocked.add(id);
+      continue;
+    }
+    fetchedMate.add(markName);
+    const pattern = `*${item.pattern.split(" ").join("*")}*`;
+    const batch = await readRows(
+      config,
+      "cc_churches",
+      `${select}&doc->>city=ilike.${encodeURIComponent(item.city)}&doc->>name=ilike.${encodeURIComponent(pattern)}&limit=40`,
+      sources,
+      { label: "Churches for AV prospects", app: "churchconnect" }
+    );
+    if (unreadable()) return null;
     // 40 or more rows is too wide. Block those churches, or stop the list if no id was recorded.
     const wide = consumeWideNameLookup(batch.length, item.churchIds, nameLookupBlocked);
     if (wide === "fail") return null;

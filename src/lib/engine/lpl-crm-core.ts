@@ -315,6 +315,16 @@ export function normPhone(value: unknown): string {
   return digits.length === 10 ? digits : "";
 }
 
+/**
+ * AV prospects phone key, the #416 rule. Digits only: an extension stays in the
+ * digit string, so "404-555-0143 x12" is not a 10-digit match. Seven digits are empty.
+ */
+export function avNormPhone(value: unknown): string {
+  let digits = String(value ?? "").replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  return digits.length === 10 ? digits : "";
+}
+
 /** Ten digits, or seven for a local number. A 7-digit suppression matches only a 7-digit number. */
 export function suppressionPhone(value: unknown): string {
   let digits = stripPhoneExtension(value).replace(/\D/g, "");
@@ -420,6 +430,34 @@ export function rowMatchesSuppression(
   if (!phone) return false;
   for (const listed of index.phones) if (phonesMatch(phone, listed)) return true;
   return false;
+}
+
+/**
+ * AV prospects do-not-contact match, the #416 rule. Exact email, the email's
+ * host, the website host (normDomain, so umc.org, sgaumc.org, and bellsouth.net
+ * still match), or a 10-digit phone. Brand is ignored. A 7-digit number and an
+ * extension do not match. Top prospects uses suppressionKeys and rowMatchesSuppression.
+ */
+export function avSuppressionMatcher(rows: Array<{ email?: unknown; domain?: unknown; phone?: unknown }>): (row: { email?: unknown; website?: unknown; phone?: unknown }) => boolean {
+  const emails = new Set<string>();
+  const domains = new Set<string>();
+  const phones = new Set<string>();
+  for (const row of rows) {
+    const email = normEmail(row.email);
+    const domain = normDomain(row.domain);
+    const phone = avNormPhone(row.phone);
+    if (email) emails.add(email);
+    if (domain) domains.add(domain);
+    if (phone) phones.add(phone);
+  }
+  return (row) => {
+    const email = normEmail(row.email);
+    if (email && (emails.has(email) || domains.has(email.split("@")[1] ?? ""))) return true;
+    const domain = normDomain(row.website);
+    if (domain && domains.has(domain)) return true;
+    const phone = avNormPhone(row.phone);
+    return Boolean(phone && phones.has(phone));
+  };
 }
 
 export function domainFromEmail(email: string): string {

@@ -25,10 +25,10 @@ export const VIDALIA = { lat: 32.2177, lng: -82.4135 } as const;
 export const AV_LIST_SIZE = 30;
 
 /**
- * AV list latitude line (mode "av"), the rule #416 shipped: a Georgia church
- * south of 33.25° N is central & South Georgia. Columbus (32.46), Macon (32.84)
- * and Milledgeville (33.08) are in; Augusta (33.47), Atlanta (33.75) and Athens
- * (33.96) are out. Mode "top" uses this line only when the ZIP is missing.
+ * Central & South Georgia = a Georgia church south of 33.25° N. One simple,
+ * documented line: Columbus (32.46), Macon (32.84) and Milledgeville (33.08)
+ * are in; Augusta (33.47), Atlanta (33.75) and Athens (33.96) are out.
+ * Top prospects does not use this line; that list is ZIP3 only.
  */
 export const CENTRAL_SOUTH_GA_MAX_LAT = 33.25;
 
@@ -39,8 +39,10 @@ export const CENTRAL_SOUTH_GA_ZIP3 = ["304", "310", "312", "313", "314", "315", 
 export const TOP_LIST_SIZE = 25;
 
 /**
- * Kept churches on ChurchConnect main 8aa17b18 (blob 92bd0886).
- * 14,611 kept of 15,476 in scope. Rest of Georgia stays 0 until those churches are scored.
+ * Documentation only: the published ChurchConnect census on main 8aa17b18
+ * (blob 92bd0886). 14,611 kept of 15,476 in scope. The golden fixture is 161
+ * rows and does not recompute these counts. Rest of Georgia stays 0 until
+ * those churches are scored.
  */
 export const TOP_PROSPECT_KEPT_CENSUS = {
   centralSouthGa: 9609,
@@ -84,27 +86,12 @@ export function zip3Of(zip: unknown): string {
   return digits.length >= 3 ? digits.slice(0, 3) : "";
 }
 
-/**
- * Which tier a church is in, or null when it is outside the territory.
- * mode "av" (the default) is the #416 rule: a finite latitude is required, Georgia
- * is south of 33.25° N, and the ZIP is ignored.
- * mode "top" is ZIP3-first for Georgia. The latitude line is only the fallback
- * when the ZIP is missing. Florida and South Carolina do not need a ZIP or a latitude.
- */
-export function territoryTier(state: unknown, lat: number | null, zip?: unknown, mode: "av" | "top" = "av"): AvTierIndex | null {
+/** Which tier a church is in, or null when it is outside the territory or has no location. */
+export function territoryTier(state: unknown, lat: number | null): AvTierIndex | null {
   const code = territoryState(state);
-  if (mode !== "top") {
-    if (!code || lat === null || !Number.isFinite(lat)) return null;
-    if (code === "GA") return lat < CENTRAL_SOUTH_GA_MAX_LAT ? 0 : 1;
-    return code === "FL" ? 2 : 3;
-  }
-  if (!code) return null;
-  if (code === "FL") return 2;
-  if (code === "SC") return 3;
-  const zip3 = zip3Of(zip);
-  if (zip3) return (CENTRAL_SOUTH_GA_ZIP3 as readonly string[]).includes(zip3) ? 0 : 1;
-  if (lat === null || !Number.isFinite(lat)) return null;
-  return lat < CENTRAL_SOUTH_GA_MAX_LAT ? 0 : 1;
+  if (!code || lat === null || !Number.isFinite(lat)) return null;
+  if (code === "GA") return lat < CENTRAL_SOUTH_GA_MAX_LAT ? 0 : 1;
+  return code === "FL" ? 2 : 3;
 }
 
 /**
@@ -466,10 +453,6 @@ export function avDeskBlocked(row: AvRow, now = new Date()): boolean {
   return repeatRule(avDeskTouches(row), now).level === "hold";
 }
 
-function alreadyStreams(row: AvRow): boolean {
-  return Boolean(s(row.live_stream_url) || s(row.livestream_url) || s(row.youtube_url) || s(row.subsplash_url));
-}
-
 function rowHidden(row: AvRow): boolean {
   return yes(row.hidden) || yes(row.is_hidden) || s(row.is_public).toLowerCase() === "false" || row.is_public === false;
 }
@@ -483,45 +466,19 @@ function religionOtherExcluded(row: AvRow): boolean {
   return s(row.religion_guess).toLowerCase() === "other" && !topHasChurchWord(s(row.name));
 }
 
-/**
- * Never on the list: stopped, lost, inactive, not a church, or already the partner's own work.
- * mode "av" is the #416 rule: is_public false drops a row, hidden / is_hidden do not,
- * and a livestream link is not an exclusion here (the AV ranker still drops it from the score).
- * mode "top" adds those drops (already streams, hidden / is_hidden). A rest does not
- * drop the row. A won church is not excluded in top mode unless it already streams;
- * the ranker moves a won church to the Won strip.
- */
-export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now = new Date(), opts: { mode?: "av" | "top" } = {}): boolean {
-  const mode = opts.mode ?? "av";
-  if (mode !== "top") {
-    if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
-    if (avDeskBlocked(row, now)) return true;
-    if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return true;
-    if (s(row.active).toLowerCase() === "false" || row.active === false) return true;
-    if (s(row.is_public).toLowerCase() === "false" || row.is_public === false) return true;
-    if (s(row.religion_guess).toLowerCase() === "other") return true;
-    if (s(row.prospect_kind).toLowerCase() === "association") return true;
-    if (avNameExcluded(s(row.name))) return true;
-    if (s(row.source) === "qa_crm_v2") return true;
-    if (shownWork(row)) return true;
-    return suppressed(row);
-  }
+/** Never on the list: stopped, lost, inactive, not a church, or already the partner's own work. */
+export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now = new Date()): boolean {
   if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
+  if (avDeskBlocked(row, now)) return true;
   if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return true;
-  if (rowInactive(row) || rowHidden(row)) return true;
-  if (religionOtherExcluded(row)) return true;
+  if (s(row.active).toLowerCase() === "false" || row.active === false) return true;
+  if (s(row.is_public).toLowerCase() === "false" || row.is_public === false) return true;
+  if (s(row.religion_guess).toLowerCase() === "other") return true;
   if (s(row.prospect_kind).toLowerCase() === "association") return true;
-  if (topNameExcluded(s(row.name), row)) return true;
+  if (avNameExcluded(s(row.name))) return true;
   if (s(row.source) === "qa_crm_v2") return true;
   if (shownWork(row)) return true;
-  if (suppressed(row)) return true;
-  if (alreadyStreams(row)) return true;
-  if (topProspectMismatch(row)) return true;
-  const status = s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_");
-  if (status && status !== "won" && STOPPED_STATUS.has(status)) return true;
-  if (topProspectWon(row).won) return false;
-  if (s(row.invite_status).toLowerCase() === "sent") return true;
-  return false;
+  return suppressed(row);
 }
 
 /** Score and plain reasons for one church, from real columns only. A generic or shared host is not also "has a website". */

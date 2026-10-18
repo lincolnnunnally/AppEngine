@@ -33,6 +33,7 @@ const ruleUrl = toUrl(transpile("src/lib/engine/church-offer-rule.ts"));
 const rule = await import(ruleUrl);
 const core = await import(toUrl(transpile("src/lib/engine/crm-suggest-core.ts", { "./church-offer-rule": ruleUrl })));
 const crmCoreUrl = toUrl(transpile("src/lib/engine/lpl-crm-core.ts"));
+const crm = await import(crmCoreUrl);
 const nameUrl = toUrl(transpile("src/lib/engine/top-prospects-name.ts"));
 const av = await import(toUrl(transpile("src/lib/engine/av-prospects-core.ts", { "@/lib/engine/lpl-crm-core": crmCoreUrl, "@/lib/engine/top-prospects-name": nameUrl })));
 const names = await import(nameUrl);
@@ -415,30 +416,26 @@ await step("desk names, shared sites, rests, and the churches that must come bac
 await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () => {
   assert(JSON.stringify(av.CENTRAL_SOUTH_GA_ZIP3) === JSON.stringify(["304", "310", "312", "313", "314", "315", "316", "317", "318", "319", "398"]), "ZIP3 list");
   assert(av.TOP_LIST_SIZE === 25, "top list is 25");
-  assert(av.territoryTier("GA", 33.32, "31024", "top") === 0, "top mode: Eatonton 31024 is central/South GA even north of the latitude line");
-  assert(av.territoryTier("GA", 33.04, "30240", "top") === 1, "top mode: LaGrange 30240 is the rest of GA even south of the latitude line");
-  assert(av.territoryTier("GA", 33.32, "31024") === 1 && av.territoryTier("GA", 33.04, "30240") === 0, "AV mode ignores the ZIP and uses the latitude line");
-  assert(av.territoryTier("GA", 32.84, "") === 0 && av.territoryTier("GA", 33.47) === 1, "AV list: missing ZIP still uses the latitude line");
-  assert(av.territoryTier("FL", null) === null && av.territoryTier("SC", null) === null, "AV mode requires a latitude");
-  assert(av.territoryTier("GA", 32.84, "", "top") === 0 && av.territoryTier("GA", 33.47, undefined, "top") === 1, "top mode: missing ZIP falls back to the latitude line");
-  assert(av.topTerritoryTier("GA", "") === 1 && av.topTerritoryTier("GA", "31024") === 0 && av.topTerritoryTier("GA", "30240") === 1 && av.topTerritoryTier("GA", "30301") === 1, "top list is ZIP3 only; a missing ZIP is rest of GA");
+  assert(av.topTerritoryTier("GA", "31024") === 0, "top list: Eatonton 31024 is central/South GA even north of the latitude line");
+  assert(av.topTerritoryTier("GA", "30240") === 1, "top list: LaGrange 30240 is the rest of GA even south of the latitude line");
+  assert(av.territoryTier("GA", 33.32) === 1 && av.territoryTier("GA", 33.04) === 0, "AV list uses the latitude line");
+  assert(av.territoryTier("GA", 32.84) === 0 && av.territoryTier("GA", 33.47) === 1, "AV list: Macon is central/South GA and Augusta is the rest");
+  assert(av.territoryTier("FL", null) === null && av.territoryTier("SC", null) === null && av.territoryTier("GA", null) === null, "AV list requires a latitude");
+  assert(av.topTerritoryTier("GA", "") === 1 && av.topTerritoryTier("GA", "30301") === 1, "top list is ZIP3 only; a missing ZIP is rest of GA");
   assert(av.FIT_POINTS.medium === 20, "bare medium fit is 20");
-  assert(av.territoryTier("GA", null, "31024-1234", "top") === 0, "top mode ZIP+4");
-  assert(av.territoryTier("GA", null, "31024") === null, "AV mode with a ZIP and no latitude is still outside");
+  assert(av.topTerritoryTier("GA", "31024-1234") === 0, "top list ZIP+4");
   assert(av.FIT_POINTS.high === 30 && av.FIT_POINTS["medium (no website)"] === 20 && av.FIT_POINTS["possible (website unreachable)"] === 15 && av.FIT_POINTS["possible (website on record looks wrong)"] === 10 && av.FIT_POINTS.low === 0, "fit weights");
   assert(av.fitPointsOf("nope") === 0, "unknown fit is 0");
   const base = { state: "GA", city: "Vidalia", lat: "32.22", lng: "-82.41", zip_code: "30474", website: "https://one.example" };
   const signals = (score, fit, extra = {}) => ({ av_score: score, churchconnect_fit: fit, av_reasons: ["livestreams (youtube)", "streamed recently (2026-10-11)"], ...extra });
   const streaming = { ...base, id: "s1", name: "Stream Chapel", youtube_url: "https://youtube.com/@s", av_signals: signals(40, "high") };
-  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z")) === false, "AV mode matches #416: a stream link is not an avExcluded drop");
-  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z"), { mode: "top" }) === true, "top mode drops a church that already streams");
+  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z")) === false, "AV list matches #416: a stream link is not an avExcluded drop");
   assert(av.rankAvProspects([streaming], none).length === 0, "AV list leaves the streaming church out");
   const hiddenFlag = { ...base, id: "hid-flag", name: "Hidden Flag Chapel", hidden: true, website: "https://hidden-flag.example" };
   const isHiddenFlag = { ...base, id: "is-hid", name: "Is Hidden Chapel", is_hidden: true, website: "https://is-hidden.example" };
   const notPublic = { ...base, id: "priv", name: "Private Chapel", is_public: false, website: "https://private.example" };
-  assert(av.avExcluded(hiddenFlag, none) === false && av.avExcluded(isHiddenFlag, none) === false, "AV mode keeps hidden and is_hidden rows");
-  assert(av.avExcluded(notPublic, none) === true, "AV mode still drops is_public false");
-  assert(av.avExcluded(hiddenFlag, none, new Date(), { mode: "top" }) === true && av.avExcluded(isHiddenFlag, none, new Date(), { mode: "top" }) === true, "top mode drops hidden and is_hidden rows");
+  assert(av.avExcluded(hiddenFlag, none) === false && av.avExcluded(isHiddenFlag, none) === false, "AV list keeps hidden and is_hidden rows");
+  assert(av.avExcluded(notPublic, none) === true, "AV list still drops is_public false");
   const topStream = av.rankTopProspects([streaming], none, { tier: 0, now: new Date("2026-10-17T15:00:00.000Z") });
   assert(topStream.open.length === 1 && topStream.open[0].churchId === "s1", "top list keeps the streaming church");
   assert(topStream.open[0].score === 70 && topStream.open[0].reason.startsWith("Has a website"), `score and fit phrase: ${topStream.open[0].score} ${topStream.open[0].reason}`);
@@ -550,7 +547,7 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   const temple = { ...base, id: "temple-other", name: "Temple", religion_guess: "other", website: "https://temple-other.example", av_signals: signals(5, "high") };
   const keptOther = av.rankTopProspects([other, temple], none, { tier: 0, now });
   assert(keptOther.open.map((item) => item.churchId).join(",") === "cog", `religion other keeps a church name: ${keptOther.open.map((item) => item.churchId).join(",")}`);
-  assert(av.avExcluded(other, none, now, { mode: "top" }) === false && av.avExcluded(temple, none, now, { mode: "top" }) === true, "religion other excludes only when there is no church word");
+  assert(av.avExcluded(other, none, now) === true && av.avExcluded(temple, none, now) === true, "AV list drops religion other whether or not the name has a church word");
   const claimed = av.rankTopProspects([{ ...base, id: "cl", name: "Claimed Chapel", website: "https://cl.example", verified: true, av_signals: signals(3, "low") }], none, { tier: 0, now });
   assert(claimed.open[0].status === "Claimed" && claimed.open[0].nextStep === "First visit", "claimed stays on the list");
   const tier0 = av.topTierFilter(0);
@@ -597,8 +594,8 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   for (const excludedId of golden.excluded_ids) assert(!openIds.has(excludedId) && !wonIds.has(excludedId), `${excludedId} stays off the golden lists`);
   assert(golden.excluded_ids.includes("soccer-fields"), "soccer-fields is excluded because fields follows soccer");
   const census = av.TOP_PROSPECT_KEPT_CENSUS;
-  assert(census.centralSouthGa === 9609 && census.restOfGa === 0 && census.florida === 3190 && census.southCarolina === 1812, `per-territory kept counts ${census.centralSouthGa}/${census.restOfGa}/${census.florida}/${census.southCarolina}`);
-  assert(census.centralSouthGa + census.restOfGa + census.florida + census.southCarolina === 14611 && census.total === 14611 && census.inScope === 15476, "14,611 kept of 15,476 in scope");
+  assert(census.centralSouthGa === 9609 && census.restOfGa === 0 && census.florida === 3190 && census.southCarolina === 1812, `documentation-only: published ChurchConnect census, not recomputed from the fixture (${census.centralSouthGa}/${census.restOfGa}/${census.florida}/${census.southCarolina})`);
+  assert(census.centralSouthGa + census.restOfGa + census.florida + census.southCarolina === 14611 && census.total === 14611 && census.inScope === 15476, "documentation-only: published ChurchConnect census, 14,611 kept of 15,476 in scope, not recomputed from the fixture");
   assert(av.resolveTopProspectTier("1").status === 422 && av.resolveTopProspectTier("9").status === 422 && av.resolveTopProspectTier("1").detail === "That area is not on this list.", "tier 1 and any other unsupported tier are 422");
   assert(av.resolveTopProspectTier(null).tier === 0 && av.resolveTopProspectTier("0").tier === 0 && av.resolveTopProspectTier("2").tier === 2 && av.resolveTopProspectTier("3").tier === 3, "tiers 0, 2, and 3 stay on the list");
   const route = read("src/app/api/crm/top-prospects/route.ts");
@@ -671,10 +668,24 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
     if (item.miles !== null) assert(Number.isInteger(item.miles), `whole miles ${item.churchId}`);
   }
   const loader = read("src/lib/engine/lpl-crm.ts");
+  const avBody = loader.slice(loader.indexOf("export async function loadAvProspects"), loader.indexOf("export async function loadTopProspects"));
+  assert(avBody.includes("avSuppressionMatcher("), "AV loader uses the #416 suppression matcher");
+  assert(!/\bsuppressionMatcher\(/.test(avBody), "AV loader does not call the top matcher");
+  assert(avBody.includes(', "av")') && !avBody.includes(', "top")'), "AV loader asks for the one-hop mate read");
+  assert(!avBody.includes("readLinkedCopies"), "AV loader does not page linked copies");
+  const avMates = loader.slice(loader.indexOf("async function readAvProspectMates"), loader.indexOf("const LINK_MAX_PAGES"));
+  assert(!avMates.includes("readLinkedCopies") && !avMates.includes("LINK_MAX_PAGES") && !avMates.includes("readChurchPages"), "AV mate read is one hop and one page");
+  const avIdLookup = avMates.slice(0, avMates.indexOf("possible_same_as.cs."));
+  const avPointedLookup = avMates.slice(avMates.indexOf("possible_same_as.cs."));
+  assert(!avIdLookup.includes("batch.length >= AV_PAGE"), "AV id lookup does not fail when the page is full");
+  assert(avPointedLookup.includes("batch.length >= AV_PAGE"), "AV pointed lookup fails when the page is full");
+  assert((avMates.match(/readRows\(/g) || []).length === 3, "AV mate read is the id lookup, the pointed lookup, and the name lookup");
+  const topMates = loader.slice(loader.indexOf("async function readProspectMates"), loader.indexOf("async function readAvProspectMates"));
+  assert((topMates.match(/readLinkedCopies\(/g) || []).length === 2, "top mate read follows the second hop");
   const topBody = loader.slice(loader.indexOf("export async function loadTopProspects"));
   assert(topBody.includes("topTierFilter(tier)") && topBody.includes("readChurchPages") && topBody.includes("readDoNotContact") && topBody.includes("loadCrmSnapshot"), "top loader shares the fetch and joins the snapshot");
   assert(topBody.includes("public.outreach_suppressions") && topBody.includes("select=email,domain,phone,brand"), "suppressions are the plain public columns, including brand");
-  assert(topBody.includes("possible_same_as.cs.") && topBody.includes("readLinkedCopies") && topBody.includes("LINK_MAX_PAGES * AV_PAGE"), "both link directions are paged, and a full read fails closed");
+  assert(topBody.includes(', "top"') && topBody.includes("possible_same_as.cs.") && topBody.includes("readLinkedCopies") && topBody.includes("LINK_MAX_PAGES * AV_PAGE"), "top loader pages both link directions, and a full read fails closed");
   assert(!/method:\s*"(POST|PATCH|PUT|DELETE)"/.test(topBody), "top loader does not write");
   const topAct = read("src/app/(cockpit)/crm/actions.ts").slice(read("src/app/(cockpit)/crm/actions.ts").indexOf("export async function loadTopProspectsAction"));
   assert(/^export async function loadTopProspectsAction[^{]+\{\s*if \(!\(await canAccessEngineOwner\(\)\)\) return refused\(/.test(topAct), "top action is owner gated");
@@ -685,6 +696,52 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   assert(!ui.includes('label: "Rest of GA"') && ui.includes("Rest of Georgia stays hidden"), "Rest of Georgia tab stays hidden until those churches are scored");
   assert(ui.includes("Anyone who opted out of any of our messages is left off this list."), "opt-out footer");
   assert(!/xai|grok|openai|anthropic|claude|gpt|marketing/i.test(ui), "no vendor names and no marketing");
+  const page = read("src/app/(cockpit)/crm/page.tsx");
+  const accessAt = page.indexOf("canAccessEngineAdmin");
+  const fixtureAt = page.indexOf("top-prospects-golden.json");
+  assert(accessAt >= 0 && fixtureAt > accessAt, "the admin check runs before the preview fixture is loaded");
+  assert(page.includes('process.env.NODE_ENV !== "production"') && page.includes('await import("../../../../scripts/fixtures/top-prospects-golden.json")'), "the preview fixture is a dynamic import behind the non-production guard");
+  assert(!page.includes('from "@/lib/engine/av-prospects-core"'), "the page does not statically import the ranker");
+});
+
+await step("AV suppression matches #416; the new matcher stays on the top list", () => {
+  const listed = [
+    { domain: "umc.org" },
+    { domain: "sgaumc.org" },
+    { domain: "bellsouth.net" },
+    { phone: "4045550143" },
+    { phone: "5550143" },
+    { brand: "hidden@brand.example" },
+    { brand: "brandchurch.example" }
+  ];
+  const match = crm.avSuppressionMatcher(listed);
+  assert(match({ website: "https://www.umc.org/church" }), "umc.org still suppresses a church website");
+  assert(match({ email: "office@sgaumc.org" }), "sgaumc.org still suppresses that email host");
+  assert(match({ website: "https://bellsouth.net" }), "bellsouth.net still suppresses a website");
+  assert(match({ email: "a@bellsouth.net" }), "bellsouth.net still suppresses that email host");
+  assert(match({ phone: "404-555-0143" }), "a 10-digit phone still suppresses");
+  assert(!match({ phone: "555-0143" }), "a 7-digit phone does not suppress on the AV list");
+  assert(!match({ phone: "404-555-0143 x12" }), "an extension does not change the AV phone match");
+  assert(!match({ email: "hidden@brand.example" }), "a brand email does not suppress on the AV list");
+  assert(!match({ website: "https://brandchurch.example" }), "a brand domain does not suppress on the AV list");
+  assert(crm.avNormPhone("404-555-0143 x12") === "" && crm.avNormPhone("4045550143x12") === "", "AV phone normalizer keeps the extension digits");
+  assert(crm.normPhone("404-555-0143 x12") === "4045550143" && crm.normPhone("4045550143x12") === "4045550143", "the CRM phone normalizer still strips the extension");
+  assert(crm.avNormPhone("555-0143") === "", "AV phone normalizer drops a 7-digit number");
+  assert(crm.suppressionPhone("555-0143") === "5550143", "the top-list phone key keeps 7 digits");
+  const index = { emails: new Set(), domains: new Set(), phones: new Set() };
+  for (const row of listed) {
+    const keys = crm.suppressionKeys(row);
+    for (const email of keys.emails) index.emails.add(email);
+    for (const domain of keys.domains) index.domains.add(domain);
+    for (const phone of keys.phones) index.phones.add(phone);
+  }
+  assert(!crm.rowMatchesSuppression({ website: "https://www.umc.org/church" }, index), "top matcher does not treat umc.org as its own domain");
+  assert(!crm.rowMatchesSuppression({ email: "office@sgaumc.org" }, index), "top matcher does not treat sgaumc.org as its own domain");
+  assert(!crm.rowMatchesSuppression({ website: "https://bellsouth.net" }, index) && !crm.rowMatchesSuppression({ email: "a@bellsouth.net" }, index), "top matcher does not treat bellsouth.net as its own domain");
+  assert(crm.rowMatchesSuppression({ phone: "555-0143" }, index), "top matcher matches a 7-digit phone");
+  assert(crm.rowMatchesSuppression({ phone: "404-555-0143 x12" }, index), "top matcher strips the extension before matching");
+  assert(crm.rowMatchesSuppression({ email: "hidden@brand.example" }, index), "top matcher reads an email in the brand column");
+  assert(crm.rowMatchesSuppression({ website: "https://brandchurch.example" }, index), "top matcher reads a domain in the brand column");
 });
 
 function churchSame(av, left, right) {
