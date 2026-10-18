@@ -1,0 +1,418 @@
+// Messenger AVL kit: the church rule takes Messenger AVL (and its sound /
+// video / lighting / livestream words pass every filter), and the AV prospect
+// list is read only, scored on real cc_churches fields, nearest Vidalia first.
+//   node scripts/smoke-av-prospects.js
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), "utf8");
+let failed = 0;
+async function step(label, fn) {
+  try {
+    await fn();
+    console.log(`ok   ${label}`);
+  } catch (error) {
+    failed += 1;
+    console.log(`FAIL ${label}\n     ${error.message}`);
+  }
+}
+function assert(cond, label) {
+  if (!cond) throw new Error(label);
+}
+const toUrl = (code) => `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`;
+function transpile(rel, replace = {}) {
+  let out = ts.transpileModule(read(rel), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  for (const [from, to] of Object.entries(replace)) out = out.split(`"${from}"`).join(`"${to}"`);
+  return out;
+}
+const ruleUrl = toUrl(transpile("src/lib/engine/church-offer-rule.ts"));
+const rule = await import(ruleUrl);
+const core = await import(toUrl(transpile("src/lib/engine/crm-suggest-core.ts", { "./church-offer-rule": ruleUrl })));
+const crmCoreUrl = toUrl(transpile("src/lib/engine/lpl-crm-core.ts"));
+const av = await import(toUrl(transpile("src/lib/engine/av-prospects-core.ts", { "@/lib/engine/lpl-crm-core": crmCoreUrl })));
+
+const TODAY = "2026-10-17";
+const card = (over = {}) => ({
+  key: "church:c1",
+  name: "Grace Fellowship",
+  town: "Vidalia, GA",
+  apps: ["churchconnect"],
+  touches: [],
+  repeat: { level: null, text: "" },
+  stops: [],
+  followUpReasons: ["due"],
+  nextStep: "",
+  nextActionDate: "",
+  churchId: "c1",
+  leadId: null,
+  org: { kind: "church", id: "c1", name: "Grace Fellowship", city: "Vidalia", state: "GA", website: "", phone: "", email: "", offers: ["messenger_avl"] },
+  contacts: [],
+  recordPaths: {},
+  possibleMatches: [],
+  tokens: [],
+  events: [],
+  ...over
+});
+
+await step("Messenger AVL is on the church list and in the picker", () => {
+  assert(rule.CHURCH_OFFER_IDS.includes("messenger_avl"), "on the list");
+  assert(rule.offerChoices("church").some((c) => c.id === "messenger_avl" && c.label === "Church sound, video & lighting"), "picker shows the service, not a vendor");
+  assert(!rule.offerChoices("business").some((c) => c.id === "messenger_avl"), "not a business choice");
+  assert(JSON.stringify(rule.cleanChurchOfferIds(["messenger_avl", "operate", "messengeravl"])) === '["messenger_avl"]', "server keeps it once, drops Operate");
+  assert(core.allowedOffers("church", card()).some((o) => o.id === "messenger_avl"), "offered to the suggestion model");
+  assert(core.suggestInput(card(), "church", new Date("2026-10-17T16:00:00Z")).apps_picked.includes("Church sound, video & lighting"), "picked label goes as a label");
+});
+
+await step("sound / video / lighting / livestream wording passes every church filter", () => {
+  const good = [
+    "Church sound, video & lighting",
+    "Ask if a sound and stream checkup on a Sunday would help",
+    "Offer our partner Messenger AVL for the livestream setup",
+    "Mention livestreaming on YouTube and Facebook Live",
+    "Talk about sanctuary sound and lighting upgrades",
+    "Projection, LED wall and camera help for the new building",
+    "Sunday audio checkup with the tech team"
+  ];
+  for (const text of good) {
+    assert(!rule.churchTextBlocked(text), `church filter: ${text}`);
+    assert(!rule.promiseTextBlocked(text), `promise filter: ${text}`);
+    assert(!rule.hasForbiddenChurchWord(text), `marketing word: ${text}`);
+  }
+  const ok = core.cleanSuggestion("church", { next_step: "Ask about a Sunday sound and stream checkup with our partner Messenger AVL", app: "messenger_avl", when_days: 2, why: "No livestream on file" }, card(), TODAY);
+  assert(ok && ok.appId === "messenger_avl" && ok.appLabel === "Church sound, video & lighting", "a sound, video and lighting suggestion survives");
+  assert(ok.nextStep.includes("Messenger AVL"), `name capture leaves Messenger AVL alone: ${ok.nextStep}`);
+  const named = core.cleanSuggestion("church", { next_step: "Call Pastor Messenger AVL about sound", app: "messenger_avl", when_days: 1 }, card(), TODAY);
+  assert(named && named.nextStep.includes("Messenger AVL"), `"Pastor Messenger AVL" is not read as a person: ${named && named.nextStep}`);
+});
+
+await step("the filters still bite with Messenger AVL in the text", () => {
+  assert(core.cleanSuggestion("church", { next_step: "Offer a free sound checkup from Messenger AVL", app: "messenger_avl" }, card(), TODAY) === null, "a 'free' promise still drops it");
+  assert(core.cleanSuggestion("church", { next_step: "Pitch Operate with Messenger AVL", app: "messenger_avl" }, card(), TODAY) === null, "Operate still drops it");
+  assert(core.cleanSuggestion("church", { next_step: "Messenger AVL marketing for the livestream", app: "messenger_avl" }, card(), TODAY) === null, "marketing still drops it");
+  assert(core.cleanSuggestion("church", { next_step: "Run YouTube ads for the stream", app: "messenger_avl" }, card(), TODAY) === null, "ads still drop it");
+  assert(core.cleanSuggestion("church", { next_step: "Stop by", app: "messenger_avl" }, card({ stops: [{ reason: "customer", text: "", app: "messenger_avl" }] }), TODAY) === null, "already a customer drops it");
+});
+
+const none = () => false;
+const row = (over = {}) => ({ id: "r1", name: "TEST CHURCH", city: "VIDALIA", state: "GA", lat: "32.2177", lng: "-82.4135", website: `https://${over.id || "r1"}.testchurch.example`, ...over });
+
+await step("scoring uses only real fields and says 'on file'", () => {
+  const site = av.scoreAvProspect(row());
+  assert(site.score === 2 && site.reasons[0] === "Has a website, but no livestream or YouTube link on file", "website, no stream link");
+  const fb = av.scoreAvProspect(row({ website: "", facebook_url: "https://facebook.com/x" }));
+  assert(fb.score === 1 && fb.reasons[0] === "Facebook page, but no livestream link on file", "Facebook page, but no livestream");
+  const wrong = av.scoreAvProspect(row({ website: "https://savannahbaptist.example", city: "Vidalia", state: "GA" }));
+  assert(wrong.reasons.includes("The website on file may be wrong") && !wrong.reasons.some((reason) => reason.startsWith("Has a website")), "a wrong-city site is an extra line, not counted as their website");
+  const streams = av.scoreAvProspect(row({ youtube_url: "https://youtube.com/@x" }));
+  assert(streams.streams && streams.score < 1, "already streams");
+  assert(av.websiteWeakness("https://tithe.ly/give_new/www/#/x") === "giving", "giving page");
+  assert(av.websiteWeakness("http://www.churchangel.com/church/x.htm") === "directory", "directory listing");
+  assert(av.websiteWeakness("https://x.wix.com/x") === "free_builder", "free builder");
+  assert(av.websiteWeakness("http://www.nationalbaptist.com") === "denomination", "denomination site");
+  assert(av.websiteWeakness("https://www.fbcvidalia.org/") === "", "own site is fine");
+  const weak = av.scoreAvProspect(row({ website: "https://give.tithe.ly/?formId=1" }));
+  assert(weak.score === 1 && weak.reasons.includes("The website on file is only a giving page") && !weak.reasons.some((reason) => reason.startsWith("Has a website")), "a giving host is not counted as their website");
+  const down = av.scoreAvProspect(row({ website_http_status: "404" }));
+  assert(down.reasons.includes("Their website wasn't loading at our last check"), "not loading");
+  const big = av.scoreAvProspect(row({ avg_attendance: "320", pastor_name: "A", contact_name: "B" }));
+  assert(big.reasons.includes("About 320 attend (on file)") && big.reasons.includes("Several staff names on file"), "size hints");
+  for (const r of [site, fb, weak, down, big]) for (const reason of r.reasons) assert(!/new building|growing/i.test(reason), "never claims a new building or growth");
+});
+
+await step("territory: central/South GA, rest of GA, Florida, South Carolina; nearest Vidalia inside each; cap 30", () => {
+  assert(av.CENTRAL_SOUTH_GA_MAX_LAT === 33.25, "one documented line");
+  assert(av.territoryTier("GA", 32.84) === 0 && av.territoryTier("Georgia", 33.08) === 0, "Macon, Milledgeville = central/South GA");
+  assert(av.territoryTier("GA", 33.47) === 1 && av.territoryTier("GA", 33.75) === 1, "Augusta, Atlanta = rest of GA");
+  assert(av.territoryTier("FL", 30.4) === 2 && av.territoryTier("Florida", 27) === 2, "Florida");
+  assert(av.territoryTier("SC", 34) === 3 && av.territoryTier("South Carolina", 33) === 3, "South Carolina");
+  assert(av.territoryTier("AL", 32) === null && av.territoryTier("GA", null) === null && av.territoryTier("", 32) === null, "outside / no location");
+  const rows = [
+    row({ id: "sc-near", name: "SC NEAR", state: "SC", lat: "32.4", lng: "-81.1" }),
+    row({ id: "fl-near", name: "FL NEAR", state: "FL", lat: "30.4", lng: "-81.7" }),
+    row({ id: "north-ga", name: "AUGUSTA CHURCH", city: "AUGUSTA", lat: "33.47", lng: "-82.01" }),
+    row({ id: "far-strong", name: "VALDOSTA STRONG", city: "VALDOSTA", lat: "30.83", lng: "-83.28", website: "https://give.tithe.ly/x", avg_attendance: "400" }),
+    row({ id: "near-weak", name: "NEAR WEAK", website: "", facebook_url: "https://facebook.com/a", lat: "32.25", lng: "-82.40" }),
+    row({ id: "near-strong", name: "NEAR STRONG", lat: "32.30", lng: "-82.45", website: "https://x.weebly.com" }),
+    row({ id: "dnc", name: "STOPPED", do_not_contact: "true" }),
+    row({ id: "dnc-copy", name: "STOPPED COPY", lat: "32.218", lng: "-82.414", possible_same_as: ["dnc"] }),
+    row({ id: "lost", name: "LOST", crm_status: "lost" }),
+    row({ id: "merged", name: "MERGED", merged_into: "x" }),
+    row({ id: "other", name: "TEMPLE", religion_guess: "other" }),
+    row({ id: "qa", name: "QA", source: "qa_crm_v2" }),
+    row({ id: "suppressed", name: "SUPPRESSED", website: "https://blocked.example" }),
+    row({ id: "streams", name: "STREAMS", website: "https://streams.example", live_stream_url: "https://x" }),
+    row({ id: "streams-copy", name: "STREAMS", website: "https://streams.example/", facebook_url: "https://facebook.com/s" }),
+    row({ id: "client", name: "NEW LIFE CHURCH", city: "VIDALIA" }),
+    row({ id: "client2", name: "WARREN BAPTIST CHURCH INC", city: "AUGUSTA", lat: "33.4735", lng: "-82.0105" }),
+    row({ id: "assoc", name: "EMANUEL (SE)", prospect_kind: "association" }),
+    row({ id: "twin", name: "NEAR STRONG CHURCH COPY", lat: "32.31", lng: "-82.45", website: "https://x.weebly.com/" }),
+    row({ id: "al", name: "ALABAMA", state: "AL", lat: "32.4", lng: "-85.0" }),
+    row({ id: "nolat", name: "NO LAT", lat: "", lng: "" }),
+    row({ id: "near-strong", name: "DUPLICATE ID" })
+  ];
+  const blocked = (r) => String(r.website || "").includes("blocked.example");
+  const list = av.rankAvProspects(rows, blocked);
+  const ids = list.map((p) => p.churchId);
+  assert(JSON.stringify(ids) === JSON.stringify(["near-weak", "near-strong", "twin", "far-strong", "north-ga", "fl-near", "sc-near"]), `order: ${ids.join(",")}`);
+  assert(JSON.stringify(list.map((p) => p.tierLabel)) === JSON.stringify(["Central/South GA", "Central/South GA", "Central/South GA", "Central/South GA", "Rest of GA", "Florida", "South Carolina"]), "tier labels");
+  assert(list.every((p) => p.reasons.length > 0 && p.reasons.every((r) => r.startsWith(`${p.tierLabel} \u00b7 `))), "every reason line starts with the tier");
+  assert(av.avReasonText(list[0].reasons[0], list[0].tierLabel) === "Facebook page, but no livestream link on file", "the screen keeps the gap: Facebook page, but no livestream");
+  assert(!av.avReasonText(list[0].reasons[0], list[0].tierLabel).includes("·"), "a bullet is the reason only");
+  assert(!ids.includes("dnc-copy") && !ids.includes("streams-copy"), "a copy of a stopped / streaming church is left out too");
+  assert(list[1].name === "Near Strong" && list[1].town === "Vidalia" && list[1].miles > 0, "tidy name, town, miles");
+  assert(!("phone" in list[0]) && !("email" in list[0]), "no phone or email in the list");
+  const many = Array.from({ length: 45 }, (_, i) => row({ id: `m${i}`, name: `CHURCH ${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + Math.floor(i / 26))}`, lat: String(31 + i * 0.01), lng: "-82.4" }));
+  assert(av.rankAvProspects(many, none).length === 30 && av.AV_LIST_SIZE === 30, "cap of 30");
+  assert(av.rankAvProspects(rows, blocked, { size: 1 }).length === 1, "size option");
+  const tidy = av.rankAvProspects([row({ id: "t1", name: "BETHEL AME CHURCH OF THE LORD", city: "EAST DUBLIN" })], none)[0];
+  assert(tidy.name === "Bethel AME Church of the Lord" && tidy.town === "East Dublin", `tidy caps: ${tidy.name} / ${tidy.town}`);
+  assert(av.milesFromVidalia(row()) < 0.1 && Math.abs(av.milesFromVidalia(row({ lat: "33.4735", lng: "-82.0105" })) - 89.5) < 2, "distance math");
+});
+
+await step("reads tier by tier in rings (jsonb number filters), never the whole table", () => {
+  const f0 = av.tierRingFilters(0, 40);
+  assert(f0.includes("doc->>state=in.(GA,Georgia)") && /doc->lat=lt\.33\.25|doc->lat=lte\.32\.79/.test(f0) && f0.includes("doc->lng=gte.-"), `tier 0 ring: ${f0}`);
+  assert(av.tierRingFilters(0, 700).includes("doc->lat=lt.33.25"), "tier 0 stops at the line");
+  assert(av.tierRingFilters(1, 700).includes("doc->lat=gte.33.25"), "tier 1 starts at the line");
+  assert(av.tierRingFilters(2, 320).includes("doc->>state=in.(FL,Florida)") && av.tierRingFilters(3, 320).includes('doc->>state=in.(SC,"South Carolina")'), "FL and SC");
+  assert(!/doc->>lat|doc->>lng/.test(av.tierRingFilters(0, 80)), "lat/lng compared as numbers (->), not text (->>)");
+  for (const radius of av.AV_RINGS_MILES) {
+    const box = av.ringBox(radius);
+    // Every point on the circle is inside the box.
+    for (let deg = 0; deg < 360; deg += 15) {
+      const rad = (deg * Math.PI) / 180;
+      const lat = av.VIDALIA.lat + (radius / 69) * Math.sin(rad) * 0.999;
+      const lng = av.VIDALIA.lng + (radius / (69 * Math.cos((lat * Math.PI) / 180))) * Math.cos(rad) * 0.999;
+      if (Math.abs(lat) < 89) assert(lat >= box.minLat && lat <= box.maxLat && lng >= box.minLng && lng <= box.maxLng, `ring ${radius} covers ${deg}°`);
+    }
+  }
+  assert(av.AV_RINGS_MILES[av.AV_RINGS_MILES.length - 1] >= 600, "last ring covers the whole territory (Key West ~520 mi)");
+  const loader = read("src/lib/engine/lpl-crm.ts");
+  const body = loader.slice(loader.indexOf("export async function loadAvProspects"));
+  assert(body.includes("tierRingFilters(tier, radius)") && body.includes("settled >= AV_LIST_SIZE"), "stops once the top is settled");
+  assert(body.includes("groupMateLookups") && body.includes("possible_same_as"), "also reads copies outside the ring, including ones with no website");
+  assert(!body.includes("limit=5000") && body.includes("batch.length < DNC_PAGE"), "do-not-contact list is paged until it ends");
+  assert(body.includes("cc_church_crm_activities") && body.includes("DONT_REPEAT_DAYS"), "visit and drop-off rests are read with the desk's window");
+});
+
+await step("read only, on tap, owner only, fail closed", () => {
+  const loader = read("src/lib/engine/lpl-crm.ts");
+  const body = loader.slice(loader.indexOf("export async function loadAvProspects"));
+  assert(!/method:\s*"(POST|PATCH|PUT|DELETE)"/.test(body), "no writes");
+  assert(body.includes('"outreach_suppressions"') && body.includes("couldn't be read, so no prospects are listed"), "do-not-contact list read first; unreadable → nothing");
+  const actions = read("src/app/(cockpit)/crm/actions.ts");
+  const act = actions.slice(actions.indexOf("export async function loadAvProspectsAction"));
+  assert(/^export async function loadAvProspectsAction[^{]+\{\s*if \(!\(await canAccessEngineOwner\(\)\)\) return refused\(/.test(act), "owner gate first");
+  const page = read("src/app/(cockpit)/crm/page.tsx");
+  assert(!page.includes("loadAvProspects"), "never read on page load");
+  const desk = read("src/components/engine/crm-desk.tsx");
+  assert(/\{isOwner \? \(\s*<button[\s\S]*?AV prospects/.test(desk), "chip shows for the owner only");
+  assert(!desk.includes("Messenger") && !/messengeravl\.com/i.test(desk), "the chip does not name a vendor");
+  for (const key of ["all", "today", "multi", "resting", "stops", "possible", "presence", "quiet"]) assert(desk.includes(`  ${key}: "`), `existing filter kept: ${key}`);
+  const ui = read("src/components/engine/crm-av-prospects.tsx");
+  const visible = ui.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  for (const rel of [
+    "src/components/engine/crm-av-prospects.tsx",
+    "src/lib/engine/church-offer-rule.ts",
+    "src/lib/engine/av-prospects-core.ts",
+    "source-of-truth/super-admin-registry.md"
+  ]) assert(!/messengeravl\.com/i.test(read(rel)), `no partner link in ${rel}`);
+  assert(!/messengeravl\.com|Messenger AVL|our partner/i.test(visible), "no vendor name, partner wording, or outbound link");
+  assert(/your territory/i.test(visible) && !/Lincoln/.test(visible), "owner copy");
+  assert(visible.includes("Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream, are resting or recently contacted, were invited, said no, were already won, are already being worked, are not public, are inactive, or are not a church."), "one footer line");
+  assert(!visible.includes("33.25"), "the latitude line stays in comments");
+  assert(visible.includes("subline(item)") && visible.includes("avReasonText"), "tier once in the subline; bullets are the reason");
+  assert(visible.includes("Open in ChurchConnect") && !visible.includes("Open card"), "one action label");
+  assert(visible.includes("crm-av-main") && visible.includes("crm-av-actions"), "text column and actions column");
+  assert(!/<img|logo/i.test(ui), "no logo");
+  assert(!/xai|grok|openai|anthropic|claude|gpt/i.test(ui + read("src/lib/engine/av-prospects-core.ts")), "no vendor names");
+});
+
+await step("name rules leave churches and drop other places", () => {
+  const keep = [
+    "First Baptist Church", "Temple Baptist Church", "Camp Creek Baptist Church", "College Park Baptist Church", "Grace Chapel",
+    "Vidalia Baptist Temple", "Phillips Temple Ministries", "Healing Temple Ministries", "Faith Temple", "Allen Temple AME", "Bethel Temple",
+    "Jehovah Jireh Church", "Jehovah Jireh Ministries", "Jehovah Nissi Worship Center", "College Place Methodist", "Seminary Hill Baptist",
+    "Camp Creek Missionary Baptist", "Fellowship Association Church", "Mosque Street Baptist", "Baptist Seminary",
+    "First Baptist Food Pantry",
+    "West Ward Church of God", "Ward Grove Baptist", "Ward Chapel Baptist", "Ward Memorial UMC",
+    "Foundation Church", "True Foundation COG", "New Foundation Holiness", "Faith Foundation COGIC", "Christ Foundation Ministries",
+    "Baptist Foundation",
+    "Christ Temple of Refuge", "Christ Deliverance Temple", "Macon Full Gospel Holy Temple", "Restoration Temple of Praise",
+    "Calvary Apostolic Temple", "Baxley-Harvest Temple COG", "Sparks Temple COGIU", "Everette Temple CME", "Tremount Temple MBC", "Tremount Temple M.B.C",
+    "Life UPC Richmond Hill campus", "Needwood Baptist Church and School", "Journey Church North Campus",
+    "Old School (Primitive) Baptist Church", "Victory Academy of Praise Church", "Faith Baptist Christian Academy Church",
+    "Trinity Pooler Church and Preschool",
+    "The Living Word Christian Center", "Abundant Life Christian Center", "John Wesley Center",
+    "Holsey Temple", "Hightower Memorial Temple", "James Temple", "Prayer Temple of Savannah",
+    "Miracle Temple", "Miracle Healing Temple", "Eley's Healing Temple",
+    "Solomon Temple", "Solomon's Temple International", "Temple of Truth",
+    "Living Waters Temple", "New Greater Owens Temple", "Rhema Miracle Temple Outreach",
+    "Temple of Higher Calling", "Victory Temple Bible Believers", "Bristol Temple"
+  ];
+  const drop = [
+    "Kingdom Hall of Jehovah's Witnesses", "Kingdom-Hall", "KingdomHall", "Kingdom  Hall",
+    "Bulloch County Islamic Center", "Masjid Al-Noor", "Muhammad Mosque", "Hindu Temple", "Buddhist Temple",
+    "Beth Israel Synagogue", "Messianic Jewish Congregation", "The Church of Jesus Christ of Latter-day Saints", "LDS Chapel",
+    "Vidalia Christian Academy", "Toombs Christian School", "Brewton-Parker College", "Pine Grove Cemetery", "Youth Camp",
+    "Unitarian Fellowship", "Universalist Society", "Episcopal Diocese of Georgia", "Catholic Diocese",
+    "Georgia Conference Center", "Church Retreat Center", "Food Distribution Center",
+    "Community Food Bank", "Community Food Pantry", "Masjed Noor", "Musalla", "Stake Center", "First Ward", "1st Ward", "3rd Ward", "Mormon Chapel",
+    "Sikh Temple", "Gurdwara", "Baha'i Center", "Bahá'í Center", "Hindu Mandir", "Beth Israel", "Congregation Beth Israel",
+    "Christian Science Church", "Church of Scientology", "Spiritualist Church", "Jehovah",
+    "Queen of Victory MBA", "Emanuel MBA", "Zion MBA", "Mt Vernon BA", "Altamaha–New Sunbury BA", "Second Washington BA",
+    "Georgia Union Missionary Association", "Union Baptist Association of Churches", "Holiness Baptist Association Campgrounds",
+    "Emanuel Baptist Association", "Bible Baptist Christian Academy", "Faith Baptist Christian Academy",
+    "Christian Life School of Ministry", "Episcopal Campus Ministry", "Kudzu College Ministry", "First Church of Christ, Scientist",
+    "First Baptist Preschool", "First Baptist Preschool Gray", "First Baptist Preschool Gray Ga",
+    "Kingdom Kids", "South Georgia Conference Council", "Faith Temple Outreach Community Center",
+    "Swaminarayan Temple", "Temple Beth El", "Hindu Shrine",
+    "Fitzgerald Hebrew Congregation", "Waycross Hebrew Center", "Temple Mickve Israel", "Chabad of Savannah", "B'nai B'rith", "Bnai Brith",
+    "Southwest District UMC", "Macon East District AMEC", "Children's Home", "Children's Homes"
+  ];
+  for (const name of keep) assert(!av.avNameExcluded(name), `keep ${name}`);
+  for (const name of drop) assert(av.avNameExcluded(name), `drop ${name}`);
+  console.log(`     name fixtures: ${keep.length} kept, ${drop.length} dropped`);
+  const temple = av.rankAvProspects([row({ id: "temple", name: "TEMPLE BAPTIST CHURCH" })], none);
+  assert(temple.length === 1 && temple[0].name === "Temple Baptist Church", "Temple Baptist Church can be listed");
+});
+
+await step("duplicate copies and stopped rows stay off the list (probe)", () => {
+  const base = { state: "GA", lat: "32.22", lng: "-82.41", website: "", facebook_url: "https://facebook.com/x" };
+  const r = (over) => ({ ...base, ...over });
+  const ids = (rows) => av.rankAvProspects(rows, none).map((item) => item.churchId);
+  assert(JSON.stringify(ids([
+    r({ id: "A", name: "Alpha", city: "Vidalia", website: "https://x.org", lat: "32.2177" }),
+    r({ id: "B", name: "Grace Church", city: "Vidalia", website: "https://b.org", lat: "32.2178" }),
+    r({ id: "C", name: "Grace Church", city: "Vidalia", website: "https://x.org", do_not_contact: true, lat: "32.219" })
+  ])) === JSON.stringify(["A"]), "a shared host does not bridge two different names; the same name still drops");
+  assert(ids([
+    r({ id: "A", name: "Connection Church", city: "Vidalia", website: "https://ccvidalia.com/", do_not_contact: true }),
+    r({ id: "B", name: "Connection Church", city: "Vidalia", website: "https://ccvidalia.com/about-us/children" })
+  ]).length === 0, "same host and town, different path");
+  assert(ids([
+    r({ id: "A", name: "Connection Church", city: "Vidalia", website: "https://ccvidalia.com/" }),
+    r({ id: "B", name: "Konnection Kids", city: "Vidalia", website: "https://ccvidalia.com/about" })
+  ]).length === 2, "a host shared by two names is not one church");
+  assert(ids([
+    r({ id: "A", name: "BULLOCH COUNTY ISLAMIC CENTER INC", city: "STATESBORO", do_not_contact: true }),
+    r({ id: "B", name: "Bulloch County Islamic Center", city: "Statesboro" })
+  ]).length === 0, "Inc suffix and non-church name");
+  assert(churchSame(av, "http://www.foo.org/", "https://foo.org"), "www and scheme do not make a new site");
+  assert(ids([
+    r({ id: "A", name: "Grace Church", city: "Vidalia", website: "http://www.foo.org/", do_not_contact: true }),
+    r({ id: "B", name: "Grace Church", city: "Vidalia", website: "https://foo.org" })
+  ]).length === 0, "www vs bare host");
+  assert(JSON.stringify(ids([
+    r({ id: "A", name: "Grace Church", city: "Vidalia", website: "https://foo.org", do_not_contact: true }),
+    r({ id: "B", name: "Grace Church", city: "Lyons", website: "https://foo.org" })
+  ])) === JSON.stringify(["B"]), "a website match stays inside one town");
+  assert(av.churchNameKey("St Paul AME") === av.churchNameKey("Saint Paul AME"), "St and Saint match");
+  assert(ids([
+    r({ id: "A", name: "St Paul AME", city: "Vidalia", do_not_contact: true }),
+    r({ id: "B", name: "Saint Paul AME", city: "Vidalia" })
+  ]).length === 0, "St vs Saint");
+  for (const rows of [
+    [r({ id: "B", name: "Beta", city: "Vidalia", possible_same_as: ["A"], lat: "32.2177" }), r({ id: "A", name: "Alpha2", city: "Lyons", do_not_contact: true, lat: "32.25" })],
+    [r({ id: "A", name: "Alpha2", city: "Lyons", do_not_contact: true, possible_same_as: ["B"], lat: "32.2177" }), r({ id: "B", name: "Beta", city: "Vidalia", lat: "32.25" })],
+    [r({ id: "B", name: "Beta", city: "Vidalia", lat: "32.2177" }), r({ id: "A", name: "Alpha2", city: "Lyons", do_not_contact: true, possible_same_as: ["B"], lat: "32.25" })]
+  ]) assert(ids(rows).length === 0, "possible_same_as either way");
+  assert(ids([
+    r({ id: "A", name: "Kingdom Hall", city: "Vidalia", website: "http://www.watchtower.org" }),
+    r({ id: "B", name: "Kingdom Hall", city: "Lyons", website: "http://www.watchtower.org" })
+  ]).length === 0, "a denomination host is not one church, and Kingdom Hall is not listed");
+  assert(JSON.stringify(ids([
+    r({ id: "A", name: "First Baptist Church", city: "Vidalia", website: "https://a.org", do_not_contact: true }),
+    r({ id: "B", name: "Baptist Church First", city: "Vidalia", website: "https://b.org" })
+  ])) === JSON.stringify(["B"]), "word order does not merge two churches");
+  assert(ids([r({ id: "A", name: "A1", city: "Vidalia", do_not_contact: "yes" }), r({ id: "B", name: "B1", city: "Vidalia", do_not_contact: "1" })]).length === 0, "yes and 1 are do-not-contact");
+  assert(ids([r({ id: "A", name: "A1", city: "Vidalia", active: "false", is_public: "false" })]).length === 0, "inactive");
+  assert(ids([
+    r({ id: "A", name: "A1", city: "Vidalia", crm_status: "not_interested" }),
+    r({ id: "B", name: "B1", city: "Vidalia", crm_status: "declined" })
+  ]).length === 0, "stopped pipeline statuses");
+  assert(ids([r({ id: "A", name: "Invited Church", city: "Vidalia", invite_status: "sent" })]).length === 0, "already invited");
+  const lookups = av.groupMateLookups([r({ id: "B", name: "Saint Paul AME", city: "Vidalia", possible_same_as: ["A"] })]);
+  assert(lookups.ids.includes("A") && lookups.nameCities.some((item) => item.city === "Vidalia" && item.pattern.includes("saint")), "loader asks for the missing copy");
+  const named = av.groupMateLookups([
+    r({ id: "wide", name: "First Baptist", city: "Vidalia" }),
+    r({ id: "copy", name: "First Baptist Church", city: "Vidalia" }),
+    r({ id: "other", name: "Grace Chapel", city: "Lyons" })
+  ]);
+  const first = named.nameCities.find((item) => item.pattern === "first baptist");
+  assert(first && first.churchIds.includes("wide") && first.churchIds.includes("copy") && !first.churchIds.includes("other"), "a wide lookup knows which church it belongs to");
+  const group = new Set();
+  assert(av.consumeWideNameLookup(40, first.churchIds, group) === "block" && group.has("wide") && group.has("copy"), "a lookup of 40 blocks every church in that group");
+  assert(av.consumeWideNameLookup(39, first.churchIds, new Set()) === "use", "a lookup under 40 is used");
+  const missing = new Set();
+  assert(av.consumeWideNameLookup(40, [], missing) === "fail" && missing.size === 0, "40 rows and no church id fails the list closed");
+  assert(av.rankAvProspects([
+    r({ id: "wide", name: "First Baptist Church", city: "Vidalia" }),
+    r({ id: "copy", name: "First Baptist", city: "Vidalia" }),
+    r({ id: "other", name: "Grace Chapel", city: "Lyons" })
+  ], none, { blockedIds: group }).map((item) => item.churchId).join(",") === "other", "a too-wide name lookup blocks that church and its group");
+});
+
+await step("desk names, shared sites, rests, and the churches that must come back", () => {
+  assert(av.churchNameKey("Smith Street Baptist", "Vidalia") === av.churchNameKey("SMITH STREET BAPTIST CHURCH", "Vidalia"), "trailing church");
+  assert(av.churchNameKey("North Thompson Baptist") === av.churchNameKey("NORTH THOMPSON BAPTIST CHURCH INC"), "trailing church and inc");
+  assert(av.churchNameKey("Christian Methodist Episcopal") === av.churchNameKey("CHRISTIAN METHODIST EPISCOPAL CHURCH"), "episcopal without a trailing church");
+  assert(av.churchNameKey("Mt Zion Baptist") === av.churchNameKey("Mount Zion Baptist Church"), "Mt and Mount");
+  assert(av.churchNameKey("St. Paul A.M.E.") === av.churchNameKey("Saint Paul AME"), "St. and A.M.E.");
+  assert(av.churchNameKey("The First Baptist Church of Vidalia", "Vidalia") === av.churchNameKey("First Baptist", "Vidalia"), "leading The and of the town");
+  const base = { state: "GA", lat: "32.22", lng: "-82.41", website: "", facebook_url: "https://facebook.com/x" };
+  const r = (over) => ({ ...base, ...over });
+  const ids = (rows, now) => av.rankAvProspects(rows, none, now ? { now } : {}).map((item) => item.churchId);
+  assert(ids([
+    r({ id: "desk", name: "Smith Street Baptist", city: "Vidalia" }),
+    r({ id: "dir", name: "SMITH STREET BAPTIST CHURCH", city: "Vidalia", do_not_contact: true })
+  ]).length === 0, "desk name groups with the directory name in the same town");
+  assert(ids([
+    r({ id: "desk", name: "North Thompson Baptist", city: "Vidalia" }),
+    r({ id: "dir", name: "NORTH THOMPSON BAPTIST CHURCH INC", city: "VIDALIA", do_not_contact: true })
+  ]).length === 0, "church inc groups with the desk name");
+  const back = av.rankAvProspects([
+    r({ id: "sop", name: "SOPERTON CHURCH OF GOD", city: "SOPERTON", website: "https://churchofgod.org/soperton", facebook_url: "" }),
+    r({ id: "snow", name: "SNOWHILL CHURCH OF GOD", city: "SNOWHILL", website: "https://churchofgod.cc", facebook_url: "" }),
+    r({ id: "hill", name: "HILLSIDE CHURCH OF GOD", city: "VIDALIA", website: "https://www.churchofgod.org", facebook_url: "" }),
+    r({ id: "ailey", name: "AILEY UMC", city: "AILEY", website: "https://sgaumc.org/ailey", facebook_url: "" }),
+    r({ id: "sumc", name: "SOPERTON UMC", city: "SOPERTON", website: "https://sgaumc.org/soperton", facebook_url: "" }),
+    r({ id: "alta", name: "ALTAMAHA BAPTIST", city: "VIDALIA", website: "https://altamahabaptist.example", facebook_url: "" })
+  ], none);
+  assert(JSON.stringify(back.map((item) => item.churchId).sort()) === JSON.stringify(["ailey", "alta", "hill", "snow", "sop", "sumc"]), `churches come back: ${back.map((item) => item.churchId).join(",")}`);
+  assert(back.find((item) => item.churchId === "alta").reasons.some((reason) => reason.includes("Has a website, but no livestream or YouTube link on file")), "Altamaha keeps the gap");
+  assert(back.filter((item) => item.churchId !== "alta").every((item) => item.reasons.length === 1 && /denomination/.test(item.reasons[0])), "a denomination site is the only reason");
+  const now = new Date("2026-10-17T15:00:00.000Z");
+  assert(av.avDeskBlocked({ desk_touches: [{ at: "2026-10-10T15:00:00.000Z", kind: "visit", outreach: true }] }, now), "a visit inside 14 days rests");
+  assert(!av.avDeskBlocked({ desk_touches: [{ at: "2026-09-01T15:00:00.000Z", kind: "visit", outreach: true }] }, now), "a visit older than 14 days does not rest");
+  assert(av.avDeskBlocked({ desk_touches: [{ at: "2026-10-14T15:00:00.000Z", kind: "drop_off", outreach: true }] }, now), "a drop-off inside 7 days rests");
+  assert(!av.avDeskBlocked({ desk_touches: [{ at: "2026-10-01T15:00:00.000Z", kind: "drop_off", outreach: true }] }, now), "a drop-off older than 7 days does not rest");
+  assert(ids([r({ id: "rest", name: "Rested Church", city: "Vidalia", desk_touches: [{ at: "2026-10-10T15:00:00.000Z", kind: "visit", outreach: true }] })], now).length === 0, "a resting church stays off the list");
+  assert(!av.websitePlaceMismatch("https://newbirthsavannah.org", "Pooler", "GA", "New Birth Savannah"), "Savannah in the name is not the wrong city");
+  assert(!av.websitePlaceMismatch("https://savannahchristian.org", "Savannah", "GA", "Savannah Christian Church"), "Savannah Christian is in Savannah");
+  assert(!av.websitePlaceMismatch("https://savannahriverbaptist.org", "Sylvania", "GA", "Savannah River Baptist"), "Savannah River is their name");
+  assert(!av.websitePlaceMismatch("https://poolersavannah.example", "Pooler", "GA", "New Hope"), "Pooler is in the Savannah area");
+  const dallas = av.scoreAvProspect(r({ id: "dal", name: "First Baptist", city: "Vidalia", state: "GA", website: "https://dallasfirst.org", facebook_url: "" }));
+  assert(dallas.reasons.includes("The website on file may be wrong") && !dallas.reasons.some((reason) => reason.startsWith("Has a website")), "dallas is another city's site");
+  const nashville = av.scoreAvProspect(r({ id: "nash", name: "Grace", city: "Vidalia", state: "GA", website: "https://nashvillegrace.org", facebook_url: "" }));
+  assert(nashville.reasons.includes("The website on file may be wrong"), "nashville is another city's site");
+  const texas = av.scoreAvProspect(r({ id: "tx", name: "Grace", city: "Vidalia", state: "GA", website: "https://gracechurchtexas.org", facebook_url: "" }));
+  assert(texas.reasons.includes("The website on file may be wrong"), "texas is another state");
+  const generic = ["subsplash.com", "google.com", "goo.gl", "business.site", "squarespace.com", "ourchurch.com", "ministrybrands.com", "churchofgod.cc", "chamberofcommerce.com", "sgaumc.org", "bizapedia.com", "churchofgod.org", "giv.li", "netministries.org", "nazarene.org", "paypal.com", "cash.app"];
+  for (const host of generic) assert(av.websiteWeakness(`https://${host}/x`) !== "", `${host} is generic`);
+  const only = av.scoreAvProspect(r({ id: "gen", name: "Grace", city: "Vidalia", website: "https://sgaumc.org/grace", facebook_url: "https://facebook.com/grace" }));
+  assert(only.reasons.length === 1 && only.reasons[0].includes("denomination"), "a denomination site does not also say Facebook or has a website");
+});
+
+function churchSame(av, left, right) {
+  return av.websiteGroupKey(left, "Vidalia", "GA") !== "" && av.websiteGroupKey(left, "Vidalia", "GA") === av.websiteGroupKey(right, "Vidalia", "GA");
+}
+
+if (failed) {
+  console.log(`\n${failed} failed`);
+  process.exit(1);
+}
+console.log("\nall AV prospect checks passed");

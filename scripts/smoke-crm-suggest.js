@@ -202,7 +202,7 @@ await step("EA r1: already a customer → that app is not offered (signals on th
   assert(!core.allowedOffers("church", cc).some((o) => o.id === "churchconnect"), "ChurchConnect customer");
   const converted = card({ touches: [{ at: "2026-10-01T15:00:00Z", app: "churchconnect", kind: "customer", what: "Became a ChurchConnect customer", outreach: false, signal: true }] });
   assert(!core.allowedOffers("church", converted).some((o) => o.id === "churchconnect"), "customer touch counts");
-  for (const app of ["easypeazy", "outreach"]) {
+  for (const app of ["easypeazy", "outreach", "messenger_avl"]) {
     assert(!core.allowedOffers("church", card({ stops: [{ reason: "customer", text: "", app }] })).some((o) => o.id === app), `${app} excluded once the card says so`);
   }
   for (const app of ["operate", "awd", "easypeazy", "laser"]) {
@@ -210,7 +210,7 @@ await step("EA r1: already a customer → that app is not offered (signals on th
   }
   assert(core.cleanSuggestion("church", { next_step: "Stop by", app: "churchconnect" }, cc, TODAY) === null, "picking an app they already buy drops it");
   const reg = read("source-of-truth/super-admin-registry.md");
-  assert(reg.includes("**No signal yet** for EasyPeazy / church website, Outreach, Operate or AI Website Design"), "registry names the apps with no signal yet");
+  assert(reg.includes("**No signal yet** for EasyPeazy / church website, Outreach, church sound, video & lighting, Operate or AI Website Design"), "registry names the apps with no signal yet");
 });
 
 await step("unclear = church; businesses only get live business apps", () => {
@@ -223,7 +223,7 @@ await step("unclear = church; businesses only get live business apps", () => {
   assert(core.cleanSuggestion("business", { next_step: "Pitch a campaign", app: "marketing_campaign" }, business(), TODAY) === null, "hidden Marketing campaign dropped");
   assert(core.cleanSuggestion("business", { next_step: "Offer a marketing campaign", app: "" }, business(), TODAY) === null, "hidden offer named in text dropped");
   assert(!core.allowedOffers("business", business()).some((o) => o.id === "marketing_campaign"), "not offered to the model either");
-  assert(core.allowedOffers("church", card()).every((o) => ["churchconnect", "easypeazy", "laser", "outreach"].includes(o.id)), "church list = the rule");
+  assert(core.allowedOffers("church", card()).every((o) => ["churchconnect", "easypeazy", "laser", "outreach", "messenger_avl"].includes(o.id)), "church list = the rule");
 });
 
 await step("do-not-contact and rest: no outreach suggestion, at most 'Resting until'", () => {
