@@ -161,6 +161,8 @@ export type AvProspect = {
   tier: AvTierIndex;
   tierLabel: string;
   name: string;
+  /** Common name, crawl title, or own-site host. "" when the row only has the legal name. */
+  commonName: string;
   town: string;
   miles: number;
   score: number;
@@ -352,7 +354,11 @@ function hasChristianWord(raw: string, words: string[]): boolean {
  */
 export function avNameExcluded(name: string): boolean {
   const raw = collapseInitials(foldedName(name));
-  if (raw.replace(/[^a-z]/g, "").includes("kingdomhall")) return true;
+  const compact = raw.replace(/[^a-z]/g, "");
+  if (compact.includes("kingdomhall")) return true;
+  // Media-production companies. "CENTERINC" has no space before the suffix.
+  // Inc, LLC, Properties, Conference, Holdings, and Corp are not drop words on their own.
+  if (compact.includes("mediaproduction") || compact.includes("productioncenter") || compact.includes("productions")) return true;
   if (/\bkingdom\s+kids\b/.test(raw)) return true;
   const street = raw.replace(/\bmosque\s+street\b/g, " ").replace(/\bold\s+school\b/g, " ");
   const words = nameWords(street);
@@ -531,6 +537,73 @@ export function scoreAvProspect(row: AvRow, sharedHosts: ReadonlySet<string> = n
 // Short church words that stay in capitals when an ALL-CAPS name is tidied.
 const KEEP_CAPS = new Set(["AME", "AMEZ", "CME", "UMC", "COGIC", "FBC", "II", "III", "IV", "USA", "QA"]);
 
+const COMMON_NAME_KEYS = ["church_name", "common_name"] as const;
+const CRAWL_TITLE_KEYS = ["crawl_title", "website_title", "page_title", "site_name", "site_title"] as const;
+
+function textList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => s(item)).filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (Array.isArray(parsed)) return parsed.map((item) => s(item)).filter(Boolean);
+    } catch {
+      return value.split(/[|;]/).map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function labelIfDifferent(value: string, legal: string): string {
+  const text = s(value);
+  if (!text || foldedName(text).replace(/[^a-z0-9]+/g, "") === legal) return "";
+  return titleCase(text);
+}
+
+/**
+ * A friendly identifier already on the row or a grouped copy: church_name,
+ * a crawl or page title, an alias, or the other copy's own name. Otherwise
+ * the church's own website host, without www. "" when none of those exist.
+ */
+export function prospectCommonName(row: AvRow, mates: readonly AvRow[] = []): string {
+  const legal = foldedName(s(row.name)).replace(/[^a-z0-9]+/g, "");
+  const people = [row, ...mates];
+  for (const source of people) {
+    for (const key of COMMON_NAME_KEYS) {
+      const label = labelIfDifferent(s(source[key]), legal);
+      if (label) return label;
+    }
+  }
+  for (const source of people) {
+    for (const key of CRAWL_TITLE_KEYS) {
+      const label = labelIfDifferent(s(source[key]), legal);
+      if (label) return label;
+    }
+    const sig = signalBag(source);
+    if (!sig) continue;
+    for (const key of CRAWL_TITLE_KEYS) {
+      const label = labelIfDifferent(s(sig[key]), legal);
+      if (label) return label;
+    }
+  }
+  for (const source of people) {
+    for (const alias of textList(source.alias_names)) {
+      const label = labelIfDifferent(alias, legal);
+      if (label) return label;
+    }
+  }
+  for (const mate of mates) {
+    const label = labelIfDifferent(s(mate.name), legal);
+    if (label) return label;
+  }
+  for (const source of people) {
+    const url = s(source.website);
+    if (!url || websiteWeakness(url)) continue;
+    const host = hostOf(url).host;
+    if (host && foldedName(host).replace(/[^a-z0-9]+/g, "") !== legal) return host;
+  }
+  return "";
+}
+
 function titleCase(text: string): string {
   if (text !== text.toUpperCase()) return text;
   return text
@@ -687,6 +760,13 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
     const root = groups.find(`id:${s(row.id)}`);
     if (blocked.has(root) || forced.has(s(row.id)) || avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blockedRoots.add(root);
   }
+  const members = new Map<string, AvRow[]>();
+  for (const row of all) {
+    const root = groups.find(`id:${s(row.id)}`);
+    const list = members.get(root) ?? [];
+    list.push(row);
+    members.set(root, list);
+  }
   const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
   for (const row of all) {
     const lat = Number(s(row.lat) || s(row.latitude));
@@ -712,6 +792,7 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
       tier,
       tierLabel: label,
       name: titleCase(s(row.name)) || "Unnamed church",
+      commonName: prospectCommonName(row, (members.get(root) ?? []).filter((mate) => mate !== row)),
       town: titleCase(s(row.city)),
       miles: Math.round(miles * 10) / 10,
       score,
@@ -780,6 +861,8 @@ export type TopProspect = {
   tierLabel: string;
   rank: number;
   name: string;
+  /** Common name, crawl title, or own-site host. "" when the row only has the legal name. */
+  commonName: string;
   town: string;
   /** Whole miles from Vidalia, or null when the row has no coordinates. */
   miles: number | null;
@@ -1105,6 +1188,7 @@ function toTopProspect(row: AvRow, tier: AvTierIndex, now: Date, rank: number): 
     tierLabel: AV_TIERS[tier].label,
     rank,
     name: titleCase(s(row.name)) || "Unnamed church",
+    commonName: "",
     town: titleCase(s(row.city)),
     miles: rowMiles(row),
     score: topProspectScore(row),
@@ -1189,10 +1273,14 @@ export function rankTopProspects(
   }
   openRows.sort(compareTopRows);
   const ranked = openRows.length;
-  const open = openRows.slice(0, size).map((row, index) => toTopProspect(row, rowTier(row) as AvTierIndex, now, index + 1));
+  const withCommon = (row: AvRow, tier: AvTierIndex, rank: number) => {
+    const mates = (byRoot.get(groups.find(`id:${s(row.id)}`)) ?? []).filter((mate) => mate !== row);
+    return { ...toTopProspect(row, tier, now, rank), commonName: prospectCommonName(row, mates) };
+  };
+  const open = openRows.slice(0, size).map((row, index) => withCommon(row, rowTier(row) as AvTierIndex, index + 1));
   wonRows.sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0) || titleCase(s(a.row.name)).localeCompare(titleCase(s(b.row.name))));
   const won = wonRows.map(({ row, at }) => {
-    const item = toTopProspect(row, rowTier(row) as AvTierIndex, now, 0);
+    const item = withCommon(row, rowTier(row) as AvTierIndex, 0);
     const wonAt = at && !Number.isNaN(Date.parse(at)) ? friendlyDate(at) : "";
     return { ...item, wonAt, wonDate: at };
   });

@@ -84,9 +84,14 @@ export function TopProspects({ cards: _cards, adminUrls, initial = null }: Props
                 <span className="crm-top-rank">{item.rank}</span>
                 <span className="crm-top-main">
                   <span className="crm-top-title">
-                    <strong className="crm-top-name">{item.name}</strong>
+                    <strong className="crm-top-name">{item.commonName || item.name}</strong>
                     <Status item={item} />
                   </span>
+                  {item.commonName ? (
+                    <span className="crm-legal-name" data-testid="crm-legal-name">
+                      {item.name}
+                    </span>
+                  ) : null}
                   <span className="crm-top-town">{item.town || "Town not on file"}</span>
                   <span className="crm-top-score">
                     {item.score}
@@ -108,7 +113,14 @@ export function TopProspects({ cards: _cards, adminUrls, initial = null }: Props
             {won.map((item) => (
               <li key={item.churchId}>
                 <a href={churchHref(item.churchId, adminUrls)}>
-                  <strong>{item.name}</strong>
+                  <span className="crm-top-who">
+                    <strong>{item.commonName || item.name}</strong>
+                    {item.commonName ? (
+                      <span className="crm-legal-name" data-testid="crm-legal-name">
+                        {item.name}
+                      </span>
+                    ) : null}
+                  </span>
                   <span>{item.town}</span>
                   <span>{item.wonAt}</span>
                 </a>

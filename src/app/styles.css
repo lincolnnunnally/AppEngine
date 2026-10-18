@@ -7461,6 +7461,15 @@ button.compose-arch:hover {
 .desk .crm-page .crm-av-name { font-family: var(--font-desk-display), Outfit, Inter, sans-serif; }
 .crm-page .crm-av-meta,
 .crm-page .crm-av-reasons { font-size: 0.875rem; line-height: 1.45; color: #d8e2dc; }
+.crm-page .crm-legal-name {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  font-weight: 400;
+  color: #aebdb4;
+  overflow-wrap: anywhere;
+}
 .crm-page .crm-av-meta { display: block; margin-top: 2px; }
 .crm-page .crm-av-reasons { margin: 6px 0 0; padding-left: 18px; }
 .crm-page .crm-av-list { min-width: 0; }
@@ -7512,6 +7521,7 @@ button.compose-arch:hover {
   body:not(.desk) .crm-page .crm-av .crm-av-name,
   body:not(.desk) .crm-page .crm-av-meta,
   body:not(.desk) .crm-page .crm-av-reasons { color: #1b2923; }
+  body:not(.desk) .crm-page .crm-legal-name { color: #4a5c55; }
   body:not(.desk) .crm-page .crm-av-list .crm-follow-row { background: #ffffff; }
 }
 
@@ -7547,6 +7557,8 @@ button.compose-arch:hover {
 .crm-page .crm-top-main { display: grid; gap: 2px; min-width: 0; }
 .crm-page .crm-top-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .crm-page .crm-top-name { font-size: 1rem; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; }
+.crm-page .crm-top-who { display: grid; min-width: 0; }
+.crm-page .crm-top-who strong { font-size: 1rem; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; }
 .desk .crm-page .crm-top-name,
 .desk .crm-page .crm-top-won-title { font-family: var(--font-desk-display), Outfit, Inter, sans-serif; }
 .crm-page .crm-top-town,
@@ -7581,6 +7593,7 @@ button.compose-arch:hover {
   body:not(.desk) .crm-page .crm-top-meta,
   body:not(.desk) .crm-page .crm-top-rest,
   body:not(.desk) .crm-page .crm-top-won-list span { color: #1b2923; }
+  body:not(.desk) .crm-page .crm-top .crm-legal-name { color: #4a5c55; }
 }
 
 /* A 30-day bar strip that shares the row width instead of overflowing on phones. */

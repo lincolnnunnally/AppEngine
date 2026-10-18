@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { TopProspects } from "@/components/engine/crm-top-prospects";
-import type { TopProspectState } from "@/app/(cockpit)/crm/actions";
+import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
 import { PeopleTools } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
@@ -42,6 +42,8 @@ type Props = {
   outreachHidden?: boolean;
   /** Local preview only: open Top prospects with fixture rows already read. */
   topInitial?: TopProspectState;
+  /** Local preview only: open AV prospects with fixture rows already read. */
+  avInitial?: AvProspectState;
 };
 
 type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
@@ -389,14 +391,14 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null }: Props) {
+export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
   const [filter, setFilter] = useState<CardFilter>("all");
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
   // Owner only: AV prospects or Top prospects show in place of the cards.
-  const [panel, setPanel] = useState<"cards" | "av" | "top">(topInitial?.ok ? "top" : "cards");
+  const [panel, setPanel] = useState<"cards" | "av" | "top">(avInitial?.ok ? "av" : topInitial?.ok ? "top" : "cards");
 
   const todayRows = useMemo(() => followUps.filter((row) => row.today), [followUps]);
   const waitOnlyRows = useMemo(() => followUps.filter((row) => !row.today), [followUps]);
@@ -593,7 +595,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
           </p>
         ) : null}
         {panel === "av" ? (
-          <AvProspects cards={cards} adminUrls={adminUrls} onOpen={openCard} />
+          <AvProspects cards={cards} adminUrls={adminUrls} onOpen={openCard} initial={avInitial} />
         ) : panel === "top" ? (
           <TopProspects cards={cards} adminUrls={adminUrls} initial={topInitial} />
         ) : shownCards.length ? (
