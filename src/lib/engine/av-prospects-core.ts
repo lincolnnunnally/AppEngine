@@ -1,11 +1,10 @@
-import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, repeatRule, type Touch } from "@/lib/engine/lpl-crm-core";
+import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, friendlyDate, friendlyDay, repeatRule, suppressionDomain, type Touch } from "@/lib/engine/lpl-crm-core";
+import { topHasChurchWord, topNameExcluded } from "@/lib/engine/top-prospects-name";
 
-// AV prospects (Messenger AVL kit, Oct 17 2026): which ChurchConnect churches
-// might want help with sound, video, lighting or streaming, in Lincoln's
-// territory order (Oct 17, 4:58 PM): central & South Georgia first, then the
-// rest of Georgia, then Florida, then South Carolina; nearest Vidalia first
-// inside each tier. READ ONLY and pure: the rows come from cc_churches (lpl-crm.ts reads
-// them), nothing is written, nothing is sent. No new tables.
+// AV prospects, and Top prospects as a second mode of the same rules (Oct 17 2026).
+// Territory order: central & South Georgia first, then the rest of Georgia, then
+// Florida, then South Carolina. READ ONLY and pure: the rows come from cc_churches
+// (lpl-crm.ts reads them), nothing is written, nothing is sent. No new tables.
 //
 // Scored only on what cc_churches really holds today (checked Oct 17 2026):
 //   * lat/lng → miles from Vidalia (almost every row has them);
@@ -29,8 +28,40 @@ export const AV_LIST_SIZE = 30;
  * Central & South Georgia = a Georgia church south of 33.25° N. One simple,
  * documented line: Columbus (32.46), Macon (32.84) and Milledgeville (33.08)
  * are in; Augusta (33.47), Atlanta (33.75) and Athens (33.96) are out.
+ * Top prospects does not use this line; that list is ZIP3 only.
  */
 export const CENTRAL_SOUTH_GA_MAX_LAT = 33.25;
+
+/** ZIP3 prefixes for Top prospects. 311 (Atlanta) is not on this list. Eatonton 310 is in; LaGrange 302 is not. */
+export const CENTRAL_SOUTH_GA_ZIP3 = ["304", "310", "312", "313", "314", "315", "316", "317", "318", "319", "398"] as const;
+
+/** How many churches the Top prospects list shows. */
+export const TOP_LIST_SIZE = 25;
+
+/**
+ * Documentation only: the published ChurchConnect census on main 8aa17b18
+ * (blob 92bd0886). 14,611 kept of 15,476 in scope. The golden fixture is 161
+ * rows and does not recompute these counts. Rest of Georgia stays 0 until
+ * those churches are scored.
+ */
+export const TOP_PROSPECT_KEPT_CENSUS = {
+  centralSouthGa: 9609,
+  restOfGa: 0,
+  florida: 3190,
+  southCarolina: 1812,
+  total: 14611,
+  inScope: 15476
+} as const;
+
+/** Tiers this list will rank. Rest of Georgia (1) and any other value are refused with 422. */
+export function resolveTopProspectTier(raw: string | null): { ok: true; tier: 0 | 2 | 3 } | { ok: false; status: 422; detail: string } {
+  const detail = "That area is not on this list.";
+  if (raw === null || raw === "") return { ok: true, tier: 0 };
+  if (!/^\d+$/.test(raw)) return { ok: false, status: 422, detail };
+  const tier = Number(raw);
+  if (tier === 0 || tier === 2 || tier === 3) return { ok: true, tier };
+  return { ok: false, status: 422, detail };
+}
 
 /** Territory tiers, in order. Every reason line starts with the tier label. */
 export const AV_TIERS = [
@@ -49,12 +80,45 @@ export function territoryState(value: unknown): "GA" | "FL" | "SC" | "" {
   return STATE_ALIASES[String(value ?? "").trim().toLowerCase()] ?? "";
 }
 
+/** First three digits of a ZIP, or "" when there is no ZIP. */
+export function zip3Of(zip: unknown): string {
+  const digits = String(zip ?? "").replace(/\D/g, "");
+  return digits.length >= 3 ? digits.slice(0, 3) : "";
+}
+
 /** Which tier a church is in, or null when it is outside the territory or has no location. */
 export function territoryTier(state: unknown, lat: number | null): AvTierIndex | null {
   const code = territoryState(state);
   if (!code || lat === null || !Number.isFinite(lat)) return null;
   if (code === "GA") return lat < CENTRAL_SOUTH_GA_MAX_LAT ? 0 : 1;
   return code === "FL" ? 2 : 3;
+}
+
+/**
+ * Top prospects territory. ZIP3 only: there is no latitude cut. A Georgia
+ * church with no ZIP, or a ZIP outside the central/south list, is rest of Georgia.
+ */
+export function topTerritoryTier(state: unknown, zip: unknown): AvTierIndex | null {
+  const code = territoryState(state);
+  if (code === "GA") return (CENTRAL_SOUTH_GA_ZIP3 as readonly string[]).includes(zip3Of(zip)) ? 0 : 1;
+  if (code === "FL") return 2;
+  if (code === "SC") return 3;
+  return null;
+}
+
+/**
+ * PostgREST filters for Top prospects: rows that already have av_signals, in
+ * one tier. Georgia tier 0 is the ZIP3 list. A missing ZIP is rest of Georgia.
+ */
+export function topTierFilter(tier: AvTierIndex): string {
+  const signals = "doc->av_signals=not.is.null";
+  if (tier === 2) return `doc->>state=in.(FL,Florida)&${signals}`;
+  if (tier === 3) return `doc->>state=in.(SC,"South Carolina")&${signals}`;
+  const likes = CENTRAL_SOUTH_GA_ZIP3.map((zip) => `doc->>zip_code.like.${zip}*`).join(",");
+  const missingZip = "or(doc->>zip_code.is.null,doc->>zip_code.eq.)";
+  if (tier === 0) return `doc->>state=in.(GA,Georgia)&${signals}&or=(${likes})`;
+  const outside = CENTRAL_SOUTH_GA_ZIP3.map((zip) => `doc->>zip_code.not.like.${zip}*`).join(",");
+  return `doc->>state=in.(GA,Georgia)&${signals}&or=(and(${outside}),${missingZip})`;
 }
 
 /**
@@ -389,6 +453,19 @@ export function avDeskBlocked(row: AvRow, now = new Date()): boolean {
   return repeatRule(avDeskTouches(row), now).level === "hold";
 }
 
+function rowHidden(row: AvRow): boolean {
+  return yes(row.hidden) || yes(row.is_hidden) || s(row.is_public).toLowerCase() === "false" || row.is_public === false;
+}
+
+function rowInactive(row: AvRow): boolean {
+  return s(row.active).toLowerCase() === "false" || row.active === false;
+}
+
+/** Top prospects: religion_guess "other" drops a row only when the name has no church word. */
+function religionOtherExcluded(row: AvRow): boolean {
+  return s(row.religion_guess).toLowerCase() === "other" && !topHasChurchWord(s(row.name));
+}
+
 /** Never on the list: stopped, lost, inactive, not a church, or already the partner's own work. */
 export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now = new Date()): boolean {
   if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
@@ -643,4 +720,481 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
     });
   }
   return out;
+}
+
+// --- Top prospects (second mode of this core) --------------------------------
+// Score = av_signals.av_score + a fit weight. Churches that already stream stay.
+// A customer (or a paid tier, a won status, a sign-up, an accepted invite) leaves
+// the open list for the Won strip, and the next church fills in. Resting churches
+// stay, with a tag. Nothing here is stored.
+
+/** Fit weights approved Oct 17 2026. An unknown fit adds nothing. */
+export const FIT_POINTS: Record<string, number> = {
+  high: 30,
+  "high (no website, Facebook page on record)": 30,
+  "high-no-website-fb": 30,
+  medium: 20,
+  "medium (no website)": 20,
+  "possible (website unreachable)": 15,
+  "possible-unreachable": 15,
+  "possible (website on record looks wrong)": 10,
+  "possible-wrong": 10,
+  low: 0
+};
+
+const FIT_PHRASE: Record<string, string> = {
+  high: "Has a website",
+  "high (no website, Facebook page on record)": "No website yet",
+  "high-no-website-fb": "No website yet",
+  medium: "Worth a first visit",
+  "medium (no website)": "No website yet",
+  "possible (website unreachable)": "Website looks broken",
+  "possible-unreachable": "Website looks broken",
+  "possible (website on record looks wrong)": "Website on record looks wrong",
+  "possible-wrong": "Website on record looks wrong",
+  low: "Has a website"
+};
+
+const PAID_TIERS = new Set(["pro", "ministry_pro", "paid", "complimentary"]);
+
+const TOUCH_KIND_LABEL: Record<string, string> = {
+  visit: "Visit",
+  drop_off: "Drop-off",
+  invite: "Invite",
+  email: "Email",
+  call: "Call",
+  sms: "Text",
+  text: "Text",
+  meeting: "Meeting",
+  note: "Note",
+  sample: "Sample",
+  order: "Order",
+  customer: "Became a customer"
+};
+
+export type TopProspectStatus = "Open" | "Resting" | "Claimed";
+
+export type TopProspect = {
+  churchId: string;
+  tier: AvTierIndex;
+  tierLabel: string;
+  rank: number;
+  name: string;
+  town: string;
+  /** Whole miles from Vidalia, or null when the row has no coordinates. */
+  miles: number | null;
+  score: number;
+  reason: string;
+  lastTouch: string;
+  nextStep: string;
+  status: TopProspectStatus;
+  restLabel: string;
+  claimed: boolean;
+  /** Friendly date the church was won, or "" on the open list. */
+  wonAt: string;
+  /** Date string from the record (converted_at, status change, or updated_at). "" on the open list. */
+  wonDate: string;
+};
+
+export type TopProspectCounts = { ranked: number; open: number; won: number; excluded: number };
+
+function signalBag(row: AvRow): Record<string, unknown> | null {
+  let raw: unknown = row.av_signals;
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      raw = JSON.parse(raw) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  return raw as Record<string, unknown>;
+}
+
+function knownFit(fit: unknown): string {
+  const key = s(fit).replace(/\s+/g, " ").toLowerCase();
+  const found = Object.keys(FIT_POINTS).find((item) => item.toLowerCase() === key);
+  return found ?? "";
+}
+
+/** Fit lives on the church row in the shared fixture, and inside av_signals on live rows. */
+function fitOf(row: AvRow): unknown {
+  const sig = signalBag(row);
+  return s(row.churchconnect_fit) || (sig ? s(sig.churchconnect_fit) || s(sig.fit) : "");
+}
+
+function hasUsableSignals(row: AvRow): boolean {
+  const sig = signalBag(row);
+  return Boolean(sig && Object.keys(sig).length > 0);
+}
+
+export function fitPointsOf(fit: unknown): number {
+  const key = knownFit(fit);
+  return key ? FIT_POINTS[key] : 0;
+}
+
+/** The saved research is about a different church. Live rows say "rejected"; the spec also says "mismatch". */
+export function topProspectMismatch(row: AvRow): boolean {
+  const match = s(signalBag(row)?.website_match).toLowerCase();
+  return match === "mismatch" || match === "rejected";
+}
+
+export function topProspectScore(row: AvRow): number {
+  const sig = signalBag(row);
+  if (!sig || Object.keys(sig).length === 0) return 0;
+  const av = Number(sig.av_score);
+  return (Number.isFinite(av) ? av : 0) + fitPointsOf(fitOf(row));
+}
+
+/** A church that already joined. `at` is the best date we have for the Won strip. */
+export function topProspectWon(row: AvRow): { won: boolean; at: string } {
+  const tier = s(row.subscription_tier).toLowerCase();
+  const won =
+    yes(row.is_customer) ||
+    PAID_TIERS.has(tier) ||
+    s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_") === "won" ||
+    yes(row.signed_up) ||
+    s(row.invite_status).toLowerCase() === "accepted";
+  return { won, at: s(row.converted_at) || s(row.crm_status_changed_at) || s(row.updated_at) };
+}
+
+function reasonLines(sig: Record<string, unknown> | null): string[] {
+  if (!sig || !Array.isArray(sig.av_reasons)) return [];
+  return sig.av_reasons
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const rec = item as AvRow;
+        return s(rec.text) || s(rec.reason);
+      }
+      return "";
+    })
+    .map((item) => s(item))
+    .filter(Boolean);
+}
+
+/** Fit phrase plus the top two saved reasons, in plain words, at most 90 characters. */
+export function topProspectReason(row: AvRow, tierLabel = ""): string {
+  const sig = signalBag(row);
+  const phrase = FIT_PHRASE[knownFit(fitOf(row))] ?? "";
+  let reasons = reasonLines(sig).map((reason) => avReasonText(reason, tierLabel)).filter(Boolean).slice(0, 2);
+  const extra = row._scored_on_duplicate === true ? "scored on a duplicate record" : "";
+  let bits = [phrase, ...reasons, extra].filter(Boolean);
+  while (bits.join(" · ").length > 90 && reasons.length) {
+    reasons = reasons.slice(0, -1);
+    bits = [phrase, ...reasons, extra].filter(Boolean);
+  }
+  const text = bits.join(" · ");
+  return text.length > 90 ? text.slice(0, 90).trimEnd() : text;
+}
+
+function rowZip(row: AvRow): unknown {
+  return row.zip_code ?? row.zip ?? row.postal_code;
+}
+
+function emailHost(value: unknown): string {
+  const text = s(value).toLowerCase();
+  const at = text.lastIndexOf("@");
+  if (at < 0) return "";
+  return hostOf(text.slice(at + 1)).host;
+}
+
+const CROWDED_EMAIL_KEYS = ["email", "pastor_email", "contact_email", "office_email", "customer_email"] as const;
+
+type SharedDomainSet = { has(value: string): boolean };
+
+/** Every domain matches the exact email only. Used when the count fails. */
+const EXACT_EMAIL_ONLY: SharedDomainSet = { has: () => true };
+
+function countSharedDomains(rows: readonly AvRow[], limit: number): Set<string> {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (topTerritoryTier(row.state, rowZip(row)) === null) continue;
+    const seen = new Set<string>();
+    for (const key of CROWDED_EMAIL_KEYS) {
+      const host = emailHost(row[key]);
+      const own = host ? suppressionDomain(host) : "";
+      if (own) seen.add(own);
+    }
+    const site = hostOf(s(row.website)).host;
+    const ownSite = site ? suppressionDomain(site) : "";
+    if (ownSite) seen.add(ownSite);
+    for (const host of seen) counts.set(host, (counts.get(host) ?? 0) + 1);
+  }
+  const shared = new Set<string>();
+  for (const [host, count] of counts) if (count > limit) shared.add(host);
+  return shared;
+}
+
+let sharedDomainCounter: (rows: readonly AvRow[], limit: number) => Set<string> = countSharedDomains;
+
+/** Test seam. Pass null to restore the real counter. */
+export function setSharedDomainCounterForTest(next: ((rows: readonly AvRow[], limit: number) => Set<string>) | null): void {
+  sharedDomainCounter = next ?? countSharedDomains;
+}
+
+/**
+ * Email and website domains used by more than three in-scope churches.
+ * Four or more campuses on their own domain fall back to exact-email-only on purpose.
+ * The set is counted and logged once per call, not cached on the row list.
+ * If the count fails, every domain matches the exact email only.
+ */
+export function domainsSharedByTooMany(rows: readonly AvRow[], limit = 3): SharedDomainSet {
+  try {
+    const counted = sharedDomainCounter(rows, limit);
+    if (counted.size > 0) {
+      console.warn(
+        `Suppression matches the exact email only for ${counted.size} domains shared by more than ${limit} in-scope churches: ${[...counted].sort().join(", ")}`
+      );
+    }
+    return counted;
+  } catch {
+    console.warn("Could not count shared church domains; suppression matches the exact email only");
+    return EXACT_EMAIL_ONLY;
+  }
+}
+
+function suppressionStopsGroup(row: AvRow, suppressed: (row: AvRow) => boolean, crowded: SharedDomainSet): boolean {
+  if (!suppressed(row)) return false;
+  const site = hostOf(s(row.website)).host;
+  const mail = emailHost(row.email);
+  const siteCrowded = Boolean(site && crowded.has(site));
+  const mailCrowded = Boolean(mail && crowded.has(mail));
+  if (!siteCrowded && !mailCrowded) return true;
+  const stripped: AvRow = { ...row };
+  if (siteCrowded) stripped.website = "";
+  if (mailCrowded) stripped.email = "";
+  if (suppressed(stripped)) return true;
+  if (!mailCrowded || !s(row.email)) return false;
+  // A probe on the same domain tells a website-or-exact matcher from one that blocks every address.
+  if (suppressed({ ...stripped, website: "", email: `not-a-real-mailbox@${mail}` })) return false;
+  return suppressed({ ...stripped, website: "", email: s(row.email) });
+}
+
+function rowLat(row: AvRow): number | null {
+  const latText = s(row.lat) || s(row.latitude);
+  const latNum = Number(latText);
+  return latText && Number.isFinite(latNum) ? latNum : null;
+}
+
+function rowTier(row: AvRow): AvTierIndex | null {
+  return topTerritoryTier(row.state, rowZip(row));
+}
+
+function rowMiles(row: AvRow): number | null {
+  const miles = milesFromVidalia(row);
+  return miles === null ? null : Math.round(miles);
+}
+
+function hasScore(row: AvRow): boolean {
+  return hasUsableSignals(row);
+}
+
+/** A hidden duplicate that was scored lends that score to the visible church. */
+function withTwinSignals(rows: AvRow[]): AvRow[] {
+  return rows.map((row) => {
+    const id = s(row.id);
+    if (!id || rowHidden(row) || hasUsableSignals(row)) return row;
+    const listed = new Set((Array.isArray(row.possible_same_as) ? row.possible_same_as : []).map((value) => s(value)).filter(Boolean));
+    let best: AvRow | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const mate of rows) {
+      const mateId = s(mate.id);
+      if (!mateId || mateId === id || rowInactive(mate) || s(mate.merged_into) || s(mate.deleted_at) || s(mate.duplicate_of)) continue;
+      if (!rowHidden(mate) || !hasUsableSignals(mate)) continue;
+      const mateListsUs = (Array.isArray(mate.possible_same_as) ? mate.possible_same_as : []).some((value) => s(value) === id);
+      if (!listed.has(mateId) && !mateListsUs) continue;
+      const score = topProspectScore(mate);
+      if (score > bestScore) {
+        best = mate;
+        bestScore = score;
+      }
+    }
+    if (!best) return row;
+    const sig = signalBag(best);
+    const fit = s(row.churchconnect_fit) || s(best.churchconnect_fit);
+    return { ...row, av_signals: sig ? { ...sig } : row.av_signals, churchconnect_fit: fit, _scored_on_duplicate: true };
+  });
+}
+
+function topBlocksGroup(row: AvRow, suppressed: (row: AvRow) => boolean): boolean {
+  if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
+  if (suppressed(row)) return true;
+  if (religionOtherExcluded(row)) return true;
+  if (s(row.prospect_kind).toLowerCase() === "association") return true;
+  if (topNameExcluded(s(row.name), row)) return true;
+  if (s(row.source) === "qa_crm_v2") return true;
+  if (shownWork(row)) return true;
+  const status = s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_");
+  if (status && status !== "won" && STOPPED_STATUS.has(status)) return true;
+  if (s(row.invite_status).toLowerCase() === "sent" && !topProspectWon(row).won) return true;
+  return false;
+}
+
+function topListable(row: AvRow): boolean {
+  if (rowInactive(row) || rowHidden(row)) return false;
+  if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return false;
+  if (topProspectMismatch(row) || topBlocksGroup(row, () => false)) return false;
+  return hasScore(row);
+}
+
+function topGroupKeys(row: AvRow): string[] {
+  const id = s(row.id);
+  const site = websiteGroupKey(s(row.website), s(row.city), s(row.state), s(row.name));
+  const sameAs = (Array.isArray(row.possible_same_as) ? row.possible_same_as : []).map((value) => `id:${s(value)}`).filter((value) => value !== "id:");
+  return [`id:${id}`, ...sameAs, site ? `site:${site}` : ""].filter(Boolean);
+}
+
+function compareTopRows(a: AvRow, b: AvRow): number {
+  const tierA = rowTier(a) ?? 9;
+  const tierB = rowTier(b) ?? 9;
+  const milesA = rowMiles(a) ?? Number.POSITIVE_INFINITY;
+  const milesB = rowMiles(b) ?? Number.POSITIVE_INFINITY;
+  return tierA - tierB || topProspectScore(b) - topProspectScore(a) || milesA - milesB || titleCase(s(a.name)).localeCompare(titleCase(s(b.name))) || s(a.id).localeCompare(s(b.id));
+}
+
+function rowClaimed(row: AvRow): boolean {
+  const claim = s(row.claim_status).toLowerCase();
+  return yes(row.claimed) || yes(row.verified) || yes(row.is_verified) || claim === "claimed" || claim === "verified";
+}
+
+function touchKindLabel(kind: string): string {
+  if (TOUCH_KIND_LABEL[kind]) return TOUCH_KIND_LABEL[kind];
+  if (!kind) return "Touch";
+  return kind.replace(/[_-]+/g, " ").replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function lastTouchLine(row: AvRow): string {
+  const extra = Array.isArray(row.card_touches) ? (row.card_touches as AvRow[]) : [];
+  const touches = [...extra, ...avDeskTouches(row)].filter((touch) => {
+    const at = s(touch.at);
+    return Boolean(at) && !Number.isNaN(Date.parse(at));
+  });
+  touches.sort((a, b) => Date.parse(s(b.at)) - Date.parse(s(a.at)));
+  const top = touches[0];
+  if (!top) return "";
+  return `${touchKindLabel(s(top.kind).toLowerCase())} · ${friendlyDate(s(top.at))}`;
+}
+
+export function topProspectNextStep(row: AvRow): string {
+  const action = s(row.crm_next_action);
+  const when = s(row.crm_next_action_date);
+  if (action) {
+    const day = /^\d{4}-\d{2}-\d{2}/.test(when) ? friendlyDay(when.slice(0, 10)) : "";
+    return day ? `${action} · ${day}` : action;
+  }
+  return s(row.follow_up_step) || "First visit";
+}
+
+function restLine(row: AvRow, now: Date): string {
+  const rule = repeatRule(avDeskTouches(row), now);
+  if (rule.level === "hold" && rule.until) return `Resting until ${friendlyDate(rule.until)}`;
+  const until = s(row.rest_until);
+  if (until && !Number.isNaN(Date.parse(until))) return `Resting until ${friendlyDate(until)}`;
+  return "";
+}
+
+function toTopProspect(row: AvRow, tier: AvTierIndex, now: Date, rank: number): TopProspect {
+  const rest = restLine(row, now);
+  const claimed = rowClaimed(row);
+  const won = topProspectWon(row);
+  const wonAt = won.won && won.at && !Number.isNaN(Date.parse(won.at)) ? friendlyDate(won.at) : "";
+  return {
+    churchId: s(row.id),
+    tier,
+    tierLabel: AV_TIERS[tier].label,
+    rank,
+    name: titleCase(s(row.name)) || "Unnamed church",
+    town: titleCase(s(row.city)),
+    miles: rowMiles(row),
+    score: topProspectScore(row),
+    reason: topProspectReason(row, AV_TIERS[tier].label),
+    lastTouch: lastTouchLine(row),
+    nextStep: topProspectNextStep(row),
+    status: rest ? "Resting" : claimed ? "Claimed" : "Open",
+    restLabel: rest,
+    claimed,
+    wonAt,
+    wonDate: won.won ? won.at : ""
+  };
+}
+
+/**
+ * Open list (25) and Won strip for one tier. Duplicates (possible_same_as or the
+ * same website in the same town) keep the best score. Sort: tier, score, miles, name.
+ */
+export function rankTopProspects(
+  rows: AvRow[],
+  suppressed: (row: AvRow) => boolean,
+  options: { tier?: AvTierIndex; now?: Date; size?: number } = {}
+): { open: TopProspect[]; won: TopProspect[]; counts: TopProspectCounts } {
+  const now = options.now ?? new Date();
+  const size = options.size ?? TOP_LIST_SIZE;
+  const wantTier = options.tier;
+  const seen = new Set<string>();
+  const unique: AvRow[] = [];
+  for (const row of rows) {
+    const id = s(row.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    unique.push(row);
+  }
+  const prepared = withTwinSignals(unique);
+  const crowded = domainsSharedByTooMany(rows);
+  const stops = (row: AvRow) => suppressionStopsGroup(row, suppressed, crowded);
+  const groups = new UnionFind();
+  for (const row of prepared) {
+    const keys = topGroupKeys(row);
+    for (let index = 1; index < keys.length; index += 1) groups.join(keys[0], keys[index]);
+  }
+  const byRoot = new Map<string, AvRow[]>();
+  for (const row of prepared) {
+    const root = groups.find(`id:${s(row.id)}`);
+    const list = byRoot.get(root) ?? [];
+    list.push(row);
+    byRoot.set(root, list);
+  }
+  const openRows: AvRow[] = [];
+  const wonRows: Array<{ row: AvRow; at: string }> = [];
+  let excluded = 0;
+  const inTier = (row: AvRow) => {
+    const tier = rowTier(row);
+    return tier !== null && (wantTier === undefined || tier === wantTier);
+  };
+  for (const members of byRoot.values()) {
+    const faced = members.filter(inTier);
+    if (!faced.length) continue;
+    if (members.some((row) => topBlocksGroup(row, stops))) {
+      excluded += 1;
+      continue;
+    }
+    const wonSource = members.find((row) => topProspectWon(row).won && hasScore(row) && !topProspectMismatch(row));
+    if (wonSource) {
+      const faces = faced.filter((row) => topListable(row));
+      const face = (faces.length ? [...faces].sort(compareTopRows)[0] : null) ?? (inTier(wonSource) && !topProspectMismatch(wonSource) ? wonSource : null);
+      if (!face || rowHidden(face) || topProspectMismatch(face)) {
+        excluded += 1;
+        continue;
+      }
+      const shown = hasScore(face) ? face : { ...face, av_signals: signalBag(wonSource) ? { ...signalBag(wonSource)! } : face.av_signals, _scored_on_duplicate: true };
+      wonRows.push({ row: shown, at: topProspectWon(wonSource).at || topProspectWon(shown).at });
+      continue;
+    }
+    const openFaces = faced.filter((row) => topListable(row) && !topProspectWon(row).won);
+    if (!openFaces.length) {
+      excluded += 1;
+      continue;
+    }
+    openRows.push([...openFaces].sort(compareTopRows)[0]);
+  }
+  openRows.sort(compareTopRows);
+  const ranked = openRows.length;
+  const open = openRows.slice(0, size).map((row, index) => toTopProspect(row, rowTier(row) as AvTierIndex, now, index + 1));
+  wonRows.sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0) || titleCase(s(a.row.name)).localeCompare(titleCase(s(b.row.name))));
+  const won = wonRows.map(({ row, at }) => {
+    const item = toTopProspect(row, rowTier(row) as AvTierIndex, now, 0);
+    const wonAt = at && !Number.isNaN(Date.parse(at)) ? friendlyDate(at) : "";
+    return { ...item, wonAt, wonDate: at };
+  });
+  return { open, won, counts: { ranked, open: open.length, won: won.length, excluded } };
 }

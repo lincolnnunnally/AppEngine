@@ -5,8 +5,8 @@ import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
 import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
-import { loadAvProspects, loadCrmSnapshot } from "@/lib/engine/lpl-crm";
-import type { AvProspect } from "@/lib/engine/av-prospects-core";
+import { loadAvProspects, loadCrmSnapshot, loadTopProspects } from "@/lib/engine/lpl-crm";
+import { resolveTopProspectTier, type AvProspect, type AvTierIndex, type TopProspect, type TopProspectCounts } from "@/lib/engine/av-prospects-core";
 import {
   createOrg,
   editOrg,
@@ -195,4 +195,28 @@ export async function loadAvProspectsAction(_prev: AvProspectState, _formData: F
   if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now() };
   if (!list.ok) return { ok: false, message: list.message, at: Date.now() };
   return { ok: true, message: "", at: Date.now(), prospects: list.prospects, read: list.read };
+}
+
+// ── Top prospects (second mode of the AV core) ─────────────────────────────
+// Owner only, read only. Nothing is saved or sent.
+
+export type TopProspectState = {
+  ok: boolean;
+  message: string;
+  at: number;
+  tier?: AvTierIndex;
+  open?: TopProspect[];
+  won?: TopProspect[];
+  counts?: TopProspectCounts;
+} | null;
+
+export async function loadTopProspectsAction(_prev: TopProspectState, formData: FormData): Promise<TopProspectState> {
+  if (!(await canAccessEngineOwner())) return refused(SUGGEST_OWNER_ONLY);
+  const resolved = resolveTopProspectTier(field(formData, "tier") || null);
+  if (!resolved.ok) return { ok: false, message: resolved.detail, at: Date.now() };
+  const tier = resolved.tier;
+  const list = await loadTopProspects(tier).catch(() => null);
+  if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now(), tier };
+  if (!list.ok) return { ok: false, message: list.message, at: Date.now(), tier };
+  return { ok: true, message: "", at: Date.now(), tier, open: list.open, won: list.won, counts: list.counts };
 }

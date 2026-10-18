@@ -304,24 +304,160 @@ export function normEmail(value: unknown): string {
   return /^[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}$/.test(text) ? text : "";
 }
 
+function stripPhoneExtension(value: unknown): string {
+  // An extension (x12, ext. 12, #12) is not part of the number.
+  return String(value ?? "").replace(/\s*(?:extension|ext\.?|x|#)\s*\d+\s*$/i, "");
+}
+
 export function normPhone(value: unknown): string {
+  let digits = stripPhoneExtension(value).replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  return digits.length === 10 ? digits : "";
+}
+
+/**
+ * AV prospects phone key, the #416 rule. Digits only: an extension stays in the
+ * digit string, so "404-555-0143 x12" is not a 10-digit match. Seven digits are empty.
+ */
+export function avNormPhone(value: unknown): string {
   let digits = String(value ?? "").replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
   return digits.length === 10 ? digits : "";
+}
+
+/** Ten digits, or seven for a local number. A 7-digit suppression matches only a 7-digit number. */
+export function suppressionPhone(value: unknown): string {
+  let digits = stripPhoneExtension(value).replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  return digits.length === 10 || digits.length === 7 ? digits : "";
+}
+
+export function phonesMatch(church: string, listed: string): boolean {
+  if (!church || !listed || church !== listed) return false;
+  if (listed.length === 7) return church.length === 7;
+  return true;
 }
 
 function isSharedHost(host: string): boolean {
   return SHARED_HOSTS.some((shared) => host === shared || host.endsWith(`.${shared}`));
 }
 
-export function normDomain(value: unknown): string {
+function bareHost(value: unknown): string {
   let text = String(value ?? "").trim().toLowerCase();
   if (!text) return "";
   text = text.replace(/^[a-z]+:\/\//, "").replace(/^www\./, "");
   text = text.split(/[/?#\s]/)[0].split(":")[0];
   if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(text)) return "";
-  if (isSharedHost(text)) return "";
   return text;
+}
+
+function hostIn(host: string, list: readonly string[]): boolean {
+  return list.some((item) => host === item || host.endsWith(`.${item}`));
+}
+
+// ChurchConnect backend/utils/outreach_domains.py. A suppression on one of these
+// matches only the exact email, never every church on that host.
+const OUTREACH_FREE_MAIL = [
+  "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "ymail.com", "rocketmail.com",
+  "outlook.com", "outlook.co.uk", "hotmail.com", "hotmail.co.uk", "live.com", "msn.com",
+  "aol.com", "icloud.com", "me.com", "mac.com", "comcast.net", "att.net", "sbcglobal.net",
+  "bellsouth.net", "protonmail.com", "proton.me", "pm.me", "gmx.com", "gmx.net", "mail.com"
+];
+const OUTREACH_SHARED_HOSTS = [
+  "facebook.com", "fb.com", "instagram.com", "youtube.com", "youtu.be", "tiktok.com",
+  "linktr.ee", "google.com", "goo.gl", "wix.com", "wixsite.com", "weebly.com",
+  "wordpress.com", "squarespace.com", "sites.google.com", "godaddysites.com",
+  "tithe.ly", "pushpay.com", "givelify.com", "subsplash.com", "churchfinder.com", "twitter.com", "paypal.com",
+  "pmt.org", "windstream.net", "embarqmail.com", "charter.net", "verizon.net", "centurylink.net",
+  "earthlink.net", "comporium.net", "juno.com", "ftc-i.net", "rr.com", "nc.rr.com", "frontier.com",
+  "churchofgod.cc", "churchofgod.org", "umc.org", "church-of-christ.org", "ag.org", "sbc.net",
+  "iphc.org", "cogop.org", "watchtower.org", "jw.org",
+  "churchofjesuschrist.org", "local.churchofjesuschrist.org", "ame-church.com", "nazarene.org",
+  "charlestondiocese.org", "pcusa.org", "churchangel.com", "chamberofcommerce.com", "inallthingspray.org",
+  "giv.li", "yellowpages.com", "bizapedia.com", "netministries.org", "dandb.com", "knology.net",
+  "ngumc.org", "sgaumc.org", "flumc.org", "umcsc.org", "nccumc.org", "wnccumc.org", "vaumc.org", "umcna.org", "awfumc.org"
+];
+
+export function normDomain(value: unknown): string {
+  const text = bareHost(value);
+  if (!text || isSharedHost(text)) return "";
+  return text;
+}
+
+/** Domain key for the do-not-contact list. Blank for a shared, free-mail, or conference host. */
+export function suppressionDomain(value: unknown): string {
+  const host = bareHost(value);
+  if (!host || isSharedHost(host) || hostIn(host, [...FREEMAIL]) || hostIn(host, OUTREACH_FREE_MAIL) || hostIn(host, OUTREACH_SHARED_HOSTS)) return "";
+  return host;
+}
+
+export function suppressionKeys(row: { email?: unknown; domain?: unknown; phone?: unknown; brand?: unknown }): { emails: string[]; domains: string[]; phones: string[] } {
+  const emails: string[] = [];
+  const domains: string[] = [];
+  const phones: string[] = [];
+  const email = normEmail(row.email);
+  if (email) emails.push(email);
+  const domain = suppressionDomain(row.domain);
+  if (domain) domains.push(domain);
+  const phone = suppressionPhone(row.phone);
+  if (phone) phones.push(phone);
+  const brand = String(row.brand ?? "").trim().toLowerCase();
+  if (brand && brand !== "all") {
+    if (brand.includes("@")) {
+      const branded = normEmail(brand);
+      if (branded) emails.push(branded);
+    } else {
+      const brandedDomain = suppressionDomain(brand);
+      if (brandedDomain) domains.push(brandedDomain);
+    }
+  }
+  return { emails, domains, phones };
+}
+
+/** Exact email, own-site domain, or phone. A generic domain, or one shared by more than three churches, never matches by itself. */
+export function rowMatchesSuppression(
+  row: { email?: unknown; website?: unknown; phone?: unknown },
+  index: { emails: ReadonlySet<string>; domains: ReadonlySet<string>; phones: ReadonlySet<string> },
+  sharedDomains?: { has(value: string): boolean }
+): boolean {
+  const email = normEmail(row.email);
+  if (email && index.emails.has(email)) return true;
+  const mailHost = email.includes("@") ? suppressionDomain(email.slice(email.indexOf("@") + 1)) : "";
+  if (mailHost && !sharedDomains?.has(mailHost) && index.domains.has(mailHost)) return true;
+  const site = suppressionDomain(row.website);
+  if (site && !sharedDomains?.has(site) && index.domains.has(site)) return true;
+  const phone = suppressionPhone(row.phone);
+  if (!phone) return false;
+  for (const listed of index.phones) if (phonesMatch(phone, listed)) return true;
+  return false;
+}
+
+/**
+ * AV prospects do-not-contact match, the #416 rule. Exact email, the email's
+ * host, the website host (normDomain, so umc.org, sgaumc.org, and bellsouth.net
+ * still match), or a 10-digit phone. Brand is ignored. A 7-digit number and an
+ * extension do not match. Top prospects uses suppressionKeys and rowMatchesSuppression.
+ */
+export function avSuppressionMatcher(rows: Array<{ email?: unknown; domain?: unknown; phone?: unknown }>): (row: { email?: unknown; website?: unknown; phone?: unknown }) => boolean {
+  const emails = new Set<string>();
+  const domains = new Set<string>();
+  const phones = new Set<string>();
+  for (const row of rows) {
+    const email = normEmail(row.email);
+    const domain = normDomain(row.domain);
+    const phone = avNormPhone(row.phone);
+    if (email) emails.add(email);
+    if (domain) domains.add(domain);
+    if (phone) phones.add(phone);
+  }
+  return (row) => {
+    const email = normEmail(row.email);
+    if (email && (emails.has(email) || domains.has(email.split("@")[1] ?? ""))) return true;
+    const domain = normDomain(row.website);
+    if (domain && domains.has(domain)) return true;
+    const phone = avNormPhone(row.phone);
+    return Boolean(phone && phones.has(phone));
+  };
 }
 
 export function domainFromEmail(email: string): string {

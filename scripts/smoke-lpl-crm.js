@@ -71,6 +71,7 @@ await runStep("normalizers: email, phone, website; shared hosts never prove same
   assert(normEmail("not an email") === "", "bad email dropped");
   assert(normPhone("+1 (555) 010-0199") === "5550100199", "phone digits, US 10");
   assert(normPhone("12345") === "", "short phone dropped");
+  assert(normPhone("404 555 0143 x12") === "4045550143" && normPhone("(404) 555-0143 ext. 12") === "4045550143" && normPhone("4045550143x12") === "4045550143" && normPhone("404-555-0143 #12") === "4045550143", "phone extension is stripped before the digits");
   assert(normDomain("https://www.fixture.church/about?x=1") === "fixture.church", "domain stripped");
   assert(normDomain("https://facebook.com/fixturechurch") === "", "facebook is not an org website");
   assert(normDomain("fixture.wixsite.com") === "", "site builders are shared hosts");
@@ -824,7 +825,22 @@ await runStep("slice 3: business contacts, visits and drop-offs reuse the church
   assert(cundo.indexOf("readChurchReach(lpl, churchId)") < cundo.indexOf("releaseClaim("), "church: reach read before anything changes");
   assertIncludes(cundo, "Still on the do-not-contact list. ${stillListedReason(name", "church: says it's still blocked");
   // Every writer sends phone as 10 digits (registry rule); both claim paths go through suppressionRowsFor.
-  assert(core.normPhone("+1 (404) 555-0143") === "4045550143" && core.normPhone("555-0143") === "", "phone normalized to 10 digits before suppress()");
+  assert(core.normPhone("+1 (404) 555-0143") === "4045550143" && core.normPhone("555-0143") === "" && core.normPhone("404-555-0143 ext. 12") === "4045550143" && core.normPhone("912-555-0100 #12") === "9125550100", "phone normalized to 10 digits before suppress()");
+  assert(core.suppressionPhone("555-0199") === "5550199" && core.suppressionPhone("912-555-0100 #12") === "9125550100", "a 7-digit number is kept for suppression, and a #12 extension is stripped");
+  const seven = { emails: new Set(), domains: new Set(), phones: new Set(["5550199"]) };
+  assert(core.rowMatchesSuppression({ phone: "555-0199" }, seven) === true && core.rowMatchesSuppression({ phone: "912-555-0199" }, seven) === false, "a 7-digit suppression matches only a 7-digit number");
+  const crowdedMail = { emails: new Set(["pastor@shared.example"]), domains: new Set(["shared.example"]), phones: new Set() };
+  const crowdedHosts = new Set(["shared.example"]);
+  assert(core.rowMatchesSuppression({ email: "office0@shared.example", website: "https://shared.example" }, crowdedMail, crowdedHosts) === false, "a crowded domain does not suppress every church on it");
+  assert(core.rowMatchesSuppression({ email: "pastor@shared.example", website: "https://shared.example" }, crowdedMail, crowdedHosts) === true, "the exact email on a crowded domain still matches");
+  for (const host of ["gmail.com", "bellsouth.net", "yahoo.co.uk", "pm.me", "linktr.ee", "watchtower.org", "churchfinder.com", "sites.google.com", "tithe.ly", "iphc.org", "cogop.org", "nc.rr.com", "churchofgod.cc", "churchofgod.org", "sgaumc.org", "ngumc.org", "umc.org", "nccumc.org", "churchangel.com", "chamberofcommerce.com", "inallthingspray.org", "local.churchofjesuschrist.org", "churchofjesuschrist.org", "giv.li", "yellowpages.com", "bizapedia.com", "ame-church.com", "nazarene.org", "charlestondiocese.org", "pcusa.org", "netministries.org", "dandb.com", "knology.net", "church-of-christ.org"]) {
+    assert(core.suppressionDomain(host) === "" && core.suppressionDomain(`https://www.${host}/church`) === "", `suppression domain skipped: ${host}`);
+  }
+  assert(core.suppressionDomain("https://gracebaptist.example/home") === "gracebaptist.example", "a church's own site still matches");
+  const genericIndex = { emails: new Set(), domains: new Set(["gmail.com", "sgaumc.org", "gracebaptist.example"]), phones: new Set() };
+  assert(core.rowMatchesSuppression({ email: "pastor@gmail.com", website: "https://sgaumc.org/ailey", phone: "" }, genericIndex) === false, "generic domains do not suppress by themselves");
+  assert(core.rowMatchesSuppression({ email: "pastor@gmail.com", website: "", phone: "" }, { emails: new Set(["pastor@gmail.com"]), domains: new Set(["gmail.com"]), phones: new Set() }) === true, "the same address still matches as an exact email");
+  assert(core.rowMatchesSuppression({ email: "", website: "https://www.gracebaptist.example", phone: "404-555-0143 x12" }, { emails: new Set(), domains: new Set(["gracebaptist.example"]), phones: new Set(["4045550143"]) }) === true, "own domain and extension-stripped phone still match");
   assertIncludes(writer, "claimSuppressions(config, suppressionRowsFor(church)", "church claims use normalized rows");
   assertIncludes(writer, "claimSuppressions(config, leadSuppressionRows(lead)", "business claims use normalized rows");
   assertIncludes(read("source-of-truth/super-admin-registry.md"), "phone as exactly 10 digits", "registry: writers send phone as 10 digits");

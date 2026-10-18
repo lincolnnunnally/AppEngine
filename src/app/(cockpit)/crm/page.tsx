@@ -4,6 +4,7 @@ import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm"
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer } from "@/lib/engine/lpl-crm-core";
 import { crmSavingConfigured, savingOffMessage } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
+import type { TopProspectState } from "@/app/(cockpit)/crm/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,28 @@ export const dynamic = "force-dynamic";
 // keep. Only the owner can save (church visits and contacts, through
 // ChurchConnect); admins see names and titles, never emails or phones.
 // Nothing on this page sends anything to anyone.
-export default async function CrmPage() {
+export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
+  const params = await searchParams;
+  const previewTop = process.env.NODE_ENV !== "production" && params.preview === "top";
+  let topInitial: TopProspectState = null;
+  // Dev preview only. The non-production guard keeps the fixture out of the production bundle.
+  if (process.env.NODE_ENV !== "production" && params.preview === "top") {
+    const { rankTopProspects } = await import("@/lib/engine/av-prospects-core");
+    const fixture = (await import("../../../../scripts/fixtures/top-prospects-golden.json")).default as {
+      now: string;
+      tier: 0 | 1 | 2 | 3;
+      rows: Array<Record<string, unknown>>;
+      suppressions?: { emails?: string[]; domains?: string[]; phones?: string[] };
+    };
+    const blockedEmails = new Set((fixture.suppressions?.emails ?? []).map((value) => value.trim().toLowerCase()));
+    const ranked = rankTopProspects(
+      fixture.rows,
+      (row) => blockedEmails.has(String(row.email ?? "").trim().toLowerCase()),
+      { tier: fixture.tier, now: new Date(fixture.now) }
+    );
+    topInitial = { ok: true, message: "", at: Date.parse(fixture.now), tier: fixture.tier, open: ranked.open, won: ranked.won, counts: ranked.counts };
+  }
   const isOwner = await canAccessEngineOwner();
   const canSave = isOwner && (await crmSavingConfigured());
   // Owner-only note when this deploy can't save (an AppEngine preview has no server key).
@@ -106,14 +127,15 @@ export default async function CrmPage() {
         </p>
       </section>
 
-      {snapshot.configured ? (
+      {snapshot.configured || previewTop ? (
         <CrmDesk
           cards={viewCards}
           followUps={snapshot.followUps}
-          adminUrls={snapshot.adminUrls}
+          adminUrls={previewTop ? { ...snapshot.adminUrls, churchconnect: snapshot.adminUrls.churchconnect || "https://churchconnect.example" } : snapshot.adminUrls}
           canSave={canSave}
           isOwner={isOwner}
           outreachHidden={snapshot.outreachHidden}
+          topInitial={topInitial}
         />
       ) : (
         <section className="panel">
