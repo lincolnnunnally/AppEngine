@@ -25,16 +25,14 @@ export const VIDALIA = { lat: 32.2177, lng: -82.4135 } as const;
 export const AV_LIST_SIZE = 30;
 
 /**
- * Central & South Georgia, one shared rule for both lists (decision D1, Oct 17 2026).
- * A Georgia ZIP whose first three digits are in this list is central & South
- * Georgia (Eatonton 310 is in; LaGrange 302 is not). Latitude is only the
- * fallback when the ZIP is missing: south of 33.25° N. Columbus (32.46), Macon
- * (32.84) and Milledgeville (33.08) are in; Augusta (33.47), Atlanta (33.75)
- * and Athens (33.96) are out.
+ * AV list latitude line (mode "av"), the rule #416 shipped: a Georgia church
+ * south of 33.25° N is central & South Georgia. Columbus (32.46), Macon (32.84)
+ * and Milledgeville (33.08) are in; Augusta (33.47), Atlanta (33.75) and Athens
+ * (33.96) are out. Mode "top" uses this line only when the ZIP is missing.
  */
 export const CENTRAL_SOUTH_GA_MAX_LAT = 33.25;
 
-/** ZIP3 prefixes for central & South Georgia. 311 (Atlanta) is not on this list. */
+/** ZIP3 prefixes for Top prospects. 311 (Atlanta) is not on this list. Eatonton 310 is in; LaGrange 302 is not. */
 export const CENTRAL_SOUTH_GA_ZIP3 = ["304", "310", "312", "313", "314", "315", "316", "317", "318", "319", "398"] as const;
 
 /** How many churches the Top prospects list shows. */
@@ -87,14 +85,19 @@ export function zip3Of(zip: unknown): string {
 }
 
 /**
- * Which tier a church is in for the AV list, or null when it is outside the territory.
- * Georgia uses the ZIP3 list when a ZIP is on file. The AV list still uses
- * latitude (south of 33.25° N) only when the ZIP is missing, so rows read by
- * the latitude rings keep their old order. Florida and South Carolina do not
- * need a ZIP.
+ * Which tier a church is in, or null when it is outside the territory.
+ * mode "av" (the default) is the #416 rule: a finite latitude is required, Georgia
+ * is south of 33.25° N, and the ZIP is ignored.
+ * mode "top" is ZIP3-first for Georgia. The latitude line is only the fallback
+ * when the ZIP is missing. Florida and South Carolina do not need a ZIP or a latitude.
  */
-export function territoryTier(state: unknown, lat: number | null, zip?: unknown): AvTierIndex | null {
+export function territoryTier(state: unknown, lat: number | null, zip?: unknown, mode: "av" | "top" = "av"): AvTierIndex | null {
   const code = territoryState(state);
+  if (mode !== "top") {
+    if (!code || lat === null || !Number.isFinite(lat)) return null;
+    if (code === "GA") return lat < CENTRAL_SOUTH_GA_MAX_LAT ? 0 : 1;
+    return code === "FL" ? 2 : 3;
+  }
   if (!code) return null;
   if (code === "FL") return 2;
   if (code === "SC") return 3;
@@ -482,31 +485,43 @@ function religionOtherExcluded(row: AvRow): boolean {
 
 /**
  * Never on the list: stopped, lost, inactive, not a church, or already the partner's own work.
- * mode "top" skips only the already-livestreams exclusion, and (decision D3) a rest
- * does not drop the row. A won church is not excluded in top mode; the ranker
- * moves it to the Won strip.
+ * mode "av" is the #416 rule: is_public false drops a row, hidden / is_hidden do not,
+ * and a livestream link is not an exclusion here (the AV ranker still drops it from the score).
+ * mode "top" adds those drops (already streams, hidden / is_hidden). A rest does not
+ * drop the row. A won church is not excluded in top mode unless it already streams;
+ * the ranker moves a won church to the Won strip.
  */
 export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now = new Date(), opts: { mode?: "av" | "top" } = {}): boolean {
   const mode = opts.mode ?? "av";
+  if (mode !== "top") {
+    if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
+    if (avDeskBlocked(row, now)) return true;
+    if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return true;
+    if (s(row.active).toLowerCase() === "false" || row.active === false) return true;
+    if (s(row.is_public).toLowerCase() === "false" || row.is_public === false) return true;
+    if (s(row.religion_guess).toLowerCase() === "other") return true;
+    if (s(row.prospect_kind).toLowerCase() === "association") return true;
+    if (avNameExcluded(s(row.name))) return true;
+    if (s(row.source) === "qa_crm_v2") return true;
+    if (shownWork(row)) return true;
+    return suppressed(row);
+  }
   if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
   if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return true;
   if (rowInactive(row) || rowHidden(row)) return true;
-  if (mode === "top" ? religionOtherExcluded(row) : s(row.religion_guess).toLowerCase() === "other") return true;
+  if (religionOtherExcluded(row)) return true;
   if (s(row.prospect_kind).toLowerCase() === "association") return true;
-  if (mode === "top" ? topNameExcluded(s(row.name), row) : avNameExcluded(s(row.name))) return true;
+  if (topNameExcluded(s(row.name), row)) return true;
   if (s(row.source) === "qa_crm_v2") return true;
   if (shownWork(row)) return true;
   if (suppressed(row)) return true;
-  if (mode === "top") {
-    if (topProspectMismatch(row)) return true;
-    const status = s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_");
-    if (status && status !== "won" && STOPPED_STATUS.has(status)) return true;
-    if (topProspectWon(row).won) return false;
-    if (s(row.invite_status).toLowerCase() === "sent") return true;
-    return false;
-  }
   if (alreadyStreams(row)) return true;
-  return avDeskBlocked(row, now);
+  if (topProspectMismatch(row)) return true;
+  const status = s(row.crm_status).toLowerCase().replace(/[\s-]+/g, "_");
+  if (status && status !== "won" && STOPPED_STATUS.has(status)) return true;
+  if (topProspectWon(row).won) return false;
+  if (s(row.invite_status).toLowerCase() === "sent") return true;
+  return false;
 }
 
 /** Score and plain reasons for one church, from real columns only. A generic or shared host is not also "has a website". */
@@ -717,10 +732,8 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
   }
   const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
   for (const row of all) {
-    const latText = s(row.lat) || s(row.latitude);
-    const latNum = Number(latText);
-    const lat = latText && Number.isFinite(latNum) ? latNum : null;
-    const tier = territoryTier(row.state, lat, row.zip_code ?? row.zip ?? row.postal_code);
+    const lat = Number(s(row.lat) || s(row.latitude));
+    const tier = territoryTier(row.state, s(row.lat) || s(row.latitude) ? lat : null);
     const miles = milesFromVidalia(row);
     if (tier === null || miles === null) continue;
     candidates.push({ row, tier, miles });

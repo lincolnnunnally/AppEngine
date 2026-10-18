@@ -2,6 +2,7 @@
 // video / lighting / livestream words pass every filter), and the AV prospect
 // list is read only, scored on real cc_churches fields, nearest Vidalia first.
 //   node scripts/smoke-av-prospects.js
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -414,20 +415,30 @@ await step("desk names, shared sites, rests, and the churches that must come bac
 await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () => {
   assert(JSON.stringify(av.CENTRAL_SOUTH_GA_ZIP3) === JSON.stringify(["304", "310", "312", "313", "314", "315", "316", "317", "318", "319", "398"]), "ZIP3 list");
   assert(av.TOP_LIST_SIZE === 25, "top list is 25");
-  assert(av.territoryTier("GA", 33.32, "31024") === 0, "Eatonton 31024 is central/South GA even north of the latitude line");
-  assert(av.territoryTier("GA", 33.04, "30240") === 1, "LaGrange 30240 is the rest of GA even south of the latitude line");
+  assert(av.territoryTier("GA", 33.32, "31024", "top") === 0, "top mode: Eatonton 31024 is central/South GA even north of the latitude line");
+  assert(av.territoryTier("GA", 33.04, "30240", "top") === 1, "top mode: LaGrange 30240 is the rest of GA even south of the latitude line");
+  assert(av.territoryTier("GA", 33.32, "31024") === 1 && av.territoryTier("GA", 33.04, "30240") === 0, "AV mode ignores the ZIP and uses the latitude line");
   assert(av.territoryTier("GA", 32.84, "") === 0 && av.territoryTier("GA", 33.47) === 1, "AV list: missing ZIP still uses the latitude line");
+  assert(av.territoryTier("FL", null) === null && av.territoryTier("SC", null) === null, "AV mode requires a latitude");
+  assert(av.territoryTier("GA", 32.84, "", "top") === 0 && av.territoryTier("GA", 33.47, undefined, "top") === 1, "top mode: missing ZIP falls back to the latitude line");
   assert(av.topTerritoryTier("GA", "") === 1 && av.topTerritoryTier("GA", "31024") === 0 && av.topTerritoryTier("GA", "30240") === 1 && av.topTerritoryTier("GA", "30301") === 1, "top list is ZIP3 only; a missing ZIP is rest of GA");
   assert(av.FIT_POINTS.medium === 20, "bare medium fit is 20");
-  assert(av.territoryTier("GA", null, "31024-1234") === 0, "ZIP+4");
+  assert(av.territoryTier("GA", null, "31024-1234", "top") === 0, "top mode ZIP+4");
+  assert(av.territoryTier("GA", null, "31024") === null, "AV mode with a ZIP and no latitude is still outside");
   assert(av.FIT_POINTS.high === 30 && av.FIT_POINTS["medium (no website)"] === 20 && av.FIT_POINTS["possible (website unreachable)"] === 15 && av.FIT_POINTS["possible (website on record looks wrong)"] === 10 && av.FIT_POINTS.low === 0, "fit weights");
   assert(av.fitPointsOf("nope") === 0, "unknown fit is 0");
   const base = { state: "GA", city: "Vidalia", lat: "32.22", lng: "-82.41", zip_code: "30474", website: "https://one.example" };
   const signals = (score, fit, extra = {}) => ({ av_score: score, churchconnect_fit: fit, av_reasons: ["livestreams (youtube)", "streamed recently (2026-10-11)"], ...extra });
   const streaming = { ...base, id: "s1", name: "Stream Chapel", youtube_url: "https://youtube.com/@s", av_signals: signals(40, "high") };
-  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z")) === true, "AV mode still drops a church that already streams");
-  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z"), { mode: "top" }) === false, "top mode keeps a church that already streams");
+  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z")) === false, "AV mode matches #416: a stream link is not an avExcluded drop");
+  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z"), { mode: "top" }) === true, "top mode drops a church that already streams");
   assert(av.rankAvProspects([streaming], none).length === 0, "AV list leaves the streaming church out");
+  const hiddenFlag = { ...base, id: "hid-flag", name: "Hidden Flag Chapel", hidden: true, website: "https://hidden-flag.example" };
+  const isHiddenFlag = { ...base, id: "is-hid", name: "Is Hidden Chapel", is_hidden: true, website: "https://is-hidden.example" };
+  const notPublic = { ...base, id: "priv", name: "Private Chapel", is_public: false, website: "https://private.example" };
+  assert(av.avExcluded(hiddenFlag, none) === false && av.avExcluded(isHiddenFlag, none) === false, "AV mode keeps hidden and is_hidden rows");
+  assert(av.avExcluded(notPublic, none) === true, "AV mode still drops is_public false");
+  assert(av.avExcluded(hiddenFlag, none, new Date(), { mode: "top" }) === true && av.avExcluded(isHiddenFlag, none, new Date(), { mode: "top" }) === true, "top mode drops hidden and is_hidden rows");
   const topStream = av.rankTopProspects([streaming], none, { tier: 0, now: new Date("2026-10-17T15:00:00.000Z") });
   assert(topStream.open.length === 1 && topStream.open[0].churchId === "s1", "top list keeps the streaming church");
   assert(topStream.open[0].score === 70 && topStream.open[0].reason.startsWith("Has a website"), `score and fit phrase: ${topStream.open[0].score} ${topStream.open[0].reason}`);
@@ -545,7 +556,17 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   const tier0 = av.topTierFilter(0);
   assert(tier0.includes("doc->av_signals=not.is.null") && tier0.includes("doc->>zip_code.like.310*") && tier0.includes("doc->>state=in.(GA,Georgia)"), `tier 0 filter: ${tier0}`);
   assert(av.topTierFilter(2).includes("doc->>state=in.(FL,Florida)") && av.topTierFilter(3).includes('doc->>state=in.(SC,"South Carolina")'), "FL and SC filters");
-  const golden = JSON.parse(read("scripts/fixtures/top-prospects-golden.json"));
+  const goldenRaw = read("scripts/fixtures/top-prospects-golden.json");
+  const goldenBlob = createHash("sha1").update(`blob ${Buffer.byteLength(goldenRaw)}\0${goldenRaw}`).digest("hex");
+  assert(goldenBlob === "92bd0886c22d779af1be07bdc5cdfb03c81b4563", `golden fixture blob ${goldenBlob}`);
+  const golden = JSON.parse(goldenRaw);
+  const ccKeptIds = ["stream", "alpha", "mulberry", "mulberry-hidden", "gamma", "beta", "abundant", "zzz-near", "aaa-far", "keeper", "keeper-twin", "college", "won-new", "won-old", "mismatch", "yoga", "dnc", "desk-claim", "invited", "accepted", "qa", "atlanta", "no-zip", "florida", "blocked-email", "lost", "dnc-forward", "dnc-forward-copy", "dnc-reverse", "dnc-reverse-copy", "sup-forward", "sup-forward-copy", "sup-reverse", "sup-reverse-copy", "pittman-park", "labor-of-the-field", "knowles-chapel-cemetery", "morgan-baptist-cemetery", "south-whitesville", "foundation-baptist", "foundation-church", "new-foundation-holiness", "spiritual-foundation-ministries", "trinity-foundation-missionary", "christ-foundation-ministries", "evangel-temple", "evangelistic-temple", "emmanuel-empowerment-temple", "glorious-bethlehem-temple", "prayer-temple-savannah", "rccg-victory-temple", "israels-temple", "temple-higher-calling", "holy-temple-mission", "jehovah-shammah", "faith-foundation-cogic", "true-foundation-cog", "solid-foundation-worship", "christ-scientist-thomasville", "christ-scientist-macon", "christ-scientist-columbus", "66d05a91", "561dcba9", "3a0e3f74", "27bfa71e", "aedd5bf3", "5f1f1277", "236b72d8", "f73383bb", "8102c0a0", "4cd9faf5"];
+  const keptByName = golden.rows.filter((row) => !names.topNameExcluded(String(row.name ?? ""), row)).map((row) => String(row.id));
+  const keptSet = new Set(keptByName);
+  const ccKeptSet = new Set(ccKeptIds);
+  const keptOnly = keptByName.filter((id) => !ccKeptSet.has(id));
+  const ccOnly = ccKeptIds.filter((id) => !keptSet.has(id));
+  assert(keptSet.size === ccKeptIds.length && keptOnly.length === 0 && ccOnly.length === 0, `name rule kept set differs from CC: ts-only ${keptOnly.join(",")} cc-only ${ccOnly.join(",")}`);
   const emails = new Set((golden.suppressions.emails || []).map((value) => String(value).trim().toLowerCase()));
   const domains = new Set((golden.suppressions.domains || []).map((value) => String(value).trim().toLowerCase()));
   const phones = new Set((golden.suppressions.phones || []).map((value) => String(value).replace(/\D/g, "")));
