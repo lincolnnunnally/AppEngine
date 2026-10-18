@@ -16,6 +16,9 @@ import {
   normDomain,
   normEmail,
   normPhone,
+  rowMatchesSuppression,
+  suppressionDomain,
+  suppressionKeys,
   scrubContact,
   shortPersonName,
   type CrmApp,
@@ -29,7 +32,22 @@ import {
   type Touch
 } from "@/lib/engine/lpl-crm-core";
 import { BUSINESS_OFFER_IDS, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { AV_LIST_SIZE, AV_RINGS_MILES, consumeWideNameLookup, groupMateLookups, rankAvProspects, tierRingFilters, type AvProspect, type AvRow, type AvTierIndex } from "@/lib/engine/av-prospects-core";
+import {
+  AV_LIST_SIZE,
+  AV_RINGS_MILES,
+  consumeWideNameLookup,
+  groupMateLookups,
+  domainsSharedByTooMany,
+  rankAvProspects,
+  rankTopProspects,
+  tierRingFilters,
+  topTierFilter,
+  type AvProspect,
+  type AvRow,
+  type AvTierIndex,
+  type TopProspect,
+  type TopProspectCounts
+} from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
 
@@ -74,7 +92,12 @@ async function readRows(
       return [];
     }
     const data = (await response.json()) as unknown;
-    const rows = Array.isArray(data) ? (data as Row[]) : [];
+    // A list endpoint that does not come back as a list was not read. Never treat that as zero rows.
+    if (!Array.isArray(data)) {
+      sources.push({ id: table, label: meta.label, app: meta.app, ok: false, rows: 0 });
+      return [];
+    }
+    const rows = data as Row[];
     const existing = sources.find((source) => source.id === table);
     if (existing) existing.rows += rows.length;
     else sources.push({ id: table, label: meta.label, app: meta.app, ok: true, rows: rows.length });
@@ -262,7 +285,7 @@ function reasonsFor(row: Row, index?: SuppressionReasonIndex): string[] {
   if (!index) return [];
   return [
     ...(index.emails.get(normEmail(row.email)) ?? []),
-    ...(index.domains.get(normDomain(row.website_url)) ?? []),
+    ...(index.domains.get(suppressionDomain(row.website_url)) ?? []),
     ...(index.phones.get(normPhone(row.phone)) ?? [])
   ];
 }
@@ -277,9 +300,10 @@ export function suppressionReasonIndex(rows: Row[]): SuppressionReasonIndex {
   };
   for (const row of rows) {
     const reason = s(row.reason).toLowerCase();
-    put(index.emails, normEmail(row.email), reason);
-    put(index.domains, normDomain(row.domain), reason);
-    put(index.phones, normPhone(row.phone), reason);
+    const keys = suppressionKeys(row);
+    for (const email of keys.emails) put(index.emails, email, reason);
+    for (const domain of keys.domains) put(index.domains, domain, reason);
+    for (const phone of keys.phones) put(index.phones, phone, reason);
   }
   return index;
 }
@@ -1033,12 +1057,10 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
 
   const suppressions: Suppressions = { emails: new Set(), domains: new Set(), phones: new Set() };
   for (const row of suppressionRows) {
-    const email = normEmail(row.email);
-    const domain = normDomain(row.domain);
-    const phone = normPhone(row.phone);
-    if (email) suppressions.emails.add(email);
-    if (domain) suppressions.domains.add(domain);
-    if (phone) suppressions.phones.add(phone);
+    const keys = suppressionKeys(row);
+    for (const email of keys.emails) suppressions.emails.add(email);
+    for (const domain of keys.domains) suppressions.domains.add(domain);
+    for (const phone of keys.phones) suppressions.phones.add(phone);
   }
 
   // Fail closed: if the do-not-contact list could not be read, suggest no outreach.
@@ -1121,7 +1143,7 @@ const AV_FIELDS = [
   "livestream_url", "youtube_url", "subsplash_url", "website_live", "website_http_status", "website_trouble",
   "avg_attendance", "pastor_name", "contact_name", "ministry_assist_name", "secretary_name", "do_not_contact",
   "do_not_contact_desk_claim", "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
-  "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at"
+  "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at", "zip_code"
 ];
 const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as`;
 const AV_PAGE = 1000;
@@ -1131,179 +1153,43 @@ const DNC_MAX_PAGES = 50;
 
 export type AvProspectList = { ok: boolean; prospects: AvProspect[]; read: number; message: string };
 
+
 export async function loadAvProspects(): Promise<AvProspectList> {
   const config = getLplConfig();
   if (!config) return { ok: false, prospects: [], read: 0, message: "This deploy cannot read the shared database yet." };
   const sources: CrmSourceStatus[] = [];
-  const unreadable = () => sources.some((source) => !source.ok);
-  const suppressionRows: Row[] = [];
-  for (let page = 0; page < DNC_MAX_PAGES; page += 1) {
-    const batch = await readRows(
-      config,
-      "outreach_suppressions",
-      `select=email,domain,phone&order=email.asc.nullslast,domain.asc.nullslast,phone.asc.nullslast&limit=${DNC_PAGE}&offset=${page * DNC_PAGE}`,
-      sources,
-      { label: "Do-not-contact list", app: "shared" }
-    );
-    if (unreadable()) {
-      return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
-    }
-    suppressionRows.push(...batch);
-    if (batch.length < DNC_PAGE) break;
-    if (page === DNC_MAX_PAGES - 1) {
-      return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
-    }
+  const suppressionRows = await readDoNotContact(config, sources);
+  if (!suppressionRows) {
+    return { ok: false, prospects: [], read: 0, message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
   }
-  const emails = new Set<string>();
-  const domains = new Set<string>();
-  const phones = new Set<string>();
-  for (const row of suppressionRows) {
-    const email = normEmail(row.email);
-    const domain = normDomain(row.domain);
-    const phone = normPhone(row.phone);
-    if (email) emails.add(email);
-    if (domain) domains.add(domain);
-    if (phone) phones.add(phone);
-  }
-  const suppressed = (row: AvRow): boolean => {
-    const email = normEmail(row.email);
-    if (email && (emails.has(email) || domains.has(email.split("@")[1] ?? ""))) return true;
-    const domain = normDomain(row.website);
-    if (domain && domains.has(domain)) return true;
-    const phone = normPhone(row.phone);
-    return Boolean(phone && phones.has(phone));
-  };
-  const readRing = async (tier: AvTierIndex, radius: number): Promise<Row[]> => {
-    const rows: Row[] = [];
-    for (let page = 0; page < AV_MAX_PAGES; page += 1) {
-      const batch = await readRows(
-        config,
-        "cc_churches",
-        `${AV_SELECT}&${tierRingFilters(tier, radius)}&or=(doc->>website.not.is.null,doc->>facebook_url.not.is.null)&order=id&limit=${AV_PAGE}&offset=${page * AV_PAGE}`,
-        sources,
-        { label: "Churches for AV prospects", app: "churchconnect" }
-      );
-      rows.push(...batch);
-      if (batch.length < AV_PAGE) break;
-    }
-    return rows;
-  };
+  const suppressed = suppressionMatcher(suppressionRows);
   const kept: Row[] = [];
   let read = 0;
   let prospects: AvProspect[] = [];
   const fetchedMate = new Set<string>();
   const wideNames = new Set<string>();
-  // A name lookup of 40 or more rows cannot prove the church is not a stopped copy. Those churches stay off the list.
   const nameLookupBlocked = new Set<string>();
-  // Visits rest 14 days and drop-offs rest 7, the same rule as the desk. If that log can't be read, list nothing.
-  const readRests = async (rows: Row[]): Promise<boolean> => {
-    const ids = [...new Set(rows.map((row) => s(row.id)).filter((id) => id && !fetchedMate.has(`rest:${id}`)))];
-    if (!ids.length) return true;
-    const since = isoDaysAgo(DONT_REPEAT_DAYS, new Date());
-    const byId = new Map(rows.map((row) => [s(row.id), row]));
-    for (let index = 0; index < ids.length; index += 30) {
-      const chunk = ids.slice(index, index + 30);
-      for (const id of chunk) fetchedMate.add(`rest:${id}`);
-      const or = chunk.map((id) => `doc->>church_id.eq.${encodeURIComponent(id)}`).join(",");
-      const batch = await readRows(
-        config,
-        "cc_church_crm_activities",
-        `select=church_id:doc->>church_id,type:doc->>type,activity_type:doc->>activity_type,description:doc->>description,at:doc->>created_at,occurred_at:doc->>occurred_at&or=(${or})&created_at=gte.${since}&order=created_at.desc&limit=${AV_PAGE}`,
-        sources,
-        { label: "Church activity log", app: "churchconnect" }
-      );
-      if (unreadable() || batch.length >= AV_PAGE) return false;
-      for (const activity of batch) {
-        const row = byId.get(s(activity.church_id));
-        if (!row) continue;
-        const type = s(activity.type).toLowerCase() || s(activity.activity_type).toLowerCase();
-        const at = s(activity.occurred_at) || s(activity.at);
-        if (!at) continue;
-        const outreach = ["invite", "email", "call", "sms", "visit", "drop_off", "meeting", "text"].includes(type) && !/FAILED|did not send/i.test(s(activity.description));
-        const list = Array.isArray(row.desk_touches) ? [...(row.desk_touches as unknown[])] : [];
-        list.push({
-          at,
-          kind: type,
-          outreach,
-          restDays: type === "drop_off" ? DROP_OFF_REST_DAYS : type === "visit" ? VISIT_REST_DAYS : undefined
-        });
-        row.desk_touches = list;
-      }
-    }
-    return true;
-  };
-  // Copies with no website, and copies outside the ring, still count. A do-not-contact
-  // or stopped member keeps the whole group off the list.
-  const readGroupMates = async (focus: Row[]): Promise<Row[] | null> => {
-    const lookups = groupMateLookups(focus);
-    const mates: Row[] = [];
-    const ids = lookups.ids.filter((id) => !fetchedMate.has(`id:${id}`));
-    for (let index = 0; index < ids.length; index += 40) {
-      const chunk = ids.slice(index, index + 40);
-      for (const id of chunk) fetchedMate.add(`id:${id}`);
-      const batch = await readRows(
-        config,
-        "cc_churches",
-        `${AV_SELECT}&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})&limit=${AV_PAGE}`,
-        sources,
-        { label: "Churches for AV prospects", app: "churchconnect" }
-      );
-      if (unreadable()) return null;
-      mates.push(...batch);
-    }
-    const pointed = [...new Set(focus.map((row) => s(row.id)).filter(Boolean))].filter((id) => !fetchedMate.has(`cs:${id}`));
-    for (let index = 0; index < pointed.length; index += 12) {
-      const chunk = pointed.slice(index, index + 12);
-      for (const id of chunk) fetchedMate.add(`cs:${id}`);
-      const or = chunk.map((id) => `doc->possible_same_as.cs.${encodeURIComponent(JSON.stringify([id]))}`).join(",");
-      const batch = await readRows(config, "cc_churches", `${AV_SELECT}&or=(${or})&limit=${AV_PAGE}`, sources, { label: "Churches for AV prospects", app: "churchconnect" });
-      if (unreadable() || batch.length >= AV_PAGE) return null;
-      mates.push(...batch);
-    }
-    for (const item of lookups.nameCities) {
-      const mark = `${item.city.toLowerCase()}|${item.pattern}`;
-      if (fetchedMate.has(mark)) {
-        if (wideNames.has(mark)) for (const id of item.churchIds) nameLookupBlocked.add(id);
-        continue;
-      }
-      fetchedMate.add(mark);
-      const pattern = `*${item.pattern.split(" ").join("*")}*`;
-      const batch = await readRows(
-        config,
-        "cc_churches",
-        `${AV_SELECT}&doc->>city=ilike.${encodeURIComponent(item.city)}&doc->>name=ilike.${encodeURIComponent(pattern)}&limit=40`,
-        sources,
-        { label: "Churches for AV prospects", app: "churchconnect" }
-      );
-      if (unreadable()) return null;
-      // 40 or more rows is too wide. Block those churches, or stop the list if no id was recorded.
-      const wide = consumeWideNameLookup(batch.length, item.churchIds, nameLookupBlocked);
-      if (wide === "fail") return null;
-      if (wide === "block") {
-        wideNames.add(mark);
-        continue;
-      }
-      mates.push(...batch);
-    }
-    return mates;
-  };
   for (const tier of [0, 1, 2, 3] as AvTierIndex[]) {
     let tierRows: Row[] = [];
     for (const radius of AV_RINGS_MILES) {
-      tierRows = await readRing(tier, radius);
-      if (unreadable()) {
-        return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
-      }
+      const ring = await readChurchPages(
+        config,
+        `${AV_SELECT}&${tierRingFilters(tier, radius)}&or=(doc->>website.not.is.null,doc->>facebook_url.not.is.null)`,
+        sources,
+        "Churches for AV prospects"
+      );
+      if (!ring) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
+      tierRows = ring;
       let pool = [...kept, ...tierRows];
-      if (!(await readRests(pool))) {
+      if (!(await readProspectRests(config, pool, sources, fetchedMate))) {
         return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
       }
       for (let pass = 0; pass < 3; pass += 1) {
         const preview = rankAvProspects(pool, suppressed, { blockedIds: nameLookupBlocked });
         const focus = pool.filter((row) => preview.some((item) => item.churchId === s(row.id)));
-        const mates = await readGroupMates(focus);
+        const mates = await readProspectMates(config, focus, AV_SELECT, sources, fetchedMate, wideNames, nameLookupBlocked);
         if (!mates) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
-        if (!(await readRests(mates))) {
+        if (!(await readProspectRests(config, mates, sources, fetchedMate))) {
           return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
         }
         pool = [...pool, ...mates];
@@ -1319,4 +1205,267 @@ export async function loadAvProspects(): Promise<AvProspectList> {
     if (prospects.length >= AV_LIST_SIZE && prospects.every((item) => item.tier <= tier)) break;
   }
   return { ok: true, prospects, read, message: "" };
+}
+
+const TOP_FIELDS = [
+  "name", "city", "state", "lat", "lng", "latitude", "longitude", "zip_code", "website", "facebook_url",
+  "live_stream_url", "livestream_url", "youtube_url", "subsplash_url", "do_not_contact", "do_not_contact_desk_claim",
+  "crm_status", "crm_status_changed_at", "crm_next_action", "crm_next_action_date", "merged_into", "deleted_at",
+  "duplicate_of", "religion_guess", "prospect_kind", "source", "email", "phone", "active", "is_public", "hidden",
+  "invite_status", "last_invited_at", "is_customer", "signed_up", "converted_at", "updated_at", "subscription_tier",
+  "claimed", "verified", "is_verified", "claim_status", "churchconnect_fit",
+  "denomination", "ntee", "ntee_code", "ein"
+];
+const TOP_SELECT = `select=id,${TOP_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,av_signals:doc->av_signals`;
+const TOP_MAX_PAGES = 20;
+
+export type TopProspectList = {
+  ok: boolean;
+  open: TopProspect[];
+  won: TopProspect[];
+  counts: TopProspectCounts;
+  read: number;
+  message: string;
+};
+
+const emptyTop = (): Pick<TopProspectList, "open" | "won" | "counts" | "read"> => ({
+  open: [],
+  won: [],
+  counts: { ranked: 0, open: 0, won: 0, excluded: 0 },
+  read: 0
+});
+
+/** Owner-only read of one territory tier. Shares the AV paging, rest, and duplicate-mate reads. */
+export async function loadTopProspects(tier: AvTierIndex): Promise<TopProspectList> {
+  const config = getLplConfig();
+  if (!config) return { ok: false, ...emptyTop(), message: "This deploy cannot read the shared database yet." };
+  const sources: CrmSourceStatus[] = [];
+  const suppressionRows = await readDoNotContact(config, sources);
+  if (!suppressionRows) {
+    return { ok: false, ...emptyTop(), message: "The do-not-contact list couldn't be read, so no prospects are listed right now." };
+  }
+  const rows = await readChurchPages(config, `${TOP_SELECT}&${topTierFilter(tier)}`, sources, "Churches for top prospects", TOP_MAX_PAGES);
+  if (!rows) return { ok: false, ...emptyTop(), message: "Churches couldn't be read just now. Try again in a minute." };
+  if (rows.length >= TOP_MAX_PAGES * AV_PAGE) {
+    return { ok: false, ...emptyTop(), message: "Churches couldn't be read just now. Try again in a minute." };
+  }
+  const fetchedMate = new Set<string>();
+  const wideNames = new Set<string>();
+  const nameLookupBlocked = new Set<string>();
+  const mates = await readProspectMates(config, rows, TOP_SELECT, sources, fetchedMate, wideNames, nameLookupBlocked);
+  if (!mates) return { ok: false, ...emptyTop(), message: "Churches couldn't be read just now. Try again in a minute." };
+  const pool = [...rows, ...mates];
+  if (!(await readProspectRests(config, pool, sources, fetchedMate))) {
+    return { ok: false, ...emptyTop(), message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
+  }
+  const snapshot = await loadCrmSnapshot().catch(() => null);
+  if (snapshot?.cards.length) attachSnapshotCards(pool, snapshot.cards);
+  const blocked = nameLookupBlocked;
+  const suppressed = suppressionMatcher(suppressionRows, domainsSharedByTooMany(pool));
+  const ranked = rankTopProspects(pool, (row) => blocked.has(s(row.id)) || suppressed(row), { tier, now: new Date() });
+  return { ok: true, ...ranked, read: rows.length, message: "" };
+}
+
+function suppressionMatcher(rows: Row[], sharedDomains?: { has(value: string): boolean }): (row: AvRow) => boolean {
+  const emails = new Set<string>();
+  const domains = new Set<string>();
+  const phones = new Set<string>();
+  for (const row of rows) {
+    const keys = suppressionKeys(row);
+    for (const email of keys.emails) emails.add(email);
+    for (const domain of keys.domains) domains.add(domain);
+    for (const phone of keys.phones) phones.add(phone);
+  }
+  return (row) => rowMatchesSuppression(row, { emails, domains, phones }, sharedDomains);
+}
+
+/**
+ * Paged read of public.outreach_suppressions (plain email, domain, phone, brand columns).
+ * Null means the read failed or did not finish. That is an error, never an empty list.
+ */
+async function readDoNotContact(config: LplConfig, sources: CrmSourceStatus[]): Promise<Row[] | null> {
+  const rows: Row[] = [];
+  for (let page = 0; page < DNC_MAX_PAGES; page += 1) {
+    const mark = sources.length;
+    const batch = await readRows(
+      config,
+      "outreach_suppressions",
+      `select=email,domain,phone,brand&order=email.asc.nullslast,domain.asc.nullslast,phone.asc.nullslast&limit=${DNC_PAGE}&offset=${page * DNC_PAGE}`,
+      sources,
+      { label: "Do-not-contact list", app: "shared" }
+    );
+    if (sources.slice(mark).some((source) => !source.ok)) return null;
+    rows.push(...batch);
+    if (batch.length < DNC_PAGE) return rows;
+    if (page === DNC_MAX_PAGES - 1) return null;
+  }
+  return null;
+}
+
+/** Shared page walker. Null when a page fails. Stops at a short page. */
+async function readChurchPages(config: LplConfig, query: string, sources: CrmSourceStatus[], label: string, maxPages = AV_MAX_PAGES): Promise<Row[] | null> {
+  const rows: Row[] = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const mark = sources.length;
+    const batch = await readRows(config, "cc_churches", `${query}&order=id&limit=${AV_PAGE}&offset=${page * AV_PAGE}`, sources, { label, app: "churchconnect" });
+    if (sources.slice(mark).some((source) => !source.ok)) return null;
+    rows.push(...batch);
+    if (batch.length < AV_PAGE) return rows;
+  }
+  return rows;
+}
+
+function attachSnapshotCards(rows: Row[], cards: CrmCard[]): void {
+  const byId = new Map(cards.filter((card) => card.churchId).map((card) => [card.churchId as string, card]));
+  for (const row of rows) {
+    const card = byId.get(s(row.id));
+    if (!card) continue;
+    if (!s(row.crm_next_action) && card.nextAction) row.crm_next_action = card.nextAction;
+    if (!s(row.crm_next_action_date) && card.nextActionDate) row.crm_next_action_date = card.nextActionDate;
+    if (card.nextStep) row.follow_up_step = card.nextStep;
+    const touches = card.touches.map((touch) => ({
+      at: touch.at,
+      kind: touch.kind,
+      what: touch.what,
+      outreach: touch.outreach,
+      signal: touch.signal === true,
+      restDays: touch.restDays
+    }));
+    const list = Array.isArray(row.desk_touches) ? [...(row.desk_touches as unknown[])] : [];
+    row.desk_touches = [...list, ...touches];
+    if (card.repeat.level === "hold" && card.repeat.until) row.rest_until = card.repeat.until;
+  }
+}
+
+// Visits rest 14 days and drop-offs rest 7, the same rule as the desk. If that log can't be read, list nothing.
+async function readProspectRests(config: LplConfig, rows: Row[], sources: CrmSourceStatus[], fetchedMate: Set<string>): Promise<boolean> {
+  const ids = [...new Set(rows.map((row) => s(row.id)).filter((id) => id && !fetchedMate.has(`rest:${id}`)))];
+  if (!ids.length) return true;
+  const since = isoDaysAgo(DONT_REPEAT_DAYS, new Date());
+  const byId = new Map(rows.map((row) => [s(row.id), row]));
+  for (let index = 0; index < ids.length; index += 30) {
+    const chunk = ids.slice(index, index + 30);
+    for (const id of chunk) fetchedMate.add(`rest:${id}`);
+    const or = chunk.map((id) => `doc->>church_id.eq.${encodeURIComponent(id)}`).join(",");
+    const mark = sources.length;
+    const batch = await readRows(
+      config,
+      "cc_church_crm_activities",
+      `select=church_id:doc->>church_id,type:doc->>type,activity_type:doc->>activity_type,description:doc->>description,at:doc->>created_at,occurred_at:doc->>occurred_at&or=(${or})&created_at=gte.${since}&order=created_at.desc&limit=${AV_PAGE}`,
+      sources,
+      { label: "Church activity log", app: "churchconnect" }
+    );
+    if (sources.slice(mark).some((source) => !source.ok) || batch.length >= AV_PAGE) return false;
+    for (const activity of batch) {
+      const row = byId.get(s(activity.church_id));
+      if (!row) continue;
+      const type = s(activity.type).toLowerCase() || s(activity.activity_type).toLowerCase();
+      const at = s(activity.occurred_at) || s(activity.at);
+      if (!at) continue;
+      const outreach = ["invite", "email", "call", "sms", "visit", "drop_off", "meeting", "text"].includes(type) && !/FAILED|did not send/i.test(s(activity.description));
+      const list = Array.isArray(row.desk_touches) ? [...(row.desk_touches as unknown[])] : [];
+      list.push({
+        at,
+        kind: type,
+        outreach,
+        restDays: type === "drop_off" ? DROP_OFF_REST_DAYS : type === "visit" ? VISIT_REST_DAYS : undefined
+      });
+      row.desk_touches = list;
+    }
+  }
+  return true;
+}
+
+// Copies with no website, and copies outside the ring, still count. A do-not-contact
+// or stopped member keeps the whole group off the list.
+async function readProspectMates(
+  config: LplConfig,
+  focus: Row[],
+  select: string,
+  sources: CrmSourceStatus[],
+  fetchedMate: Set<string>,
+  wideNames: Set<string>,
+  nameLookupBlocked: Set<string>
+): Promise<Row[] | null> {
+  const lookups = groupMateLookups(focus);
+  const mates: Row[] = [];
+  const linked = await readLinkedCopies(config, select, sources, fetchedMate, lookups.ids, focus.map((row) => s(row.id)));
+  if (!linked) return null;
+  mates.push(...linked);
+  // A copy found above can point at another copy. Read that link too. A failed page is not "no copies".
+  const again = await readLinkedCopies(
+    config,
+    select,
+    sources,
+    fetchedMate,
+    groupMateLookups(mates).ids,
+    mates.map((row) => s(row.id))
+  );
+  if (!again) return null;
+  mates.push(...again);
+  for (const item of lookups.nameCities) {
+    const markName = `${item.city.toLowerCase()}|${item.pattern}`;
+    if (fetchedMate.has(markName)) {
+      if (wideNames.has(markName)) for (const id of item.churchIds) nameLookupBlocked.add(id);
+      continue;
+    }
+    fetchedMate.add(markName);
+    const pattern = `*${item.pattern.split(" ").join("*")}*`;
+    const mark = sources.length;
+    const batch = await readRows(
+      config,
+      "cc_churches",
+      `${select}&doc->>city=ilike.${encodeURIComponent(item.city)}&doc->>name=ilike.${encodeURIComponent(pattern)}&limit=40`,
+      sources,
+      { label: "Churches for AV prospects", app: "churchconnect" }
+    );
+    if (sources.slice(mark).some((source) => !source.ok)) return null;
+    // 40 or more rows is too wide. Block those churches, or stop the list if no id was recorded.
+    const wide = consumeWideNameLookup(batch.length, item.churchIds, nameLookupBlocked);
+    if (wide === "fail") return null;
+    if (wide === "block") {
+      wideNames.add(markName);
+      continue;
+    }
+    mates.push(...batch);
+  }
+  return mates;
+}
+
+const LINK_MAX_PAGES = 20;
+
+/** Copies linked by possible_same_as in either direction. Pages until a short page. Null if a page fails or the read does not finish. */
+async function readLinkedCopies(
+  config: LplConfig,
+  select: string,
+  sources: CrmSourceStatus[],
+  fetchedMate: Set<string>,
+  outboundIds: string[],
+  inboundIds: string[]
+): Promise<Row[] | null> {
+  const mates: Row[] = [];
+  const ids = outboundIds.filter((id) => id && !fetchedMate.has(`id:${id}`));
+  for (let index = 0; index < ids.length; index += 40) {
+    const chunk = ids.slice(index, index + 40);
+    for (const id of chunk) fetchedMate.add(`id:${id}`);
+    const listed = await readChurchPages(
+      config,
+      `${select}&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})`,
+      sources,
+      "Churches for AV prospects",
+      LINK_MAX_PAGES
+    );
+    if (!listed || listed.length >= LINK_MAX_PAGES * AV_PAGE) return null;
+    mates.push(...listed);
+  }
+  const pointed = [...new Set(inboundIds.filter(Boolean))].filter((id) => !fetchedMate.has(`cs:${id}`));
+  for (let index = 0; index < pointed.length; index += 12) {
+    const chunk = pointed.slice(index, index + 12);
+    for (const id of chunk) fetchedMate.add(`cs:${id}`);
+    const or = chunk.map((id) => `doc->possible_same_as.cs.${encodeURIComponent(JSON.stringify([id]))}`).join(",");
+    const listing = await readChurchPages(config, `${select}&or=(${or})`, sources, "Churches for AV prospects", LINK_MAX_PAGES);
+    if (!listing || listing.length >= LINK_MAX_PAGES * AV_PAGE) return null;
+    mates.push(...listing);
+  }
+  return mates;
 }

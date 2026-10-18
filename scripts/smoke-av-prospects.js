@@ -32,7 +32,9 @@ const ruleUrl = toUrl(transpile("src/lib/engine/church-offer-rule.ts"));
 const rule = await import(ruleUrl);
 const core = await import(toUrl(transpile("src/lib/engine/crm-suggest-core.ts", { "./church-offer-rule": ruleUrl })));
 const crmCoreUrl = toUrl(transpile("src/lib/engine/lpl-crm-core.ts"));
-const av = await import(toUrl(transpile("src/lib/engine/av-prospects-core.ts", { "@/lib/engine/lpl-crm-core": crmCoreUrl })));
+const nameUrl = toUrl(transpile("src/lib/engine/top-prospects-name.ts"));
+const av = await import(toUrl(transpile("src/lib/engine/av-prospects-core.ts", { "@/lib/engine/lpl-crm-core": crmCoreUrl, "@/lib/engine/top-prospects-name": nameUrl })));
+const names = await import(nameUrl);
 
 const TODAY = "2026-10-17";
 const card = (over = {}) => ({
@@ -196,6 +198,8 @@ await step("reads tier by tier in rings (jsonb number filters), never the whole 
   assert(body.includes("groupMateLookups") && body.includes("possible_same_as"), "also reads copies outside the ring, including ones with no website");
   assert(!body.includes("limit=5000") && body.includes("batch.length < DNC_PAGE"), "do-not-contact list is paged until it ends");
   assert(body.includes("cc_church_crm_activities") && body.includes("DONT_REPEAT_DAYS"), "visit and drop-off rests are read with the desk's window");
+  assert(body.includes("consumeWideNameLookup") && body.includes('wide === "fail"') && body.includes("blockedIds: nameLookupBlocked"), "a wide name lookup blocks those churches or stops the list");
+  assert(!/if \(batch\.length >= 40\) continue/.test(body), "a wide name lookup does not leave the church on the list");
 });
 
 await step("read only, on tap, owner only, fail closed", () => {
@@ -405,6 +409,261 @@ await step("desk names, shared sites, rests, and the churches that must come bac
   for (const host of generic) assert(av.websiteWeakness(`https://${host}/x`) !== "", `${host} is generic`);
   const only = av.scoreAvProspect(r({ id: "gen", name: "Grace", city: "Vidalia", website: "https://sgaumc.org/grace", facebook_url: "https://facebook.com/grace" }));
   assert(only.reasons.length === 1 && only.reasons[0].includes("denomination"), "a denomination site does not also say Facebook or has a website");
+});
+
+await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () => {
+  assert(JSON.stringify(av.CENTRAL_SOUTH_GA_ZIP3) === JSON.stringify(["304", "310", "312", "313", "314", "315", "316", "317", "318", "319", "398"]), "ZIP3 list");
+  assert(av.TOP_LIST_SIZE === 25, "top list is 25");
+  assert(av.territoryTier("GA", 33.32, "31024") === 0, "Eatonton 31024 is central/South GA even north of the latitude line");
+  assert(av.territoryTier("GA", 33.04, "30240") === 1, "LaGrange 30240 is the rest of GA even south of the latitude line");
+  assert(av.territoryTier("GA", 32.84, "") === 0 && av.territoryTier("GA", 33.47) === 1, "AV list: missing ZIP still uses the latitude line");
+  assert(av.topTerritoryTier("GA", "") === 1 && av.topTerritoryTier("GA", "31024") === 0 && av.topTerritoryTier("GA", "30240") === 1 && av.topTerritoryTier("GA", "30301") === 1, "top list is ZIP3 only; a missing ZIP is rest of GA");
+  assert(av.FIT_POINTS.medium === 20, "bare medium fit is 20");
+  assert(av.territoryTier("GA", null, "31024-1234") === 0, "ZIP+4");
+  assert(av.FIT_POINTS.high === 30 && av.FIT_POINTS["medium (no website)"] === 20 && av.FIT_POINTS["possible (website unreachable)"] === 15 && av.FIT_POINTS["possible (website on record looks wrong)"] === 10 && av.FIT_POINTS.low === 0, "fit weights");
+  assert(av.fitPointsOf("nope") === 0, "unknown fit is 0");
+  const base = { state: "GA", city: "Vidalia", lat: "32.22", lng: "-82.41", zip_code: "30474", website: "https://one.example" };
+  const signals = (score, fit, extra = {}) => ({ av_score: score, churchconnect_fit: fit, av_reasons: ["livestreams (youtube)", "streamed recently (2026-10-11)"], ...extra });
+  const streaming = { ...base, id: "s1", name: "Stream Chapel", youtube_url: "https://youtube.com/@s", av_signals: signals(40, "high") };
+  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z")) === true, "AV mode still drops a church that already streams");
+  assert(av.avExcluded(streaming, none, new Date("2026-10-17T15:00:00.000Z"), { mode: "top" }) === false, "top mode keeps a church that already streams");
+  assert(av.rankAvProspects([streaming], none).length === 0, "AV list leaves the streaming church out");
+  const topStream = av.rankTopProspects([streaming], none, { tier: 0, now: new Date("2026-10-17T15:00:00.000Z") });
+  assert(topStream.open.length === 1 && topStream.open[0].churchId === "s1", "top list keeps the streaming church");
+  assert(topStream.open[0].score === 70 && topStream.open[0].reason.startsWith("Has a website"), `score and fit phrase: ${topStream.open[0].score} ${topStream.open[0].reason}`);
+  assert(topStream.open[0].reason.length <= 90, "reason stays within 90 characters");
+  const mismatch = { ...base, id: "bad", name: "Mismatch Chapel", av_signals: signals(99, "high", { website_match: "mismatch" }) };
+  const rejected = { ...base, id: "rej", name: "Rejected Chapel", website: "https://rej.example", av_signals: signals(99, "high", { website_match: "rejected" }) };
+  assert(av.rankTopProspects([mismatch, rejected, streaming], none, { tier: 0 }).open.map((item) => item.churchId).join(",") === "s1", "mismatch and rejected websites are left out");
+  const now = new Date("2026-10-17T15:00:00.000Z");
+  const resting = { ...base, id: "rest", name: "Resting Chapel", website: "https://rest.example", desk_touches: [{ at: "2026-10-10T15:00:00.000Z", kind: "visit", outreach: true }], av_signals: signals(10, "high") };
+  const rested = av.rankTopProspects([resting], none, { tier: 0, now });
+  assert(rested.open.length === 1 && rested.open[0].status === "Resting" && rested.open[0].restLabel === "Resting until Oct 24", `resting tagged: ${rested.open[0] && rested.open[0].status} ${rested.open[0] && rested.open[0].restLabel}`);
+  assert(av.rankAvProspects([resting], none, { now }).length === 0, "AV mode still leaves a resting church off");
+  const won = { ...base, id: "won", name: "Won Chapel", website: "https://won.example", is_customer: true, converted_at: "2026-10-02T15:00:00.000Z", av_signals: signals(100, "high") };
+  const many = [won, ...Array.from({ length: 26 }, (_, index) => ({ ...base, id: `n${index}`, name: `Chapel ${String(index).padStart(2, "0")}`, website: `https://n${index}.example`, zip_code: "30474", av_signals: signals(80 - index, "low") }))];
+  const filled = av.rankTopProspects(many, none, { tier: 0, now });
+  assert(filled.won.map((item) => item.churchId).join(",") === "won" && filled.won[0].wonAt === "Oct 2", `won strip: ${filled.won.map((item) => item.churchId).join(",")} ${filled.won[0] && filled.won[0].wonAt}`);
+  assert(filled.open.length === 25 && filled.open[0].churchId === "n0" && filled.open[24].churchId === "n24" && !filled.open.some((item) => item.churchId === "n25"), `number 26 fills in: ${filled.open.map((item) => item.churchId).join(",")}`);
+  const hidden = { ...base, id: "hid", name: "Hidden Twin", is_public: false, website: "https://twin.example", av_signals: signals(44, "high") };
+  const visible = { ...base, id: "vis", name: "Visible Twin", website: "https://twin.example", possible_same_as: ["hid"] };
+  const twins = av.rankTopProspects([hidden, visible], none, { tier: 0, now });
+  assert(twins.open.length === 1 && twins.open[0].churchId === "vis" && twins.open[0].score === 74 && twins.open[0].reason.includes("scored on a duplicate record"), `twin carry-over: ${twins.open.map((item) => `${item.churchId}:${item.score}:${item.reason}`).join(" | ")}`);
+  const dropName = (name, row) => assert(names.topNameExcluded(name, row), `drop ${name}`);
+  const keepName = (name, row) => assert(!names.topNameExcluded(name, row), `keep ${name}`);
+  dropName("ST MARKS ENDOWMENT TR");
+  dropName("Community Trust");
+  keepName("College Place Methodist");
+  keepName("College Place Presbyterian");
+  dropName("South Georgia Conference");
+  dropName("Grace Mission Inc");
+  dropName("SOUTH AMERICAN MISSION INC");
+  keepName("SOUTH AMERICAN MISSION INC", { ntee: "X20" });
+  dropName("SOUTH AMERICAN MISSION INC", { ntee: "X99" });
+  dropName("Harvest Fields");
+  dropName("Fields Chapel");
+  dropName("South Georgia District");
+  dropName("Valley Retreat");
+  dropName("Clay Hill Christian Retreat", { ntee: "X20" });
+  keepName("Retreat Baptist Church");
+  keepName("The District Church");
+  dropName("Messianic Jewish Congregation");
+  dropName("Spring Valley Presbyterian Church Soccer Fields");
+  dropName("Spring Valley Soccer Fields");
+  dropName("City Soccer Complex");
+  dropName("Athletic Park");
+  dropName("Pine Park");
+  keepName("Parish Church of St Martins in the Fields");
+  keepName("First Baptist Church of Lake Park");
+  keepName("First Baptist Church Park");
+  keepName("Grace Church Gym");
+  keepName("Hope Church Complex");
+  keepName("Church Retreat Center");
+  keepName("St Martin in the Fields Episcopal Church");
+  dropName("Pittman Park");
+  keepName("Pittman Park", { denomination: "United Methodist" });
+  dropName("Labor of the Field");
+  keepName("LABOR OF THE FIELD", { ntee: "X21", ein: "272889005" });
+  keepName("Knowles Chapel Cemetery", { denomination: "Global Methodist" });
+  keepName("Morgan Baptist Church Cemetery", { denomination: "Southern Baptist Convention" });
+  dropName("Old Church Cemetery");
+  dropName("Old Church Cemetery", { ntee: "X30" });
+  keepName("Foundation Baptist Church");
+  keepName("Foundation Church");
+  keepName("New Foundation Holiness Church");
+  keepName("Spiritual Foundation Ministries");
+  keepName("CHRIST FOUNDATION MINISTRIES");
+  dropName("FIRST BAPTIST CHURCH FOUNDATION");
+  dropName("FIRST BAPTIST CHURCH FOUNDATION", { denomination: "Baptist" });
+  dropName("CONNORS BAPTIST CHURCH CEMETERY FUND");
+  keepName("First Church of Christ, Scientist");
+  keepName("First Church of Christ Scientist", { denomination: "Church of Christ" });
+  dropName("Christian Science Reading Room");
+  dropName("Jehovah's Witnesses");
+  keepName("Jehovah Shammah");
+  dropName("Kingdom Hall of Jehovah's Witnesses");
+  keepName("Evangel Temple", { denomination: "Assemblies of God" });
+  dropName("TEMPLE EMANUEL", { ntee: "X21" });
+  dropName("TEMPLE BET YAM", { ntee: "X20" });
+  dropName("BBF OF TEMPLE TERRACE INC", { ntee: "X20Z" });
+  keepName("EMMANUEL EMPOWERMENT TEMPLE", { ntee: "X20" });
+  keepName("Bethel Baptist Church");
+  keepName("Bethlehem Baptist Church");
+  keepName("Bethany Baptist Church");
+  dropName("BETH HANAN MINISTRIES INC", { ntee: "X99Z" });
+  keepName("Beth Eden Baptist Church", { denomination: "Baptist" });
+  dropName("WAT FLORIDA DHAMMARAM INC");
+  dropName("BAHAIS OF VALDOSTA");
+  dropName("FLORIDA-BAHAMAS SYNOD ELCA");
+  keepName("LUTHERAN CHURCH MISSOURI SYNOD");
+  dropName("THEOSOPHICAL SOCIETY IN ORLANDO");
+  dropName("HOUSE OF LIVING WATER", { ntee: "X30" });
+  keepName("HOUSE OF LIVING WATER", { ntee: "X30", id: "5f1f1277" });
+  keepName("DIVINE WORSHIP HOUSE OF GOD", { ntee: "X30" });
+  dropName("ST MICHAELS CHURCH", { ntee: "X30" });
+  dropName("COMPASSION TO THE NATIONS INC", { ntee: "X21", id: "b70a9179" });
+  keepName("COMPASSION TO THE NATIONS INC", { ntee: "X21" });
+  keepName("TO THE NATIONS MINISTRIES INC", { ntee: "X21" });
+  dropName("A VOICE TO THE NATIONS INC", { ntee: "NOT AVAILABLE" });
+  dropName("NEW LATTER DAY DELIVERANCE MINISTRIES INC");
+  keepName("Hebron Valley Mission", { ntee: "X21" });
+  dropName("BETHANY JUNIOR ACADEMY", { denomination: "Seventh-day Adventist" });
+  dropName("EPISCOPAL DIOCESE OF GEORGIA", { denomination: "Episcopal" });
+  dropName("First Baptist Preschool Gray Ga", { denomination: "Baptist" });
+  const inbound = av.rankTopProspects([
+    { ...base, id: "face", name: "Face Baptist", website: "https://face.example", av_signals: signals(40, "high") },
+    { ...base, id: "copy", name: "Face Baptist Copy", do_not_contact: true, possible_same_as: ["face"], website: "https://other.example", av_signals: signals(1, "low") }
+  ], none, { tier: 0, now });
+  assert(inbound.open.length === 0 && inbound.won.length === 0, "a do-not-contact copy that points at the church takes the group off");
+  const other = { ...base, id: "cog", name: "Valdosta - Abundant Life Church of God", city: "Valdosta", zip_code: "31601", religion_guess: "other", website: "https://cog.example", av_signals: signals(5, "high") };
+  const temple = { ...base, id: "temple-other", name: "Temple", religion_guess: "other", website: "https://temple-other.example", av_signals: signals(5, "high") };
+  const keptOther = av.rankTopProspects([other, temple], none, { tier: 0, now });
+  assert(keptOther.open.map((item) => item.churchId).join(",") === "cog", `religion other keeps a church name: ${keptOther.open.map((item) => item.churchId).join(",")}`);
+  assert(av.avExcluded(other, none, now, { mode: "top" }) === false && av.avExcluded(temple, none, now, { mode: "top" }) === true, "religion other excludes only when there is no church word");
+  const claimed = av.rankTopProspects([{ ...base, id: "cl", name: "Claimed Chapel", website: "https://cl.example", verified: true, av_signals: signals(3, "low") }], none, { tier: 0, now });
+  assert(claimed.open[0].status === "Claimed" && claimed.open[0].nextStep === "First visit", "claimed stays on the list");
+  const tier0 = av.topTierFilter(0);
+  assert(tier0.includes("doc->av_signals=not.is.null") && tier0.includes("doc->>zip_code.like.310*") && tier0.includes("doc->>state=in.(GA,Georgia)"), `tier 0 filter: ${tier0}`);
+  assert(av.topTierFilter(2).includes("doc->>state=in.(FL,Florida)") && av.topTierFilter(3).includes('doc->>state=in.(SC,"South Carolina")'), "FL and SC filters");
+  const golden = JSON.parse(read("scripts/fixtures/top-prospects-golden.json"));
+  const emails = new Set((golden.suppressions.emails || []).map((value) => String(value).trim().toLowerCase()));
+  const domains = new Set((golden.suppressions.domains || []).map((value) => String(value).trim().toLowerCase()));
+  const phones = new Set((golden.suppressions.phones || []).map((value) => String(value).replace(/\D/g, "")));
+  const goldenSuppressed = (row) => {
+    const email = String(row.email || "").trim().toLowerCase();
+    if (email && emails.has(email)) return true;
+    const host = String(row.website || "").trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/^www\./, "").split("/")[0];
+    if (host && domains.has(host)) return true;
+    const phone = String(row.phone || "").replace(/\D/g, "");
+    return Boolean(phone && phones.has(phone));
+  };
+  const goldenRank = av.rankTopProspects(golden.rows, goldenSuppressed, { tier: golden.tier, now: new Date(golden.now) });
+  assert(JSON.stringify(goldenRank.open.map((item) => item.churchId)) === JSON.stringify(golden.open_ids), `golden open: ${goldenRank.open.map((item) => item.churchId).join(",")}`);
+  const wonPairs = goldenRank.won.map((item) => ({ id: item.churchId, date: item.wonDate }));
+  assert(JSON.stringify(wonPairs) === JSON.stringify(golden.won), `golden won: ${JSON.stringify(wonPairs)}`);
+  const byId = Object.fromEntries(goldenRank.open.map((item) => [item.churchId, item]));
+  assert(byId.stream.score === 85 && byId.stream.reason.includes("livestreams on YouTube"), `stream ${byId.stream.score} ${byId.stream.reason}`);
+  assert(byId.mulberry.score === 71, `mulberry twin score ${byId.mulberry.score} ${byId.mulberry.reason}`);
+  assert(byId["zzz-near"].rank < byId["aaa-far"].rank, "same score, nearer Vidalia first");
+  assert(goldenRank.won[0].churchId === "won-new", "newest win is first on the Won strip");
+  const tier1 = av.rankTopProspects(golden.rows, goldenSuppressed, { tier: 1, now: new Date(golden.now) });
+  assert(tier1.open.map((item) => item.churchId).join(",") === "atlanta,no-zip", `rest of GA: ${tier1.open.map((item) => item.churchId).join(",")}`);
+  const openIds = new Set(goldenRank.open.map((item) => item.churchId));
+  const wonIds = new Set(goldenRank.won.map((item) => item.churchId));
+  for (const gone of ["mismatch", "endowment", "yoga", "dnc", "desk-claim", "invited", "qa", "assoc", "blocked-email", "lost", "keeper-twin", "mulberry-hidden", "atlanta", "no-zip", "dnc-forward", "dnc-forward-copy", "dnc-reverse", "dnc-reverse-copy", "sup-forward", "sup-forward-copy", "sup-reverse", "sup-reverse-copy", "incarnation-conference", "mission-inc", "soccer-fields", "first-baptist-foundation", "connors-cemetery-fund"]) {
+    assert(!openIds.has(gone) && !wonIds.has(gone), `${gone} stays off the tier 0 lists`);
+  }
+  for (const excludedId of golden.excluded_ids) assert(!openIds.has(excludedId) && !wonIds.has(excludedId), `${excludedId} stays off the golden lists`);
+  assert(golden.excluded_ids.includes("soccer-fields"), "soccer-fields is excluded because fields follows soccer");
+  const census = av.TOP_PROSPECT_KEPT_CENSUS;
+  assert(census.centralSouthGa === 9609 && census.restOfGa === 0 && census.florida === 3190 && census.southCarolina === 1812, `per-territory kept counts ${census.centralSouthGa}/${census.restOfGa}/${census.florida}/${census.southCarolina}`);
+  assert(census.centralSouthGa + census.restOfGa + census.florida + census.southCarolina === 14611 && census.total === 14611 && census.inScope === 15476, "14,611 kept of 15,476 in scope");
+  assert(av.resolveTopProspectTier("1").status === 422 && av.resolveTopProspectTier("9").status === 422 && av.resolveTopProspectTier("1").detail === "That area is not on this list.", "tier 1 and any other unsupported tier are 422");
+  assert(av.resolveTopProspectTier(null).tier === 0 && av.resolveTopProspectTier("0").tier === 0 && av.resolveTopProspectTier("2").tier === 2 && av.resolveTopProspectTier("3").tier === 3, "tiers 0, 2, and 3 stay on the list");
+  const route = read("src/app/api/crm/top-prospects/route.ts");
+  assert(route.includes("status: 422") && route.includes("resolveTopProspectTier"), "the top-prospects route returns 422 for an unsupported tier");
+  const cleared = JSON.parse(JSON.stringify(golden));
+  cleared.suppressions = { emails: [], domains: [], phones: [] };
+  const clearedRank = av.rankTopProspects(cleared.rows, () => false, { tier: cleared.tier, now: new Date(cleared.now) });
+  const clearedIds = new Set(clearedRank.open.map((item) => item.churchId));
+  assert(clearedIds.has("sup-forward") && clearedIds.has("sup-reverse"), "clearing the email list puts both link directions back");
+  for (const gone of ["dnc-forward", "dnc-forward-copy", "dnc-reverse", "dnc-reverse-copy", "sup-forward-copy", "sup-reverse-copy"]) {
+    assert(!clearedIds.has(gone), `${gone} stays off when the email list is empty`);
+  }
+  const crowdedRows = [];
+  for (let n = 0; n < 4; n += 1) {
+    crowdedRows.push({
+      id: `shared-${n}`, name: `Shared Baptist ${n}`, state: "GA", zip_code: "30474", city: "Vidalia", active: true, is_public: true,
+      email: `office${n}@shared.example`, website: "https://shared.example",
+      av_signals: { av_score: 40, av_reasons: ["on file"] }, churchconnect_fit: "high"
+    });
+  }
+  crowdedRows.push({
+    id: "exact-mail", name: "Exact Mail Baptist", state: "GA", zip_code: "30474", city: "Vidalia", active: true, is_public: true,
+    email: "pastor@shared.example", av_signals: { av_score: 80, av_reasons: ["on file"] }, churchconnect_fit: "high"
+  });
+  const crowdedHit = (row) => {
+    const email = String(row.email || "").trim().toLowerCase();
+    if (email === "pastor@shared.example") return true;
+    const host = String(row.website || "").trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/^www\./, "").split("/")[0];
+    return host === "shared.example";
+  };
+  const crowdedNotes = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    crowdedNotes.push(args.map(String).join(" "));
+    originalWarn(...args);
+  };
+  let crowdedRank;
+  let crowdedAgain;
+  try {
+    crowdedRank = av.rankTopProspects(crowdedRows, crowdedHit, { tier: 0, now: new Date(golden.now) });
+    crowdedAgain = av.rankTopProspects(crowdedRows, crowdedHit, { tier: 2, now: new Date(golden.now) });
+  } finally {
+    console.warn = originalWarn;
+  }
+  const crowdedIds = crowdedRank.open.map((item) => item.churchId);
+  assert(crowdedIds.includes("shared-0") && !crowdedIds.includes("exact-mail"), `a domain used by more than three churches matches only the exact email: ${crowdedIds.join(",")}`);
+  assert(crowdedAgain.open.length === 0, "Florida has none of these rows");
+  assert(crowdedNotes.filter((line) => line.includes("shared.example")).length === 2, `shared domain logged once per rank call: ${crowdedNotes.join(" | ")}`);
+  const failRows = crowdedRows.map((row) => ({ ...row, id: `${row.id}-fail` }));
+  const failNotes = [];
+  av.setSharedDomainCounterForTest(() => {
+    throw new Error("count failed");
+  });
+  console.warn = (...args) => {
+    failNotes.push(args.map(String).join(" "));
+  };
+  let failRank;
+  try {
+    failRank = av.rankTopProspects(failRows, crowdedHit, { tier: 0, now: new Date(golden.now) });
+    av.rankTopProspects(failRows, crowdedHit, { tier: 0, now: new Date(golden.now) });
+  } finally {
+    console.warn = originalWarn;
+    av.setSharedDomainCounterForTest(null);
+  }
+  const failIds = failRank.open.map((item) => item.churchId);
+  assert(failIds.includes("shared-0-fail") && !failIds.includes("exact-mail-fail"), `a failed shared-domain count matches the exact email only: ${failIds.join(",")}`);
+  assert(failNotes.filter((line) => line.includes("exact email only")).length === 2, `failed count logged once per call: ${failNotes.join(" | ")}`);
+  for (const item of [...goldenRank.open, ...goldenRank.won]) {
+    assert(item.reason.length <= 90, `reason length ${item.churchId}`);
+    if (item.miles !== null) assert(Number.isInteger(item.miles), `whole miles ${item.churchId}`);
+  }
+  const loader = read("src/lib/engine/lpl-crm.ts");
+  const topBody = loader.slice(loader.indexOf("export async function loadTopProspects"));
+  assert(topBody.includes("topTierFilter(tier)") && topBody.includes("readChurchPages") && topBody.includes("readDoNotContact") && topBody.includes("loadCrmSnapshot"), "top loader shares the fetch and joins the snapshot");
+  assert(topBody.includes("public.outreach_suppressions") && topBody.includes("select=email,domain,phone,brand"), "suppressions are the plain public columns, including brand");
+  assert(topBody.includes("possible_same_as.cs.") && topBody.includes("readLinkedCopies") && topBody.includes("LINK_MAX_PAGES * AV_PAGE"), "both link directions are paged, and a full read fails closed");
+  assert(!/method:\s*"(POST|PATCH|PUT|DELETE)"/.test(topBody), "top loader does not write");
+  const topAct = read("src/app/(cockpit)/crm/actions.ts").slice(read("src/app/(cockpit)/crm/actions.ts").indexOf("export async function loadTopProspectsAction"));
+  assert(/^export async function loadTopProspectsAction[^{]+\{\s*if \(!\(await canAccessEngineOwner\(\)\)\) return refused\(/.test(topAct), "top action is owner gated");
+  const desk = read("src/components/engine/crm-desk.tsx");
+  assert(desk.includes('data-testid="crm-top-chip"') && desk.includes("Top prospects"), "top chip sits with the AV chip");
+  const ui = read("src/components/engine/crm-top-prospects.tsx");
+  assert(ui.includes("No scored churches in Florida yet.") && ui.includes("Central & South GA") && ui.includes("Florida") && ui.includes("South Carolina") && ui.includes("/super-admin#crm/lead/"), "tier chips, Florida empty copy, row opens the church");
+  assert(!ui.includes('label: "Rest of GA"') && ui.includes("Rest of Georgia stays hidden"), "Rest of Georgia tab stays hidden until those churches are scored");
+  assert(ui.includes("Anyone who opted out of any of our messages is left off this list."), "opt-out footer");
+  assert(!/xai|grok|openai|anthropic|claude|gpt|marketing/i.test(ui), "no vendor names and no marketing");
 });
 
 function churchSame(av, left, right) {

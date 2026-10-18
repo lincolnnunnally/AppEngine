@@ -7514,3 +7514,71 @@ button.compose-arch:hover {
   body:not(.desk) .crm-page .crm-av-reasons { color: #1b2923; }
   body:not(.desk) .crm-page .crm-av-list .crm-follow-row { background: #ffffff; }
 }
+
+/* Top prospects. One column on a phone (no sideways scroll at 375px). The row
+   is the link. Status chips carry their own colors so they stay readable on
+   the dark desk and on a light page. */
+.crm-page .crm-top { display: grid; gap: 12px; min-width: 0; max-width: 100%; overflow-x: clip; }
+.crm-page .crm-top-tiers { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.crm-page .crm-top-list,
+.crm-page .crm-top-won-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+.crm-page .crm-top-row,
+.crm-page .crm-top-won-list a {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 2px 10px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--teal);
+  border-radius: 10px;
+  background: var(--panel);
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.crm-page .crm-top-rank {
+  grid-row: 1 / span 5;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+.crm-page .crm-top-main { display: grid; gap: 2px; min-width: 0; }
+.crm-page .crm-top-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.crm-page .crm-top-name { font-size: 1rem; line-height: 1.45; font-weight: 700; overflow-wrap: anywhere; }
+.desk .crm-page .crm-top-name,
+.desk .crm-page .crm-top-won-title { font-family: var(--font-desk-display), Outfit, Inter, sans-serif; }
+.crm-page .crm-top-town,
+.crm-page .crm-top-score,
+.crm-page .crm-top-meta,
+.crm-page .crm-top-rest { font-size: 0.875rem; line-height: 1.45; color: #d8e2dc; overflow-wrap: anywhere; }
+.crm-page .crm-top-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.crm-page .crm-top-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.crm-page .crm-top-status--open { background: #14532d; color: #ecfdf5; }
+.crm-page .crm-top-status--resting { background: #78350f; color: #fffbeb; }
+.crm-page .crm-top-status--claimed { background: #4c1d95; color: #f5f3ff; }
+.crm-page .crm-top-won-title { margin: 8px 0 0; font-size: 1.05rem; }
+.crm-page .crm-top-won-list a { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; align-items: baseline; }
+.crm-page .crm-top-won-list span { font-size: 0.875rem; color: #d8e2dc; overflow-wrap: anywhere; }
+.crm-page .crm-top-foot { font-size: 1rem; line-height: 1.45; margin: 0; }
+@media (max-width: 640px) {
+  .crm-page .crm-top-won-list a { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-color-scheme: light) {
+  body:not(.desk) .crm-page .crm-top { background: #ffffff; color: #1b2923; padding: 16px; border-radius: 12px; }
+  body:not(.desk) .crm-page .crm-top-row,
+  body:not(.desk) .crm-page .crm-top-won-list a { background: #ffffff; }
+  body:not(.desk) .crm-page .crm-top-town,
+  body:not(.desk) .crm-page .crm-top-score,
+  body:not(.desk) .crm-page .crm-top-meta,
+  body:not(.desk) .crm-page .crm-top-rest,
+  body:not(.desk) .crm-page .crm-top-won-list span { color: #1b2923; }
+}
