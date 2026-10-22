@@ -1,5 +1,6 @@
 import { loadOwnerDeck } from "@/lib/engine/owner-deck";
-import { dollars, loadStripeSummary, type StripeSummary } from "@/lib/engine/stripe-summary";
+import { dollars, loadRecurringSummary, loadStripeSummary, type StripeSummary } from "@/lib/engine/stripe-summary";
+import { loadSiteTraffic, SITE_TRAFFIC_STARTED } from "@/lib/engine/site-traffic";
 import { loadRevenueDetail } from "@/lib/engine/revenue-detail";
 import { buildWeeklyGoal, type WeeklyGoalReport } from "@/lib/engine/weekly-revenue-goal";
 import { BusinessExplorer } from "@/components/engine/business-explorer";
@@ -66,11 +67,13 @@ function MoneyStrip({ stripe, weekly }: { stripe: StripeSummary; weekly: WeeklyG
 }
 
 export async function OwnerCommandDeck({ userKey }: { userKey: string | null; appsFilter?: string }) {
-  const [deck, stripe, detail, followUps] = await Promise.all([
+  const [deck, stripe, detail, followUps, recurring, traffic] = await Promise.all([
     loadOwnerDeck(),
     loadStripeSummary(userKey),
     loadRevenueDetail(userKey),
-    crmFollowUpCount()
+    crmFollowUpCount(),
+    loadRecurringSummary(userKey),
+    loadSiteTraffic()
   ]);
   const weekly = buildWeeklyGoal(detail);
   const actItems = deck.attention.filter((item) => item.severity === "act");
@@ -155,6 +158,26 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
             <strong>{followUps ?? "—"}</strong>
             <span>follow-ups today</span>
             <p>{followUps === null ? "people & places — not connected" : "people & places →"}</p>
+          </a>
+          <a className={`dx-stat ${recurring.state === "ok" && recurring.payingCustomers ? "dx-stat--lime" : ""}`} href="/reports#customers">
+            <strong>{recurring.state === "ok" ? recurring.payingCustomers.toLocaleString("en-US") : "—"}</strong>
+            <span>paying customers</span>
+            <p>
+              {recurring.state === "ok"
+                ? `${dollars(recurring.mrrCents)}/mo recurring →`
+                : "subscriptions not reporting yet"}
+            </p>
+          </a>
+          <a className="dx-stat dx-stat--cyan" href="/reports#websites">
+            <strong>{traffic.state === "ok" ? traffic.totals.visits.toLocaleString("en-US") : "—"}</strong>
+            <span>customer site views, 30 days</span>
+            <p>
+              {traffic.state === "ok"
+                ? traffic.totals.visits
+                  ? `${traffic.totals.fromGoogle.toLocaleString("en-US")} from Google →`
+                  : `counting since ${SITE_TRAFFIC_STARTED}`
+                : "visits not reporting yet"}
+            </p>
           </a>
           <div className="dx-stat">
             <strong>{ordersAcross || "—"}</strong>

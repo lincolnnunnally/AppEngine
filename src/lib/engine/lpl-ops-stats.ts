@@ -13,9 +13,9 @@ type AppOpsStats = {
   newUsersPrev7d: number | null;
 };
 
-type LplConfig = { url: string; serviceKey: string };
+export type LplConfig = { url: string; serviceKey: string };
 
-function getLplConfig(): LplConfig | null {
+export function getLplConfig(): LplConfig | null {
   const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim().replace(/\/$/, "");
   const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "").trim();
   if (!url || !serviceKey) return null;
@@ -26,7 +26,7 @@ export function lplOpsConfigured(): boolean {
   return getLplConfig() !== null;
 }
 
-async function countRows(
+export async function countRows(
   table: string,
   query = "select=id",
   schema = "public"
