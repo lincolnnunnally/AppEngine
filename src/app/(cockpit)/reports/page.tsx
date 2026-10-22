@@ -7,6 +7,8 @@ import { dollars, loadRecurringSummary, loadStripeSummary } from "@/lib/engine/s
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 import { loadSiteTraffic, SITE_TRAFFIC_STARTED } from "@/lib/engine/site-traffic";
 import { loadCustomerCounts } from "@/lib/engine/customer-counts";
+import { loadOperateLeads } from "@/lib/engine/operate-leads";
+import { responseRate, winRate, type LeadBreakdownRow } from "@/lib/engine/operate-leads-core";
 
 // Owner reports — money, customers, customer-website traffic, usage, and AI
 // spend. Shared Stripe read lives in stripe-summary.ts so the business desk and
@@ -47,12 +49,13 @@ export default async function ReportsPage({
   const session = await auth();
   const ownerEmail = normalizeUserKey(session?.user?.email) || null;
 
-  const [snapshot, stripe, recurring, customers, traffic, llm, params] = await Promise.all([
+  const [snapshot, stripe, recurring, customers, traffic, leads, llm, params] = await Promise.all([
     getOpsSnapshot().catch(() => null),
     loadStripeSummary(ownerEmail),
     loadRecurringSummary(ownerEmail),
     loadCustomerCounts().catch(() => null),
     loadSiteTraffic(),
+    loadOperateLeads(ownerEmail),
     getLlmUsageTotals().catch(() => null),
     searchParams
   ]);
@@ -95,6 +98,42 @@ export default async function ReportsPage({
   const visitDays = traffic.state === "ok" ? traffic.daily : [];
   const visitMax = Math.max(1, ...visitDays.map((day) => day.visits));
   const count = (n: number) => n.toLocaleString("en-US");
+
+  // Local Leads: homeowner requests per week (Operate sends 12, oldest first).
+  const leadStats = leads.state === "ok" ? leads.stats : null;
+  const leadWeeks = leadStats?.weekly ?? [];
+  const leadWeekMax = Math.max(1, ...leadWeeks.map((week) => week.requests));
+  const leadWin = leadStats ? winRate(leadStats) : null;
+  const leadResponse = leadStats ? responseRate(leadStats) : null;
+  const leadBreakdown = (title: string, rows: LeadBreakdownRow[] | undefined) =>
+    rows === undefined ? (
+      <p className="dx-note">{title}: not reporting.</p>
+    ) : rows.length === 0 ? (
+      <p className="dx-note">{title}: no requests yet.</p>
+    ) : (
+      <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+        <table className="dx-table">
+          <thead>
+            <tr>
+              <th>{title}</th>
+              <th>Requests</th>
+              <th>Sent to a pro</th>
+              <th>Won</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.name}>
+                <td><b>{row.name}</b></td>
+                <td className="dx-mono">{count(row.requests)}</td>
+                <td className="dx-mono">{count(row.matched)}</td>
+                <td className="dx-mono">{count(row.won)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
 
   return (
     <main className="shell">
@@ -321,6 +360,142 @@ export default async function ReportsPage({
           product&apos;s own tables on the shared database. &quot;Not reporting yet&quot; means we could not read that
           number — it is not zero.
         </p>
+      </section>
+
+      <section className="panel" id="leads">
+        <p className="dx-label">Local Leads — Operate</p>
+        {leads.state === "ok" ? (
+          <>
+            <div className="dx-stat-grid">
+              <div className="dx-stat dx-stat--lime">
+                <strong>{count(leads.stats.requests)}</strong>
+                <span>homeowner requests</span>
+                <p>{count(leads.stats.requests30d)} in the last 30 days · {count(leads.stats.matched)} sent to a pro</p>
+              </div>
+              <div className="dx-stat dx-stat--cyan">
+                <strong>{count(leads.stats.won)}</strong>
+                <span>jobs won</span>
+                <p>
+                  {count(leads.stats.accepted)} accepted · {count(leads.stats.lost)} lost · {count(leads.stats.prosTakingLeads)} pros taking
+                  leads
+                </p>
+              </div>
+              <div className="dx-stat">
+                <strong>{dollars(leads.stats.feesTrackedCents)}</strong>
+                <span>lead fees earned</span>
+                <p>
+                  {leads.stats.feeRateBps / 100}% of {dollars(leads.stats.wonAmountCents)} in won jobs
+                  {leads.stats.charging ? "" : " · tracked only, not charged yet"}
+                </p>
+              </div>
+            </div>
+            <div className="dx-stat-grid" style={{ marginTop: 12 }}>
+              <div className="dx-stat dx-stat--purple">
+                <strong>{leadWin === null ? "—" : `${leadWin}%`}</strong>
+                <span>win rate</span>
+                <p>
+                  {leadWin === null
+                    ? "no won or lost jobs yet"
+                    : `${count(leads.stats.won)} won of ${count(leads.stats.won + leads.stats.lost)} with an outcome`}
+                </p>
+              </div>
+              <div className="dx-stat">
+                <strong>{leadResponse === null ? "—" : `${leadResponse}%`}</strong>
+                <span>pros answered</span>
+                <p>
+                  {leads.stats.offered === undefined || leads.stats.passed === undefined
+                    ? "not reporting"
+                    : `${count(leads.stats.accepted)} accepted + ${count(leads.stats.passed)} passed of ${count(leads.stats.offered)} offered`}
+                </p>
+              </div>
+              <div className="dx-stat dx-stat--pink">
+                <strong>{leads.stats.unmatched === undefined ? "—" : count(leads.stats.unmatched)}</strong>
+                <span>no pro got it</span>
+                <p>{leads.stats.unmatched === undefined ? "not reporting" : "requests no pro matched: where to recruit"}</p>
+              </div>
+            </div>
+            {leadWeeks.length > 0 ? (
+              <>
+                <div className="dx-bars dx-bars--fill">
+                  {leadWeeks.map((week) => (
+                    <div
+                      className="dx-bar"
+                      key={week.weekStart}
+                      style={{ height: `${Math.max(2, Math.round((week.requests / leadWeekMax) * 56))}px` }}
+                      title={`Week of ${week.weekStart}: ${week.requests} request${week.requests === 1 ? "" : "s"}`}
+                    />
+                  ))}
+                </div>
+                <p className="dx-note">Homeowner requests per week, last {leadWeeks.length} weeks.</p>
+              </>
+            ) : (
+              <p className="dx-note">Requests per week: not reporting.</p>
+            )}
+            {leadBreakdown("Trade", leads.stats.byTrade)}
+            {leadBreakdown("Town", leads.stats.byTown)}
+            {leads.stats.notResponding === undefined ? (
+              <p className="dx-note">Pros not responding: not reporting.</p>
+            ) : leads.stats.notResponding.length > 0 ? (
+              <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+                <table className="dx-table">
+                  <thead>
+                    <tr>
+                      <th>Pro not responding (offers older than 48 hours)</th>
+                      <th>Waiting</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.stats.notResponding.map((shop) => (
+                      <tr key={shop.name}>
+                        <td><b>{shop.name}</b></td>
+                        <td className="dx-mono">{count(shop.waiting)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="dx-note">Every pro has answered offers older than 48 hours.</p>
+            )}
+            {leads.stats.shops.length > 0 ? (
+              <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+                <table className="dx-table">
+                  <thead>
+                    <tr>
+                      <th>Pro</th>
+                      <th>Jobs won</th>
+                      <th>Won value</th>
+                      <th>Fee</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.stats.shops.map((shop) => (
+                      <tr key={shop.name}>
+                        <td><b>{shop.name}</b></td>
+                        <td className="dx-mono">{count(shop.won)}</td>
+                        <td className="dx-mono">{dollars(shop.wonAmountCents)}</td>
+                        <td className="dx-mono">{dollars(shop.feesTrackedCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="dx-note">No won jobs yet.</p>
+            )}
+            <p className="dx-note" style={{ marginTop: 10 }}>
+              Test leads are left out. Every request, match and fee is on{" "}
+              <a className="account-link" href="https://operate.unitedundergod.org/admin/leads">
+                Operate&apos;s leads admin
+              </a>
+              .
+            </p>
+          </>
+        ) : leads.state === "not_connected" ? (
+          <p className="dx-note">Not reporting yet — {leads.reason}</p>
+        ) : (
+          <p className="dx-note">Leads couldn&apos;t be read just now: {leads.message}</p>
+        )}
       </section>
 
       <section className="panel" id="websites">
