@@ -3,11 +3,14 @@ import { auth } from "@/auth";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { getOpsSnapshot, type OpsStatsRecord } from "@/lib/engine/ops-stats";
-import { dollars, loadStripeSummary } from "@/lib/engine/stripe-summary";
+import { dollars, loadRecurringSummary, loadStripeSummary } from "@/lib/engine/stripe-summary";
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
+import { loadSiteTraffic, SITE_TRAFFIC_STARTED } from "@/lib/engine/site-traffic";
+import { loadCustomerCounts } from "@/lib/engine/customer-counts";
 
-// Owner reports — money, usage, and AI spend. Shared Stripe read lives in
-// stripe-summary.ts so the business desk and this page stay in sync.
+// Owner reports — money, customers, customer-website traffic, usage, and AI
+// spend. Shared Stripe read lives in stripe-summary.ts so the business desk and
+// this page stay in sync.
 export const dynamic = "force-dynamic";
 
 // Usage-table sorting via ?sort=&dir= — same plain-link pattern as the domains
@@ -44,9 +47,12 @@ export default async function ReportsPage({
   const session = await auth();
   const ownerEmail = normalizeUserKey(session?.user?.email) || null;
 
-  const [snapshot, stripe, llm, params] = await Promise.all([
+  const [snapshot, stripe, recurring, customers, traffic, llm, params] = await Promise.all([
     getOpsSnapshot().catch(() => null),
     loadStripeSummary(ownerEmail),
+    loadRecurringSummary(ownerEmail),
+    loadCustomerCounts().catch(() => null),
+    loadSiteTraffic(),
     getLlmUsageTotals().catch(() => null),
     searchParams
   ]);
@@ -85,6 +91,11 @@ export default async function ReportsPage({
     : [];
   const llmMax = Math.max(0.01, ...llmDays.map(([, usd]) => usd));
 
+  // Customer-website visits, one bar per day for the window (same strip style).
+  const visitDays = traffic.state === "ok" ? traffic.daily : [];
+  const visitMax = Math.max(1, ...visitDays.map((day) => day.visits));
+  const count = (n: number) => n.toLocaleString("en-US");
+
   return (
     <main className="shell">
       <section className="panel">
@@ -93,7 +104,7 @@ export default async function ReportsPage({
           What the portfolio is <em>doing</em>.
         </h1>
         <p className="dx-lede">
-          Money, usage, and cost — real numbers only. Anything that can&apos;t report yet says exactly what would unlock
+          Money, customers, website visits, usage, and cost — real numbers only. Anything that can&apos;t report yet says exactly what would unlock
           it, so reporting grows app by app instead of pretending. To see which service was bought and which Stripe
           account it landed in, open the{" "}
           <a className="account-link" href="/reports/money">
@@ -215,6 +226,189 @@ export default async function ReportsPage({
           </a>{" "}
           for each service bought and every Stripe account this desk can reach.
         </p>
+      </section>
+
+      <section className="panel" id="customers">
+        <p className="dx-label">Customers &amp; recurring money</p>
+        {recurring.state === "ok" ? (
+          <>
+            <div className="dx-stat-grid">
+              <div className="dx-stat dx-stat--lime">
+                <strong>{dollars(recurring.mrrCents)}{recurring.truncated ? "+" : ""}</strong>
+                <span>monthly recurring revenue</span>
+                <p>
+                  list price × quantity, before coupons
+                  {recurring.unpricedItems ? ` · ${recurring.unpricedItems} usage-priced line${recurring.unpricedItems === 1 ? "" : "s"} not counted` : ""}
+                  {recurring.otherCurrencies.length ? ` · non-USD not included: ${recurring.otherCurrencies.join(", ")}` : ""}
+                </p>
+              </div>
+              <div className="dx-stat dx-stat--cyan">
+                <strong>{count(recurring.payingCustomers)}{recurring.truncated ? "+" : ""}</strong>
+                <span>paying customers</span>
+                <p>distinct Stripe customers with an active subscription</p>
+              </div>
+              <div className="dx-stat">
+                <strong>{count(recurring.activeSubscriptions)}{recurring.truncated ? "+" : ""}</strong>
+                <span>active subscriptions</span>
+                <p>{recurring.truncated ? "over 1,000 — shown as a floor" : "trials and past-due not included"}</p>
+              </div>
+            </div>
+            {recurring.products.length > 0 ? (
+              <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+                <table className="dx-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Monthly</th>
+                      <th>Customers</th>
+                      <th>Subscriptions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recurring.products.map((product) => (
+                      <tr key={product.productId}>
+                        <td><b>{product.name}</b></td>
+                        <td className="dx-mono">{dollars(product.mrrCents)}</td>
+                        <td className="dx-mono">{count(product.customers)}</td>
+                        <td className="dx-mono">{count(product.subscriptions)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="dx-note">No active subscriptions on this Stripe account yet.</p>
+            )}
+          </>
+        ) : recurring.state === "no_key" ? (
+          <p className="dx-note">Not reporting yet — no Stripe key is reachable (same key as the money section above).</p>
+        ) : recurring.state === "denied" ? (
+          <p className="dx-note">
+            The Stripe key cannot read subscriptions. Give it <b>Read</b> on Subscriptions and Products and this lights
+            up. ({recurring.message})
+          </p>
+        ) : (
+          <p className="dx-note">Subscriptions couldn&apos;t be read just now: {recurring.message}</p>
+        )}
+
+        <p className="dx-label" style={{ marginTop: 20 }}>Customers by product</p>
+        {customers ? (
+          customers.map((product) => (
+            <p className="dx-row" key={product.product}>
+              {product.slug ? (
+                <a className="account-link" href={`/apps/${product.slug}`}><b>{product.product}</b></a>
+              ) : (
+                <b>{product.product}</b>
+              )}
+              <span className="dx-note">
+                {product.counts.length
+                  ? product.counts
+                      .map((item) =>
+                        typeof item.value === "number"
+                          ? `${count(item.value)} ${item.label.toLowerCase()}`
+                          : `${item.label.toLowerCase()}: not reporting yet`
+                      )
+                      .join(" · ")
+                  : product.note}
+              </span>
+            </p>
+          ))
+        ) : (
+          <p className="dx-note">Not reporting yet — the shared database couldn&apos;t be read.</p>
+        )}
+        <p className="dx-note" style={{ marginTop: 10 }}>
+          Recurring money is the one Stripe account this desk&apos;s key reads; customer counts come from each
+          product&apos;s own tables on the shared database. &quot;Not reporting yet&quot; means we could not read that
+          number — it is not zero.
+        </p>
+      </section>
+
+      <section className="panel" id="websites">
+        <p className="dx-label">Customer websites — visits, last 30 days</p>
+        {traffic.state === "ok" && traffic.totals.visits > 0 ? (
+          <>
+            <div className="dx-stat-grid">
+              <div className="dx-stat dx-stat--lime">
+                <strong>{count(traffic.totals.visits)}{traffic.truncated ? "+" : ""}</strong>
+                <span>page views</span>
+                <p>
+                  {count(traffic.totals.visitors)} visitor{traffic.totals.visitors === 1 ? "" : "s"} across{" "}
+                  {count(traffic.siteCount)} site{traffic.siteCount === 1 ? "" : "s"}
+                </p>
+              </div>
+              <div className="dx-stat dx-stat--cyan">
+                <strong>{count(traffic.totals.fromGoogle)}</strong>
+                <span>from Google</span>
+                <p>{count(traffic.totals.fromSearch)} from any search engine</p>
+              </div>
+              <div className="dx-stat dx-stat--purple">
+                <strong>{count(traffic.totals.fromSocial)}</strong>
+                <span>from social</span>
+                <p>{count(traffic.totals.direct)} came direct (typed or bookmarked)</p>
+              </div>
+            </div>
+            <div className="dx-bars dx-bars--fill">
+              {visitDays.map((day) => (
+                <div
+                  className="dx-bar"
+                  key={day.date}
+                  style={{ height: `${Math.max(2, Math.round((day.visits / visitMax) * 56))}px` }}
+                  title={`${day.date}: ${day.visits} view${day.visits === 1 ? "" : "s"}`}
+                />
+              ))}
+            </div>
+            <p className="dx-note">Page views per day, last {visitDays.length} days.</p>
+            <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+              <table className="dx-table">
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Views</th>
+                    <th>Visitors</th>
+                    <th>From search</th>
+                    <th>Last visit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {traffic.sites.map((site) => (
+                    <tr key={site.siteId}>
+                      <td>
+                        {site.address ? (
+                          <a className="account-link" href={`https://${site.address}`} target="_blank" rel="noreferrer">
+                            {site.name || site.address}
+                          </a>
+                        ) : (
+                          <b>{site.name || "Unnamed site"}</b>
+                        )}
+                        {site.name && site.address ? <span className="dx-note"> {site.address}</span> : null}
+                      </td>
+                      <td className="dx-mono">{count(site.visits)}</td>
+                      <td className="dx-mono">{count(site.visitors)}</td>
+                      <td className="dx-mono">{count(site.fromSearch)}</td>
+                      <td className="dx-mono">{site.lastVisit.slice(0, 10)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="dx-note" style={{ marginTop: 10 }}>
+              {traffic.siteCount > traffic.sites.length
+                ? `Busiest ${traffic.sites.length} of ${traffic.siteCount} sites. `
+                : ""}
+              A visitor is counted once per site per day; no IP address or browser fingerprint is stored.
+              {traffic.truncated ? " Over 50,000 views — numbers shown as a floor." : ""}
+            </p>
+          </>
+        ) : traffic.state === "ok" ? (
+          <p className="dx-note">No visits recorded yet — counting started {SITE_TRAFFIC_STARTED}.</p>
+        ) : traffic.state === "not_connected" ? (
+          <p className="dx-note">
+            Not reporting yet — the shared database key (<code className="cred-var">SUPABASE_SERVICE_ROLE_KEY</code>) is
+            not set on this deployment.
+          </p>
+        ) : (
+          <p className="dx-note">Visits couldn&apos;t be read just now: {traffic.message}</p>
+        )}
       </section>
 
       <section className="panel" id="usage">

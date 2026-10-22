@@ -7582,3 +7582,6 @@ button.compose-arch:hover {
   body:not(.desk) .crm-page .crm-top-rest,
   body:not(.desk) .crm-page .crm-top-won-list span { color: #1b2923; }
 }
+
+/* A 30-day bar strip that shares the row width instead of overflowing on phones. */
+.dx-bars--fill .dx-bar { flex: 1 1 0; width: auto; max-width: 12px; }
