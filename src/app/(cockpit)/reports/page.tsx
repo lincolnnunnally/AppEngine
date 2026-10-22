@@ -7,6 +7,7 @@ import { dollars, loadRecurringSummary, loadStripeSummary } from "@/lib/engine/s
 import { getLlmUsageTotals } from "@/lib/engine/llm-usage";
 import { loadSiteTraffic, SITE_TRAFFIC_STARTED } from "@/lib/engine/site-traffic";
 import { loadCustomerCounts } from "@/lib/engine/customer-counts";
+import { loadOperateLeads } from "@/lib/engine/operate-leads";
 
 // Owner reports — money, customers, customer-website traffic, usage, and AI
 // spend. Shared Stripe read lives in stripe-summary.ts so the business desk and
@@ -47,12 +48,13 @@ export default async function ReportsPage({
   const session = await auth();
   const ownerEmail = normalizeUserKey(session?.user?.email) || null;
 
-  const [snapshot, stripe, recurring, customers, traffic, llm, params] = await Promise.all([
+  const [snapshot, stripe, recurring, customers, traffic, leads, llm, params] = await Promise.all([
     getOpsSnapshot().catch(() => null),
     loadStripeSummary(ownerEmail),
     loadRecurringSummary(ownerEmail),
     loadCustomerCounts().catch(() => null),
     loadSiteTraffic(),
+    loadOperateLeads(ownerEmail),
     getLlmUsageTotals().catch(() => null),
     searchParams
   ]);
@@ -321,6 +323,74 @@ export default async function ReportsPage({
           product&apos;s own tables on the shared database. &quot;Not reporting yet&quot; means we could not read that
           number — it is not zero.
         </p>
+      </section>
+
+      <section className="panel" id="leads">
+        <p className="dx-label">Local Leads — Operate</p>
+        {leads.state === "ok" ? (
+          <>
+            <div className="dx-stat-grid">
+              <div className="dx-stat dx-stat--lime">
+                <strong>{count(leads.stats.requests)}</strong>
+                <span>homeowner requests</span>
+                <p>{count(leads.stats.requests30d)} in the last 30 days · {count(leads.stats.matched)} sent to a pro</p>
+              </div>
+              <div className="dx-stat dx-stat--cyan">
+                <strong>{count(leads.stats.won)}</strong>
+                <span>jobs won</span>
+                <p>
+                  {count(leads.stats.accepted)} accepted · {count(leads.stats.lost)} lost · {count(leads.stats.prosTakingLeads)} pros taking
+                  leads
+                </p>
+              </div>
+              <div className="dx-stat">
+                <strong>{dollars(leads.stats.feesTrackedCents)}</strong>
+                <span>lead fees earned</span>
+                <p>
+                  {leads.stats.feeRateBps / 100}% of {dollars(leads.stats.wonAmountCents)} in won jobs
+                  {leads.stats.charging ? "" : " · tracked only, not charged yet"}
+                </p>
+              </div>
+            </div>
+            {leads.stats.shops.length > 0 ? (
+              <div className="dx-table-wrap" style={{ marginTop: 16 }}>
+                <table className="dx-table">
+                  <thead>
+                    <tr>
+                      <th>Pro</th>
+                      <th>Jobs won</th>
+                      <th>Won value</th>
+                      <th>Fee</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.stats.shops.map((shop) => (
+                      <tr key={shop.name}>
+                        <td><b>{shop.name}</b></td>
+                        <td className="dx-mono">{count(shop.won)}</td>
+                        <td className="dx-mono">{dollars(shop.wonAmountCents)}</td>
+                        <td className="dx-mono">{dollars(shop.feesTrackedCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="dx-note">No won jobs yet.</p>
+            )}
+            <p className="dx-note" style={{ marginTop: 10 }}>
+              Test leads are left out. Every request, match and fee is on{" "}
+              <a className="account-link" href="https://operate.unitedundergod.org/admin/leads">
+                Operate&apos;s leads admin
+              </a>
+              .
+            </p>
+          </>
+        ) : leads.state === "not_connected" ? (
+          <p className="dx-note">Not reporting yet — {leads.reason}</p>
+        ) : (
+          <p className="dx-note">Leads couldn&apos;t be read just now: {leads.message}</p>
+        )}
       </section>
 
       <section className="panel" id="websites">
