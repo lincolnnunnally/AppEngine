@@ -26,7 +26,9 @@ runStep("Auth.js GitHub callback path is the catch-all route + provider id", () 
   assertFileIncludes("src/auth.ts", [
     "unpinAuthUrl",
     "trustHost: true",
-    'GitHub({ clientId: process.env.AUTH_GITHUB_ID, clientSecret: process.env.AUTH_GITHUB_SECRET })',
+    "clientId: process.env.AUTH_GITHUB_ID",
+    "clientSecret: process.env.AUTH_GITHUB_SECRET",
+    "profile: githubProfile",
     "delete process.env.AUTH_URL"
   ]);
 });
