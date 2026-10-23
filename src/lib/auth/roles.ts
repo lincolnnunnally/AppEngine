@@ -139,10 +139,22 @@ export function normalizeRole(value: unknown): Role | undefined {
   return (roles as readonly string[]).includes(normalized) ? (normalized as Role) : undefined;
 }
 
+// Standing owner rule: this address is always an owner. Union the trimmed,
+// lowercased value with APP_ENGINE_OWNER_EMAIL so a bad env value cannot drop
+// him. There is no other fallback.
+const PERMANENT_OWNER_EMAIL = "lincoln@unitedundergod.org";
+
 // APP_ENGINE_OWNER_EMAIL accepts one address or a comma/space-separated list, so
 // all of the owner's identities (GitHub-primary gmail, the ecosystem admin
 // address) resolve to owner without an env edit per provider. The generated-app
 // template already parses a list; this brings the factory itself to parity.
+function ownerEmails(env: RuntimeEnv): string[] {
+  const configured = parseCustomerAllowlist(env.APP_ENGINE_OWNER_EMAIL);
+  const permanent = PERMANENT_OWNER_EMAIL.trim().toLowerCase();
+
+  return configured.includes(permanent) ? configured : [...configured, permanent];
+}
+
 function isOwnerEmail(email?: string | null, env: RuntimeEnv = process.env) {
   const normalizedEmail = email?.trim().toLowerCase();
 
@@ -150,7 +162,7 @@ function isOwnerEmail(email?: string | null, env: RuntimeEnv = process.env) {
     return false;
   }
 
-  return parseCustomerAllowlist(env.APP_ENGINE_OWNER_EMAIL).includes(normalizedEmail);
+  return ownerEmails(env).includes(normalizedEmail);
 }
 
 // Platform-owner gate for cross-app admin handoff. Same allowlist parse as the
