@@ -523,7 +523,8 @@ await runStep("church contacts: one list per card, details only for the owner", 
   assertIncludes(page, "contactsForViewer(card.contacts, isOwner)", "page strips details for non-owners");
   assertIncludes(page, "cards={viewCards}", "stripped cards reach the browser");
   assertIncludes(page, "const canSave = isOwner && (await crmSavingConfigured())", "only the owner gets save forms");
-  assertIncludes(page, "const savingOff = isOwner && !canSave ? savingOffMessage() : \"\"", "owner-only note when saving is off");
+  assertIncludes(page, "const savingOff = isOwner && !canSave ? savingOffNote() : \"\"", "owner-only note when saving is off");
+  assertIncludes(read("src/lib/engine/lpl-crm-write.ts"), 'return `${savingOffMessage(env)} You can look, but orgs, visits, and contacts can\'t be saved from here.`;', "the preview note keeps a space after the period");
 });
 
 await runStep("saving: owner-only server actions, narrow pass, one save per form", () => {

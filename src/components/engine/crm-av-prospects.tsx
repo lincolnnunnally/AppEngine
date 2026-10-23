@@ -72,10 +72,10 @@ export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props)
               return (
                 <li key={item.churchId} className="crm-follow-row" data-testid="crm-av-row">
                   <div className="crm-av-main">
-                    <strong className="crm-av-name">{item.commonName || item.name}</strong>
-                    {item.commonName ? (
+                    <strong className="crm-av-name">{item.lead}</strong>
+                    {item.legalLine ? (
                       <span className="crm-legal-name" data-testid="crm-legal-name">
-                        {item.name}
+                        {item.legalLine}
                       </span>
                     ) : null}
                     <span className="crm-av-meta">{subline(item)}</span>

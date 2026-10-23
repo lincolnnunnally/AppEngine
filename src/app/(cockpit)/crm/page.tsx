@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer } from "@/lib/engine/lpl-crm-core";
-import { crmSavingConfigured, savingOffMessage } from "@/lib/engine/lpl-crm-write";
+import { crmSavingConfigured, savingOffNote } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
 import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
 
@@ -85,7 +85,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
   }
   const canSave = isOwner && (await crmSavingConfigured());
   // Owner-only note when this deploy can't save (an AppEngine preview has no server key).
-  const savingOff = isOwner && !canSave ? savingOffMessage() : "";
+  const savingOff = isOwner && !canSave ? savingOffNote() : "";
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
   // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
@@ -165,7 +165,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
         ) : null}
         {savingOff ? (
           <p className="dx-callout" role="status">
-            {savingOff} You can look, but orgs, visits, and contacts can&apos;t be saved from here.
+            {savingOff}
           </p>
         ) : null}
         <p className="dx-note crm-asof">

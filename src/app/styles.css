@@ -7276,6 +7276,10 @@ button.compose-arch:hover {
   .crm-follow-open { justify-self: start; }
   .crm-scroll-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; margin-right: -4px; scrollbar-width: thin; }
   .crm-scroll-chips .dx-chip { flex: 0 0 auto; }
+  .crm-scroll-chips.is-overflowing {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2.25rem), transparent);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2.25rem), transparent);
+  }
   .crm-search, .crm-search input { width: 100%; }
   .crm-section-head > div { width: 100%; }
   .crm-card-head { flex-direction: column; }
@@ -7463,11 +7467,11 @@ button.compose-arch:hover {
 .crm-page .crm-av-reasons { font-size: 0.875rem; line-height: 1.45; color: #d8e2dc; }
 .crm-page .crm-legal-name {
   display: block;
-  margin-top: 1px;
-  font-size: 0.75rem;
-  line-height: 1.35;
+  margin-top: 2px;
+  font-size: 0.875rem;
+  line-height: 1.4;
   font-weight: 400;
-  color: #aebdb4;
+  color: #94a3b8;
   overflow-wrap: anywhere;
 }
 .crm-page .crm-av-meta { display: block; margin-top: 2px; }
@@ -7521,7 +7525,7 @@ button.compose-arch:hover {
   body:not(.desk) .crm-page .crm-av .crm-av-name,
   body:not(.desk) .crm-page .crm-av-meta,
   body:not(.desk) .crm-page .crm-av-reasons { color: #1b2923; }
-  body:not(.desk) .crm-page .crm-legal-name { color: #4a5c55; }
+  body:not(.desk) .crm-page .crm-legal-name { color: #64748b; }
   body:not(.desk) .crm-page .crm-av-list .crm-follow-row { background: #ffffff; }
 }
 
@@ -7593,7 +7597,7 @@ button.compose-arch:hover {
   body:not(.desk) .crm-page .crm-top-meta,
   body:not(.desk) .crm-page .crm-top-rest,
   body:not(.desk) .crm-page .crm-top-won-list span { color: #1b2923; }
-  body:not(.desk) .crm-page .crm-top .crm-legal-name { color: #4a5c55; }
+  body:not(.desk) .crm-page .crm-top .crm-legal-name { color: #64748b; }
 }
 
 /* A 30-day bar strip that shares the row width instead of overflowing on phones. */

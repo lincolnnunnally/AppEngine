@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { TopProspects } from "@/components/engine/crm-top-prospects";
 import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
@@ -45,6 +45,25 @@ type Props = {
   /** Local preview only: open AV prospects with fixture rows already read. */
   avInitial?: AvProspectState;
 };
+
+function ChipScroller({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+  return (
+    <div ref={ref} className={`dx-chips crm-scroll-chips${overflow ? " is-overflowing" : ""}`} role="group" aria-label={label}>
+      {children}
+    </div>
+  );
+}
 
 type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
 
@@ -462,7 +481,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             </p>
           </div>
         </div>
-        <div className="dx-chips crm-scroll-chips" role="group" aria-label="Filter follow-ups">
+        <ChipScroller label="Filter follow-ups">
           <button type="button" className={`dx-chip crm-chip${reason === "all" ? " dx-chip--active" : ""}`} onClick={() => setReason("all")} aria-pressed={reason === "all"}>
             Today <strong>{todayRows.length}</strong>
           </button>
@@ -477,7 +496,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               {FOLLOW_UP_LABEL[item]} <strong>{reasonCounts[item]}</strong>
             </button>
           ))}
-        </div>
+        </ChipScroller>
         {shownFollowUps.length ? (
           <ol className="crm-follow">
             {shownFollowUps.map((row) => (
@@ -522,7 +541,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             />
           </label>
         </div>
-        <div className="dx-chips crm-scroll-chips" role="group" aria-label="Filter cards">
+        <ChipScroller label="Filter cards">
           {(Object.keys(FILTER_LABEL) as CardFilter[]).map((key) => (
             <button
               type="button"
@@ -567,7 +586,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               Top prospects
             </button>
           ) : null}
-        </div>
+        </ChipScroller>
         <details className="crm-legend">
           <summary>What the words mean</summary>
           <dl>

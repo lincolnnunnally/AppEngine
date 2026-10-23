@@ -84,12 +84,12 @@ export function TopProspects({ cards: _cards, adminUrls, initial = null }: Props
                 <span className="crm-top-rank">{item.rank}</span>
                 <span className="crm-top-main">
                   <span className="crm-top-title">
-                    <strong className="crm-top-name">{item.commonName || item.name}</strong>
+                    <strong className="crm-top-name">{item.lead}</strong>
                     <Status item={item} />
                   </span>
-                  {item.commonName ? (
+                  {item.legalLine ? (
                     <span className="crm-legal-name" data-testid="crm-legal-name">
-                      {item.name}
+                      {item.legalLine}
                     </span>
                   ) : null}
                   <span className="crm-top-town">{item.town || "Town not on file"}</span>
@@ -114,10 +114,10 @@ export function TopProspects({ cards: _cards, adminUrls, initial = null }: Props
               <li key={item.churchId}>
                 <a href={churchHref(item.churchId, adminUrls)}>
                   <span className="crm-top-who">
-                    <strong>{item.commonName || item.name}</strong>
-                    {item.commonName ? (
+                    <strong>{item.lead}</strong>
+                    {item.legalLine ? (
                       <span className="crm-legal-name" data-testid="crm-legal-name">
-                        {item.name}
+                        {item.legalLine}
                       </span>
                     ) : null}
                   </span>

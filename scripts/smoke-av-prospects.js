@@ -253,6 +253,7 @@ await step("name rules leave churches and drop other places", () => {
     "Old School (Primitive) Baptist Church", "Victory Academy of Praise Church", "Faith Baptist Christian Academy Church",
     "Trinity Pooler Church and Preschool",
     "The Living Word Christian Center", "Abundant Life Christian Center", "John Wesley Center",
+    "Production Center Church of God", "Living Word Productions Ministry",
     "United States Catholic Conference", "Discovery Church Properties Inc",
     "First Baptist Church Inc", "Grace Church Holdings", "Community Church LLC", "Grace Church Corp",
     "Holsey Temple", "Hightower Memorial Temple", "James Temple", "Prayer Temple of Savannah",
@@ -291,20 +292,27 @@ await step("name rules leave churches and drop other places", () => {
   const temple = av.rankAvProspects([row({ id: "temple", name: "TEMPLE BAPTIST CHURCH" })], none);
   assert(temple.length === 1 && temple[0].name === "Temple Baptist Church", "Temple Baptist Church can be listed");
   const named = av.rankAvProspects([
-    row({ id: "face", name: "FIRST BAPTIST CHURCH OF VIDALIA INC", church_name: "First Baptist", website: "https://fbc.example" }),
-    row({ id: "mate", name: "FIRST BAPTIST CHURCH OF VIDALIA INC", city: "Vidalia", crawl_title: "FBC Vidalia", possible_same_as: ["face"], website: "" })
+    row({ id: "face", name: "DISCOVERY CHURCH PROPERTIES INC", church_name: "Discovery Church", website: "https://discoverchurch.example" }),
+    row({ id: "mate", name: "DISCOVERY CHURCH PROPERTIES INC", city: "Vidalia", possible_same_as: ["face"], website: "" })
   ], none);
-  assert(named.length === 1 && named[0].commonName === "First Baptist" && named[0].name === "First Baptist Church of Vidalia Inc", `common name from the church record: ${named[0] && named[0].commonName}`);
-  const titled = av.prospectCommonName({ id: "a", name: "United States Catholic Conference", av_signals: { crawl_title: "Holy Family" } }, []);
-  assert(titled === "Holy Family", `crawl title: ${titled}`);
-  const host = av.prospectCommonName({ id: "b", name: "United States Catholic Conference", website: "https://www.holyfamilyorlando.org" }, []);
-  assert(host === "holyfamilyorlando.org", `website host: ${host}`);
-  const mateName = av.prospectCommonName({ id: "c", name: "DISCOVERY CHURCH PROPERTIES INC" }, [{ id: "d", name: "Discovery Church" }]);
-  assert(mateName === "Discovery Church", `matched church record: ${mateName}`);
-  const legalOnly = av.prospectCommonName({ id: "e", name: "FIRST BAPTIST CHURCH OF VIDALIA INC", facebook_url: "https://facebook.com/fbc" }, []);
-  assert(legalOnly === "", "a platform host is not a friendly name");
-  const same = av.prospectCommonName({ id: "f", name: "Grace Chapel", church_name: "GRACE CHAPEL", website: "https://www.gracechapel.example" }, []);
-  assert(same === "gracechapel.example", `same common name falls through to the host: ${same}`);
+  assert(named.length === 1 && named[0].lead === "Discovery Church" && named[0].legalLine === "Discovery Church Properties Inc", `DBA leads: ${named[0] && named[0].lead} / ${named[0] && named[0].legalLine}`);
+  const dba = av.prospectNameParts({ id: "stream", name: "Stream Fellowship", church_name: "The Stream", website: "https://www.thestream.example" });
+  assert(dba.lead === "The Stream" && dba.legalLine === "Stream Fellowship", `common name beats the legal name and the host: ${dba.lead} / ${dba.legalLine}`);
+  const stripped = av.prospectNameParts({ id: "vidalia", name: "First Baptist Church of Vidalia Inc" });
+  assert(stripped.lead === "First Baptist Church of Vidalia" && stripped.legalLine === "First Baptist Church of Vidalia Inc", `Inc comes off the lead: ${stripped.lead} / ${stripped.legalLine}`);
+  const trustees = av.prospectNameParts({ id: "trust", name: "Trustees of Grace Chapel, Inc." });
+  assert(trustees.lead === "Grace Chapel" && trustees.legalLine === "Trustees of Grace Chapel, Inc.", `trustees prefix: ${trustees.lead} / ${trustees.legalLine}`);
+  const host = av.prospectNameParts({ id: "b", name: "United States Catholic Conference", website: "https://www.holyfamilyorlando.org" });
+  assert(host.lead === "Holy Family Orlando" && host.legalLine === "Filed under United States Catholic Conference", `host fallback and filed under: ${host.lead} / ${host.legalLine}`);
+  assert(!host.lead.includes("holyfamilyorlando"), "the lead is not a raw host");
+  const equal = av.prospectNameParts({ id: "alpha", name: "Alpha Baptist", website: "https://www.alphabaptist.example" });
+  assert(equal.lead === "Alpha Baptist" && equal.legalLine === "", `church legal name leads and the muted line hides: ${equal.lead} / ${equal.legalLine}`);
+  const titled = av.prospectNameParts({ id: "a", name: "United States Catholic Conference", av_signals: { crawl_title: "Holy Family" } });
+  assert(titled.lead === "Holy Family" && titled.legalLine === "Filed under United States Catholic Conference", `crawl title wins: ${titled.lead}`);
+  const run = av.hostLeadName("gracechapel.example");
+  assert(run === "Grace Chapel" || run === "Gracechapel", `run-together host: ${run}`);
+  const plain = av.hostLeadName("xyzqwerty.example");
+  assert(plain === "Xyzqwerty", `unsplit host is title-cased: ${plain}`);
 });
 
 await step("duplicate copies and stopped rows stay off the list (probe)", () => {
@@ -477,7 +485,7 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   const hidden = { ...base, id: "hid", name: "Hidden Twin", is_public: false, website: "https://twin.example", av_signals: signals(44, "high") };
   const visible = { ...base, id: "vis", name: "Visible Twin", website: "https://twin.example", possible_same_as: ["hid"] };
   const twins = av.rankTopProspects([hidden, visible], none, { tier: 0, now });
-  assert(twins.open.length === 1 && twins.open[0].churchId === "vis" && twins.open[0].score === 74 && twins.open[0].reason.includes("scored on a duplicate record"), `twin carry-over: ${twins.open.map((item) => `${item.churchId}:${item.score}:${item.reason}`).join(" | ")}`);
+  assert(twins.open.length === 1 && twins.open[0].churchId === "vis" && twins.open[0].score === 74 && twins.open[0].reason.includes("also listed under another record"), `twin carry-over: ${twins.open.map((item) => `${item.churchId}:${item.score}:${item.reason}`).join(" | ")}`);
   const dropName = (name, row) => assert(names.topNameExcluded(name, row), `drop ${name}`);
   const keepName = (name, row) => assert(!names.topNameExcluded(name, row), `keep ${name}`);
   dropName("ST MARKS ENDOWMENT TR");
@@ -738,9 +746,10 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   assert((page.match(/params\.preview === "top"/g) || []).length === 1, "preview=top is not written twice");
   assert(page.includes("if (previewTop)") && page.includes('process.env.NODE_ENV !== "production"') && page.includes('await import("../../../../scripts/fixtures/top-prospects-golden.json")'), "the preview fixture is a dynamic import behind the non-production guard");
   assert(!page.includes('from "@/lib/engine/av-prospects-core"'), "the page does not statically import the ranker");
-  assert(ui.includes("crm-legal-name") && ui.includes("item.commonName"), "top rows show the common name and keep the legal name");
+  assert(ui.includes("crm-legal-name") && ui.includes("item.lead") && ui.includes("item.legalLine"), "top rows lead with the chosen name and keep a muted line");
   const avUi = read("src/components/engine/crm-av-prospects.tsx");
-  assert(avUi.includes("crm-legal-name") && avUi.includes("item.commonName"), "AV rows show the common name and keep the legal name");
+  assert(avUi.includes("crm-legal-name") && avUi.includes("item.lead") && avUi.includes("item.legalLine"), "AV rows lead with the chosen name and keep a muted line");
+  assert(read("src/components/engine/crm-desk.tsx").includes("is-overflowing") && read("src/app/styles.css").includes("mask-image: linear-gradient(to right"), "chip rows fade at the right edge only when they overflow");
 });
 
 await step("AV suppression matches #416; the new matcher stays on the top list", () => {
