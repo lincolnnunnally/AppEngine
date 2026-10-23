@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { TopProspects } from "@/components/engine/crm-top-prospects";
-import type { TopProspectState } from "@/app/(cockpit)/crm/actions";
+import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
 import { PeopleTools } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
@@ -42,7 +42,28 @@ type Props = {
   outreachHidden?: boolean;
   /** Local preview only: open Top prospects with fixture rows already read. */
   topInitial?: TopProspectState;
+  /** Local preview only: open AV prospects with fixture rows already read. */
+  avInitial?: AvProspectState;
 };
+
+function ChipScroller({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+  return (
+    <div ref={ref} className={`dx-chips crm-scroll-chips${overflow ? " is-overflowing" : ""}`} role="group" aria-label={label}>
+      {children}
+    </div>
+  );
+}
 
 type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
 
@@ -389,14 +410,14 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null }: Props) {
+export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
   const [filter, setFilter] = useState<CardFilter>("all");
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
   // Owner only: AV prospects or Top prospects show in place of the cards.
-  const [panel, setPanel] = useState<"cards" | "av" | "top">(topInitial?.ok ? "top" : "cards");
+  const [panel, setPanel] = useState<"cards" | "av" | "top">(avInitial?.ok ? "av" : topInitial?.ok ? "top" : "cards");
 
   const todayRows = useMemo(() => followUps.filter((row) => row.today), [followUps]);
   const waitOnlyRows = useMemo(() => followUps.filter((row) => !row.today), [followUps]);
@@ -460,7 +481,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             </p>
           </div>
         </div>
-        <div className="dx-chips crm-scroll-chips" role="group" aria-label="Filter follow-ups">
+        <ChipScroller label="Filter follow-ups">
           <button type="button" className={`dx-chip crm-chip${reason === "all" ? " dx-chip--active" : ""}`} onClick={() => setReason("all")} aria-pressed={reason === "all"}>
             Today <strong>{todayRows.length}</strong>
           </button>
@@ -475,7 +496,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               {FOLLOW_UP_LABEL[item]} <strong>{reasonCounts[item]}</strong>
             </button>
           ))}
-        </div>
+        </ChipScroller>
         {shownFollowUps.length ? (
           <ol className="crm-follow">
             {shownFollowUps.map((row) => (
@@ -520,7 +541,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             />
           </label>
         </div>
-        <div className="dx-chips crm-scroll-chips" role="group" aria-label="Filter cards">
+        <ChipScroller label="Filter cards">
           {(Object.keys(FILTER_LABEL) as CardFilter[]).map((key) => (
             <button
               type="button"
@@ -565,7 +586,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               Top prospects
             </button>
           ) : null}
-        </div>
+        </ChipScroller>
         <details className="crm-legend">
           <summary>What the words mean</summary>
           <dl>
@@ -593,7 +614,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
           </p>
         ) : null}
         {panel === "av" ? (
-          <AvProspects cards={cards} adminUrls={adminUrls} onOpen={openCard} />
+          <AvProspects cards={cards} adminUrls={adminUrls} onOpen={openCard} initial={avInitial} />
         ) : panel === "top" ? (
           <TopProspects cards={cards} adminUrls={adminUrls} initial={topInitial} />
         ) : shownCards.length ? (

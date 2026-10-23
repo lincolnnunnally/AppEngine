@@ -161,6 +161,10 @@ export type AvProspect = {
   tier: AvTierIndex;
   tierLabel: string;
   name: string;
+  /** The name the row leads with. */
+  lead: string;
+  /** Muted line under the lead. "" when it would repeat the lead. */
+  legalLine: string;
   town: string;
   miles: number;
   score: number;
@@ -352,7 +356,12 @@ function hasChristianWord(raw: string, words: string[]): boolean {
  */
 export function avNameExcluded(name: string): boolean {
   const raw = collapseInitials(foldedName(name));
-  if (raw.replace(/[^a-z]/g, "").includes("kingdomhall")) return true;
+  const compact = raw.replace(/[^a-z]/g, "");
+  if (compact.includes("kingdomhall")) return true;
+  // Media-production companies. "CENTERINC" has no space before the suffix.
+  // A church, chapel, or ministry keeps the name. Inc, LLC, Properties, Conference, Holdings, and Corp are not drop words on their own.
+  const churchBody = /\b(churches|church|chapels|chapel|ministries|ministry)\b/.test(raw);
+  if (!churchBody && (compact.includes("mediaproduction") || compact.includes("productioncenter") || compact.includes("productions"))) return true;
   if (/\bkingdom\s+kids\b/.test(raw)) return true;
   const street = raw.replace(/\bmosque\s+street\b/g, " ").replace(/\bold\s+school\b/g, " ");
   const words = nameWords(street);
@@ -531,6 +540,167 @@ export function scoreAvProspect(row: AvRow, sharedHosts: ReadonlySet<string> = n
 // Short church words that stay in capitals when an ALL-CAPS name is tidied.
 const KEEP_CAPS = new Set(["AME", "AMEZ", "CME", "UMC", "COGIC", "FBC", "II", "III", "IV", "USA", "QA"]);
 
+const COMMON_NAME_KEYS = ["church_name", "common_name"] as const;
+const CRAWL_TITLE_KEYS = ["crawl_title", "website_title", "page_title", "site_name", "site_title"] as const;
+const CORPORATE_SUFFIXES = [
+  "properties incorporated",
+  "properties inc",
+  "limited liability company",
+  "incorporated",
+  "corporation",
+  "l.l.c",
+  "llc",
+  "inc",
+  "corp",
+  "ltd",
+  "limited",
+  "company",
+  "co"
+];
+const HOST_TLDS = new Set(["com", "org", "net", "church", "us", "info", "edu", "gov", "example", "co", "io"]);
+
+function textList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => s(item)).filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (Array.isArray(parsed)) return parsed.map((item) => s(item)).filter(Boolean);
+    } catch {
+      return value.split(/[|;]/).map((item) => item.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+function nameKey(value: string): string {
+  return foldedName(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function sameName(a: string, b: string): boolean {
+  return nameKey(a) === nameKey(b);
+}
+
+/** Drop Inc/LLC and the other corporate tails, plus a leading "Trustees of". */
+export function stripCorporateSuffix(name: string): string {
+  let text = s(name).replace(/\s+/g, " ").trim().replace(/^trustees of\s+/i, "");
+  for (let guard = 0; guard < 6; guard += 1) {
+    text = text.replace(/[.,]+$/g, "").trim();
+    const lower = foldedName(text);
+    const suffix = CORPORATE_SUFFIXES.find((item) => new RegExp(`\\s+${item.replace(/\./g, "\\.")}$`).test(lower));
+    if (!suffix) break;
+    text = text.replace(new RegExp(`\\s+${suffix.replace(/\./g, "\\.")}\\.?$`, "i"), "").trim();
+  }
+  return text.replace(/[.,]+$/g, "").trim();
+}
+
+function congregationWord(raw: string): boolean {
+  return /\b(churches|church|chapels|chapel|ministries|ministry)\b/.test(raw);
+}
+
+/** A conference, diocese, or association that is not itself the congregation. */
+export function isParentBody(name: string): boolean {
+  const raw = foldedName(stripCorporateSuffix(name));
+  if (/\bconferences?\b/.test(raw)) return true;
+  const congregation = congregationWord(raw);
+  if (/\barchdioceses?\b/.test(raw) || /\bdioceses?\b/.test(raw)) return !congregation;
+  if (/\bassociations?\b/.test(raw)) return !congregation;
+  return false;
+}
+
+function readsLikeChurch(name: string): boolean {
+  if (!s(name) || isParentBody(name)) return false;
+  const raw = foldedName(name);
+  return hasChristianWord(raw, nameWords(raw)) || congregationWord(raw);
+}
+
+const HOST_SPLIT_WORDS = [...new Set([...PLACE_TOKENS, ...CHRISTIAN_WORDS, "family", "saint", "mount", "grace", "first", "community", "united", "catholic"])].sort(
+  (a, b) => b.length - a.length
+);
+
+function segmentHost(token: string): string[] | null {
+  const out: string[] = [];
+  let index = 0;
+  while (index < token.length) {
+    const word = HOST_SPLIT_WORDS.find((item) => token.startsWith(item, index));
+    if (!word) return null;
+    out.push(word);
+    index += word.length;
+  }
+  return out.length ? out : null;
+}
+
+function capToken(word: string): string {
+  return word ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+}
+
+/** Own-site host as a title: no www, no TLD. Hyphens and dots split. A run that will not split is title-cased whole. */
+export function hostLeadName(host: string): string {
+  let labels = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
+  if (labels.length > 1 && HOST_TLDS.has(labels[labels.length - 1])) labels = labels.slice(0, -1);
+  const words = labels
+    .join("-")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .flatMap((chunk) => (segmentHost(chunk) ?? [chunk]).map(capToken));
+  return words.join(" ");
+}
+
+function commonLabels(row: AvRow, mates: readonly AvRow[]): string[] {
+  const labels: string[] = [];
+  const push = (value: unknown) => {
+    const text = s(value);
+    if (text) labels.push(text);
+  };
+  for (const source of [row, ...mates]) {
+    for (const key of COMMON_NAME_KEYS) push(source[key]);
+  }
+  for (const source of [row, ...mates]) {
+    for (const key of CRAWL_TITLE_KEYS) push(source[key]);
+    const sig = signalBag(source);
+    if (!sig) continue;
+    for (const key of CRAWL_TITLE_KEYS) push(sig[key]);
+  }
+  for (const source of [row, ...mates]) for (const alias of textList(source.alias_names)) push(alias);
+  for (const mate of mates) push(mate.name);
+  return labels;
+}
+
+export type ProspectNameParts = { lead: string; legalLine: string };
+
+/**
+ * Lead name: a common or DBA name, otherwise the legal name when it reads as a
+ * church, otherwise the church's own site as a title. The muted line is the
+ * full legal name when it differs, or "Filed under …" for a parent body.
+ */
+export function prospectNameParts(row: AvRow, mates: readonly AvRow[] = []): ProspectNameParts {
+  const legalRaw = s(row.name);
+  const legalDisplay = titleCase(legalRaw) || "Unnamed church";
+  const legalStripped = stripCorporateSuffix(legalRaw);
+  const legalLead = titleCase(legalStripped) || legalDisplay;
+  let lead = "";
+  for (const label of commonLabels(row, mates)) {
+    const stripped = stripCorporateSuffix(label);
+    if (!stripped || sameName(stripped, legalStripped)) continue;
+    lead = titleCase(stripped);
+    break;
+  }
+  if (!lead && readsLikeChurch(legalStripped)) lead = legalLead;
+  if (!lead) {
+    for (const source of [row, ...mates]) {
+      const url = s(source.website);
+      if (!url || websiteWeakness(url)) continue;
+      const titled = hostLeadName(hostOf(url).host);
+      if (titled) {
+        lead = titled;
+        break;
+      }
+    }
+  }
+  if (!lead) lead = legalDisplay;
+  const legalLine = sameName(lead, legalDisplay) ? "" : isParentBody(legalRaw) ? `Filed under ${legalDisplay}` : legalDisplay;
+  return { lead, legalLine };
+}
+
 function titleCase(text: string): string {
   if (text !== text.toUpperCase()) return text;
   return text
@@ -687,6 +857,13 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
     const root = groups.find(`id:${s(row.id)}`);
     if (blocked.has(root) || forced.has(s(row.id)) || avExcluded(row, suppressed, now) || scoreAvProspect(row, sharedHosts).streams) blockedRoots.add(root);
   }
+  const members = new Map<string, AvRow[]>();
+  for (const row of all) {
+    const root = groups.find(`id:${s(row.id)}`);
+    const list = members.get(root) ?? [];
+    list.push(row);
+    members.set(root, list);
+  }
   const candidates: Array<{ row: AvRow; tier: AvTierIndex; miles: number }> = [];
   for (const row of all) {
     const lat = Number(s(row.lat) || s(row.latitude));
@@ -712,6 +889,7 @@ export function rankAvProspects(rows: AvRow[], suppressed: (row: AvRow) => boole
       tier,
       tierLabel: label,
       name: titleCase(s(row.name)) || "Unnamed church",
+      ...prospectNameParts(row, (members.get(root) ?? []).filter((mate) => mate !== row)),
       town: titleCase(s(row.city)),
       miles: Math.round(miles * 10) / 10,
       score,
@@ -780,6 +958,10 @@ export type TopProspect = {
   tierLabel: string;
   rank: number;
   name: string;
+  /** The name the row leads with. */
+  lead: string;
+  /** Muted line under the lead. "" when it would repeat the lead. */
+  legalLine: string;
   town: string;
   /** Whole miles from Vidalia, or null when the row has no coordinates. */
   miles: number | null;
@@ -878,7 +1060,7 @@ export function topProspectReason(row: AvRow, tierLabel = ""): string {
   const sig = signalBag(row);
   const phrase = FIT_PHRASE[knownFit(fitOf(row))] ?? "";
   let reasons = reasonLines(sig).map((reason) => avReasonText(reason, tierLabel)).filter(Boolean).slice(0, 2);
-  const extra = row._scored_on_duplicate === true ? "scored on a duplicate record" : "";
+  const extra = row._scored_on_duplicate === true ? "also listed under another record" : "";
   let bits = [phrase, ...reasons, extra].filter(Boolean);
   while (bits.join(" · ").length > 90 && reasons.length) {
     reasons = reasons.slice(0, -1);
@@ -1105,6 +1287,8 @@ function toTopProspect(row: AvRow, tier: AvTierIndex, now: Date, rank: number): 
     tierLabel: AV_TIERS[tier].label,
     rank,
     name: titleCase(s(row.name)) || "Unnamed church",
+    lead: titleCase(s(row.name)) || "Unnamed church",
+    legalLine: "",
     town: titleCase(s(row.city)),
     miles: rowMiles(row),
     score: topProspectScore(row),
@@ -1189,10 +1373,14 @@ export function rankTopProspects(
   }
   openRows.sort(compareTopRows);
   const ranked = openRows.length;
-  const open = openRows.slice(0, size).map((row, index) => toTopProspect(row, rowTier(row) as AvTierIndex, now, index + 1));
+  const withCommon = (row: AvRow, tier: AvTierIndex, rank: number) => {
+    const mates = (byRoot.get(groups.find(`id:${s(row.id)}`)) ?? []).filter((mate) => mate !== row);
+    return { ...toTopProspect(row, tier, now, rank), ...prospectNameParts(row, mates) };
+  };
+  const open = openRows.slice(0, size).map((row, index) => withCommon(row, rowTier(row) as AvTierIndex, index + 1));
   wonRows.sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0) || titleCase(s(a.row.name)).localeCompare(titleCase(s(b.row.name))));
   const won = wonRows.map(({ row, at }) => {
-    const item = toTopProspect(row, rowTier(row) as AvTierIndex, now, 0);
+    const item = withCommon(row, rowTier(row) as AvTierIndex, 0);
     const wonAt = at && !Number.isNaN(Date.parse(at)) ? friendlyDate(at) : "";
     return { ...item, wonAt, wonDate: at };
   });

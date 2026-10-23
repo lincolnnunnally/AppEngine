@@ -1140,13 +1140,14 @@ export function rememberCrmFollowUpCount(snapshot: CrmSnapshot): void {
 // list (email, website domain or phone) is left out; if that list can't be
 // read, nothing is listed.
 const AV_FIELDS = [
-  "name", "city", "state", "lat", "lng", "latitude", "longitude", "website", "facebook_url", "live_stream_url",
+  "name", "church_name", "common_name", "crawl_title", "website_title", "page_title", "site_name",
+  "city", "state", "lat", "lng", "latitude", "longitude", "website", "facebook_url", "live_stream_url",
   "livestream_url", "youtube_url", "subsplash_url", "website_live", "website_http_status", "website_trouble",
   "avg_attendance", "pastor_name", "contact_name", "ministry_assist_name", "secretary_name", "do_not_contact",
   "do_not_contact_desk_claim", "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
   "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at", "zip_code"
 ];
-const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as`;
+const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals`;
 const AV_PAGE = 1000;
 const AV_MAX_PAGES = 15;
 const DNC_PAGE = 1000;
@@ -1209,7 +1210,8 @@ export async function loadAvProspects(): Promise<AvProspectList> {
 }
 
 const TOP_FIELDS = [
-  "name", "city", "state", "lat", "lng", "latitude", "longitude", "zip_code", "website", "facebook_url",
+  "name", "church_name", "common_name", "crawl_title", "website_title", "page_title", "site_name",
+  "city", "state", "lat", "lng", "latitude", "longitude", "zip_code", "website", "facebook_url",
   "live_stream_url", "livestream_url", "youtube_url", "subsplash_url", "do_not_contact", "do_not_contact_desk_claim",
   "crm_status", "crm_status_changed_at", "crm_next_action", "crm_next_action_date", "merged_into", "deleted_at",
   "duplicate_of", "religion_guess", "prospect_kind", "source", "email", "phone", "active", "is_public", "hidden",
@@ -1217,7 +1219,7 @@ const TOP_FIELDS = [
   "claimed", "verified", "is_verified", "claim_status", "churchconnect_fit",
   "denomination", "ntee", "ntee_code", "ein"
 ];
-const TOP_SELECT = `select=id,${TOP_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,av_signals:doc->av_signals`;
+const TOP_SELECT = `select=id,${TOP_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals`;
 const TOP_MAX_PAGES = 20;
 
 export type TopProspectList = {
@@ -1379,8 +1381,8 @@ async function readProspectRests(config: LplConfig, rows: Row[], sources: CrmSou
 
 // Copies with no website, and copies outside the ring, still count. A do-not-contact
 // or stopped member keeps the whole group off the list.
-// mode "av" is the #416 read: one hop, one page. mode "top" pages both link
-// directions and then reads the copies those copies point at.
+// mode "av" is the #416 read: one hop, one page. mode "top" reads linked copies,
+// then name-lookup mates, then the copies those mates point at.
 async function readProspectMates(
   config: LplConfig,
   focus: Row[],
@@ -1397,17 +1399,6 @@ async function readProspectMates(
   const linked = await readLinkedCopies(config, select, sources, fetchedMate, lookups.ids, focus.map((row) => s(row.id)));
   if (!linked) return null;
   mates.push(...linked);
-  // A copy found above can point at another copy. Read that link too. A failed page is not "no copies".
-  const again = await readLinkedCopies(
-    config,
-    select,
-    sources,
-    fetchedMate,
-    groupMateLookups(mates).ids,
-    mates.map((row) => s(row.id))
-  );
-  if (!again) return null;
-  mates.push(...again);
   for (const item of lookups.nameCities) {
     const markName = `${item.city.toLowerCase()}|${item.pattern}`;
     if (fetchedMate.has(markName)) {
@@ -1434,6 +1425,18 @@ async function readProspectMates(
     }
     mates.push(...batch);
   }
+  // The second hop follows copies the name lookup just found, as well as the first hop.
+  // A failed page is not "no copies".
+  const again = await readLinkedCopies(
+    config,
+    select,
+    sources,
+    fetchedMate,
+    groupMateLookups(mates).ids,
+    mates.map((row) => s(row.id))
+  );
+  if (!again) return null;
+  mates.push(...again);
   return mates;
 }
 

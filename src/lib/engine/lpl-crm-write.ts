@@ -73,6 +73,11 @@ export function savingOffMessage(env: Record<string, string | undefined> = proce
   return env.VERCEL_ENV === "production" ? "Saving isn't switched on yet." : "Saving isn't available on this preview.";
 }
 
+/** Desk banner. One string, so the space after the period is part of the text. */
+export function savingOffNote(env: Record<string, string | undefined> = process.env): string {
+  return `${savingOffMessage(env)} You can look, but orgs, visits, and contacts can't be saved from here.`;
+}
+
 /** A pass for exactly one call: this method, this path, this owner, under 2 minutes. */
 export function mintCrmPass(secret: string, method: CcMethod, path: string, ownerEmail: string, nowSeconds = Math.floor(Date.now() / 1000)): string {
   return mintHs256Jwt(

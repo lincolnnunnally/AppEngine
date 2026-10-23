@@ -253,6 +253,9 @@ await step("name rules leave churches and drop other places", () => {
     "Old School (Primitive) Baptist Church", "Victory Academy of Praise Church", "Faith Baptist Christian Academy Church",
     "Trinity Pooler Church and Preschool",
     "The Living Word Christian Center", "Abundant Life Christian Center", "John Wesley Center",
+    "Production Center Church of God", "Living Word Productions Ministry",
+    "United States Catholic Conference", "Discovery Church Properties Inc",
+    "First Baptist Church Inc", "Grace Church Holdings", "Community Church LLC", "Grace Church Corp",
     "Holsey Temple", "Hightower Memorial Temple", "James Temple", "Prayer Temple of Savannah",
     "Miracle Temple", "Miracle Healing Temple", "Eley's Healing Temple",
     "Solomon Temple", "Solomon's Temple International", "Temple of Truth",
@@ -277,13 +280,39 @@ await step("name rules leave churches and drop other places", () => {
     "Kingdom Kids", "South Georgia Conference Council", "Faith Temple Outreach Community Center",
     "Swaminarayan Temple", "Temple Beth El", "Hindu Shrine",
     "Fitzgerald Hebrew Congregation", "Waycross Hebrew Center", "Temple Mickve Israel", "Chabad of Savannah", "B'nai B'rith", "Bnai Brith",
-    "Southwest District UMC", "Macon East District AMEC", "Children's Home", "Children's Homes"
+    "Southwest District UMC", "Macon East District AMEC", "Children's Home", "Children's Homes",
+    "ST DOMINICS MEDIA PRODUCTION CENTERINC", "St Dominic's Media Production Center Inc",
+    "Media Production LLC", "Media ProductionLLC",
+    "Faith Production Center", "Faith Production CenterINC",
+    "Grace Productions", "Grace Productions Inc", "Grace ProductionsINC", "Grace Productions LLC", "Grace ProductionsLLC"
   ];
   for (const name of keep) assert(!av.avNameExcluded(name), `keep ${name}`);
   for (const name of drop) assert(av.avNameExcluded(name), `drop ${name}`);
   console.log(`     name fixtures: ${keep.length} kept, ${drop.length} dropped`);
   const temple = av.rankAvProspects([row({ id: "temple", name: "TEMPLE BAPTIST CHURCH" })], none);
   assert(temple.length === 1 && temple[0].name === "Temple Baptist Church", "Temple Baptist Church can be listed");
+  const named = av.rankAvProspects([
+    row({ id: "face", name: "DISCOVERY CHURCH PROPERTIES INC", church_name: "Discovery Church", website: "https://discoverchurch.example" }),
+    row({ id: "mate", name: "DISCOVERY CHURCH PROPERTIES INC", city: "Vidalia", possible_same_as: ["face"], website: "" })
+  ], none);
+  assert(named.length === 1 && named[0].lead === "Discovery Church" && named[0].legalLine === "Discovery Church Properties Inc", `DBA leads: ${named[0] && named[0].lead} / ${named[0] && named[0].legalLine}`);
+  const dba = av.prospectNameParts({ id: "stream", name: "Stream Fellowship", church_name: "The Stream", website: "https://www.thestream.example" });
+  assert(dba.lead === "The Stream" && dba.legalLine === "Stream Fellowship", `common name beats the legal name and the host: ${dba.lead} / ${dba.legalLine}`);
+  const stripped = av.prospectNameParts({ id: "vidalia", name: "First Baptist Church of Vidalia Inc" });
+  assert(stripped.lead === "First Baptist Church of Vidalia" && stripped.legalLine === "First Baptist Church of Vidalia Inc", `Inc comes off the lead: ${stripped.lead} / ${stripped.legalLine}`);
+  const trustees = av.prospectNameParts({ id: "trust", name: "Trustees of Grace Chapel, Inc." });
+  assert(trustees.lead === "Grace Chapel" && trustees.legalLine === "Trustees of Grace Chapel, Inc.", `trustees prefix: ${trustees.lead} / ${trustees.legalLine}`);
+  const host = av.prospectNameParts({ id: "b", name: "United States Catholic Conference", website: "https://www.holyfamilyorlando.org" });
+  assert(host.lead === "Holy Family Orlando" && host.legalLine === "Filed under United States Catholic Conference", `host fallback and filed under: ${host.lead} / ${host.legalLine}`);
+  assert(!host.lead.includes("holyfamilyorlando"), "the lead is not a raw host");
+  const equal = av.prospectNameParts({ id: "alpha", name: "Alpha Baptist", website: "https://www.alphabaptist.example" });
+  assert(equal.lead === "Alpha Baptist" && equal.legalLine === "", `church legal name leads and the muted line hides: ${equal.lead} / ${equal.legalLine}`);
+  const titled = av.prospectNameParts({ id: "a", name: "United States Catholic Conference", av_signals: { crawl_title: "Holy Family" } });
+  assert(titled.lead === "Holy Family" && titled.legalLine === "Filed under United States Catholic Conference", `crawl title wins: ${titled.lead}`);
+  const run = av.hostLeadName("gracechapel.example");
+  assert(run === "Grace Chapel" || run === "Gracechapel", `run-together host: ${run}`);
+  const plain = av.hostLeadName("xyzqwerty.example");
+  assert(plain === "Xyzqwerty", `unsplit host is title-cased: ${plain}`);
 });
 
 await step("duplicate copies and stopped rows stay off the list (probe)", () => {
@@ -456,7 +485,7 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   const hidden = { ...base, id: "hid", name: "Hidden Twin", is_public: false, website: "https://twin.example", av_signals: signals(44, "high") };
   const visible = { ...base, id: "vis", name: "Visible Twin", website: "https://twin.example", possible_same_as: ["hid"] };
   const twins = av.rankTopProspects([hidden, visible], none, { tier: 0, now });
-  assert(twins.open.length === 1 && twins.open[0].churchId === "vis" && twins.open[0].score === 74 && twins.open[0].reason.includes("scored on a duplicate record"), `twin carry-over: ${twins.open.map((item) => `${item.churchId}:${item.score}:${item.reason}`).join(" | ")}`);
+  assert(twins.open.length === 1 && twins.open[0].churchId === "vis" && twins.open[0].score === 74 && twins.open[0].reason.includes("also listed under another record"), `twin carry-over: ${twins.open.map((item) => `${item.churchId}:${item.score}:${item.reason}`).join(" | ")}`);
   const dropName = (name, row) => assert(names.topNameExcluded(name, row), `drop ${name}`);
   const keepName = (name, row) => assert(!names.topNameExcluded(name, row), `keep ${name}`);
   dropName("ST MARKS ENDOWMENT TR");
@@ -594,8 +623,14 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   for (const excludedId of golden.excluded_ids) assert(!openIds.has(excludedId) && !wonIds.has(excludedId), `${excludedId} stays off the golden lists`);
   assert(golden.excluded_ids.includes("soccer-fields"), "soccer-fields is excluded because fields follows soccer");
   const census = av.TOP_PROSPECT_KEPT_CENSUS;
-  assert(census.centralSouthGa === 9609 && census.restOfGa === 0 && census.florida === 3190 && census.southCarolina === 1812, `documentation-only: published ChurchConnect census, not recomputed from the fixture (${census.centralSouthGa}/${census.restOfGa}/${census.florida}/${census.southCarolina})`);
-  assert(census.centralSouthGa + census.restOfGa + census.florida + census.southCarolina === 14611 && census.total === 14611 && census.inScope === 15476, "documentation-only: published ChurchConnect census, 14,611 kept of 15,476 in scope, not recomputed from the fixture");
+  assert(census.centralSouthGa === 9609, `central and South Georgia kept ${census.centralSouthGa}, published census is 9609`);
+  assert(census.restOfGa === 0, `rest of Georgia kept ${census.restOfGa}, published census is 0 until those churches are scored`);
+  assert(census.florida === 3190, `Florida kept ${census.florida}, published census is 3190`);
+  assert(census.southCarolina === 1812, `South Carolina kept ${census.southCarolina}, published census is 1812`);
+  assert(census.total === 14611, `kept total ${census.total}, published census is 14611`);
+  assert(census.inScope === 15476, `in scope ${census.inScope}, published census is 15476`);
+  assert(census.centralSouthGa + census.restOfGa + census.florida + census.southCarolina === census.total, "the four territory counts add up to the kept total");
+  assert(census.inScope > census.total && census.total > census.florida && census.florida > census.southCarolina && census.centralSouthGa > census.florida, "the published counts are the real census, not a zeroed or flat placeholder");
   assert(av.resolveTopProspectTier("1").status === 422 && av.resolveTopProspectTier("9").status === 422 && av.resolveTopProspectTier("1").detail === "That area is not on this list.", "tier 1 and any other unsupported tier are 422");
   assert(av.resolveTopProspectTier(null).tier === 0 && av.resolveTopProspectTier("0").tier === 0 && av.resolveTopProspectTier("2").tier === 2 && av.resolveTopProspectTier("3").tier === 3, "tiers 0, 2, and 3 stay on the list");
   const route = read("src/app/api/crm/top-prospects/route.ts");
@@ -682,6 +717,12 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   assert((avMates.match(/readRows\(/g) || []).length === 3, "AV mate read is the id lookup, the pointed lookup, and the name lookup");
   const topMates = loader.slice(loader.indexOf("async function readProspectMates"), loader.indexOf("async function readAvProspectMates"));
   assert((topMates.match(/readLinkedCopies\(/g) || []).length === 2, "top mate read follows the second hop");
+  const firstHop = topMates.indexOf("readLinkedCopies(");
+  const nameLookup = topMates.indexOf("lookups.nameCities");
+  const secondHop = topMates.indexOf("readLinkedCopies(", firstHop + 1);
+  assert(firstHop >= 0 && nameLookup > firstHop && secondHop > nameLookup, "the second hop comes after the name lookup");
+  const secondHopBody = topMates.slice(secondHop);
+  assert(secondHopBody.includes("groupMateLookups(mates)"), "the second hop follows mates, including rows the name lookup added");
   const topBody = loader.slice(loader.indexOf("export async function loadTopProspects"));
   assert(topBody.includes("topTierFilter(tier)") && topBody.includes("readChurchPages") && topBody.includes("readDoNotContact") && topBody.includes("loadCrmSnapshot"), "top loader shares the fetch and joins the snapshot");
   assert(topBody.includes("public.outreach_suppressions") && topBody.includes("select=email,domain,phone,brand"), "suppressions are the plain public columns, including brand");
@@ -697,11 +738,18 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   assert(ui.includes("Anyone who opted out of any of our messages is left off this list."), "opt-out footer");
   assert(!/xai|grok|openai|anthropic|claude|gpt|marketing/i.test(ui), "no vendor names and no marketing");
   const page = read("src/app/(cockpit)/crm/page.tsx");
-  const accessAt = page.indexOf("canAccessEngineAdmin");
+  const accessAt = page.indexOf("await canAccessEngineAdmin()");
+  const ownerAt = page.indexOf("await canAccessEngineOwner()");
   const fixtureAt = page.indexOf("top-prospects-golden.json");
-  assert(accessAt >= 0 && fixtureAt > accessAt, "the admin check runs before the preview fixture is loaded");
-  assert(page.includes('process.env.NODE_ENV !== "production"') && page.includes('await import("../../../../scripts/fixtures/top-prospects-golden.json")'), "the preview fixture is a dynamic import behind the non-production guard");
+  assert(accessAt >= 0 && ownerAt > accessAt && fixtureAt > ownerAt, "the admin and owner checks run before the preview fixture is loaded");
+  assert(page.includes('const previewTop = process.env.NODE_ENV !== "production" && isOwner && params.preview === "top"'), "one previewTop constant, owner-gated, non-production");
+  assert((page.match(/params\.preview === "top"/g) || []).length === 1, "preview=top is not written twice");
+  assert(page.includes("if (previewTop)") && page.includes('process.env.NODE_ENV !== "production"') && page.includes('await import("../../../../scripts/fixtures/top-prospects-golden.json")'), "the preview fixture is a dynamic import behind the non-production guard");
   assert(!page.includes('from "@/lib/engine/av-prospects-core"'), "the page does not statically import the ranker");
+  assert(ui.includes("crm-legal-name") && ui.includes("item.lead") && ui.includes("item.legalLine"), "top rows lead with the chosen name and keep a muted line");
+  const avUi = read("src/components/engine/crm-av-prospects.tsx");
+  assert(avUi.includes("crm-legal-name") && avUi.includes("item.lead") && avUi.includes("item.legalLine"), "AV rows lead with the chosen name and keep a muted line");
+  assert(read("src/components/engine/crm-desk.tsx").includes("is-overflowing") && read("src/app/styles.css").includes("mask-image: linear-gradient(to right"), "chip rows fade at the right edge only when they overflow");
 });
 
 await step("AV suppression matches #416; the new matcher stays on the top list", () => {

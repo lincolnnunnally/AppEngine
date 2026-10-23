@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer } from "@/lib/engine/lpl-crm-core";
-import { crmSavingConfigured, savingOffMessage } from "@/lib/engine/lpl-crm-write";
+import { crmSavingConfigured, savingOffNote } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
-import type { TopProspectState } from "@/app/(cockpit)/crm/actions";
+import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +16,13 @@ export const dynamic = "force-dynamic";
 export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const params = await searchParams;
-  const previewTop = process.env.NODE_ENV !== "production" && params.preview === "top";
+  const isOwner = await canAccessEngineOwner();
+  // Dev preview only, and only for the owner. The non-production guard keeps the fixture out of the production bundle.
+  const previewTop = process.env.NODE_ENV !== "production" && isOwner && params.preview === "top";
+  const previewAv = process.env.NODE_ENV !== "production" && isOwner && params.preview === "av";
   let topInitial: TopProspectState = null;
-  // Dev preview only. The non-production guard keeps the fixture out of the production bundle.
-  if (process.env.NODE_ENV !== "production" && params.preview === "top") {
+  let avInitial: AvProspectState = null;
+  if (previewTop) {
     const { rankTopProspects } = await import("@/lib/engine/av-prospects-core");
     const fixture = (await import("../../../../scripts/fixtures/top-prospects-golden.json")).default as {
       now: string;
@@ -28,17 +31,61 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
       suppressions?: { emails?: string[]; domains?: string[]; phones?: string[] };
     };
     const blockedEmails = new Set((fixture.suppressions?.emails ?? []).map((value) => value.trim().toLowerCase()));
+    const rows = fixture.rows.map((row) => {
+      if (row.id === "stream") return { ...row, church_name: "The Stream" };
+      if (row.id === "alpha") return { ...row, website: "https://www.alphabaptist.example" };
+      if (row.id === "won-new") return { ...row, crawl_title: "Won New" };
+      return row;
+    });
     const ranked = rankTopProspects(
-      fixture.rows,
+      rows,
       (row) => blockedEmails.has(String(row.email ?? "").trim().toLowerCase()),
       { tier: fixture.tier, now: new Date(fixture.now) }
     );
     topInitial = { ok: true, message: "", at: Date.parse(fixture.now), tier: fixture.tier, open: ranked.open, won: ranked.won, counts: ranked.counts };
   }
-  const isOwner = await canAccessEngineOwner();
+  if (previewAv) {
+    const { rankAvProspects } = await import("@/lib/engine/av-prospects-core");
+    const at = Date.parse("2026-10-17T16:00:00Z");
+    const ranked = rankAvProspects(
+      [
+        {
+          id: "discovery",
+          name: "DISCOVERY CHURCH PROPERTIES INC",
+          church_name: "Discovery Church",
+          city: "Vidalia",
+          state: "GA",
+          lat: "32.2177",
+          lng: "-82.4135",
+          website: "https://discoverchurch.example"
+        },
+        {
+          id: "holy-family",
+          name: "United States Catholic Conference",
+          city: "Orlando",
+          state: "FL",
+          lat: "28.5383",
+          lng: "-81.3792",
+          website: "https://www.holyfamilyorlando.org"
+        },
+        {
+          id: "fbc-vidalia",
+          name: "FIRST BAPTIST CHURCH OF VIDALIA INC",
+          city: "Vidalia",
+          state: "GA",
+          lat: "32.22",
+          lng: "-82.41",
+          facebook_url: "https://facebook.com/fbcvidalia"
+        }
+      ],
+      () => false,
+      { now: new Date(at) }
+    );
+    avInitial = { ok: true, message: "", at, prospects: ranked };
+  }
   const canSave = isOwner && (await crmSavingConfigured());
   // Owner-only note when this deploy can't save (an AppEngine preview has no server key).
-  const savingOff = isOwner && !canSave ? savingOffMessage() : "";
+  const savingOff = isOwner && !canSave ? savingOffNote() : "";
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
   // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
@@ -118,7 +165,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
         ) : null}
         {savingOff ? (
           <p className="dx-callout" role="status">
-            {savingOff} You can look, but orgs, visits, and contacts can&apos;t be saved from here.
+            {savingOff}
           </p>
         ) : null}
         <p className="dx-note crm-asof">
@@ -127,15 +174,16 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
         </p>
       </section>
 
-      {snapshot.configured || previewTop ? (
+      {snapshot.configured || previewTop || previewAv ? (
         <CrmDesk
           cards={viewCards}
           followUps={snapshot.followUps}
-          adminUrls={previewTop ? { ...snapshot.adminUrls, churchconnect: snapshot.adminUrls.churchconnect || "https://churchconnect.example" } : snapshot.adminUrls}
+          adminUrls={previewTop || previewAv ? { ...snapshot.adminUrls, churchconnect: snapshot.adminUrls.churchconnect || "https://churchconnect.example" } : snapshot.adminUrls}
           canSave={canSave}
           isOwner={isOwner}
           outreachHidden={snapshot.outreachHidden}
           topInitial={topInitial}
+          avInitial={avInitial}
         />
       ) : (
         <section className="panel">
