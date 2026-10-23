@@ -34,4 +34,17 @@ describe("permanent platform owner", () => {
     assert.equal(roleForEmail("two@example.com", env), "owner");
     assert.equal(roleForEmail("stranger@example.com", env), "customer");
   });
+
+  it("does not grant owner to lookalike addresses", () => {
+    for (const env of [
+      {},
+      { APP_ENGINE_OWNER_EMAIL: LINCOLN },
+      { APP_ENGINE_OWNER_EMAIL: `other@example.com, ${LINCOLN}` }
+    ]) {
+      assert.equal(roleForEmail("xlincoln@unitedundergod.org", env), "customer");
+      assert.equal(roleForEmail("lincoln@unitedundergod.org.evil.com", env), "customer");
+      assert.equal(isPlatformOwnerEmail("xlincoln@unitedundergod.org", env), false);
+      assert.equal(isPlatformOwnerEmail("lincoln@unitedundergod.org.evil.com", env), false);
+    }
+  });
 });

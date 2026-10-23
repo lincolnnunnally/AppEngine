@@ -7,6 +7,7 @@ import Google from "next-auth/providers/google";
 import Resend from "next-auth/providers/resend";
 import { getAuthSecret } from "@/lib/auth/config";
 import { normalizeSignInEmail, resolveAuthEmailFrom } from "@/lib/auth/email";
+import { githubProfile } from "@/lib/auth/github-profile";
 import { hostFromHeader, isAllowedAuthOrigin, sessionCookieDomainForHost } from "@/lib/auth/hosts";
 import { resolveRoleForSessionUser } from "@/lib/auth/roles";
 import { toClientSession } from "@/lib/auth/session";
@@ -57,7 +58,13 @@ function buildProviders(databaseUrl?: string) {
   // see PRODUCTION_GITHUB_OAUTH_CALLBACK_URLS. we-succeed is not soft-launch.
   if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
     providers.push(
-      GitHub({ clientId: process.env.AUTH_GITHUB_ID, clientSecret: process.env.AUTH_GITHUB_SECRET })
+      GitHub({
+        clientId: process.env.AUTH_GITHUB_ID,
+        clientSecret: process.env.AUTH_GITHUB_SECRET,
+        // profile() loads /user/emails and keeps a verified address only.
+        // Throwing here is the Auth.js reject path: no session is opened.
+        profile: githubProfile
+      })
     );
   }
 
