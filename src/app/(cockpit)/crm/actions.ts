@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
 import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
+import { SERVICE_OPPORTUNITY_IDS, type ServiceOpportunityId } from "@/lib/engine/lpl-crm-core";
 import { loadAvProspects, loadCrmSnapshot, loadTechDirectorChurches, loadTopProspects } from "@/lib/engine/lpl-crm";
 import type { TechDirectorRow } from "@/lib/engine/tech-director-core";
 import { resolveTopProspectTier, type AvProspect, type AvTierIndex, type TopProspect, type TopProspectCounts } from "@/lib/engine/av-prospects-core";
@@ -26,6 +27,7 @@ import {
   undoChurchDoNotContact,
   setChurchPipelineStatus,
   setChurchOwnerFields,
+  setChurchServiceOpportunities,
   type OrgInput,
   type OrgMatch,
   type OutcomeCode,
@@ -323,6 +325,25 @@ export async function setChurchOwnerFieldsAction(_prev: CrmFormState, formData: 
     buildingStage: field(formData, "building_stage"),
     buildingStageRecordedAt: field(formData, "building_stage_recorded_at")
   });
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath(`/crm/church/${churchId}`);
+  }
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function setChurchServiceOpportunitiesAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const churchId = field(formData, "church_id");
+  const input = {} as Record<ServiceOpportunityId, { status: string; note: string; updatedAt: string }>;
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    input[service] = {
+      status: field(formData, `opp_${service}_status`),
+      note: field(formData, `opp_${service}_note`),
+      updatedAt: field(formData, `opp_${service}_updated`)
+    };
+  }
+  const result = await setChurchServiceOpportunities(await ownerEmail(), churchId, input);
   if (result.ok) {
     revalidatePath("/crm");
     revalidatePath(`/crm/church/${churchId}`);

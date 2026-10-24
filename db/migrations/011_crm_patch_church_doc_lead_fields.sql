@@ -10,6 +10,7 @@
 --   crm_status, lead_class, jev_avl_fit, jev_project_stage, crm_offers
 --   avl_existing_relationship, avl_existing_relationship_note, avl_project_status
 --   building_stage, building_stage_recorded_at
+--   service_opportunities (website, toner, laser, churchconnect, local_mission only)
 -- Omitting a key leaves it. Any other key is ignored. A stale doc.updated_at
 -- returns no row. cc_churches.id stays text.
 -- These owner fields are not the pipeline status. Contact status stays crm_status.
@@ -61,6 +62,19 @@ begin
   end if;
   if p_patch ? 'building_stage_recorded_at' then
     allowed := allowed || jsonb_build_object('building_stage_recorded_at', p_patch -> 'building_stage_recorded_at');
+  end if;
+  if p_patch ? 'service_opportunities' and jsonb_typeof(p_patch -> 'service_opportunities') = 'object' then
+    allowed := allowed || jsonb_build_object(
+      'service_opportunities',
+      coalesce(
+        (
+          select jsonb_object_agg(entry.key, entry.value)
+          from jsonb_each(p_patch -> 'service_opportunities') as entry
+          where entry.key in ('website', 'toner', 'laser', 'churchconnect', 'local_mission')
+        ),
+        '{}'::jsonb
+      )
+    );
   end if;
   return query
   update public.cc_churches

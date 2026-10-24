@@ -7,11 +7,15 @@ import {
   BUILDING_STAGE_LABEL,
   CRM_CHURCH_STATUSES,
   churchHoldsAvlWork,
+  churchIsOnChurchConnect,
   cleanAvlProjectStatus,
   cleanBuildingStage,
+  parseServiceOpportunityFilter,
+  serviceOpportunitiesFromDoc,
   truthyFlag,
   type AvlProjectStatus,
-  type BuildingStage
+  type BuildingStage,
+  type ServiceOpportunities
 } from "./lpl-crm-core.ts";
 import { AVL_TIER_LABEL, avlTierForLeadClass, stateCode, type AvlTier } from "./tech-director-core.ts";
 
@@ -53,6 +57,8 @@ export type DirectoryQuery = {
   contacted: "" | "never" | "since" | "before";
   contactedOn: string;
   stage: BuildingStage | "";
+  /** "website:possible" and the other owner opportunity filters. Empty means any. */
+  opportunity: string;
   sort: DirectorySort;
   dir: "asc" | "desc";
   cursor: string;
@@ -88,6 +94,8 @@ export type DirectoryRow = {
   avlProjectStatus: AvlProjectStatus | "";
   buildingStage: BuildingStage | "";
   buildingStageRecordedAt: string;
+  /** Owner-only. Stored status, or the pre-fill from lead class and ChurchConnect. */
+  opportunities: ServiceOpportunities;
   /** Existing relationship or AVL already engaged. Kept off new-outreach views. */
   existingAvlTalks: boolean;
 };
@@ -103,6 +111,7 @@ export type DirectoryRpcArgs = {
   p_contacted: string;
   p_contacted_on: string;
   p_building_stage: string;
+  p_opportunity: string;
   p_sort: string;
   p_dir: "asc" | "desc";
   p_cursor_id: string;
@@ -140,6 +149,7 @@ export function emptyDirectoryQuery(): DirectoryQuery {
     contacted: "",
     contactedOn: "",
     stage: "",
+    opportunity: "",
     sort: "id",
     dir: "asc",
     cursor: ""
@@ -170,6 +180,10 @@ export function directoryQueryFromParams(params: Record<string, string | string[
     contacted: contacted === "never" || contacted === "since" || contacted === "before" ? contacted : "",
     contactedOn: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "",
     stage: cleanBuildingStage(one("stage")),
+    opportunity: (() => {
+      const parsed = parseServiceOpportunityFilter(one("opp"));
+      return parsed ? `${parsed.service}:${parsed.status}` : "";
+    })(),
     sort: (DIRECTORY_SORTS as readonly string[]).includes(sort) ? (sort as DirectorySort) : "id",
     dir: dir === "desc" ? "desc" : "asc",
     cursor: one("cursor").slice(0, 500)
@@ -242,6 +256,7 @@ export function directoryRpcArgs(
     p_contacted: query.contacted,
     p_contacted_on: query.contactedOn,
     p_building_stage: stage,
+    p_opportunity: parseServiceOpportunityFilter(query.opportunity) ? query.opportunity : "",
     p_sort: sort === "tier" ? "id" : sort,
     p_dir: sort === "tier" ? "asc" : dir,
     p_cursor_id: edge?.id ?? "",
@@ -288,8 +303,21 @@ export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryR
     avlProjectStatus: project,
     buildingStage: stage,
     buildingStageRecordedAt: /^\d{4}-\d{2}-\d{2}/.test(text(row.building_stage_recorded_at)) ? text(row.building_stage_recorded_at).slice(0, 10) : "",
+    opportunities: serviceOpportunitiesFromDoc(parseOpportunities(row.service_opportunities), {
+      leadClass,
+      onChurchConnect: churchIsOnChurchConnect(row)
+    }),
     existingAvlTalks: churchHoldsAvlWork({ avl_existing_relationship: relationship, avl_project_status: project })
   };
+}
+
+function parseOpportunities(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export function directorySortName(row: Record<string, unknown>): string {
@@ -361,6 +389,7 @@ export function directoryHref(query: DirectoryQuery, cursor = "", preview = ""):
   if (query.contacted) params.set("contacted", query.contacted);
   if (query.contactedOn) params.set("on", query.contactedOn);
   if (query.stage) params.set("stage", query.stage);
+  if (query.opportunity) params.set("opp", query.opportunity);
   if (query.sort !== "id") params.set("sort", query.sort);
   if (query.dir !== "asc") params.set("dir", query.dir);
   if (cursor) params.set("cursor", cursor);
@@ -389,6 +418,8 @@ export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery)
     if (query.contacted === "never" && row.lastContact) return false;
     if (query.stage === "none" && row.buildingStage && row.buildingStage !== "none") return false;
     if (query.stage && query.stage !== "none" && row.buildingStage !== query.stage) return false;
+    const opportunity = parseServiceOpportunityFilter(query.opportunity);
+    if (opportunity && row.opportunities[opportunity.service].status !== opportunity.status) return false;
     if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
       const day = row.lastContact.slice(0, 10);
       if (!day) return false;
@@ -415,7 +446,7 @@ export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery)
 }
 
 export function directoryPreviewRows(): DirectoryRow[] {
-  return [
+  const rows: Array<Omit<DirectoryRow, "opportunities">> = [
     {
       id: "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24",
       name: "Northridge Christian",
@@ -549,4 +580,10 @@ export function directoryPreviewRows(): DirectoryRow[] {
       existingAvlTalks: false
     }
   ];
+  const leadClass = (tier: string) =>
+    tier === "top" ? "campaign_planning" : tier === "second" ? "under_construction" : tier === "other_services" ? "other_services" : tier === "staff_only" ? "staff_only" : "";
+  return rows.map((row) => ({
+    ...row,
+    opportunities: serviceOpportunitiesFromDoc(null, { leadClass: leadClass(row.tier), onChurchConnect: false })
+  }));
 }

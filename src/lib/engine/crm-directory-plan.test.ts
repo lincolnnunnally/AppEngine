@@ -42,7 +42,7 @@ describe("directory queries on a prod-sized table", () => {
     const functions = readFileSync(new URL("012_crm_directory_functions.sql", MIGRATIONS), "utf8");
     const extension = readFileSync(new URL("012a_cc_churches_pg_trgm.sql", MIGRATIONS), "utf8");
     const indexes = files
-      .filter((name) => /^012[b-o]_/.test(name))
+      .filter((name) => /^012[b-t]_/.test(name))
       .sort()
       .map((name) => readFileSync(new URL(name, MIGRATIONS), "utf8").replace(/\bconcurrently\b/gi, ""))
       .join("\n");
@@ -76,12 +76,28 @@ describe("directory queries on a prod-sized table", () => {
                'staff_contacts', case when i % 5 = 0 then '[{"name":"Sam"}]'::jsonb else '[]'::jsonb end,
                'building_stage', (array['none','exploring','campaign_planning','design','under_construction','recently_completed'])[1 + (i % 6)],
                'building_stage_recorded_at', '2026-04-01',
+               'is_customer', case when i % 2500 = 7 then 'true' else '' end,
+               'service_opportunities', case when i % 2000 = 3 then jsonb_build_object('website', jsonb_build_object('status','interested','note','','updated_at','2026-04-01')) else '{}'::jsonb end,
                'pad', repeat('x', 1800)
              )
         from generate_series(1, 151000) as i;
       create index cc_churches_name_i on public.cc_churches ((doc->>'name'));
       ${indexes}
       analyze public.cc_churches;
+      do $$
+      declare got text;
+      begin
+        select public.crm_church_opportunity_status(doc, 'website') into got from public.cc_churches where id = 'id-0000002';
+        if got is distinct from 'possible' then raise exception 'website possible %', got; end if;
+        select public.crm_church_opportunity_status(doc, 'churchconnect') into got from public.cc_churches where id = 'id-0000007';
+        if got is distinct from 'active_customer' then raise exception 'churchconnect active %', got; end if;
+        select public.crm_church_opportunity_status(doc, 'website') into got from public.cc_churches where id = 'id-0000007';
+        if got is distinct from 'possible' then raise exception 'customer website %', got; end if;
+        select public.crm_church_opportunity_status(doc, 'website') into got from public.cc_churches where id = 'id-0000003';
+        if got is distinct from 'interested' then raise exception 'stored interested %', got; end if;
+        select public.crm_church_opportunity_status(doc, 'toner') into got from public.cc_churches where id = 'id-0000002';
+        if got is distinct from 'unknown' then raise exception 'toner %', got; end if;
+      end $$;
       `
     );
     const explain = join(dir, "explain.sql");
@@ -134,6 +150,21 @@ describe("directory queries on a prod-sized table", () => {
        order by id
        limit 41;
       explain (analyze, format text)
+      select id from public.cc_churches
+       where public.crm_church_opportunity_status(doc, 'website') = 'interested'
+       order by id
+       limit 41;
+      explain (analyze, format text)
+      select id from public.cc_churches
+       where public.crm_church_opportunity_status(doc, 'churchconnect') = 'active_customer'
+       order by id
+       limit 41;
+      explain (analyze, format text)
+      select id from public.cc_churches
+       where public.crm_church_opportunity_status(doc, 'website') = 'possible'
+       order by id
+       limit 41;
+      explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', '', false, null, '', '', '', 'id', 'asc', '', '', 41);
       explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', 'campaign_planning', false, null, '', '', '', 'id', 'asc', '', '', 41);
@@ -141,6 +172,8 @@ describe("directory queries on a prod-sized table", () => {
       select id from public.crm_directory_page('', 'WY', '', 'not_contacted', '', false, null, 'never', '', '', 'id', 'asc', '', '', 41);
       explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', '', false, null, '', '', '', 'name', 'asc', 'id-0001001', 'Church 1001', 41);
+      explain (analyze, format text)
+      select id from public.crm_directory_page('', '', '', '', '', false, null, '', '', '', 'id', 'asc', '', '', 41, 'website:interested');
       `
     );
     try {
@@ -171,10 +204,14 @@ describe("directory queries on a prod-sized table", () => {
         "last contact keyset",
         "building stage",
         "staff present",
+        "website interested",
+        "churchconnect active customer",
+        "website possible",
         "directory function id page",
         "directory function lead class",
         "directory function rare state + never",
-        "directory function name keyset"
+        "directory function name keyset",
+        "directory function website interested"
       ];
       const lines: string[] = [];
       queries.forEach((query, index) => {

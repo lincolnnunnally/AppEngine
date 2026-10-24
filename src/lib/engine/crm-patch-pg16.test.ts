@@ -197,6 +197,22 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
         if doc->>'building_stage_recorded_at' is distinct from '2026-08-01' then raise exception 'recorded %', doc; end if;
         if doc ? 'pastor_name' and doc->>'pastor_name' = 'nope' then raise exception 'extra landed %', doc; end if;
       end $$;
+      select id from public.crm_patch_church_doc(
+        'text-church-1',
+        '{"service_opportunities":{"website":{"status":"possible","note":"No site","updated_at":"2026-09-01"},"operate":{"status":"possible","note":"no"},"toner":{"status":"unknown","note":"","updated_at":""}},"updated_at":"2026-09-02","pastor_name":"nope"}'::jsonb,
+        '2026-08-02'
+      );
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->'service_opportunities'->'website'->>'status' is distinct from 'possible' then raise exception 'website %', doc; end if;
+        if doc->'service_opportunities'->'website'->>'note' is distinct from 'No site' then raise exception 'note %', doc; end if;
+        if doc->'service_opportunities' ? 'operate' then raise exception 'operate landed %', doc; end if;
+        if doc->'service_opportunities'->'toner'->>'status' is distinct from 'unknown' then raise exception 'toner %', doc; end if;
+        if doc->>'pastor_name' is distinct from 'Pat' then raise exception 'pastor changed %', doc; end if;
+        if doc->>'avl_project_status' is distinct from 'avl_already_engaged' then raise exception 'project cleared %', doc; end if;
+      end $$;
       insert into public.cc_churches (id, doc) values ('fb3d153f-dac5-49fc-ad9f-2f594d4dcc24', null);
       ${readFileSync(NORTHRIDGE, "utf8")}
       do $$

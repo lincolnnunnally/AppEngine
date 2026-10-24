@@ -72,6 +72,7 @@ describe("church directory pages", () => {
     assert.equal(args.p_dir, "desc");
     assert.equal(args.p_building_stage, "design");
     assert.equal(args.p_staff, true);
+    assert.equal(args.p_opportunity, "");
     assert.equal(JSON.stringify(args).includes("offset"), false);
   });
 
@@ -104,5 +105,42 @@ describe("church directory pages", () => {
     assert.equal(design[0].state, "GA");
     assert.equal(JSON.stringify(directoryPreviewRows()).includes("Messenger AVL"), false);
     assert.equal(JSON.stringify(directoryPreviewRows()).toLowerCase().includes("existing avl talks"), false);
+    assert.equal(JSON.stringify(directoryPreviewRows()).toLowerCase().includes("operate"), false);
+    const website = filterDirectoryRows(directoryPreviewRows(), { ...emptyDirectoryQuery(), opportunity: "website:possible" });
+    assert.deepEqual(website.map((row) => row.name), ["River Services Church"]);
+    assert.equal(website[0].opportunities.churchconnect.status, "possible");
+    assert.equal(website[0].opportunities.laser.status, "possible");
+    assert.equal(website[0].opportunities.toner.status, "unknown");
+  });
+
+  it("pre-fills opportunities from the lead class and a ChurchConnect customer, and keeps a saved status", () => {
+    const other = directoryRowFromRecord({ id: "a", name: "River", lead_class: "other_services" });
+    assert.equal(other?.opportunities.website.status, "possible");
+    assert.equal(other?.opportunities.laser.status, "possible");
+    assert.equal(other?.opportunities.churchconnect.status, "possible");
+    assert.equal(other?.opportunities.toner.status, "unknown");
+    assert.equal(other?.opportunities.local_mission.status, "unknown");
+    const customer = directoryRowFromRecord({ id: "b", name: "On file", lead_class: "other_services", is_customer: "true" });
+    assert.equal(customer?.opportunities.churchconnect.status, "active_customer");
+    assert.equal(customer?.opportunities.website.status, "possible");
+    const kept = directoryRowFromRecord({
+      id: "c",
+      name: "Kept",
+      lead_class: "other_services",
+      is_customer: true,
+      service_opportunities: {
+        churchconnect: { status: "not_a_fit", note: "They said no", updated_at: "2026-01-02" },
+        operate: { status: "possible", note: "no" }
+      }
+    });
+    assert.equal(kept?.opportunities.churchconnect.status, "not_a_fit");
+    assert.equal(kept?.opportunities.churchconnect.note, "They said no");
+    assert.equal(kept?.opportunities.churchconnect.updatedAt, "2026-01-02");
+    assert.equal(kept?.opportunities.website.status, "possible");
+    assert.equal(JSON.stringify(kept?.opportunities).includes("operate"), false);
+    const query = directoryQueryFromParams({ opp: "Website: Possible" });
+    assert.equal(query.opportunity, "website:possible");
+    assert.equal(directoryQueryFromParams({ opp: "operate:possible" }).opportunity, "");
+    assert.equal(directoryRpcArgs(query, null, 41).p_opportunity, "website:possible");
   });
 });

@@ -160,6 +160,33 @@ as $$
   end;
 $$;
 
+-- Effective owner opportunity. A saved status wins, including unknown.
+-- other_services with nothing saved: ChurchConnect, website, and laser are possible.
+-- A church already on ChurchConnect, with nothing saved for that service, is an active customer.
+-- Indexes 012p–012t call this with a constant service name. Apply this file before those indexes.
+create or replace function public.crm_church_opportunity_status(doc jsonb, service text)
+returns text
+language sql
+immutable
+parallel safe
+set search_path = public, pg_temp
+as $$
+  select case
+    when lower(btrim(coalesce(doc->'service_opportunities'->service->>'status', ''))) in
+      ('unknown', 'possible', 'interested', 'active_customer', 'not_a_fit')
+    then lower(btrim(doc->'service_opportunities'->service->>'status'))
+    when service = 'churchconnect' and (
+      lower(btrim(coalesce(doc->>'is_customer', ''))) in ('true', 'yes', 'y', '1')
+      or lower(btrim(coalesce(doc->>'signed_up', ''))) in ('true', 'yes', 'y', '1')
+      or lower(btrim(coalesce(doc->>'invite_status', ''))) = 'accepted'
+    ) then 'active_customer'
+    when service in ('churchconnect', 'website', 'laser')
+      and lower(btrim(coalesce(doc->>'lead_class', ''))) = 'other_services'
+    then 'possible'
+    else 'unknown'
+  end;
+$$;
+
 create or replace function public.crm_directory_page(
   p_q text default '',
   p_state text default '',
@@ -175,7 +202,8 @@ create or replace function public.crm_directory_page(
   p_dir text default 'asc',
   p_cursor_id text default '',
   p_cursor_value text default '',
-  p_limit integer default 41
+  p_limit integer default 41,
+  p_opportunity text default ''
 )
 returns table (
   id text,
@@ -205,7 +233,11 @@ returns table (
   building_stage_recorded_at text,
   sort_name text,
   sort_fit numeric,
-  sort_contact text
+  sort_contact text,
+  service_opportunities jsonb,
+  is_customer text,
+  signed_up text,
+  invite_status text
 )
 language plpgsql
 stable
@@ -223,6 +255,9 @@ declare
   contacted text := left(btrim(coalesce(p_contacted, '')), 20);
   contacted_on text := left(btrim(coalesce(p_contacted_on, '')), 10);
   stage text := left(btrim(coalesce(p_building_stage, '')), 40);
+  opportunity text := lower(left(btrim(coalesce(p_opportunity, '')), 80));
+  opp_service text := split_part(opportunity, ':', 1);
+  opp_status text := split_part(opportunity, ':', 2);
   sort text := case when p_sort in ('id', 'name', 'fit', 'contact', 'tier') then p_sort else 'id' end;
   dir text := case when lower(coalesce(p_dir, 'asc')) = 'desc' then 'desc' else 'asc' end;
   cursor_id text := left(btrim(coalesce(p_cursor_id, '')), 80);
@@ -306,6 +341,19 @@ begin
     clauses := clauses || format(' and public.crm_church_building_stage(c.doc) = %L', stage);
   end if;
 
+  if opportunity <> '' then
+    if opp_service in ('website', 'toner', 'laser', 'churchconnect', 'local_mission')
+       and opp_status in ('unknown', 'possible', 'interested', 'active_customer', 'not_a_fit')
+    then
+      clauses := clauses || format(
+        ' and public.crm_church_opportunity_status(c.doc, %L) = %L',
+        opp_service, opp_status
+      );
+    else
+      clauses := clauses || ' and false';
+    end if;
+  end if;
+
   if sort = 'name' then
     ord := 'public.crm_church_sort_name(c.doc) ' || dir || ', c.id ' || dir;
     if cursor_id <> '' then
@@ -376,7 +424,11 @@ begin
       c.doc->>'building_stage_recorded_at',
       public.crm_church_sort_name(c.doc),
       coalesce(public.crm_church_fit(c.doc), -1),
-      public.crm_church_last_contact(c.doc)
+      public.crm_church_last_contact(c.doc),
+      c.doc->'service_opportunities',
+      c.doc->>'is_customer',
+      c.doc->>'signed_up',
+      c.doc->>'invite_status'
     from public.cc_churches c
     where %s
       and %s
@@ -394,5 +446,6 @@ revoke all on function public.crm_church_fit(jsonb) from public, anon, authentic
 revoke all on function public.crm_church_last_contact(jsonb) from public, anon, authenticated;
 revoke all on function public.crm_church_has_staff(jsonb) from public, anon, authenticated;
 revoke all on function public.crm_church_building_stage(jsonb) from public, anon, authenticated;
-revoke all on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer) from public, anon, authenticated;
-grant execute on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer) to service_role;
+revoke all on function public.crm_church_opportunity_status(jsonb, text) from public, anon, authenticated;
+revoke all on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text) from public, anon, authenticated;
+grant execute on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text) to service_role;

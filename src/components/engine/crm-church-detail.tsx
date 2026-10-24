@@ -2,11 +2,11 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { setChurchOwnerFieldsAction, setChurchStatusAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
+import { setChurchOwnerFieldsAction, setChurchServiceOpportunitiesAction, setChurchStatusAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { ChurchSignals, PeopleTools, Status } from "@/components/engine/crm-church-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
 import { avlProjectStatusLabel, buildingStageLabel, directoryStatusLabel, type DirectoryRow } from "@/lib/engine/crm-directory-core";
-import { AVL_PROJECT_STATUSES, BUILDING_STAGES, BUILDING_STAGE_LABEL, AVL_PROJECT_STATUS_LABEL, CRM_CHURCH_STATUSES, type CrmCard } from "@/lib/engine/lpl-crm-core";
+import { AVL_PROJECT_STATUSES, BUILDING_STAGES, BUILDING_STAGE_LABEL, AVL_PROJECT_STATUS_LABEL, CRM_CHURCH_STATUSES, SERVICE_OPPORTUNITY_IDS, SERVICE_OPPORTUNITY_LABEL, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL, type CrmCard } from "@/lib/engine/lpl-crm-core";
 
 type HistoryItem = { id: string; at: string; kind: string; what: string };
 
@@ -123,6 +123,7 @@ export function CrmChurchDetail({
       </dl>
       {canSave ? <StatusForm churchId={row.id} status={row.crmStatus} /> : null}
       {canSave ? <OwnerFieldsForm row={row} /> : null}
+      {canSave ? <ServiceOpportunitiesForm row={row} /> : <ServiceOpportunitySummary row={row} />}
       <ChurchSignals signals={card.signals ?? []} />
       <PeopleTools card={card} canSave={canSave} />
       <SuggestNextStep card={card} isOwner canSave={canSave} outreachHidden={false} />
@@ -212,6 +213,71 @@ function OwnerFieldsForm({ row }: { row: DirectoryRow }) {
       </label>
       <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>
         {pending ? "Saving…" : "Save AVL notes"}
+      </button>
+      <Status state={state} />
+    </form>
+  );
+}
+
+function ServiceOpportunitySummary({ row }: { row: DirectoryRow }) {
+  return (
+    <section className="crm-opps" aria-label="Service opportunities">
+      <h2 className="crm-h2">Service opportunities</h2>
+      <dl className="crm-facts">
+        {SERVICE_OPPORTUNITY_IDS.map((service) => {
+          const item = row.opportunities[service];
+          return (
+            <div key={service}>
+              <dt>{SERVICE_OPPORTUNITY_LABEL[service]}</dt>
+              <dd>
+                {SERVICE_OPPORTUNITY_STATUS_LABEL[item.status]}
+                {item.note ? ` · ${item.note}` : ""}
+                {item.updatedAt ? ` · updated ${when(item.updatedAt)}` : ""}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
+  );
+}
+
+function ServiceOpportunitiesForm({ row }: { row: DirectoryRow }) {
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(setChurchServiceOpportunitiesAction, null);
+  return (
+    <form action={action} className="crm-form crm-opps" data-testid="crm-service-opportunities">
+      <input type="hidden" name="church_id" value={row.id} />
+      <h2 className="crm-h2">Service opportunities</h2>
+      <p className="crm-dim">Next to AV. Separate from contact status. A blank one is filled from what we already know.</p>
+      {SERVICE_OPPORTUNITY_IDS.map((service) => {
+        const item = row.opportunities[service];
+        const label = SERVICE_OPPORTUNITY_LABEL[service];
+        return (
+          <fieldset className="crm-opp" key={service}>
+            <legend>{label}</legend>
+            <label className="crm-field">
+              <span>Status</span>
+              <select name={`opp_${service}_status`} defaultValue={item.status} aria-label={`${label} status`}>
+                {SERVICE_OPPORTUNITY_STATUSES.map((status) => (
+                  <option value={status} key={status}>
+                    {SERVICE_OPPORTUNITY_STATUS_LABEL[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="crm-field">
+              <span>Note</span>
+              <input name={`opp_${service}_note`} defaultValue={item.note} maxLength={500} aria-label={`${label} note`} />
+            </label>
+            <label className="crm-field">
+              <span>Updated</span>
+              <input name={`opp_${service}_updated`} type="date" defaultValue={item.updatedAt} aria-label={`${label} updated date`} />
+            </label>
+          </fieldset>
+        );
+      })}
+      <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>
+        {pending ? "Saving…" : "Save opportunities"}
       </button>
       <Status state={state} />
     </form>

@@ -7227,6 +7227,13 @@ button.compose-arch:hover {
 .crm-page .crm-dir-filters .dx-btn, .crm-page .crm-status-form .dx-btn, .crm-page .crm-detail .crm-card-head .dx-btn { min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
 .crm-page .crm-status-form select, .crm-page .crm-status-form input:not([type="checkbox"]) { min-height: 44px; font-size: 1rem; }
 .crm-page .crm-status-form > .crm-dim { flex-basis: 100%; margin: 0; font-size: 0.875rem; }
+.crm-page .crm-opps { display: grid; gap: 12px; margin: 8px 0 16px; min-width: 0; }
+.crm-page .crm-opps > .crm-h2 { font-size: 1.15rem; }
+.crm-page .crm-opps > .crm-dim { margin: 0; font-size: 0.875rem; }
+.crm-page .crm-opp { display: grid; gap: 8px; margin: 0; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.crm-page .crm-opp legend { font-size: 0.875rem; font-weight: 600; padding: 0; overflow-wrap: anywhere; }
+.crm-page .crm-opp select, .crm-page .crm-opp input { min-height: 44px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+.crm-page .crm-opps > .dx-btn { justify-self: start; min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
 .crm-dir-pager { display: flex; gap: 8px; margin-top: 12px; }
 .crm-detail { margin-top: 8px; }
 .crm-status-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 8px 0 16px; }

@@ -132,6 +132,7 @@ const DETAIL_FIELDS = [
   "name", "church_name", "city", "state", "zip_code", "county", "region", "website", "phone", "email",
   "crm_status", "lead_class", "jev_avl_fit", "jev_project_stage", "last_invited_at", "last_contact_at",
   "avl_existing_relationship", "avl_existing_relationship_note", "avl_project_status", "building_stage", "building_stage_recorded_at",
+  "is_customer", "signed_up", "invite_status",
   "pastor_name", "pastor_email", "pastor_phone", "secretary_name", "secretary_title", "contact_name", "contact_role",
   "crm_next_action", "crm_next_action_date", "do_not_contact", "do_not_contact_desk_claim"
 ];
@@ -140,7 +141,7 @@ export async function loadChurchDetail(id: string): Promise<ChurchDetail | null 
   if (!/^[A-Za-z0-9_-]{6,80}$/.test(id)) return null;
   const cfg = config();
   if (!cfg) return "unconfigured";
-  const select = `select=id,${DETAIL_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_signals:doc->crm_signals,crm_offers:doc->crm_offers`;
+  const select = `select=id,${DETAIL_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_signals:doc->crm_signals,crm_offers:doc->crm_offers,service_opportunities:doc->service_opportunities`;
   const rows = await rest(cfg, `cc_churches?id=eq.${encodeURIComponent(id)}&${select}&limit=1`);
   if (!rows) return "unread";
   const raw = rows[0] as Record<string, unknown> | undefined;

@@ -246,6 +246,145 @@ export function churchHoldsAvlWork(row: {
   return cleanAvlProjectStatus(row.avl_project_status ?? row.avlProjectStatus) === "avl_already_engaged";
 }
 
+/**
+ * Owner-only service opportunities, kept beside AV and separate from contact status.
+ * Operate is not one of these.
+ */
+export const SERVICE_OPPORTUNITY_IDS = ["website", "toner", "laser", "churchconnect", "local_mission"] as const;
+export type ServiceOpportunityId = (typeof SERVICE_OPPORTUNITY_IDS)[number];
+
+export const SERVICE_OPPORTUNITY_LABEL: Record<ServiceOpportunityId, string> = {
+  website: "Website needs",
+  toner: "Toner",
+  laser: "Laser engraved gifts/outreach material",
+  churchconnect: "ChurchConnect",
+  local_mission: "Local mission (Live on Mission)"
+};
+
+/** Short names for the directory filter, as in "Website: possible". */
+export const SERVICE_OPPORTUNITY_FILTER_LABEL: Record<ServiceOpportunityId, string> = {
+  website: "Website",
+  toner: "Toner",
+  laser: "Laser",
+  churchconnect: "ChurchConnect",
+  local_mission: "Local mission"
+};
+
+export const SERVICE_OPPORTUNITY_STATUSES = ["unknown", "possible", "interested", "active_customer", "not_a_fit"] as const;
+export type ServiceOpportunityStatus = (typeof SERVICE_OPPORTUNITY_STATUSES)[number];
+
+export const SERVICE_OPPORTUNITY_STATUS_LABEL: Record<ServiceOpportunityStatus, string> = {
+  unknown: "Unknown",
+  possible: "Possible",
+  interested: "Interested",
+  active_customer: "Active customer",
+  not_a_fit: "Not a fit"
+};
+
+export type ServiceOpportunity = {
+  status: ServiceOpportunityStatus;
+  note: string;
+  updatedAt: string;
+};
+
+export type ServiceOpportunities = Record<ServiceOpportunityId, ServiceOpportunity>;
+
+export function churchIsOnChurchConnect(row: {
+  is_customer?: unknown;
+  isCustomer?: unknown;
+  signed_up?: unknown;
+  signedUp?: unknown;
+  invite_status?: unknown;
+  inviteStatus?: unknown;
+}): boolean {
+  if (truthyFlag(row.is_customer ?? row.isCustomer) || truthyFlag(row.signed_up ?? row.signedUp)) return true;
+  return String(row.invite_status ?? row.inviteStatus ?? "").trim().toLowerCase() === "accepted";
+}
+
+export function cleanServiceOpportunityStatus(value: unknown): ServiceOpportunityStatus | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (text === "active" || text === "customer") return "active_customer";
+  if (text === "not_fit") return "not_a_fit";
+  return (SERVICE_OPPORTUNITY_STATUSES as readonly string[]).includes(text) ? (text as ServiceOpportunityStatus) : "";
+}
+
+export function emptyServiceOpportunities(): ServiceOpportunities {
+  const blank = (): ServiceOpportunity => ({ status: "unknown", note: "", updatedAt: "" });
+  return {
+    website: blank(),
+    toner: blank(),
+    laser: blank(),
+    churchconnect: blank(),
+    local_mission: blank()
+  };
+}
+
+/** Filled only when that opportunity has not been written yet. */
+export function derivedServiceOpportunityStatus(
+  service: ServiceOpportunityId,
+  input: { leadClass?: unknown; onChurchConnect?: boolean }
+): ServiceOpportunityStatus {
+  if (service === "churchconnect" && input.onChurchConnect) return "active_customer";
+  const lead = String(input.leadClass ?? "").trim().toLowerCase();
+  if (lead === "other_services" && (service === "churchconnect" || service === "website" || service === "laser")) return "possible";
+  return "unknown";
+}
+
+function opportunityRecord(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as Record<string, unknown>;
+}
+
+/** A status Lincoln already saved, including unknown. Blank means it was never written. */
+export function storedServiceOpportunity(raw: unknown, service: ServiceOpportunityId): ServiceOpportunity | null {
+  const item = opportunityRecord(opportunityRecord(raw)[service]);
+  const status = cleanServiceOpportunityStatus(item.status);
+  if (!status) return null;
+  const note = String(item.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const day = String(item.updated_at ?? item.updatedAt ?? "").trim().slice(0, 10);
+  return { status, note, updatedAt: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "" };
+}
+
+/**
+ * Stored status wins. A missing opportunity is pre-filled: other_services means
+ * ChurchConnect, Website, and Laser are possible; a church already on
+ * ChurchConnect is an active ChurchConnect customer.
+ */
+export function serviceOpportunitiesFromDoc(
+  raw: unknown,
+  input: { leadClass?: unknown; onChurchConnect?: boolean }
+): ServiceOpportunities {
+  const out = emptyServiceOpportunities();
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    const stored = storedServiceOpportunity(raw, service);
+    out[service] = stored ?? { status: derivedServiceOpportunityStatus(service, input), note: "", updatedAt: "" };
+  }
+  return out;
+}
+
+export function parseServiceOpportunityFilter(value: unknown): { service: ServiceOpportunityId; status: ServiceOpportunityStatus } | null {
+  const text = String(value ?? "").trim().toLowerCase();
+  const split = text.indexOf(":");
+  if (split < 1) return null;
+  const service = text.slice(0, split);
+  const status = cleanServiceOpportunityStatus(text.slice(split + 1));
+  if (!(SERVICE_OPPORTUNITY_IDS as readonly string[]).includes(service) || !status) return null;
+  return { service: service as ServiceOpportunityId, status };
+}
+
+export function serviceOpportunitiesToDoc(opportunities: ServiceOpportunities): Record<string, { status: ServiceOpportunityStatus; note: string; updated_at: string }> {
+  const out: Record<string, { status: ServiceOpportunityStatus; note: string; updated_at: string }> = {};
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    const item = opportunities[service];
+    out[service] = {
+      status: item.status,
+      note: item.note.replace(/\s+/g, " ").trim().slice(0, 500),
+      updated_at: /^\d{4}-\d{2}-\d{2}$/.test(item.updatedAt) ? item.updatedAt : ""
+    };
+  }
+  return out;
+}
+
 export type CrmContactNote = { at: string; note: string };
 
 const CONTACT_STATUS_LABEL: Record<CrmContactStatus, string> = {

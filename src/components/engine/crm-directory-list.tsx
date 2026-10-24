@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { buildingStageLabel, directoryHref, directoryStatusLabel, type DirectoryQuery } from "@/lib/engine/crm-directory-core";
 import type { DirectoryPage } from "@/lib/engine/crm-directory";
-import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES } from "@/lib/engine/lpl-crm-core";
+import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES, SERVICE_OPPORTUNITY_FILTER_LABEL, SERVICE_OPPORTUNITY_IDS, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL } from "@/lib/engine/lpl-crm-core";
 import { AVL_TIER_LABEL, type AvlTier } from "@/lib/engine/tech-director-core";
 
 const TIERS: AvlTier[] = ["top", "second", "other_services", "staff_only"];
@@ -69,6 +69,19 @@ export function CrmDirectoryList({
                 {BUILDING_STAGE_LABEL[stage]}
               </option>
             ))}
+          </select>
+        </label>
+        <label>
+          <span>Opportunity</span>
+          <select name="opp" defaultValue={query.opportunity} aria-label="Service opportunity">
+            <option value="">Any opportunity</option>
+            {SERVICE_OPPORTUNITY_IDS.flatMap((service) =>
+              SERVICE_OPPORTUNITY_STATUSES.map((status) => (
+                <option value={`${service}:${status}`} key={`${service}:${status}`}>
+                  {SERVICE_OPPORTUNITY_FILTER_LABEL[service]}: {SERVICE_OPPORTUNITY_STATUS_LABEL[status].toLowerCase()}
+                </option>
+              ))
+            )}
           </select>
         </label>
         <label>
