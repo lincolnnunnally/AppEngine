@@ -118,6 +118,7 @@ export type StateImportCounts = {
   newSignals: number;
   signalDuplicatesSkipped: number;
   signalsUpdated: number;
+  flagged: number;
   unmatched: number;
 };
 
@@ -131,6 +132,7 @@ export type ImportPlan = {
   signalDuplicatesSkipped: number;
   signalsUpdated: number;
   unmatched: UnmatchedTechDirector[];
+  flagged: UnmatchedTechDirector[];
   directoryOnlyRows: UnmatchedTechDirector[];
   byState: Record<string, StateImportCounts>;
   additions: Array<{ churchId: string; contact: StaffContactWrite }>;
@@ -187,7 +189,11 @@ export function techDirectorContactId(churchId: string, name: string): string {
   return `td-${digest}`;
 }
 
-/** Parse CSV text. `state` and `church_id` may be omitted. Other columns are required. */
+/**
+ * Parse CSV text by header name, not column order. `state` and `church_id` may
+ * be omitted. Other known columns are required. Unknown columns, including
+ * builder_name, builder_role, and builder_url, are ignored.
+ */
 export function parseTechDirectorCsv(text: string): { ok: true; rows: TechDirectorCsvRow[] } | { ok: false; message: string } {
   const table = parseCsv(text);
   if (!table.length) return { ok: false, message: `The CSV needs a header row: ${TECH_DIRECTOR_CSV_COLUMNS.join(", ")}.` };
@@ -272,44 +278,82 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
+/**
+ * Name key for matching. A trailing "Church" is dropped, and St. / St is read
+ * as Saint. "First Baptist Church" and "St. John" agree with "First Baptist"
+ * and "Saint John".
+ */
+export function churchMatchName(value: unknown): string {
+  const name = normName(value).replace(/\bst\b/g, "saint").replace(/\s+/g, " ").trim();
+  return name.replace(/ church$/, "").trim();
+}
+
 function sameChurchName(church: DirectoryChurch, row: TechDirectorCsvRow): boolean {
-  const want = normName(row.church);
+  const want = churchMatchName(row.church);
   if (!want) return false;
-  return [normName(church.name), normName(church.churchName)].filter(Boolean).includes(want);
+  return [churchMatchName(church.name), churchMatchName(church.churchName)].filter(Boolean).includes(want);
 }
 
 function byNameCity(pool: DirectoryChurch[], row: TechDirectorCsvRow): DirectoryChurch[] {
   const city = cityKey(row.city);
-  if (!normName(row.church) || !city) return [];
+  if (!churchMatchName(row.church) || !city) return [];
   return pool.filter((church) => sameChurchName(church, row) && cityKey(church.city) === city && statesOk(row.state, church.state));
 }
 
-/** A domain hit is not enough. The normalized name or the city has to agree too. */
-function domainAgrees(church: DirectoryChurch, row: TechDirectorCsvRow): boolean {
-  if (sameChurchName(church, row)) return true;
-  const city = cityKey(row.city);
-  return Boolean(city) && city === cityKey(church.city);
+/** True when the website is only a host: no path, query, or hash. A trailing slash still counts as bare. */
+export function bareHostWebsite(value: unknown): boolean {
+  const text = String(value ?? "").trim();
+  if (!text) return false;
+  try {
+    const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+    if (url.search || url.hash) return false;
+    return url.pathname.replace(/\/+$/, "") === "";
+  } catch {
+    return false;
+  }
 }
 
 /**
- * church_id when that column is filled. Otherwise a website domain that is not
- * a shared host (suppressionDomain drops umc.org, ag.org, jw.org, and the
- * rest) and that also agrees on the normalized name or the city. A shared host
+ * A domain hit is not enough. The normalized name has to agree, or the city,
+ * the state, and a bare-host website (no path) all have to agree. State is
+ * always checked. A path such as elca.org/find/bethel does not agree on city alone.
+ */
+function domainAgrees(church: DirectoryChurch, row: TechDirectorCsvRow): boolean {
+  if (!statesOk(row.state, church.state)) return false;
+  if (sameChurchName(church, row)) return true;
+  const city = cityKey(row.city);
+  return Boolean(city) && city === cityKey(church.city) && bareHostWebsite(row.website);
+}
+
+/** A church id attaches only when the normalized name and the state also agree. */
+function churchIdAgrees(church: DirectoryChurch, row: TechDirectorCsvRow): boolean {
+  return statesOk(row.state, church.state) && sameChurchName(church, row);
+}
+
+export type DirectoryMatch = { church: DirectoryChurch } | { reason: string; flagged?: boolean };
+
+/**
+ * church_id when that column is filled. The id has to agree on the normalized
+ * name and the state, or the row is flagged and does not fall through. Otherwise
+ * a website domain that is not a shared host (suppressionDomain drops umc.org,
+ * ag.org, jw.org, and the rest) matches only when the normalized name agrees,
+ * or the city, the state, and a bare host (no path) all agree. A shared host
  * is not a domain match. Name and city are the fallback.
  */
-export function matchDirectoryChurch(row: TechDirectorCsvRow, churches: DirectoryChurch[]): { church: DirectoryChurch } | { reason: string } {
+export function matchDirectoryChurch(row: TechDirectorCsvRow, churches: DirectoryChurch[]): DirectoryMatch {
   const churchId = String(row.church_id ?? "").trim();
   if (churchId) {
     const found = churches.find((church) => church.id === churchId);
-    if (found) return { church: found };
-    return { reason: "No church on file has that church id." };
+    if (!found) return { reason: "No church on file has that church id." };
+    if (!churchIdAgrees(found, row)) return { reason: "The church id is on file, but the name or state does not agree.", flagged: true };
+    return { church: found };
   }
   const domain = suppressionDomain(row.website);
   if (domain) {
     const byDomain = churches.filter((church) => suppressionDomain(church.website) === domain || suppressionDomain(church.domain) === domain);
     if (byDomain.length === 1) {
       if (domainAgrees(byDomain[0], row)) return { church: byDomain[0] };
-      return { reason: "The website matches one church, but the name and city do not agree." };
+      return { reason: "The website matches one church, but the name does not agree, and the city, state, and bare website do not agree." };
     }
     if (byDomain.length > 1) {
       const named = byNameCity(byDomain, row);
@@ -318,7 +362,7 @@ export function matchDirectoryChurch(row: TechDirectorCsvRow, churches: Director
       return { reason: "Several churches share that website, and the name and city do not pick one." };
     }
   }
-  if (!normName(row.church) || !cityKey(row.city)) return { reason: "No website match, and the church name or city is missing." };
+  if (!churchMatchName(row.church) || !cityKey(row.city)) return { reason: "No website match, and the church name or city is missing." };
   const named = byNameCity(churches, row);
   if (named.length === 1) return { church: named[0] };
   if (named.length > 1) return { reason: "More than one church has that name and city." };
@@ -356,6 +400,7 @@ function emptyStateCounts(): StateImportCounts {
     newSignals: 0,
     signalDuplicatesSkipped: 0,
     signalsUpdated: 0,
+    flagged: 0,
     unmatched: 0
   };
 }
@@ -376,7 +421,64 @@ export function churchSignalId(churchId: string, tag: string, quote: string, sou
   return `sig-${digest}`;
 }
 
-export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: DirectoryChurch[]): ImportPlan {
+export type ImportFlag = { churchId: string; name: string; website: string; reason: string };
+
+/** Rows that must not be written. A skip file can add more. */
+export const DEFAULT_IMPORT_FLAGS: ImportFlag[] = [
+  { churchId: "", name: "Archdiocese of Atlanta", website: "", reason: "Archdiocese of Atlanta office is not a church." },
+  {
+    churchId: "",
+    name: "Cristo Para Todas Las Naciones",
+    website: "shallowford.org",
+    reason: "Cristo Para Todas Las Naciones does not match shallowford.org."
+  }
+];
+
+/** A skip file is a headerless name list, or a CSV with church_id, church, website, and reason. */
+export function parseImportSkipFile(text: string): { ok: true; flags: ImportFlag[] } | { ok: false; message: string } {
+  const table = parseCsv(text).filter((record) => record.some((value) => String(value ?? "").trim()) && !String(record[0] ?? "").trim().startsWith("#"));
+  if (!table.length) return { ok: true, flags: [] };
+  const header = table[0].map((cell) => cell.trim().toLowerCase());
+  const named = header.includes("church_id") || header.includes("church") || header.includes("name");
+  if (!named) {
+    return {
+      ok: true,
+      flags: table
+        .map((record) => record.join(",").trim())
+        .filter(Boolean)
+        .map((name) => ({ churchId: "", name, website: "", reason: "On the skip list." }))
+    };
+  }
+  const index = new Map(header.map((name, at) => [name, at]));
+  const cell = (record: string[], name: string) => {
+    const at = index.get(name);
+    return at === undefined ? "" : String(record[at] ?? "").trim();
+  };
+  const flags: ImportFlag[] = [];
+  for (let i = 1; i < table.length; i += 1) {
+    const record = table[i];
+    const churchId = cell(record, "church_id");
+    const name = cell(record, "church") || cell(record, "name");
+    const website = cell(record, "website");
+    if (!churchId && !name) continue;
+    flags.push({ churchId, name, website, reason: cell(record, "reason") || "On the skip list." });
+  }
+  return { ok: true, flags };
+}
+
+/** Blank when the row is not flagged. A website on the rule must also appear on the row. */
+export function importFlagReason(row: TechDirectorCsvRow, flags: readonly ImportFlag[], matchedChurchId = ""): string {
+  for (const flag of flags) {
+    const idHit = Boolean(flag.churchId) && (row.church_id.trim() === flag.churchId || matchedChurchId === flag.churchId);
+    const nameHit = Boolean(flag.name) && normName(row.church).includes(normName(flag.name));
+    if (!idHit && !nameHit) continue;
+    if (flag.website && !row.website.toLowerCase().includes(flag.website.toLowerCase())) continue;
+    return flag.reason || "On the skip list.";
+  }
+  return "";
+}
+
+export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: DirectoryChurch[], extraFlags: readonly ImportFlag[] = []): ImportPlan {
   const namesByChurch = new Map<string, Set<string>>();
   const signalDates = new Map<string, Map<string, string>>();
   for (const church of churches) {
@@ -401,13 +503,21 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     signalDuplicatesSkipped: 0,
     signalsUpdated: 0,
     unmatched: [],
+    flagged: [],
     directoryOnlyRows: [],
     byState: {},
     additions: [],
     signalAdditions: [],
     signalUpdates: []
   };
+  const flags = [...DEFAULT_IMPORT_FLAGS, ...extraFlags];
   for (const row of rows) {
+    const flagged = importFlagReason(row, flags);
+    if (flagged) {
+      plan.flagged.push({ row, reason: flagged });
+      stateBucket(plan, row.state).flagged += 1;
+      continue;
+    }
     const types = parseSignalTypes(row.signal_types);
     if (!types.ok) {
       plan.unmatched.push({ row, reason: types.message });
@@ -422,11 +532,22 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     }
     const match = matchDirectoryChurch(row, churches);
     if (!("church" in match)) {
-      plan.unmatched.push({ row, reason: match.reason });
-      stateBucket(plan, row.state).unmatched += 1;
+      if (match.flagged) {
+        plan.flagged.push({ row, reason: match.reason });
+        stateBucket(plan, row.state).flagged += 1;
+      } else {
+        plan.unmatched.push({ row, reason: match.reason });
+        stateBucket(plan, row.state).unmatched += 1;
+      }
       continue;
     }
     const church = match.church;
+    const flaggedMatch = importFlagReason(row, flags, church.id);
+    if (flaggedMatch) {
+      plan.flagged.push({ row, reason: flaggedMatch });
+      stateBucket(plan, row.state).flagged += 1;
+      continue;
+    }
     const bucket = stateBucket(plan, church.state);
     plan.matched += 1;
     bucket.matched += 1;
@@ -520,13 +641,14 @@ export function formatImportCounts(plan: ImportPlan): string {
     `new signals: ${plan.newSignals}`,
     `signal duplicates skipped: ${plan.signalDuplicatesSkipped}`,
     `signals updated: ${plan.signalsUpdated}`,
+    `flagged: ${plan.flagged.length}`,
     `unmatched: ${plan.unmatched.length}`,
     "by state:"
   ];
   for (const state of Object.keys(plan.byState).sort()) {
     const row = plan.byState[state];
     lines.push(
-      `  ${state}: matched ${row.matched}, in CRM ${row.inCrm}, directory only ${row.directoryOnly}, new contacts ${row.newContacts}, duplicates skipped ${row.duplicatesSkipped}, new signals ${row.newSignals}, signal duplicates skipped ${row.signalDuplicatesSkipped}, signals updated ${row.signalsUpdated}, unmatched ${row.unmatched}`
+      `  ${state}: matched ${row.matched}, in CRM ${row.inCrm}, directory only ${row.directoryOnly}, new contacts ${row.newContacts}, duplicates skipped ${row.duplicatesSkipped}, new signals ${row.newSignals}, signal duplicates skipped ${row.signalDuplicatesSkipped}, signals updated ${row.signalsUpdated}, flagged ${row.flagged}, unmatched ${row.unmatched}`
     );
   }
   return lines.join("\n");
@@ -600,6 +722,15 @@ export function addChurchSignals(
   return { signals: next, added, duplicates, updated };
 }
 
+/** The keys a server-side doc merge may replace. Other keys stay as they are at update time. */
+export function churchDocPatch(doc: Record<string, unknown>): { staff_contacts: unknown; crm_signals: unknown; updated_at: unknown } {
+  return {
+    staff_contacts: doc.staff_contacts,
+    crm_signals: doc.crm_signals,
+    updated_at: doc.updated_at
+  };
+}
+
 /** Copy of the church doc with only staff_contacts, crm_signals, and updated_at changed. */
 export function nextChurchDoc(
   doc: Record<string, unknown>,
@@ -642,6 +773,64 @@ export function stampStaffContact(staff: unknown, meta: { id: string; tags: stri
   else delete current.source_url;
   next[index] = current;
   return { staff: next, found: true };
+}
+
+/** Stable op_leads slug for an unmatched church-signal row. Re-running finds the same slug. */
+export function churchSignalLeadSlug(row: TechDirectorCsvRow): string {
+  const digest = createHash("sha1")
+    .update([row.church, row.city, row.state, row.website, row.name, row.signal_types, row.evidence_quote, row.source_url].join("|"), "utf8")
+    .digest("hex")
+    .slice(0, 10);
+  const base = normName(`${row.church} ${row.city}`).replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "church-signal";
+  return `cs-${base}-${digest}`.slice(0, 80);
+}
+
+/**
+ * One unmatched row as an op_leads insert. signals.kind is "church-signal".
+ * A staff name, when present, is a contact on that lead. No new table.
+ */
+export function churchSignalLeadBody(row: TechDirectorCsvRow, reason: string): Record<string, unknown> {
+  const published = parsePublishedContact(row.contact);
+  const types = parseSignalTypes(row.signal_types);
+  const tags = types.ok ? signalTagsForTypes(types.types) : [];
+  const person = normPersonName(row.name)
+    ? {
+        id: `lq-${createHash("sha1").update(`${row.church}|${normPersonName(row.name)}`, "utf8").digest("hex").slice(0, 12)}`,
+        name: clip(row.name, 120),
+        role: clip(row.title, 80),
+        email: published.email,
+        phone: published.phone,
+        ...(types.ok && types.types.includes("staff") ? { tags: cleanRoleTags([TECHNICAL_DIRECTOR_TAG]) } : {}),
+        ...(httpUrl(row.staff_page_url || row.source_url) ? { source_url: httpUrl(row.staff_page_url || row.source_url) } : {}),
+        status: "new"
+      }
+    : null;
+  return {
+    slug: churchSignalLeadSlug(row),
+    business_name: clip(row.church, 160) || "Church signal",
+    kind: "shop",
+    city: clip(row.city, 80) || null,
+    state: clip(row.state, 40) || null,
+    phone: published.phone || null,
+    email: published.email || null,
+    website_url: httpUrl(row.website) || null,
+    site_status: httpUrl(row.website) ? "refresh" : "none",
+    status: "new",
+    send_invite: false,
+    source: "church_signal_import",
+    services: [],
+    contacts: person ? [person] : [],
+    signals: {
+      kind: "church-signal",
+      tag: tags[0] ?? "",
+      evidence_quote: clip(row.evidence_quote, 500),
+      source_url: httpUrl(row.source_url),
+      signal_date: clip(row.signal_date, 40),
+      score: Number(row.score) || 0,
+      reason: clip(reason, 200),
+      signal_types: clip(row.signal_types, 80)
+    }
+  };
 }
 
 export function unmatchedReportCsv(unmatched: UnmatchedTechDirector[]): string {

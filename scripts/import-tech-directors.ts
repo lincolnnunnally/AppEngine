@@ -1,11 +1,13 @@
 // Import church signals onto churches already on file.
 //
 // Matches each CSV row to an existing church. A filled church_id matches that
-// id and does not fall through. Otherwise a website domain matches only when
-// suppressionDomain keeps the host (shared hosts such as umc.org, ag.org,
-// jw.org, churchfinder.com, and givelify.com do not) and the normalized name
-// or the city also agrees. If that domain hits one church and neither agrees,
-// the row is unmatched. Name and city are the fallback. Never creates a church.
+// id only when the normalized name and the state also agree. A different name
+// or state is flagged and does not fall through. Otherwise a website domain
+// matches only when suppressionDomain keeps the host (shared hosts such as
+// umc.org, ag.org, jw.org, churchfinder.com, and givelify.com do not) and the
+// normalized name agrees, or the city, the state, and a bare host (no path)
+// all agree. Name and city are the fallback. "Church" at the end of a name,
+// and St. / Saint, are the same name. Never creates a church.
 // A staff row adds the person (same name at that church is skipped). A campaign
 // or renovation row stores the evidence on the church and does not create a
 // person. A signal already stored with the same tag, quote, and source keeps
@@ -13,10 +15,11 @@
 // ChurchConnect directory that are not already on the CRM are counted and
 // reported, not written. Writes only with --apply, and refuses production.
 //
-// The write re-reads the church doc, changes only staff_contacts and
-// crm_signals (and doc.updated_at, so the next write can see this one), and
-// patches only when doc.updated_at is still the value just read. A conflict
-// re-reads and tries again. Other keys on the doc are copied from that read.
+// The write re-reads the church doc and merges only staff_contacts,
+// crm_signals, and updated_at through crm_patch_church_doc (doc || patch on
+// the server). Until that function is applied, it falls back to a
+// compare-and-swap on doc.updated_at. A conflict re-reads and tries again.
+// Re-running is safe after a partial failure.
 //
 // Columns: church, church_id (optional), city, state (optional), website,
 // staff_page_url, name, title, contact, signal_types, evidence_quote,
@@ -36,12 +39,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  churchDocPatch,
   churchIsInCrm,
+  churchSignalLeadBody,
   directoryOnlyReportCsv,
   formatImportCounts,
   nextChurchDoc,
+  parseImportSkipFile,
   parseTechDirectorCsv,
   planTechDirectorImport,
+  type ImportFlag,
   TECH_DIRECTOR_CSV_COLUMNS,
   unmatchedReportCsv,
   type ChurchSignalWrite,
@@ -62,9 +69,11 @@ const dryRun = args.includes("--dry-run");
 const apply = args.includes("--apply");
 const reportFlag = args.indexOf("--report");
 const reportPath = reportFlag >= 0 ? args[reportFlag + 1] : "";
-const file = args.filter((arg, index) => !arg.startsWith("--") && args[index - 1] !== "--report")[0];
+const skipFlag = args.indexOf("--skip-file");
+const skipPath = skipFlag >= 0 ? args[skipFlag + 1] : "";
+const file = args.filter((arg, index) => !arg.startsWith("--") && args[index - 1] !== "--report" && args[index - 1] !== "--skip-file")[0];
 
-if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath)) {
+if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath) || (skipFlag >= 0 && !skipPath)) {
   console.error(`Usage:
   node --experimental-strip-types scripts/import-tech-directors.ts --dry-run <file.csv>
   node --experimental-strip-types scripts/import-tech-directors.ts --apply <file.csv>
@@ -74,7 +83,12 @@ state and church_id may be omitted. signal_types is staff, campaign, renovation,
 --dry-run prints counts by state and writes nothing to the database.
 It also counts rows that match a ChurchConnect church that is not on the CRM.
 --apply writes only churches already on the CRM. It does not create churches.
-Optional: --report <unmatched.csv>`);
+Re-running is safe after a partial failure: a contact or signal already stored is skipped, and a later signal date updates that signal.
+Columns are read by header name. builder_name, builder_role, builder_url, and other unknown columns are ignored.
+The Archdiocese of Atlanta office and a Cristo Para Todas Las Naciones row on shallowford.org are flagged and not written.
+A church id whose church has a different name or state is flagged and not written.
+Unmatched rows are also saved as church-signal leads (op_leads) so the desk can search them.
+Optional: --report <unmatched.csv>   --skip-file <church ids or names>`);
   process.exit(1);
 }
 
@@ -103,7 +117,23 @@ if (!parsed.ok) {
 }
 
 const churches = await readChurches(config);
-const plan = planTechDirectorImport(parsed.rows, churches);
+let extraFlags: ImportFlag[] = [];
+if (skipPath) {
+  let skipText = "";
+  try {
+    skipText = readFileSync(resolve(skipPath), "utf8");
+  } catch {
+    console.error(`Could not read ${resolve(skipPath)}.`);
+    process.exit(1);
+  }
+  const skip = parseImportSkipFile(skipText);
+  if (!skip.ok) {
+    console.error(skip.message);
+    process.exit(1);
+  }
+  extraFlags = skip.flags;
+}
+const plan = planTechDirectorImport(parsed.rows, churches, extraFlags);
 console.log(formatImportCounts(plan));
 const unmatchedPath = plan.unmatched.length ? resolve(reportPath || csvPath.replace(/\.csv$/i, "") + "-unmatched.csv") : "";
 if (unmatchedPath) {
@@ -118,6 +148,13 @@ if (directoryPath) {
   console.log(`directory only report: ${directoryPath}`);
 } else {
   console.log("directory only report: none");
+}
+const flaggedPath = plan.flagged.length ? resolve(csvPath.replace(/\.csv$/i, "") + "-flagged.csv") : "";
+if (flaggedPath) {
+  writeFileSync(flaggedPath, unmatchedReportCsv(plan.flagged));
+  console.log(`flagged report: ${flaggedPath}`);
+} else {
+  console.log("flagged report: none");
 }
 
 if (!apply) {
@@ -168,6 +205,23 @@ for (const churchId of churchIds) {
   signalsUpdated += result.updatedSignals;
 }
 console.log(`applied: ${wrote} churches updated, ${contactsWritten} new contacts, ${signalsWritten} new signals, ${signalsUpdated} signals updated`);
+
+let queued = 0;
+let queueSkipped = 0;
+for (const item of plan.unmatched) {
+  const body = churchSignalLeadBody(item.row, item.reason);
+  const saved = await writeChurchSignalLead(config, body);
+  if (saved === "exists") {
+    queueSkipped += 1;
+    continue;
+  }
+  if (saved === "error") {
+    console.error(`Could not save unmatched row ${item.row.line} to the lead queue. Stopped after ${queued} new leads. Re-running is safe.`);
+    process.exit(1);
+  }
+  queued += 1;
+}
+console.log(`lead queue: ${queued} new, ${queueSkipped} already there`);
 
 function databaseConfig(): { url: string; key: string } | null {
   const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim().replace(/\/$/, "");
@@ -268,7 +322,7 @@ async function writeChurchDoc(
     if (!current) return { ok: false };
     const merged = nextChurchDoc(current, contacts, signals, updates, new Date().toISOString());
     if (!merged.changed) return { ok: true, changed: false, addedContacts: 0, addedSignals: 0, updatedSignals: 0 };
-    const written = await writeDoc(config, churchId, merged.doc, String(current.updated_at ?? ""));
+    const written = await writeDoc(config, churchId, churchDocPatch(merged.doc), merged.doc, String(current.updated_at ?? ""));
     if (written === "ok") {
       return {
         ok: true,
@@ -283,23 +337,57 @@ async function writeChurchDoc(
   return { ok: false };
 }
 
+const CHURCH_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function writeDoc(
   config: { url: string; key: string },
   churchId: string,
-  doc: Record<string, unknown>,
+  patch: { staff_contacts: unknown; crm_signals: unknown; updated_at: unknown },
+  fullDoc: Record<string, unknown>,
   previousUpdatedAt: string
 ): Promise<"ok" | "conflict" | "error"> {
+  if (CHURCH_UUID.test(churchId)) {
+    const rpc = await rest(config, "rpc/crm_patch_church_doc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ p_id: churchId, p_patch: patch })
+    });
+    if (rpc.ok) {
+      const rows = (await rpc.json()) as unknown[];
+      return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
+    }
+    const detail = await rpc.text().catch(() => "");
+    const missing = rpc.status === 404 || /PGRST202|could not find the function|schema cache/i.test(detail);
+    if (!missing) return "error";
+  }
   const guard = previousUpdatedAt
     ? `&doc->>updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
     : "&or=(doc->>updated_at.is.null,doc->>updated_at.eq.)";
   const response = await rest(config, `cc_churches?id=eq.${encodeURIComponent(churchId)}${guard}&select=id`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-    body: JSON.stringify({ doc })
+    body: JSON.stringify({ doc: fullDoc })
   });
   if (!response.ok) return "error";
   const rows = (await response.json()) as unknown[];
   return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
+}
+
+async function writeChurchSignalLead(config: { url: string; key: string }, body: Record<string, unknown>): Promise<"ok" | "exists" | "error"> {
+  const slug = encodeURIComponent(String(body.slug ?? ""));
+  const existing = await rest(config, `op_leads?slug=eq.${slug}&select=id&limit=1`);
+  if (!existing.ok) return "error";
+  const rows = (await existing.json()) as unknown[];
+  if (Array.isArray(rows) && rows.length > 0) return "exists";
+  const response = await rest(config, "op_leads?select=id", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify(body)
+  });
+  if (response.status === 409) return "exists";
+  if (!response.ok) return "error";
+  const saved = (await response.json()) as unknown[];
+  return Array.isArray(saved) && saved.length === 1 ? "ok" : "error";
 }
 
 async function rest(config: { url: string; key: string }, query: string, init: RequestInit = {}): Promise<Response> {

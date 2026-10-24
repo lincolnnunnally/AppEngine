@@ -145,7 +145,86 @@ export type CrmContact = {
   tags?: string[];
   /** Public page this contact was taken from. Shown to the owner only. */
   sourceUrl?: string;
+  /** Pipeline status on this person. Stored on the contact record. Owner only. */
+  status?: CrmContactStatus | "";
+  /** Outreach notes logged for this person (note + day). Owner only. Nothing is sent. */
+  notes?: CrmContactNote[];
 };
+
+export const CRM_CONTACT_STATUSES = ["new", "contacted", "follow-up", "meeting", "won", "lost"] as const;
+export type CrmContactStatus = (typeof CRM_CONTACT_STATUSES)[number];
+
+export type CrmContactNote = { at: string; note: string };
+
+const CONTACT_STATUS_LABEL: Record<CrmContactStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  "follow-up": "Follow-up",
+  meeting: "Meeting",
+  won: "Won",
+  lost: "Lost"
+};
+
+export function contactStatusLabel(status: string): string {
+  return CONTACT_STATUS_LABEL[status as CrmContactStatus] ?? "";
+}
+
+export function cleanContactStatus(value: unknown): CrmContactStatus | "" {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (CRM_CONTACT_STATUSES as readonly string[]).includes(text) ? (text as CrmContactStatus) : "";
+}
+
+const OUTREACH_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A logged outreach: a note, the day, and one of the contact statuses. Logging only. */
+export function cleanContactOutreach(input: {
+  note?: unknown;
+  day?: unknown;
+  status?: unknown;
+  contactId?: unknown;
+  name?: unknown;
+}): { note: string; day: string; status: CrmContactStatus; contactId: string; name: string } | string {
+  const note = String(input.note ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+  if (!note) return "Write what you did. Nothing was saved.";
+  const day = String(input.day ?? "").trim().slice(0, 10);
+  if (!OUTREACH_DAY.test(day)) return "Pick the day. Nothing was saved.";
+  const parsed = new Date(`${day}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== day) return "Pick a real day. Nothing was saved.";
+  const status = cleanContactStatus(input.status);
+  if (!status) return "Pick a status. Nothing was saved.";
+  const contactId = String(input.contactId ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{6,64}$/.test(contactId)) return "That contact can't be updated. Reload the page and try again.";
+  const name = String(input.name ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!name) return "That contact needs a name. Nothing was saved.";
+  return { note, day, status, contactId, name };
+}
+
+/**
+ * Owner search. Matches the church name, a person's name or title, the city
+ * or state, and a signal tag (Technical/media staff, Building investment, or
+ * a card that has both). Blank query matches everything.
+ */
+export function cardMatchesCrmSearch(
+  card: {
+    name: string;
+    town: string;
+    state?: string;
+    contacts?: Array<{ name?: string; title?: string; tags?: string[] }>;
+    signals?: Array<{ tag?: string }>;
+  },
+  query: string
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const parts = [
+    card.name,
+    card.town,
+    card.state ?? "",
+    ...(card.contacts ?? []).flatMap((contact) => [contact.name ?? "", contact.title ?? "", ...(contact.tags ?? [])]),
+    ...(card.signals ?? []).map((signal) => signal.tag ?? "")
+  ];
+  return parts.join("\n").toLowerCase().includes(q);
+}
 
 export type CrmNode = {
   id: string;
@@ -183,6 +262,8 @@ export type CrmNode = {
   state?: string;
   /** Church signals (technical/media staff, building investment). Owner only on the page. */
   signals?: CrmChurchSignal[];
+  /** Unmatched church-signal row stored as an op_leads lead. */
+  leadQueue?: boolean;
 };
 
 export type CrmChurchSignal = {
@@ -249,6 +330,8 @@ export type CrmCard = {
   state?: string;
   /** Owner only. Evidence for technical/media staff or building investment. */
   signals?: CrmChurchSignal[];
+  /** This card is an unmatched church-signal lead (op_leads). */
+  leadQueue?: boolean;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -700,7 +783,7 @@ function contactsOf(members: CrmNode[]): CrmContact[] {
 
 /** Owner view keeps everything; anyone else sees names and titles only. */
 export function contactsForViewer(contacts: CrmContact[], isOwner: boolean): CrmContact[] {
-  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "", sourceUrl: "" }));
+  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "", sourceUrl: "", status: "", notes: [] }));
 }
 
 function signalsOf(members: CrmNode[]): CrmChurchSignal[] {
@@ -847,7 +930,8 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       deskDoNotContact: targetMembers(members, saveChurch, saveLead).some((member) => member.deskDoNotContact && !member.contextOnly),
       org: orgOf(members),
       state: members.map((member) => member.state).find(Boolean) || "",
-      signals: signalsOf(members)
+      signals: signalsOf(members),
+      leadQueue: members.some((member) => member.leadQueue)
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));

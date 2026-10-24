@@ -22,6 +22,7 @@ import {
   suppressionKeys,
   scrubContact,
   shortPersonName,
+  cleanContactStatus,
   type CrmApp,
   type CrmCard,
   type CrmContact,
@@ -187,7 +188,8 @@ function churchContacts(row: Row, churchId: string): CrmContact[] {
       phone: contactText(item.phone, 40),
       source: "saved",
       tags: readRoleTags(item.tags ?? item.role_tag),
-      sourceUrl: httpUrl(item.source_url ?? item.sourceUrl)
+      sourceUrl: httpUrl(item.source_url ?? item.sourceUrl),
+      status: cleanContactStatus(item.status)
     });
   }
   const builtIn: Array<[CrmContact["source"], unknown, string, unknown, unknown]> = [
@@ -296,13 +298,32 @@ function leadContactList(value: unknown): CrmContact[] {
       phone: contactText(item.phone, 40),
       source: "saved",
       tags: readRoleTags(item.tags ?? item.role_tag),
-      sourceUrl: httpUrl(item.source_url ?? item.sourceUrl)
+      sourceUrl: httpUrl(item.source_url ?? item.sourceUrl),
+      status: cleanContactStatus(item.status)
     });
   }
   return out;
 }
 
-/** A business prospect (op_leads). The desk is its only writer today. */
+/** A church-signal lead keeps its evidence in op_leads.signals (kind church-signal). */
+function churchSignalFromLead(signals: Row): CrmNode["signals"] {
+  if (s(signals.kind) !== "church-signal") return undefined;
+  const tag = s(signals.tag);
+  if (!tag) return undefined;
+  const score = Number(signals.score);
+  return [
+    {
+      id: s(signals.id) || `lead-${tag}`,
+      tag,
+      evidenceQuote: s(signals.evidence_quote),
+      sourceUrl: s(signals.source_url),
+      signalDate: s(signals.signal_date),
+      score: Number.isFinite(score) ? score : 0
+    }
+  ];
+}
+
+/** A business prospect (op_leads). The desk is its only writer today, except the church-signal import. */
 function reasonsFor(row: Row, index?: SuppressionReasonIndex): string[] {
   if (!index) return [];
   return [
@@ -370,7 +391,10 @@ export function businessNode(row: Row, reasons?: SuppressionReasonIndex): CrmNod
           : undefined,
     leadId: id,
     contacts: leadContactList(row.contacts),
+    signals: churchSignalFromLead(signals),
+    leadQueue: s(signals.kind) === "church-signal",
     deskDoNotContact: status === "suppressed" && s(signals.dnc_source) === "crm_visit",
+    state: s(row.state),
     org: {
       kind: "business",
       id,
@@ -384,6 +408,18 @@ export function businessNode(row: Row, reasons?: SuppressionReasonIndex): CrmNod
       version: s(row.updated_at)
     }
   };
+}
+
+/** A note logged on a person. The newest status already on the contact stays. */
+function rememberContactNote(node: CrmNode, contactId: string, at: string, note: string, status = ""): void {
+  if (!contactId || !node.contacts) return;
+  const person = node.contacts.find((item) => item.id === contactId);
+  if (!person) return;
+  const saved = cleanContactStatus(status);
+  if (saved && !person.status) person.status = saved;
+  const text = scrubContact(note, 300);
+  if (!text) return;
+  person.notes = [...(person.notes ?? []), { at, note: text }];
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -447,6 +483,8 @@ export function leadActivityNodes(rows: Row[], nodes: Map<string, CrmNode>): Crm
     } else {
       const at = occurred || s(row.created_at);
       if (at) {
+        const contact = row.contact && typeof row.contact === "object" ? (row.contact as Row) : null;
+        if (type === "note") rememberContactNote(node, s(contact?.id), at, s(row.outcome));
         node.touches.push({
           at,
           app: "business",
@@ -713,7 +751,11 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
         continue;
       }
     }
-    const at = s(row.at) || s(row.created_at);
+    const at = s(row.at) || s(row.created_at) || s(row.occurred_at);
+    if (type === "note") {
+      const contact = row.contact && typeof row.contact === "object" ? (row.contact as Row) : null;
+      if (node && at) rememberContactNote(node, s(contact?.id), at, s(row.description), s(row.outcome));
+    }
     if (!node || !at) continue;
     const outreach = OUTREACH_ACTIVITY.has(type) && !/FAILED|did not send/i.test(s(row.description));
     if (type === "invite" && node.touches.some((touch) => touch.kind === "invite" && touch.at.slice(0, 16) === at.slice(0, 16))) continue;

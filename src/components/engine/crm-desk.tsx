@@ -47,6 +47,10 @@ type Props = {
   avInitial?: AvProspectState;
   /** Local preview only: open the Technical director filter. */
   techFirst?: boolean;
+  /** Owner search already applied on the server. The box submits back to /crm. */
+  searchQuery?: string;
+  /** preview=tech (and the others) must survive a search submit. */
+  preview?: string;
 };
 
 function ChipScroller({ label, children }: { label: string; children: ReactNode }) {
@@ -278,7 +282,7 @@ function CardView({
       </dl>
 
       {isOwner ? <ChurchSignals signals={card.signals ?? []} /> : null}
-      {isOwner ? <TechDirectorPeople people={card.contacts} /> : null}
+      {isOwner ? <TechDirectorPeople people={card.contacts} signals={card.signals ?? []} card={card} canSave={canSave} /> : null}
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
       <SuggestNextStep card={card} isOwner={isOwner} canSave={canSave} outreachHidden={outreachHidden} />
       <PeopleTools card={card} canSave={canSave} />
@@ -417,12 +421,12 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null, techFirst = false }: Props) {
+export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null, techFirst = false, searchQuery = "", preview = "" }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
   const [filter, setFilter] = useState<CardFilter>(techFirst ? "tech" : "all");
   const [signalFilter, setSignalFilter] = useState<"" | typeof SIGNAL_STAFF | typeof SIGNAL_BUILDING>("");
   const [stateFilter, setStateFilter] = useState("");
-  const [query, setQuery] = useState("");
+  const [queueOnly, setQueueOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
   // Owner only: AV prospects or Top prospects show in place of the cards.
@@ -459,21 +463,20 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
 
   const shownCards = useMemo(() => {
     if (focus) return cards.filter((card) => card.key === focus);
-    const q = query.trim().toLowerCase();
     const list = cards.filter((card) => {
+      if (queueOnly && !card.leadQueue) return false;
       if (!matches(card, filter)) return false;
       if (signalFilter && !(card.signals ?? []).some((signal) => signal.tag === signalFilter)) return false;
       if (stateFilter && stateCode(card.state || card.town.split(",").pop() || "") !== stateFilter) return false;
-      return !q || `${card.name} ${card.town}`.toLowerCase().includes(q);
+      return true;
     });
-    if (!signalFilter && !stateFilter) return list;
     return [...list].sort((a, b) => {
       const aScore = churchSignalScore(a.signals ?? [], signalFilter || undefined) ?? Number.NEGATIVE_INFINITY;
       const bScore = churchSignalScore(b.signals ?? [], signalFilter || undefined) ?? Number.NEGATIVE_INFINITY;
       if (aScore !== bScore) return bScore - aScore;
       return a.name.localeCompare(b.name);
     });
-  }, [cards, filter, query, focus, signalFilter, stateFilter]);
+  }, [cards, filter, focus, signalFilter, stateFilter, queueOnly]);
 
   const openCard = (key: string) => {
     setPanel("cards");
@@ -559,19 +562,18 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               One card each <span className="crm-count crm-count--lg">{cards.length}</span>
             </h2>
           </div>
-          <label className="crm-search">
-            <span className="crm-sr-only">Search by name or town</span>
-            <input
-              type="search"
-              placeholder="Search name or town"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setFocus(null);
-                setLimit(PAGE);
-              }}
-            />
-          </label>
+          <div className="crm-search">
+            {isOwner ? (
+              <form action="/crm" method="get" className="crm-search-form">
+                <span className="crm-sr-only">Search by church, person, title, city, or tag</span>
+                {preview ? <input type="hidden" name="preview" value={preview} /> : null}
+                <input type="search" name="q" defaultValue={searchQuery} placeholder="Church, person, title, city, or tag" aria-label="Search by church, person, title, city, or tag" />
+                <button type="submit" className="dx-btn">
+                  Search
+                </button>
+              </form>
+            ) : null}
+          </div>
         </div>
         <ChipScroller label="Filter cards">
           {(Object.keys(FILTER_LABEL) as Array<Exclude<CardFilter, "tech">>).map((key) => (
@@ -670,6 +672,22 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               Top prospects
             </button>
           ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && queueOnly ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setQueueOnly((current) => !current);
+                setPanel("cards");
+                setFocus(null);
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && queueOnly}
+              data-testid="crm-lead-queue"
+            >
+              Lead queue <strong>{cards.filter((card) => card.leadQueue).length}</strong>
+            </button>
+          ) : null}
         </ChipScroller>
         {isOwner ? (
           <label className="crm-state-filter">
@@ -705,7 +723,8 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             <div><dt>Technical director</dt><dd>A church contact with that role tag. The card shows their name, title, and the contact published for them.</dd></div>
             <div><dt>Technical/media staff</dt><dd>A church with a staff signal. The card shows the evidence quote and the source page.</dd></div>
             <div><dt>Building investment</dt><dd>A campaign or renovation on file. The card shows the evidence quote, source page, date, and score. No person is required.</dd></div>
-            <div><dt>Tokens printed</dt><dd>A Presence token counts as printed once it is engraved (or released or found).</dd></div>
+            <div><dt>Lead queue</dt><dd>An unmatched church signal saved as a lead. Search finds it by church, person, city, or tag. Nothing is sent.</dd></div>
+            <div><dt>Outreach log</dt><dd>A note and a day on a contact, plus a status: new, contacted, follow-up, meeting, won, or lost. Logging only.</dd></div>
           </dl>
         </details>
         {canSave ? <AddOrg onOpen={openOrg} /> : null}

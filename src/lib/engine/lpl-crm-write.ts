@@ -15,7 +15,7 @@
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, resolveOrgKind, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl } from "@/lib/engine/tech-director-core";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
@@ -34,7 +34,7 @@ export type OutcomeCode = (typeof OUTCOME_CODES)[number];
 
 export type SaveResult = { ok: true; message: string; duplicate?: boolean; contactId?: string; /** Saved, but the result needs a warning, not a success line. */ warn?: boolean } | { ok: false; message: string };
 
-export type ContactInput = { id: string; name: string; title: string; email: string; phone: string; tags: string[]; sourceUrl: string };
+export type ContactInput = { id: string; name: string; title: string; email: string; phone: string; tags: string[]; sourceUrl: string; status?: CrmContactStatus | "" };
 
 export type VisitInput = {
   churchId: string;
@@ -113,7 +113,16 @@ export function cleanContactInput(input: Partial<ContactInput>): ContactInput | 
   if (rawEmail && !email) return "That email doesn't look right.";
   const phone = text(input.phone, 40);
   if (phone && phone.replace(/\D/g, "").length < 7) return "That phone number looks too short.";
-  return { id, name, title: text(input.title, 80), email, phone, tags: cleanRoleTags(input.tags), sourceUrl: httpUrl(input.sourceUrl) };
+  return {
+    id,
+    name,
+    title: text(input.title, 80),
+    email,
+    phone,
+    tags: cleanRoleTags(input.tags),
+    sourceUrl: httpUrl(input.sourceUrl),
+    status: cleanContactStatus(input.status)
+  };
 }
 
 export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string {
@@ -207,6 +216,7 @@ export async function saveChurchContact(ownerEmail: string, churchId: string, ra
   };
   if (contact.tags.length) body.tags = contact.tags;
   if (contact.sourceUrl) body.source_url = contact.sourceUrl;
+  if (contact.status) body.status = contact.status;
   const result = await callChurchConnect(config, "PUT", path, ownerEmail, body);
   if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
   return { ok: true, message: `Saved ${contact.name}.`, contactId: contact.id };
@@ -247,6 +257,104 @@ export async function logChurchVisit(ownerEmail: string, raw: Partial<VisitInput
     }
   }
   return { ok: true, duplicate, message: duplicate ? `${label} was already saved.` : `${label} saved.` };
+}
+
+export type OutreachInput = {
+  churchId?: string;
+  leadId?: string;
+  contactId: string;
+  name: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  sourceUrl?: string;
+  note: string;
+  day: string;
+  status: string;
+  clientRef: string;
+};
+
+/** Log a note and a status on one contact. Nothing is sent. */
+export async function logChurchContactOutreach(ownerEmail: string, raw: OutreachInput): Promise<SaveResult> {
+  const config = await ccConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const outreach = cleanContactOutreach(raw);
+  if (typeof outreach === "string") return { ok: false, message: outreach };
+  const churchId = text(raw.churchId, 64);
+  if (!UUID_RE.test(churchId)) return { ok: false, message: "Outreach can only be logged on a church on this desk." };
+  const clientRef = text(raw.clientRef, 64);
+  if (!REF_RE.test(clientRef)) return { ok: false, message: "Reload the page and try again." };
+  const path = `/api/church-crm/leads/${churchId}/activities`;
+  const posted = await callChurchConnect(config, "POST", path, ownerEmail, {
+    type: "note",
+    description: outreach.note,
+    occurred_at: outreach.day,
+    contact: { id: outreach.contactId, name: outreach.name, title: text(raw.title, 80) },
+    outcome: outreach.status,
+    source: "owner_desk",
+    client_ref: clientRef
+  });
+  if (!posted.ok) return { ok: false, message: failure(posted.status, posted.json) };
+  const saved = await saveChurchContact(ownerEmail, churchId, {
+    id: outreach.contactId,
+    name: outreach.name,
+    title: text(raw.title, 80),
+    email: text(raw.email, 200),
+    phone: text(raw.phone, 40),
+    tags: raw.tags ?? [],
+    sourceUrl: text(raw.sourceUrl, 400),
+    status: outreach.status
+  });
+  if (!saved.ok) return { ok: false, message: `The note was saved, but the status was not. ${saved.message}` };
+  const duplicate = posted.json?.duplicate === true;
+  return { ok: true, duplicate, message: duplicate ? "That note was already saved." : "Outreach saved." };
+}
+
+export async function logLeadContactOutreach(ownerEmail: string, raw: OutreachInput): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const outreach = cleanContactOutreach(raw);
+  if (typeof outreach === "string") return { ok: false, message: outreach };
+  const leadId = text(raw.leadId, 64);
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "Outreach can only be logged on a lead on this desk." };
+  const clientRef = text(raw.clientRef, 64);
+  if (!REF_RE.test(clientRef)) return { ok: false, message: "Reload the page and try again." };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The lead couldn't be read. Nothing was saved." };
+  if (!lead) return { ok: false, message: "That lead isn't there any more." };
+  try {
+    const response = await fetch(`${config.url}/rest/v1/op_lead_activities?on_conflict=client_ref&select=id`, {
+      method: "POST",
+      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=representation" },
+      cache: "no-store",
+      body: JSON.stringify({
+        lead_id: leadId,
+        type: "note",
+        occurred_at: leadDayStamp(outreach.day),
+        contact: { id: outreach.contactId, name: outreach.name, title: text(raw.title, 80) },
+        outcome: outreach.note,
+        created_by: ownerEmail,
+        client_ref: clientRef,
+        source: "appengine_crm"
+      })
+    });
+    if (!response.ok) return { ok: false, message: "The note couldn't be saved. Nothing was saved — try again." };
+  } catch {
+    return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
+  }
+  const saved = await saveBusinessContact(ownerEmail, leadId, {
+    id: outreach.contactId,
+    name: outreach.name,
+    title: text(raw.title, 80),
+    email: text(raw.email, 200),
+    phone: text(raw.phone, 40),
+    tags: raw.tags ?? [],
+    sourceUrl: text(raw.sourceUrl, 400),
+    status: outreach.status
+  });
+  if (!saved.ok) return { ok: false, message: `The note was saved, but the status was not. ${saved.message}` };
+  return { ok: true, message: "Outreach saved." };
 }
 
 // ── Do-not-contact list (shared database) ──────────────────────────────────
@@ -857,20 +965,29 @@ async function patchLeadIfUnchanged(config: LplConfig, lead: LeadRow, patch: Rec
   }
 }
 
-type StoredContact = { id: string; name: string; role: string; email: string; phone: string };
+type StoredContact = { id: string; name: string; role: string; email: string; phone: string; tags?: string[]; source_url?: string; status?: string };
 
-/** op_leads.contacts in the same shape as ChurchConnect staff_contacts. */
+/** op_leads.contacts in the same shape as ChurchConnect staff_contacts. Keeps tags, source, and status. */
 export function leadContacts(value: unknown): StoredContact[] {
   const list = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
   return list
     .filter((item) => item && typeof item === "object" && text(item.name, 120))
-    .map((item) => ({
-      id: text(item.id, 64),
-      name: text(item.name, 120),
-      role: text(item.role ?? item.title, 80),
-      email: normEmail(item.email),
-      phone: text(item.phone, 40)
-    }));
+    .map((item) => {
+      const tags = cleanRoleTags(item.tags);
+      const source = httpUrl(item.source_url ?? item.sourceUrl);
+      const status = cleanContactStatus(item.status);
+      const entry: StoredContact = {
+        id: text(item.id, 64),
+        name: text(item.name, 120),
+        role: text(item.role ?? item.title, 80),
+        email: normEmail(item.email),
+        phone: text(item.phone, 40)
+      };
+      if (tags.length) entry.tags = tags;
+      if (source) entry.source_url = source;
+      if (status) entry.status = status;
+      return entry;
+    });
 }
 
 const LEAD_CONTACT_LIMIT = 25;
@@ -886,8 +1003,15 @@ export async function saveBusinessContact(_ownerEmail: string, leadId: string, r
   if (lead === "error") return { ok: false, message: "The business couldn't be read. Nothing was saved." };
   if (!lead) return { ok: false, message: "That business isn't there any more." };
   const contacts = leadContacts(lead.contacts);
-  const entry: StoredContact = { id: contact.id, name: contact.name, role: contact.title, email: contact.email, phone: contact.phone };
   const at = contacts.findIndex((item) => item.id === contact.id);
+  const previous = at >= 0 ? contacts[at] : undefined;
+  const entry: StoredContact = { id: contact.id, name: contact.name, role: contact.title, email: contact.email, phone: contact.phone };
+  const tags = contact.tags.length ? contact.tags : previous?.tags;
+  const source = contact.sourceUrl || previous?.source_url || "";
+  const status = contact.status || previous?.status || "";
+  if (tags?.length) entry.tags = tags;
+  if (source) entry.source_url = source;
+  if (status) entry.status = status;
   if (at >= 0) contacts[at] = entry;
   else if (contacts.length >= LEAD_CONTACT_LIMIT) return { ok: false, message: `A business can have up to ${LEAD_CONTACT_LIMIT} contacts.` };
   else contacts.push(entry);

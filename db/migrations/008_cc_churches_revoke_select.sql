@@ -8,9 +8,17 @@
 --   src/lib/engine/customer-counts.ts
 --   scripts/import-tech-directors.ts
 -- No component and no browser client queries this table. service_role is
--- not revoked and keeps its grant. public is included so a PUBLIC grant
--- cannot leave the table readable by anon.
+-- not revoked and keeps its grant.
 --
--- Apply only after a fresh check that no client path needs SELECT.
+-- REVOKE ALL, not only SELECT. A leftover INSERT, UPDATE, DELETE, TRUNCATE,
+-- REFERENCES, or TRIGGER grant on public, anon, or authenticated is still a
+-- write. public is included so a PUBLIC grant cannot leave the table open.
+--
+-- Default privileges: ALTER DEFAULT PRIVILEGES in schema public can grant
+-- ALL on tables created later back to public, anon, and authenticated. This
+-- statement covers cc_churches only. It does not change those schema-wide
+-- defaults, because that would touch every future table.
+--
+-- Apply only after a fresh check that no client path needs access.
 
-revoke select on table public.cc_churches from public, anon, authenticated;
+revoke all on table public.cc_churches from public, anon, authenticated;

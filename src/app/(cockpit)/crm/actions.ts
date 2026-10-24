@@ -12,7 +12,9 @@ import {
   createOrg,
   editOrg,
   logBusinessVisit,
+  logChurchContactOutreach,
   logChurchVisit,
+  logLeadContactOutreach,
   removeBusinessContact,
   removeChurchContact,
   saveBusinessContact,
@@ -63,6 +65,33 @@ export async function saveChurchContactAction(_prev: CrmFormState, formData: For
     : await saveChurchContact(await ownerEmail(), field(formData, "church_id"), contact);
   if (result.ok) revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now(), warn: result.ok && result.warn === true };
+}
+
+export async function logContactOutreachAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const lead = leadOf(formData);
+  const tags = field(formData, "role_tag")
+    .split("|")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  const input = {
+    churchId: lead ? "" : field(formData, "church_id"),
+    leadId: lead,
+    contactId: field(formData, "contact_id"),
+    name: field(formData, "name"),
+    title: field(formData, "title"),
+    email: field(formData, "email"),
+    phone: field(formData, "phone"),
+    tags,
+    sourceUrl: field(formData, "source_url"),
+    note: field(formData, "note"),
+    day: field(formData, "day"),
+    status: field(formData, "status"),
+    clientRef: field(formData, "client_ref")
+  };
+  const result = lead ? await logLeadContactOutreach(await ownerEmail(), input) : await logChurchContactOutreach(await ownerEmail(), input);
+  if (result.ok) revalidatePath("/crm");
+  return { ok: result.ok, message: result.message, at: Date.now() };
 }
 
 export async function logChurchVisitAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {

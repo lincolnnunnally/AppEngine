@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
-import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer, type CrmCard } from "@/lib/engine/lpl-crm-core";
+import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, type CrmCard } from "@/lib/engine/lpl-crm-core";
 import { SIGNAL_BUILDING, SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG } from "@/lib/engine/tech-director-core";
 import { crmSavingConfigured, savingOffNote } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
@@ -45,7 +45,9 @@ function techPreviewCards(): CrmCard[] {
         phone: "(912) 555-0148",
         source: "saved",
         tags: [TECHNICAL_DIRECTOR_TAG],
-        sourceUrl: "https://gracechapel.example/staff"
+        sourceUrl: "https://gracechapel.example/staff",
+        status: "contacted",
+        notes: [{ at: "2026-04-02", note: "Left a message about the sanctuary sound." }]
       }
     ],
     deskDoNotContact: false,
@@ -101,7 +103,41 @@ function techPreviewCards(): CrmCard[] {
       }
     ]
   };
-  return [river, grace, palm];
+  const queue: CrmCard = {
+    ...grace,
+    key: "preview-queue",
+    name: "Bethel AME",
+    town: "Savannah, GA",
+    state: "GA",
+    churchId: null,
+    leadId: "44444444-4444-4444-8444-444444444444",
+    leadQueue: true,
+    recordPaths: {},
+    contacts: [
+      {
+        id: "lq-preview",
+        name: "Pat Lee",
+        title: "Facilities",
+        email: "",
+        phone: "",
+        source: "saved",
+        tags: [],
+        status: "new",
+        sourceUrl: "https://bethel.example/build"
+      }
+    ],
+    signals: [
+      {
+        id: "sig-preview-queue",
+        tag: SIGNAL_BUILDING,
+        evidenceQuote: "The fellowship hall is being rebuilt.",
+        sourceUrl: "https://bethel.example/build",
+        signalDate: "2026-03-01",
+        score: 40
+      }
+    ]
+  };
+  return [palm, grace, river, queue];
 }
 
 // CRM — owner and admins can view. One card per org or person across
@@ -109,10 +145,11 @@ function techPreviewCards(): CrmCard[] {
 // keep. Only the owner can save (church visits and contacts, through
 // ChurchConnect); admins see names and titles, never emails or phones.
 // Nothing on this page sends anything to anyone.
-export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string; q?: string }> }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const params = await searchParams;
   const isOwner = await canAccessEngineOwner();
+  const searchQuery = isOwner ? String(params.q ?? "").trim().slice(0, 80) : "";
   // Dev preview only, and only for the owner. The non-production guard keeps the fixture out of the production bundle.
   const previewTop = process.env.NODE_ENV !== "production" && isOwner && params.preview === "top";
   const previewAv = process.env.NODE_ENV !== "production" && isOwner && params.preview === "av";
@@ -194,10 +231,12 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
       org: orgForViewer(card.org, isOwner),
       signals: isOwner ? card.signals ?? [] : []
     }))
-  ];
+  ].filter((card) => cardMatchesCrmSearch(card, searchQuery));
+  const visibleKeys = new Set(viewCards.map((card) => card.key));
+  const followUps = searchQuery ? snapshot.followUps.filter((row) => visibleKeys.has(row.cardKey)) : snapshot.followUps;
 
-  const todayRows = snapshot.followUps.filter((row) => row.today).length;
-  const waitRows = snapshot.followUps.filter((row) => !row.today).length;
+  const todayRows = followUps.filter((row) => row.today).length;
+  const waitRows = followUps.filter((row) => !row.today).length;
   const resting = snapshot.cards.filter((card) => card.repeat.level === "hold").length;
   const stops = snapshot.cards.filter((card) => card.stops.length > 0).length;
   const multi = snapshot.cards.filter((card) => card.apps.length > 1).length;
@@ -282,7 +321,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
       {snapshot.configured || previewTop || previewAv || previewTech ? (
         <CrmDesk
           cards={viewCards}
-          followUps={snapshot.followUps}
+          followUps={followUps}
           adminUrls={previewTop || previewAv || previewTech ? { ...snapshot.adminUrls, churchconnect: snapshot.adminUrls.churchconnect || "https://churchconnect.example" } : snapshot.adminUrls}
           canSave={canSave}
           isOwner={isOwner}
@@ -290,6 +329,8 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
           topInitial={topInitial}
           avInitial={avInitial}
           techFirst={previewTech}
+          searchQuery={searchQuery}
+          preview={params.preview ?? ""}
         />
       ) : (
         <section className="panel">

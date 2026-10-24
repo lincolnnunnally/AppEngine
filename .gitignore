@@ -34,3 +34,4 @@ supabase/.temp
 # Tech-director import reports written beside the CSV. The fixture stays tracked.
 *-unmatched.csv
 *-directory-only.csv
+*-flagged.csv

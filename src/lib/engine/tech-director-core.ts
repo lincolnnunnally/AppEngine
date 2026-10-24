@@ -178,6 +178,16 @@ export function isTechnicalDirector(contact: { tags?: readonly string[] | null; 
   return (contact.title ?? "").trim().toLowerCase() === TECHNICAL_DIRECTOR_TAG.toLowerCase();
 }
 
+/** Evidence that belongs on this contact: the same source page, or the staff signal for a technical director. */
+export function signalsForContact<T extends { tag: string; sourceUrl?: string }>(
+  contact: { sourceUrl?: string; tags?: readonly string[] | null; title?: string | null },
+  signals: readonly T[]
+): T[] {
+  const source = httpUrl(contact.sourceUrl);
+  const director = isTechnicalDirector(contact);
+  return signals.filter((signal) => (source && httpUrl(signal.sourceUrl) === source) || (director && signal.tag === SIGNAL_STAFF));
+}
+
 export function churchHasTechnicalDirector(contacts: ReadonlyArray<{ tags?: readonly string[] | null; title?: string | null }>): boolean {
   return contacts.some((contact) => isTechnicalDirector(contact));
 }

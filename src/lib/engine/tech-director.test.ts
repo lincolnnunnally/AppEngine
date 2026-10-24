@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { isTechnicalDirector, parsePublishedContact, readChurchSignals, technicalDirectorsFromStaff } from "./tech-director-core.ts";
+import { isTechnicalDirector, parsePublishedContact, readChurchSignals, signalsForContact, technicalDirectorsFromStaff } from "./tech-director-core.ts";
 import {
   addChurchSignals,
   addStaffContacts,
+  churchDocPatch,
   churchIsInCrm,
+  churchSignalLeadBody,
   formatImportCounts,
   matchDirectoryChurch,
   nextChurchDoc,
+  parseImportSkipFile,
   parseTechDirectorCsv,
   planTechDirectorImport,
   stampStaffContact,
@@ -16,6 +19,7 @@ import {
   type DirectoryChurch,
   type TechDirectorCsvRow
 } from "./tech-director.ts";
+import { cardMatchesCrmSearch, cleanContactOutreach } from "./lpl-crm-core.ts";
 
 const churches: DirectoryChurch[] = [
   { id: "g1", name: "Grace Chapel", churchName: "", city: "Vidalia", state: "GA", website: "https://gracechapel.example", domain: "", inCrm: true, contacts: [] },
@@ -47,12 +51,20 @@ function row(partial: Partial<TechDirectorCsvRow> & Pick<TechDirectorCsvRow, "ch
 }
 
 describe("technical director matching", () => {
-  it("matches a website domain when the city agrees", () => {
+  it("matches a website domain when the city, state, and bare host agree", () => {
+    const match = matchDirectoryChurch(
+      row({ church: "Some Other Name", city: "Vidalia", state: "GA", website: "https://www.gracechapel.example", name: "Jane Doe" }),
+      churches
+    );
+    assert.equal("church" in match && match.church.id, "g1");
+  });
+
+  it("does not attach a path on the same host when the name does not agree", () => {
     const match = matchDirectoryChurch(
       row({ church: "Some Other Name", city: "Vidalia", state: "GA", website: "https://www.gracechapel.example/give", name: "Jane Doe" }),
       churches
     );
-    assert.equal("church" in match && match.church.id, "g1");
+    assert.equal("church" in match, false);
   });
 
   it("matches a website domain when the normalized name agrees", () => {
@@ -72,7 +84,67 @@ describe("technical director matching", () => {
       athens
     );
     assert.equal("church" in match, false);
-    assert.equal("reason" in match && match.reason, "The website matches one church, but the name and city do not agree.");
+    assert.equal("reason" in match && match.reason, "The website matches one church, but the name does not agree, and the city, state, and bare website do not agree.");
+  });
+
+  it("does not attach Bethel AME on elca.org/find/bethel to St John Lutheran in Savannah", () => {
+    const list: DirectoryChurch[] = [
+      {
+        id: "stjohn",
+        name: "St John Lutheran",
+        churchName: "",
+        city: "Savannah",
+        state: "GA",
+        website: "https://elca.org/find/stjohn",
+        domain: "elca.org",
+        inCrm: true,
+        contacts: []
+      }
+    ];
+    const match = matchDirectoryChurch(
+      row({ church: "Bethel AME", city: "Savannah", state: "GA", website: "https://elca.org/find/bethel", name: "Pat" }),
+      list
+    );
+    assert.equal("church" in match, false);
+  });
+
+  it("does not attach Grace in Columbus OH to Calvary in Columbus GA", () => {
+    const list: DirectoryChurch[] = [
+      {
+        id: "calvary",
+        name: "Calvary",
+        churchName: "",
+        city: "Columbus",
+        state: "GA",
+        website: "https://calvary.example",
+        domain: "calvary.example",
+        inCrm: true,
+        contacts: []
+      }
+    ];
+    const match = matchDirectoryChurch(
+      row({ church: "Grace", city: "Columbus", state: "OH", website: "https://calvary.example", name: "Pat" }),
+      list
+    );
+    assert.equal("church" in match, false);
+  });
+
+  it("treats a trailing Church and St. as the same name", () => {
+    const list: DirectoryChurch[] = [
+      {
+        id: "sj",
+        name: "Saint John Lutheran Church",
+        churchName: "",
+        city: "Savannah",
+        state: "GA",
+        website: "",
+        domain: "",
+        inCrm: true,
+        contacts: []
+      }
+    ];
+    const match = matchDirectoryChurch(row({ church: "St. John Lutheran", city: "Savannah", state: "Georgia", name: "Pat" }), list);
+    assert.equal("church" in match && match.church.id, "sj");
   });
 
   it("does not attach a shared conference host to a different church", () => {
@@ -92,17 +164,42 @@ describe("technical director matching", () => {
     assert.equal("church" in onlyMacon, false);
   });
 
-  it("matches church_id exactly and does not fall through when the id is missing", () => {
+  it("matches church_id when the name and state agree, and does not fall through when the id is missing", () => {
     const byId = matchDirectoryChurch(
-      row({ church_id: "fbc", church: "Totally Different", city: "Savannah", website: "https://grace.org", name: "Pat" }),
+      row({ church_id: "fbc", church: "First Baptist", city: "Savannah", state: "GA", website: "https://grace.org", name: "Pat" }),
       churches
     );
     assert.equal("church" in byId && byId.church.id, "fbc");
     const missing = matchDirectoryChurch(
-      row({ church_id: "missing", church: "Grace Chapel", city: "Vidalia", website: "https://gracechapel.example", name: "Jane Doe" }),
+      row({ church_id: "missing", church: "Grace Chapel", city: "Vidalia", state: "GA", website: "https://gracechapel.example", name: "Jane Doe" }),
       churches
     );
     assert.equal("reason" in missing && missing.reason, "No church on file has that church id.");
+    assert.equal("flagged" in missing && missing.flagged, false);
+  });
+
+  it("flags a church_id whose name or state does not agree and does not attach it", () => {
+    const wrongName = matchDirectoryChurch(
+      row({ church_id: "fbc", church: "Totally Different", city: "Macon", state: "GA", website: "https://grace.org", name: "Pat" }),
+      churches
+    );
+    assert.equal("church" in wrongName, false);
+    assert.equal("flagged" in wrongName && wrongName.flagged, true);
+    const wrongState = matchDirectoryChurch(
+      row({ church_id: "fbc", church: "First Baptist Church", city: "Macon", state: "OH", name: "Pat" }),
+      churches
+    );
+    assert.equal("church" in wrongState, false);
+    assert.equal("flagged" in wrongState && wrongState.flagged, true);
+    const plan = planTechDirectorImport(
+      [row({ church_id: "fbc", church: "Totally Different", city: "Macon", state: "GA", name: "Pat King", signal_types: "staff", score: "3" })],
+      churches
+    );
+    assert.equal(plan.matched, 0);
+    assert.equal(plan.additions.length, 0);
+    assert.equal(plan.unmatched.length, 0);
+    assert.equal(plan.flagged.length, 1);
+    assert.match(plan.flagged[0].reason, /name or state/);
   });
 
   it("matches name and city when the website is missing", () => {
@@ -295,6 +392,93 @@ describe("technical director contact fields", () => {
     assert.equal(parsed.rows[0].state, "");
     assert.equal(parsed.rows[0].church_id, "");
     assert.equal(parsed.rows[0].name, "Sam");
+  });
+
+  it("reads church_id first and ignores builder columns", () => {
+    const parsed = parseTechDirectorCsv(
+      "church_id,builder_name,church,builder_role,city,builder_url,state,website,staff_page_url,name,title,contact,signal_types,evidence_quote,source_url,signal_date,score,notes\n" +
+        "g1,Acme Builders,Grace Chapel,General contractor,Vidalia,https://acme.example/job,GA,https://gracechapel.example,https://gracechapel.example/staff,Jane Doe,Director of Media,jane@gracechapel.example,staff,\"Jane Doe leads media.\",https://gracechapel.example/staff,2026-04-01,80,ignore me\n"
+    );
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    assert.equal(parsed.rows[0].church_id, "g1");
+    assert.equal(parsed.rows[0].church, "Grace Chapel");
+    assert.equal(parsed.rows[0].city, "Vidalia");
+    assert.equal(parsed.rows[0].name, "Jane Doe");
+    assert.equal(parsed.rows[0].title, "Director of Media");
+    assert.equal(parsed.rows[0].evidence_quote, "Jane Doe leads media.");
+    assert.equal(parsed.rows[0].score, "80");
+    const plan = planTechDirectorImport(parsed.rows, churches);
+    assert.equal(plan.flagged.length, 0);
+    assert.equal(plan.additions[0].churchId, "g1");
+    assert.equal(plan.additions[0].contact.name, "Jane Doe");
+  });
+
+  it("flags the Archdiocese office and the shallowford mismatch instead of writing them", () => {
+    const directory: DirectoryChurch[] = [
+      { id: "office", name: "Archdiocese of Atlanta", churchName: "", city: "Atlanta", state: "GA", website: "https://archatl.org", domain: "", inCrm: true, contacts: [] },
+      { id: "shallow", name: "Shallowford", churchName: "", city: "Atlanta", state: "GA", website: "https://shallowford.org", domain: "", inCrm: true, contacts: [] }
+    ];
+    const plan = planTechDirectorImport(
+      [
+        row({
+          church: "Archdiocese of Atlanta",
+          city: "Atlanta",
+          state: "GA",
+          website: "https://archatl.org",
+          name: "Office Desk",
+          signal_types: "staff",
+          evidence_quote: "The office is listed.",
+          source_url: "https://archatl.org/staff",
+          score: "10"
+        }),
+        row({
+          church: "Cristo Para Todas Las Naciones",
+          city: "Atlanta",
+          state: "GA",
+          website: "https://www.shallowford.org/about",
+          name: "Media",
+          signal_types: "staff",
+          evidence_quote: "Wrong site.",
+          source_url: "https://shallowford.org",
+          score: "10"
+        })
+      ],
+      directory
+    );
+    assert.equal(plan.flagged.length, 2);
+    assert.equal(plan.matched, 0);
+    assert.equal(plan.additions.length, 0);
+    assert.equal(plan.signalAdditions.length, 0);
+    assert.match(plan.flagged[0].reason, /Archdiocese of Atlanta/);
+    assert.match(plan.flagged[1].reason, /shallowford\.org/);
+    assert.match(formatImportCounts(plan), /flagged: 2/);
+  });
+
+  it("flags a matched church when its id is on the skip list", () => {
+    const skip = parseImportSkipFile("church_id,church,reason\nfbc,,Skip this church\n");
+    assert.equal(skip.ok, true);
+    if (!skip.ok) return;
+    const plan = planTechDirectorImport(
+      [
+        row({
+          church: "First Baptist Church",
+          city: "Macon",
+          state: "GA",
+          name: "Sam",
+          signal_types: "staff",
+          evidence_quote: "Sam leads media.",
+          source_url: "https://fbc.example/staff",
+          score: "3"
+        })
+      ],
+      churches,
+      skip.flags
+    );
+    assert.equal(plan.flagged.length, 1);
+    assert.equal(plan.flagged[0].reason, "Skip this church");
+    assert.equal(plan.additions.length, 0);
+    assert.equal(plan.signalAdditions.length, 0);
   });
 
   it("reads an optional church_id column", () => {
@@ -551,5 +735,91 @@ describe("church signal storage", () => {
     );
     assert.equal(unchanged.changed, false);
     assert.equal("updated_at" in unchanged.doc, false);
+  });
+
+  it("patches only staff_contacts, crm_signals, and updated_at", () => {
+    const merged = nextChurchDoc({ name: "Grace", pastor_name: "Pat", staff_contacts: [], crm_signals: [] }, [], [], [], "2026-08-01T00:00:00.000Z");
+    const patch = churchDocPatch({ ...merged.doc, staff_contacts: [{ name: "Ann" }], crm_signals: [], updated_at: "2026-08-02T00:00:00.000Z" });
+    assert.deepEqual(Object.keys(patch).sort(), ["crm_signals", "staff_contacts", "updated_at"]);
+  });
+});
+
+describe("crm search and contact status", () => {
+  const grace = {
+    name: "Grace Chapel",
+    town: "Vidalia, GA",
+    state: "GA",
+    contacts: [{ name: "Jane Doe", title: "Director of Media", tags: ["Technical director"] }],
+    signals: [{ tag: "Technical/media staff" }, { tag: "Building investment" }]
+  };
+  const palm = {
+    name: "Palm Chapel",
+    town: "Orlando, FL",
+    state: "FL",
+    contacts: [],
+    signals: [{ tag: "Building investment" }]
+  };
+
+  it("finds a church by name, person, title, city, state, and tag", () => {
+    assert.equal(cardMatchesCrmSearch(grace, "grace chapel"), true);
+    assert.equal(cardMatchesCrmSearch(grace, "jane doe"), true);
+    assert.equal(cardMatchesCrmSearch(grace, "director of media"), true);
+    assert.equal(cardMatchesCrmSearch(grace, "vidalia"), true);
+    assert.equal(cardMatchesCrmSearch(grace, "ga"), true);
+    assert.equal(cardMatchesCrmSearch(grace, "technical/media staff"), true);
+    assert.equal(cardMatchesCrmSearch(grace, "building investment"), true);
+    assert.equal(cardMatchesCrmSearch(palm, "technical/media staff"), false);
+    assert.equal(cardMatchesCrmSearch(palm, "orlando"), true);
+    assert.equal(cardMatchesCrmSearch(grace, ""), true);
+  });
+
+  it("accepts a note, a day, and a contact status, and rejects a send-shaped gap", () => {
+    const ok = cleanContactOutreach({ note: "Left a message.", day: "2026-04-02", status: "contacted", contactId: "td-preview", name: "Jane Doe" });
+    assert.equal(typeof ok === "string", false);
+    if (typeof ok === "string") return;
+    assert.equal(ok.status, "contacted");
+    assert.equal(ok.day, "2026-04-02");
+    for (const status of ["new", "contacted", "follow-up", "meeting", "won", "lost"]) {
+      assert.equal(typeof cleanContactOutreach({ note: "Called.", day: "2026-04-02", status, contactId: "td-preview", name: "Jane Doe" }) === "string", false);
+    }
+    assert.equal(typeof cleanContactOutreach({ note: "", day: "2026-04-02", status: "new", contactId: "td-preview", name: "Jane Doe" }), "string");
+    assert.equal(typeof cleanContactOutreach({ note: "Called.", day: "2026-04-02", status: "emailed", contactId: "td-preview", name: "Jane Doe" }), "string");
+    assert.equal(typeof cleanContactOutreach({ note: "Called.", day: "April 2", status: "new", contactId: "td-preview", name: "Jane Doe" }), "string");
+  });
+
+  it("shows staff evidence on the contact and keeps a building quote on a matching source", () => {
+    const signals = [
+      { id: "a", tag: "Technical/media staff", evidenceQuote: "Jane leads media.", sourceUrl: "https://gracechapel.example/staff", signalDate: "2026-04-01", score: 80 },
+      { id: "b", tag: "Building investment", evidenceQuote: "Hall rebuild.", sourceUrl: "https://bethel.example/build", signalDate: "2026-03-01", score: 40 }
+    ];
+    const director = signalsForContact({ tags: ["Technical director"], sourceUrl: "https://gracechapel.example/staff" }, signals);
+    assert.deepEqual(director.map((signal) => signal.id), ["a"]);
+    const facilities = signalsForContact({ tags: [], sourceUrl: "https://bethel.example/build" }, signals);
+    assert.deepEqual(facilities.map((signal) => signal.id), ["b"]);
+  });
+
+  it("stores an unmatched row as a church-signal lead on the existing lead shape", () => {
+    const body = churchSignalLeadBody(
+      row({
+        church: "Bethel AME",
+        city: "Savannah",
+        state: "GA",
+        website: "https://elca.org/find/bethel",
+        name: "Pat Lee",
+        title: "Facilities",
+        signal_types: "renovation",
+        evidence_quote: "The hall is being rebuilt.",
+        source_url: "https://bethel.example/build",
+        score: "40"
+      }),
+      "No church on file matches this row."
+    );
+    const signals = body.signals as { kind: string; tag: string };
+    assert.equal(signals.kind, "church-signal");
+    assert.equal(signals.tag, "Building investment");
+    assert.equal(body.business_name, "Bethel AME");
+    assert.equal(Array.isArray(body.contacts), true);
+    assert.equal((body.contacts as Array<{ status: string }>)[0].status, "new");
+    assert.match(String(body.slug), /^cs-/);
   });
 });
