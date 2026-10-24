@@ -264,9 +264,9 @@ function ServiceOpportunitiesForm({ row }: { row: DirectoryRow }) {
             </select>
             <details className="crm-opp-note">
               <summary>Note</summary>
-              <input name={`opp_${service}_note`} defaultValue={item.note} maxLength={500} placeholder="Optional note" aria-label={`${label} note`} />
             </details>
-            <span className="crm-opp-updated">{item.updatedAt ? when(item.updatedAt) : "Not dated"}</span>
+            <input className="crm-opp-note-input" name={`opp_${service}_note`} defaultValue={item.note} maxLength={500} placeholder="Optional note" aria-label={`${label} note`} />
+            <span className="crm-opp-updated">{item.updatedAt ? when(item.updatedAt) : "—"}</span>
             <input type="hidden" name={`opp_${service}_updated`} value={item.updatedAt} />
           </div>
         );
