@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
-import { logChurchVisitAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
-import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
+import { logChurchVisitAction, logContactOutreachAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, searchChurchesAction, attachLeadAction, dismissLeadAction, type ChurchPickState, type CrmFormState } from "@/app/(cockpit)/crm/actions";
+import { CRM_CONTACT_STATUSES, DROP_OFF_REST_DAYS, VISIT_REST_DAYS, contactStatusLabel, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
+import { SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG, httpUrl, isTechnicalDirector, signalsForContact, type ChurchSignal } from "@/lib/engine/tech-director-core";
 
 // Contacts and "log a visit" on a CRM card, for a ChurchConnect church or a
 // business lead (the same forms; the form carries church_id or lead_id and the
@@ -81,14 +82,286 @@ export function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** "Apr 1, 2026". A date-only value stays on that calendar day. */
+function signalDay(value: string): string {
+  const text = value.trim();
+  if (!text) return "";
+  const day = text.slice(0, 10);
+  const date = /^\d{4}-\d{2}-\d{2}/.test(day) ? new Date(`${day}T12:00:00Z`) : new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(date);
+}
+
+/** Owner-only: evidence quote, source page, date, and score. Nothing is sent. */
+export function ChurchSignals({ signals }: { signals: ChurchSignal[] }) {
+  if (!signals.length) return null;
+  const ordered = [...signals].sort((a, b) => b.score - a.score || a.tag.localeCompare(b.tag));
+  return (
+    <section className="crm-sub crm-signals" aria-label="Church signals" data-testid="crm-church-signals">
+      {ordered.map((signal) => {
+        const source = httpUrl(signal.sourceUrl);
+        const when = signalDay(signal.signalDate);
+        return (
+          <div key={signal.id || `${signal.tag}-${signal.sourceUrl}`} className="crm-signal">
+            <h4>{signal.tag}</h4>
+            {signal.evidenceQuote ? <blockquote className="crm-signal-quote">{signal.evidenceQuote}</blockquote> : null}
+            <p className="crm-signal-meta">
+              {source ? (
+                <a href={source} target="_blank" rel="noopener noreferrer">
+                  Source
+                </a>
+              ) : null}
+              {source && (when || signal.score !== null) ? <span aria-hidden="true"> · </span> : null}
+              {when ? <span>{when}</span> : null}
+              {when ? <span aria-hidden="true"> · </span> : null}
+              <span>Score {signal.score}</span>
+            </p>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+type ShownContact = Pick<CrmContact, "id" | "name" | "title" | "email" | "phone"> &
+  Partial<Pick<CrmContact, "source" | "sourceUrl" | "tags" | "status" | "notes">>;
+
+/** Owner-only block: name, exact title, published contact, and status. The quote stays on the church signal. */
+export function TechDirectorPeople({
+  people,
+  card = null,
+  canSave = false
+}: {
+  people: ShownContact[];
+  card?: CrmCard | null;
+  canSave?: boolean;
+}) {
+  const directors = people.filter((person) => isTechnicalDirector(person));
+  if (!directors.length) return null;
+  const target = canSave && card ? saveTargetOf(card) : null;
+  return (
+    <section className="crm-sub crm-tech" aria-label="Technical director" data-testid="crm-tech-director">
+      <h4>Technical director</h4>
+      <ul className="crm-contacts">
+        {directors.map((person) => {
+          const source = httpUrl(person.sourceUrl);
+          return (
+            <li key={person.id || person.name} className="crm-contact">
+              <div>
+                <span className="crm-contact-name">{person.name}</span>
+                {person.title ? <span className="crm-dim"> · {person.title}</span> : null}
+              </div>
+              {person.email || person.phone || source ? (
+                <div className="crm-contact-links">
+                  {person.phone ? (
+                    <a className="crm-contact-link" href={`tel:${person.phone.replace(/[^\d+]/g, "")}`}>
+                      {person.phone}
+                    </a>
+                  ) : null}
+                  {person.email ? (
+                    <a className="crm-contact-link" href={`mailto:${person.email}`}>
+                      {person.email}
+                    </a>
+                  ) : null}
+                  {source ? (
+                    <a className="crm-contact-link" href={source} target="_blank" rel="noopener noreferrer">
+                      Staff page
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+              <ContactOutreach contact={person} target={target} />
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function ContactEvidence({ contact, signals }: { contact: Pick<ShownContact, "sourceUrl" | "tags" | "title">; signals: ChurchSignal[] }) {
+  const rows = signalsForContact(contact, signals);
+  if (!rows.length) return null;
+  return (
+    <div className="crm-contact-evidence" data-testid="crm-contact-evidence">
+      {rows.map((signal) => {
+        const source = httpUrl(signal.sourceUrl);
+        const when = signalDay(signal.signalDate);
+        return (
+          <div key={signal.id || `${signal.tag}-${signal.sourceUrl}`}>
+            {signal.tag !== SIGNAL_STAFF ? <p className="crm-dim">{signal.tag}</p> : null}
+            {signal.evidenceQuote ? <blockquote className="crm-signal-quote">{signal.evidenceQuote}</blockquote> : null}
+            <p className="crm-signal-meta">
+              {source ? (
+                <a href={source} target="_blank" rel="noopener noreferrer">
+                  Source
+                </a>
+              ) : null}
+              {source && when ? <span aria-hidden="true"> · </span> : null}
+              {when ? <span>{when}</span> : null}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ContactOutreach({ contact, target }: { contact: ShownContact; target: SaveTarget | null }) {
+  const [open, setOpen] = useState(false);
+  const status = contactStatusLabel(contact.status || "");
+  const notes = contact.notes ?? [];
+  if (!status && !notes.length && !target) return null;
+  return (
+    <div className="crm-outreach" data-testid="crm-outreach">
+      {status ? <p className="crm-outreach-status">Status: {status}</p> : null}
+      {notes.length ? (
+        <ul className="crm-outreach-log">
+          {notes.map((note, index) => (
+            <li key={`${note.at}-${index}`}>
+              <span className="crm-dim">{signalDay(note.at) || note.at}</span> {note.note}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {target && contact.source === "saved" ? (
+        open ? (
+          <OutreachForm contact={contact} target={target} onDone={() => setOpen(false)} onCancel={() => setOpen(false)} />
+        ) : (
+          <button type="button" className="dx-btn" onClick={() => setOpen(true)}>
+            Log outreach
+          </button>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+function OutreachForm({
+  contact,
+  target,
+  onDone,
+  onCancel
+}: {
+  contact: ShownContact;
+  target: SaveTarget;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [clientRef] = useState(() => newId());
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(async (prev, formData) => {
+    const result = await logContactOutreachAction(prev, formData);
+    if (result?.ok) onDone();
+    return result;
+  }, null);
+  return (
+    <form action={action} className="crm-form" data-testid="crm-outreach-form">
+      <input type="hidden" name={target.field} value={target.id} />
+      <input type="hidden" name="contact_id" value={contact.id} />
+      <input type="hidden" name="name" value={contact.name} />
+      <input type="hidden" name="title" value={contact.title} />
+      <input type="hidden" name="email" value={contact.email} />
+      <input type="hidden" name="phone" value={contact.phone} />
+      <input type="hidden" name="role_tag" value={(contact.tags ?? []).join("|")} />
+      <input type="hidden" name="source_url" value={contact.sourceUrl ?? ""} />
+      <input type="hidden" name="client_ref" value={clientRef} />
+      <label className="crm-field">
+        <span>What you did</span>
+        <textarea name="note" required maxLength={300} rows={2} placeholder="Called, left a message, met at the church…" autoComplete="off" />
+      </label>
+      <label className="crm-field">
+        <span>Day</span>
+        <input name="day" type="date" required defaultValue={todayEastern()} max={todayEastern()} />
+      </label>
+      <label className="crm-field">
+        <span>Status</span>
+        <select name="status" required defaultValue={contact.status || "new"}>
+          {CRM_CONTACT_STATUSES.map((status) => (
+            <option value={status} key={status}>
+              {contactStatusLabel(status)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="crm-dim">This only saves the note. Nothing is sent.</p>
+      <div className="crm-form-actions">
+        <button type="submit" className="dx-btn dx-btn--primary" disabled={pending} aria-busy={pending}>
+          {pending ? "Saving…" : "Save log"}
+        </button>
+        <button type="button" className="dx-btn" onClick={onCancel} disabled={pending}>
+          Cancel
+        </button>
+      </div>
+      <Status state={state} />
+    </form>
+  );
+}
+
 function todayEastern(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
+/** Attach a lead-queue row to a church on file, or dismiss it. Owner only. Nothing is sent. */
+export function SignalQueueActions({ leadId, city = "", state = "" }: { leadId: string; city?: string; state?: string }) {
+  const [clientRef] = useState(() => newId());
+  const [search, searchAction, searching] = useActionState<ChurchPickState, FormData>(searchChurchesAction, null);
+  const [attached, attachAction, attaching] = useActionState(attachLeadAction, null);
+  const [dismissed, dismissAction, dismissing] = useActionState(dismissLeadAction, null);
+  const churches = search?.churches ?? [];
+  return (
+    <section className="crm-sub" aria-label="Lead queue actions" data-testid="crm-lead-queue-tools">
+      <h4>Lead queue</h4>
+      <form action={searchAction} className="crm-form">
+        <input type="hidden" name="lead_city" value={city} />
+        <input type="hidden" name="lead_state" value={state} />
+        <label className="crm-field">
+          <span>Find a church on file</span>
+          <input name="church_query" required minLength={2} maxLength={80} placeholder="Church name" autoComplete="off" />
+        </label>
+        <button type="submit" className="dx-btn" disabled={searching || attaching}>
+          {searching ? "Looking…" : "Find church"}
+        </button>
+        {search && !search.ok ? <p className="crm-warn-text">{search.message}</p> : null}
+        {search?.ok && !churches.length ? <p className="crm-dim">{search.message}</p> : null}
+      </form>
+      {churches.length ? (
+        <form action={attachAction} className="crm-form">
+          <input type="hidden" name="lead_id" value={leadId} />
+          <input type="hidden" name="client_ref" value={clientRef} />
+          <fieldset className="crm-field">
+            <legend>Attach to church</legend>
+            {churches.map((church) => (
+              <label key={church.id}>
+                <input type="radio" name="attach_church_id" value={church.id} required /> {church.name}
+                {church.town ? <span className="crm-dim"> · {church.town}</span> : null}
+              </label>
+            ))}
+          </fieldset>
+          <p className="crm-dim">Moves the contact onto that church and takes this lead out of the queue. Nothing is sent.</p>
+          <button type="submit" className="dx-btn dx-btn--primary" disabled={attaching}>
+            {attaching ? "Attaching…" : "Attach to church"}
+          </button>
+          <Status state={attached} />
+        </form>
+      ) : null}
+      <form action={dismissAction} className="crm-form">
+        <input type="hidden" name="lead_id" value={leadId} />
+        <input type="hidden" name="client_ref" value={`${clientRef}-dismiss`} />
+        <p className="crm-dim">Leaves the queue. The lead stays on file. Nothing is sent.</p>
+        <button type="submit" className="dx-btn" disabled={dismissing || attaching}>
+          {dismissing ? "Dismissing…" : "Dismiss"}
+        </button>
+        <Status state={dismissed} />
+      </form>
+    </section>
+  );
+}
+
 export function Status({ state }: { state: CrmFormState }) {
   if (!state) return null;
+  const warn = Boolean(state.ok && state.warn);
   return (
-    <p className={`crm-form-status ${state.ok ? "crm-ok-text" : "crm-warn-text"}`} role={state.ok ? "status" : "alert"}>
+    <p className={`crm-form-status ${state.ok && !warn ? "crm-ok-text" : "crm-warn-text"}`} role={warn || !state.ok ? "alert" : "status"}>
       {state.message}
     </p>
   );
@@ -98,7 +371,7 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
   const [contactId] = useState(() => contact?.id ?? newId());
   const [state, action, pending] = useActionState<CrmFormState, FormData>(saveChurchContactAction, null);
   useEffect(() => {
-    if (state?.ok) onDone();
+    if (state?.ok && !state.warn) onDone();
   }, [state, onDone]);
   return (
     <form action={action} className="crm-form" data-testid="crm-contact-form">
@@ -109,9 +382,24 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
         <input name="name" required maxLength={120} defaultValue={contact?.name ?? ""} autoComplete="off" />
       </label>
       <label className="crm-field">
-        <span>{target.noun === "church" ? "Role (pastor, secretary, deacon…)" : "Role (owner, manager…)"}</span>
+        <span>{target.noun === "church" ? "Title (pastor, secretary, deacon…)" : "Role (owner, manager…)"}</span>
         <input name="title" maxLength={80} defaultValue={contact?.title ?? ""} autoComplete="off" />
       </label>
+      {target.noun === "church" ? (
+        <>
+          <label className="crm-field">
+            <span>Role tag</span>
+            <select name="role_tag" defaultValue={contact && isTechnicalDirector(contact) ? TECHNICAL_DIRECTOR_TAG : ""}>
+              <option value="">None</option>
+              <option value={TECHNICAL_DIRECTOR_TAG}>Technical director</option>
+            </select>
+          </label>
+          <label className="crm-field">
+            <span>Source page</span>
+            <input name="source_url" type="text" inputMode="url" maxLength={400} defaultValue={contact?.sourceUrl ?? ""} placeholder="Link to the staff page" autoComplete="off" />
+          </label>
+        </>
+      ) : null}
       <label className="crm-field">
         <span>Email</span>
         <input name="email" type="email" maxLength={200} defaultValue={contact?.email ?? ""} autoComplete="off" />
@@ -409,13 +697,17 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
         <ul className="crm-contacts" data-testid="crm-contacts">
           {card.contacts.map((contact) => (
             <li key={contact.id} className="crm-contact">
-              <div>
-                <span className="crm-contact-name">{contact.name}</span>
-                {contact.title ? <span className="crm-dim"> · {contact.title}</span> : null}
-                {SOURCE_LABEL[contact.source] ? <span className="crm-contact-note">{SOURCE_LABEL[contact.source]}</span> : null}
-              </div>
+              {isTechnicalDirector(contact) ? (
+                <p className="crm-dim">Also listed above.</p>
+              ) : (
+                <div>
+                  <span className="crm-contact-name">{contact.name}</span>
+                  {contact.title ? <span className="crm-dim"> · {contact.title}</span> : null}
+                  {SOURCE_LABEL[contact.source] ? <span className="crm-contact-note">{SOURCE_LABEL[contact.source]}</span> : null}
+                </div>
+              )}
               {/* While this contact is being edited, the form shows the phone and email; don't show them twice. */}
-              {(contact.email || contact.phone) && mode !== `edit:${contact.id}` && mode !== `remove:${contact.id}` ? (
+              {!isTechnicalDirector(contact) && (contact.email || contact.phone) && mode !== `edit:${contact.id}` && mode !== `remove:${contact.id}` ? (
                 <div className="crm-contact-links">
                   {contact.phone ? (
                     <a className="crm-contact-link" href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}>
@@ -427,7 +719,18 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
                       {contact.email}
                     </a>
                   ) : null}
+                  {httpUrl(contact.sourceUrl) ? (
+                    <a className="crm-contact-link" href={httpUrl(contact.sourceUrl)} target="_blank" rel="noopener noreferrer">
+                      Staff page
+                    </a>
+                  ) : null}
                 </div>
+              ) : null}
+              {!isTechnicalDirector(contact) ? (
+                <>
+                  <ContactEvidence contact={contact} signals={card.signals ?? []} />
+                  <ContactOutreach contact={contact} target={target} />
+                </>
               ) : null}
               {target && contact.source === "saved" ? (
                 mode === `edit:${contact.id}` ? (

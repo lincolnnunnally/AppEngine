@@ -1,0 +1,17 @@
+-- NOT APPLIED. Do not run this file. It changes no schema.
+--
+-- Church signals stay on the existing church document, beside staff_contacts:
+--   cc_churches.doc.crm_signals   jsonb array
+--
+-- Each object:
+--   id              text
+--   tag             text     'Technical/media staff' | 'Building investment'
+--   evidence_quote  text
+--   source_url      text
+--   signal_date     text
+--   score           numeric
+--   signal_types    text[]   staff, campaign, renovation
+--
+-- staff rows also append a person to doc.staff_contacts (exact title, published
+-- contact, source_url). campaign and renovation rows do not create a person.
+-- No new table and no new column. The CRM reads this array from the church doc.

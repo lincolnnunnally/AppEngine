@@ -1,0 +1,9 @@
+church,city,state,website,staff_page_url,name,title,contact,signal_types,evidence_quote,source_url,signal_date,score
+Grace Chapel,Vidalia,GA,https://www.gracechapel.example/about,https://gracechapel.example/staff,Jane Doe,Director of Media,jane@gracechapel.example,staff,"Jane Doe leads media.",https://gracechapel.example/staff,2026-04-01,80
+Grace Chapel,Vidalia,GA,https://gracechapel.example,https://gracechapel.example/staff,Jane Doe,Director of Media,jane@gracechapel.example / (912) 555-0100,staff,"Jane Doe leads media.",https://gracechapel.example/staff,2026-04-01,80
+First Baptist Church,Macon,GA,,https://fbc-macon.example/team,Chris Lee,Technical Director,(478) 555-0142,staff,"Chris Lee is the technical director.",https://fbc-macon.example/team,2026-03-12,70
+Unknown Mission,Atlanta,GA,https://unknown-mission.example,https://unknown-mission.example/staff,Pat Kim,Media Pastor,pat@unknown-mission.example,staff,"Pat Kim leads media.",https://unknown-mission.example/staff,2026-02-01,10
+Shared Site Church,Savannah,,https://shared.example/one,https://shared.example/a,Ann Poe,Tech Lead,ann@shared.example,staff,"Ann Poe leads tech.",https://shared.example/a,2026-02-02,10
+Hope Church,Birmingham,AL,https://hopebirmingham.example,,,,,"campaign","A capital campaign is underway.",https://hopebirmingham.example/give,2026-01-15,90
+Palm Chapel,Orlando,FL,https://palmchapel.example,,,,,"renovation","The sanctuary is being renovated.",https://palmchapel.example/build,2025-11-01,40
+Grace Chapel,Vidalia,GA,https://gracechapel.example,,,,,"renovation","The sanctuary is being renovated.",https://gracechapel.example/build,2026-05-01,60

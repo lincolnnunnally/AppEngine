@@ -2,8 +2,10 @@
 
 import { useActionState } from "react";
 import { loadAvProspectsAction, type AvProspectState } from "@/app/(cockpit)/crm/actions";
+import { TechDirectorPeople } from "@/components/engine/crm-church-tools";
 import { avReasonText, type AvProspect } from "@/lib/engine/av-prospects-core";
 import { recordLink, type CrmApp, type CrmCard } from "@/lib/engine/lpl-crm-core";
+import { TECHNICAL_DIRECTOR_TAG, churchHasTechnicalDirector } from "@/lib/engine/tech-director-core";
 
 // AV prospects. OWNER ONLY, read only: churches that may
 // want help with sound, video, lighting or streaming. Read on tap, never on
@@ -44,7 +46,8 @@ const OPEN_LABEL = "Open in ChurchConnect";
 
 export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props) {
   const [state, action, pending] = useActionState<AvProspectState, FormData>(loadAvProspectsAction, initial);
-  const prospects = state?.ok ? state.prospects ?? [] : [];
+  const prospects = state?.ok && !state.directors ? state.prospects ?? [] : [];
+  const directors = state?.ok && state.directors ? state.directors : null;
   return (
     <div className="crm-av" data-testid="crm-av-prospects">
       <p className="crm-section-note">
@@ -52,9 +55,12 @@ export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props)
         Your territory first: central and South Georgia, then the rest of Georgia, then Florida, then South Carolina; nearest Vidalia first in each.
         Reasons say only what is on file. Nothing is sent from here.
       </p>
-      <form action={action}>
-        <button type="submit" className="dx-btn dx-btn--primary crm-av-open" disabled={pending}>
-          {pending ? "Reading churches…" : state?.ok ? "Read the list again" : "Show the list"}
+      <form action={action} className="crm-form-actions">
+        <button type="submit" name="tech" value="" className="dx-btn dx-btn--primary crm-av-open" disabled={pending}>
+          {pending ? "Reading churches…" : state?.ok && !directors ? "Read the list again" : "Show the list"}
+        </button>
+        <button type="submit" name="tech" value="1" className={`dx-btn crm-av-open${directors ? " dx-btn--primary" : ""}`} disabled={pending} data-testid="crm-av-tech-chip" aria-pressed={Boolean(directors)}>
+          {pending ? "Reading churches…" : "Technical director"}
         </button>
       </form>
       {state && !state.ok ? (
@@ -62,7 +68,54 @@ export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props)
           {state.message}
         </p>
       ) : null}
-      {state?.ok ? (
+      {directors ? (
+        directors.length ? (
+          <ol className="crm-follow crm-av-list">
+            {directors.map((item) => {
+              const card = cards.find((entry) => entry.churchId === item.churchId);
+              const record = recordLink("churchconnect", { recordPaths: { churchconnect: `/super-admin#crm/lead/${item.churchId}` } }, adminUrls);
+              const site = safeHref(item.website);
+              return (
+                <li key={item.churchId} className="crm-follow-row" data-testid="crm-tech-director-row">
+                  <div className="crm-av-main">
+                    <strong className="crm-av-name">{item.name}</strong>
+                    {item.town ? <span className="crm-av-meta">{item.town}</span> : null}
+                    <TechDirectorPeople
+                      people={item.people.map((person) => ({
+                        id: `${item.churchId}:${person.name}`,
+                        name: person.name,
+                        title: person.title,
+                        email: person.email,
+                        phone: person.phone,
+                        sourceUrl: person.sourceUrl,
+                        tags: [TECHNICAL_DIRECTOR_TAG]
+                      }))}
+                    />
+                  </div>
+                  <div className="crm-av-actions">
+                    {record ? (
+                      <a className="dx-btn crm-av-open" href={record.href} target="_blank" rel="noopener noreferrer">
+                        {OPEN_LABEL}
+                      </a>
+                    ) : card ? (
+                      <button type="button" className="dx-btn crm-av-open" onClick={() => onOpen(card.key)}>
+                        {OPEN_LABEL}
+                      </button>
+                    ) : null}
+                    {site ? (
+                      <a className="crm-link-btn crm-av-open" href={site} target="_blank" rel="noopener noreferrer nofollow">
+                        Their website
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="crm-empty">No churches with a technical director on file.</p>
+        )
+      ) : state?.ok ? (
         prospects.length ? (
           <ol className="crm-follow crm-av-list">
             {prospects.map((item) => {
@@ -79,6 +132,7 @@ export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props)
                       </span>
                     ) : null}
                     <span className="crm-av-meta">{subline(item)}</span>
+                    {churchHasTechnicalDirector(card?.contacts ?? []) ? <TechDirectorPeople people={card?.contacts ?? []} /> : null}
                     <ul className="crm-av-reasons">
                       {item.reasons.map((reason) => {
                         const text = avReasonText(reason, item.tierLabel);
@@ -110,10 +164,13 @@ export function AvProspects({ cards, adminUrls, onOpen, initial = null }: Props)
           <p className="crm-empty">No churches match right now.</p>
         )
       ) : null}
-      {state?.ok ? (
+      {state?.ok && !directors ? (
         <p className="crm-av-foot">
           Up to 30 churches with a website or Facebook page, nearest first in each area. Leaves out churches that already stream, are resting or recently contacted, were invited, said no, were already won, are already being worked, are not public, are inactive, or are not a church.
         </p>
+      ) : null}
+      {directors ? (
+        <p className="crm-av-foot">Churches with a technical director on the contact list. Nothing is sent from here.</p>
       ) : null}
     </div>
   );

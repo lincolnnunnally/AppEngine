@@ -141,7 +141,90 @@ export type CrmContact = {
   email: string;
   phone: string;
   source: "saved" | "pastor" | "secretary" | "contact";
+  /** Role tags. "Technical director" is the desk filter. The exact title stays in `title`. */
+  tags?: string[];
+  /** Public page this contact was taken from. Shown to the owner only. */
+  sourceUrl?: string;
+  /** Pipeline status on this person. Stored on the contact record. Owner only. */
+  status?: CrmContactStatus | "";
+  /** Outreach notes logged for this person (note + day). Owner only. Nothing is sent. */
+  notes?: CrmContactNote[];
 };
+
+export const CRM_CONTACT_STATUSES = ["new", "contacted", "follow-up", "meeting", "won", "lost"] as const;
+export type CrmContactStatus = (typeof CRM_CONTACT_STATUSES)[number];
+
+export type CrmContactNote = { at: string; note: string };
+
+const CONTACT_STATUS_LABEL: Record<CrmContactStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  "follow-up": "Follow-up",
+  meeting: "Meeting",
+  won: "Won",
+  lost: "Lost"
+};
+
+export function contactStatusLabel(status: string): string {
+  return CONTACT_STATUS_LABEL[status as CrmContactStatus] ?? "";
+}
+
+export function cleanContactStatus(value: unknown): CrmContactStatus | "" {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (CRM_CONTACT_STATUSES as readonly string[]).includes(text) ? (text as CrmContactStatus) : "";
+}
+
+const OUTREACH_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A logged outreach: a note, the day, and one of the contact statuses. Logging only. */
+export function cleanContactOutreach(input: {
+  note?: unknown;
+  day?: unknown;
+  status?: unknown;
+  contactId?: unknown;
+  name?: unknown;
+}): { note: string; day: string; status: CrmContactStatus; contactId: string; name: string } | string {
+  const note = String(input.note ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+  if (!note) return "Write what you did. Nothing was saved.";
+  const day = String(input.day ?? "").trim().slice(0, 10);
+  if (!OUTREACH_DAY.test(day)) return "Pick the day. Nothing was saved.";
+  const parsed = new Date(`${day}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== day) return "Pick a real day. Nothing was saved.";
+  const status = cleanContactStatus(input.status);
+  if (!status) return "Pick a status. Nothing was saved.";
+  const contactId = String(input.contactId ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{6,64}$/.test(contactId)) return "That contact can't be updated. Reload the page and try again.";
+  const name = String(input.name ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!name) return "That contact needs a name. Nothing was saved.";
+  return { note, day, status, contactId, name };
+}
+
+/**
+ * Owner search. Matches the church name, a person's name or title, the city
+ * or state, and a signal tag (Technical/media staff, Building investment, or
+ * a card that has both). Blank query matches everything.
+ */
+export function cardMatchesCrmSearch(
+  card: {
+    name: string;
+    town: string;
+    state?: string;
+    contacts?: Array<{ name?: string; title?: string; tags?: string[] }>;
+    signals?: Array<{ tag?: string }>;
+  },
+  query: string
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const parts = [
+    card.name,
+    card.town,
+    card.state ?? "",
+    ...(card.contacts ?? []).flatMap((contact) => [contact.name ?? "", contact.title ?? "", ...(contact.tags ?? [])]),
+    ...(card.signals ?? []).map((signal) => signal.tag ?? "")
+  ];
+  return parts.join("\n").toLowerCase().includes(q);
+}
 
 export type CrmNode = {
   id: string;
@@ -175,6 +258,21 @@ export type CrmNode = {
   deskDoNotContact?: boolean;
   /** Basics the owner can edit from the desk (ChurchConnect church or business lead). */
   org?: CrmOrg;
+  /** Church state, used by the owner signal filter. */
+  state?: string;
+  /** Church signals (technical/media staff, building investment). Owner only on the page. */
+  signals?: CrmChurchSignal[];
+  /** Unmatched church-signal row stored as an op_leads lead. */
+  leadQueue?: boolean;
+};
+
+export type CrmChurchSignal = {
+  id: string;
+  tag: string;
+  evidenceQuote: string;
+  sourceUrl: string;
+  signalDate: string;
+  score: number;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
@@ -228,6 +326,12 @@ export type CrmCard = {
   deskDoNotContact: boolean;
   /** The org's editable basics (church first). Phone and email are removed for viewers who are not the owner. */
   org: CrmOrg | null;
+  /** Church state code or the stored state text. */
+  state?: string;
+  /** Owner only. Evidence for technical/media staff or building investment. */
+  signals?: CrmChurchSignal[];
+  /** This card is an unmatched church-signal lead (op_leads). */
+  leadQueue?: boolean;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -622,6 +726,54 @@ export function dedupeTouches(touchesNewestFirst: Touch[]): Touch[] {
   return kept;
 }
 
+function outreachDay(at: string): string {
+  return at.slice(0, 10);
+}
+
+function sameOutreachNote(touch: Touch, note: string, day: string): boolean {
+  if (outreachDay(touch.at) !== day) return false;
+  const text = note.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!text) return false;
+  const what = touch.what.replace(/\s+/g, " ").trim().toLowerCase();
+  return what === text || what.endsWith(`: ${text}`);
+}
+
+/**
+ * A note saved on a person is part of the timeline and counts as a reach-out.
+ * A note already stored as a timeline line on that day is not added again;
+ * that line becomes the reach-out. Newest first.
+ */
+export function mergeOutreachLog(touches: Touch[], contacts: ReadonlyArray<{ notes?: CrmContactNote[] }>, app: CrmApp): Touch[] {
+  const merged = touches.map((touch) => ({ ...touch }));
+  for (const contact of contacts) {
+    for (const note of contact.notes ?? []) {
+      const text = note.note.replace(/\s+/g, " ").trim().slice(0, 160);
+      const day = outreachDay(note.at);
+      if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      const existing = merged.find((touch) => touch.kind === "note" && sameOutreachNote(touch, text, day));
+      if (existing) {
+        if (!existing.outreach) existing.outreach = true;
+        continue;
+      }
+      merged.push({ at: day, app, kind: "note", what: text, outreach: true, dateOnly: true });
+    }
+  }
+  return dedupeTouches(sortTouches(merged));
+}
+
+/** Card timeline and last reach-out, including notes logged on a person. */
+export function withOutreachLog(card: CrmCard): CrmCard {
+  const touches = mergeOutreachLog(card.touches, card.contacts, card.apps[0] ?? "churchconnect");
+  return { ...card, touches, lastOutreach: touches.find((touch) => touch.outreach) ?? null, lastTouch: touches[0] ?? null };
+}
+
+/** A church-signal lead still waiting. Attached and dismissed rows leave the queue. */
+export function churchLeadInQueue(signals: { kind?: unknown; queue?: unknown } | null | undefined): boolean {
+  if (!signals || String(signals.kind ?? "") !== "church-signal") return false;
+  const queue = String(signals.queue ?? "");
+  return queue !== "dismissed" && queue !== "attached";
+}
+
 const SAFE_RECORD_PATH = /^[#/A-Za-z0-9_.\-]+$/;
 
 /** First record path per app (non-context records first). Never carries contact details. */
@@ -679,7 +831,21 @@ function contactsOf(members: CrmNode[]): CrmContact[] {
 
 /** Owner view keeps everything; anyone else sees names and titles only. */
 export function contactsForViewer(contacts: CrmContact[], isOwner: boolean): CrmContact[] {
-  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "" }));
+  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "", sourceUrl: "", status: "", notes: [] }));
+}
+
+function signalsOf(members: CrmNode[]): CrmChurchSignal[] {
+  const out: CrmChurchSignal[] = [];
+  const seen = new Set<string>();
+  for (const member of members) {
+    for (const signal of member.signals ?? []) {
+      const key = `${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(signal);
+    }
+  }
+  return out.sort((a, b) => b.score - a.score || a.tag.localeCompare(b.tag));
 }
 
 export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Date): CrmCard[] {
@@ -746,7 +912,11 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
     const matchedBy = [
       ...new Set(edges.filter((edge) => ids.has(edge.a) && ids.has(edge.b)).map((edge) => edge.kind))
     ] as MatchKind[];
-    const touches = dedupeTouches(sortTouches(members.flatMap((member) => member.touches)));
+    const rawTouches = dedupeTouches(sortTouches(members.flatMap((member) => member.touches)));
+    const saveChurch = churchIdOf(members);
+    const saveLead = leadIdOf(members, saveChurch);
+    const contacts = contactsOf(targetMembers(members, saveChurch, saveLead));
+    const touches = mergeOutreachLog(rawTouches, contacts, lead.app);
     const lastOutreach = touches.find((touch) => touch.outreach) ?? null;
     const stops: CrmStop[] = [];
 
@@ -778,8 +948,6 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       .filter((item) => item.date)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
-    const saveChurch = churchIdOf(members);
-    const saveLead = leadIdOf(members, saveChurch);
     const card: CrmCard = {
       // Hashed so an id that contains contact details never reaches the page.
       key: `c${hashKey(root)}`,
@@ -808,9 +976,12 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       recordPaths: recordPathsOf(members),
       churchId: saveChurch,
       leadId: saveLead,
-      contacts: contactsOf(targetMembers(members, saveChurch, saveLead)),
+      contacts,
       deskDoNotContact: targetMembers(members, saveChurch, saveLead).some((member) => member.deskDoNotContact && !member.contextOnly),
-      org: orgOf(members)
+      org: orgOf(members),
+      state: members.map((member) => member.state).find(Boolean) || "",
+      signals: signalsOf(members),
+      leadQueue: members.some((member) => member.leadQueue)
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));

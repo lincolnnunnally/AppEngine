@@ -22,6 +22,8 @@ import {
   suppressionKeys,
   scrubContact,
   shortPersonName,
+  cleanContactStatus,
+  churchLeadInQueue,
   type CrmApp,
   type CrmCard,
   type CrmContact,
@@ -51,6 +53,7 @@ import {
 } from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
+import { httpUrl, readChurchSignals, readRoleTags, technicalDirectorsFromStaff, type TechDirectorRow } from "@/lib/engine/tech-director-core";
 
 type LplConfig = { url: string; serviceKey: string };
 
@@ -138,7 +141,7 @@ const CHURCH_FIELDS = [
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
   "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim"
 ];
-const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers`;
+const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals`;
 const CHURCH_TOUCHED = [
   "doc->>crm_status.not.is.null",
   "doc->>crm_next_action_date.not.is.null",
@@ -178,7 +181,17 @@ function churchContacts(row: Row, churchId: string): CrmContact[] {
     const name = contactText(item.name, 120);
     if (!name) continue;
     const id = CONTACT_ID_RE.test(s(item.id)) ? s(item.id) : stableContactId(item);
-    out.push({ id, name, title: contactText(item.role ?? item.title, 80), email: normEmail(item.email), phone: contactText(item.phone, 40), source: "saved" });
+    out.push({
+      id,
+      name,
+      title: contactText(item.role ?? item.title, 80),
+      email: normEmail(item.email),
+      phone: contactText(item.phone, 40),
+      source: "saved",
+      tags: readRoleTags(item.tags ?? item.role_tag),
+      sourceUrl: httpUrl(item.source_url ?? item.sourceUrl),
+      status: cleanContactStatus(item.status)
+    });
   }
   const builtIn: Array<[CrmContact["source"], unknown, string, unknown, unknown]> = [
     ["pastor", row.pastor_name, "Pastor", row.pastor_email, row.pastor_phone],
@@ -247,7 +260,9 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     contacts: churchContacts(row, id),
     // The desk's own claim (it may sit next to a real reason such as an email unsubscribe).
     deskDoNotContact: UUID_RE.test(id) && (truthy(row.do_not_contact_desk_claim) || (truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit")),
-    org: UUID_RE.test(id) ? churchOrg(row, id) : undefined
+    org: UUID_RE.test(id) ? churchOrg(row, id) : undefined,
+    state: s(row.state),
+    signals: readChurchSignals(row.crm_signals)
   };
 }
 
@@ -276,12 +291,40 @@ function leadContactList(value: unknown): CrmContact[] {
     const name = contactText(item.name, 120);
     if (!name) continue;
     const id = CONTACT_ID_RE.test(s(item.id)) ? s(item.id) : stableContactId(item);
-    out.push({ id, name, title: contactText(item.role ?? item.title, 80), email: normEmail(item.email), phone: contactText(item.phone, 40), source: "saved" });
+    out.push({
+      id,
+      name,
+      title: contactText(item.role ?? item.title, 80),
+      email: normEmail(item.email),
+      phone: contactText(item.phone, 40),
+      source: "saved",
+      tags: readRoleTags(item.tags ?? item.role_tag),
+      sourceUrl: httpUrl(item.source_url ?? item.sourceUrl),
+      status: cleanContactStatus(item.status)
+    });
   }
   return out;
 }
 
-/** A business prospect (op_leads). The desk is its only writer today. */
+/** A church-signal lead keeps its evidence in op_leads.signals (kind church-signal). */
+function churchSignalFromLead(signals: Row): CrmNode["signals"] {
+  if (s(signals.kind) !== "church-signal") return undefined;
+  const tag = s(signals.tag);
+  if (!tag) return undefined;
+  const score = Number(signals.score);
+  return [
+    {
+      id: s(signals.id) || `lead-${tag}`,
+      tag,
+      evidenceQuote: s(signals.evidence_quote),
+      sourceUrl: s(signals.source_url),
+      signalDate: s(signals.signal_date),
+      score: Number.isFinite(score) ? score : 0
+    }
+  ];
+}
+
+/** A business prospect (op_leads). The desk is its only writer today, except the church-signal import. */
 function reasonsFor(row: Row, index?: SuppressionReasonIndex): string[] {
   if (!index) return [];
   return [
@@ -349,7 +392,10 @@ export function businessNode(row: Row, reasons?: SuppressionReasonIndex): CrmNod
           : undefined,
     leadId: id,
     contacts: leadContactList(row.contacts),
+    signals: churchSignalFromLead(signals),
+    leadQueue: churchLeadInQueue(signals),
     deskDoNotContact: status === "suppressed" && s(signals.dnc_source) === "crm_visit",
+    state: s(row.state),
     org: {
       kind: "business",
       id,
@@ -363,6 +409,18 @@ export function businessNode(row: Row, reasons?: SuppressionReasonIndex): CrmNod
       version: s(row.updated_at)
     }
   };
+}
+
+/** A note logged on a person. The newest status already on the contact stays. */
+function rememberContactNote(node: CrmNode, contactId: string, at: string, note: string, status = ""): void {
+  if (!contactId || !node.contacts) return;
+  const person = node.contacts.find((item) => item.id === contactId);
+  if (!person) return;
+  const saved = cleanContactStatus(status);
+  if (saved && !person.status) person.status = saved;
+  const text = scrubContact(note, 300);
+  if (!text) return;
+  person.notes = [...(person.notes ?? []), { at, note: text }];
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -426,6 +484,8 @@ export function leadActivityNodes(rows: Row[], nodes: Map<string, CrmNode>): Crm
     } else {
       const at = occurred || s(row.created_at);
       if (at) {
+        const contact = row.contact && typeof row.contact === "object" ? (row.contact as Row) : null;
+        if (type === "note") rememberContactNote(node, s(contact?.id), at, s(row.outcome));
         node.touches.push({
           at,
           app: "business",
@@ -533,7 +593,9 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     pScans,
     suppressionRows,
     opLeads,
-    leadActivities
+    leadActivities,
+    taggedChurches,
+    signalChurches
   ] = await Promise.all([
     read("cc_churches", `${CHURCH_SELECT}&or=(${CHURCH_TOUCHED})&limit=1500`, "Churches in the pipeline", "churchconnect"),
     read("cc_site_invites", "select=id,church_id:doc->>church_id,slug:doc->>slug,updated_at:doc->>updated_at,created_at&limit=1000", "Website preview pages", "churchconnect"),
@@ -577,7 +639,19 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     read("presence_coin_scans", "select=coin_id,kind,created_at&order=created_at.desc&limit=5000", "Token scans", "presence"),
     read("outreach_suppressions", "select=email,domain,phone,reason&limit=5000", "Do-not-contact list", "shared"),
     read("op_leads", `${OP_LEAD_SELECT}&order=created_at.desc&limit=1000`, "Business leads", "business"),
-    read("op_lead_activities", `${OP_LEAD_ACTIVITY_SELECT}&order=occurred_at.desc&limit=2000`, "Business visit log", "business")
+    read("op_lead_activities", `${OP_LEAD_ACTIVITY_SELECT}&order=occurred_at.desc&limit=2000`, "Business visit log", "business"),
+    read(
+      "cc_churches",
+      `${CHURCH_SELECT}&doc->>staff_contacts=ilike.${encodeURIComponent("*technical director*")}&limit=1000`,
+      "Churches with a technical director",
+      "churchconnect"
+    ),
+    read(
+      "cc_churches",
+      `${CHURCH_SELECT}&or=(doc->>crm_signals.ilike.${encodeURIComponent("*Technical/media staff*")},doc->>crm_signals.ilike.${encodeURIComponent("*Building investment*")})&limit=1000`,
+      "Churches with a church signal",
+      "churchconnect"
+    )
   ]);
 
   const nodes = new Map<string, CrmNode>();
@@ -606,10 +680,23 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     if (node.locations?.length) existing.locations = [...(existing.locations ?? []), ...node.locations];
     existing.recordPath = existing.recordPath || node.recordPath;
     if (!existing.town && node.town) existing.town = node.town;
+    if (!existing.state && node.state) existing.state = node.state;
+    if (node.signals?.length) {
+      const seen = new Set((existing.signals ?? []).map((signal) => `${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`));
+      const extra = node.signals.filter((signal) => !seen.has(`${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`));
+      if (extra.length) existing.signals = [...(existing.signals ?? []), ...extra];
+    }
   };
 
   // --- ChurchConnect ---------------------------------------------------------
   for (const row of churches) add(churchNode(row, false));
+  // Directory churches that have a technical director, even with no other pipeline activity.
+  for (const row of taggedChurches) {
+    if (!nodes.has(`cc:church:${s(row.id)}`)) add(churchNode(row, false));
+  }
+  for (const row of signalChurches) {
+    if (!nodes.has(`cc:church:${s(row.id)}`)) add(churchNode(row, false));
+  }
 
   // --- Business leads (op_leads) ---------------------------------------------
   const reasonIndex = suppressionReasonIndex(suppressionRows);
@@ -665,7 +752,11 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
         continue;
       }
     }
-    const at = s(row.at) || s(row.created_at);
+    const at = s(row.at) || s(row.created_at) || s(row.occurred_at);
+    if (type === "note") {
+      const contact = row.contact && typeof row.contact === "object" ? (row.contact as Row) : null;
+      if (node && at) rememberContactNote(node, s(contact?.id), at, s(row.description), s(row.outcome));
+    }
     if (!node || !at) continue;
     const outreach = OUTREACH_ACTIVITY.has(type) && !/FAILED|did not send/i.test(s(row.description));
     if (type === "invite" && node.touches.some((touch) => touch.kind === "invite" && touch.at.slice(0, 16) === at.slice(0, 16))) continue;
@@ -1129,6 +1220,33 @@ export async function crmFollowUpCount(): Promise<number | null> {
 /** The /crm page already did the full read — share its count with the deck. */
 export function rememberCrmFollowUpCount(snapshot: CrmSnapshot): void {
   if (snapshot.configured) deckCount = { at: Date.now(), value: todayCount(snapshot) };
+}
+
+const TECH_DIRECTOR_SELECT = "select=id,name:doc->>name,church_name:doc->>church_name,city:doc->>city,state:doc->>state,website:doc->>website,merged_into:doc->>merged_into,deleted_at:doc->>deleted_at,active:doc->>active,staff_contacts:doc->staff_contacts";
+
+/** Churches with a technical director on the contact list. Read only, on tap. */
+export async function loadTechDirectorChurches(): Promise<{ ok: boolean; rows: TechDirectorRow[]; read: number; message: string }> {
+  const config = getLplConfig();
+  if (!config) return { ok: false, rows: [], read: 0, message: "This deploy cannot read the shared database yet." };
+  const sources: CrmSourceStatus[] = [];
+  const filter = `doc->>staff_contacts=ilike.${encodeURIComponent("*technical director*")}`;
+  const rows = await readChurchPages(config, `${TECH_DIRECTOR_SELECT}&${filter}`, sources, "Churches with a technical director", 5);
+  if (!rows) return { ok: false, rows: [], read: 0, message: "Churches couldn't be read just now. Try again in a minute." };
+  const list: TechDirectorRow[] = [];
+  for (const row of rows) {
+    if (s(row.merged_into) || s(row.deleted_at) || s(row.active) === "false") continue;
+    const people = technicalDirectorsFromStaff(row.staff_contacts);
+    if (!people.length) continue;
+    list.push({
+      churchId: s(row.id),
+      name: s(row.name) || s(row.church_name) || "Church",
+      town: [s(row.city), s(row.state)].filter(Boolean).join(", "),
+      website: s(row.website),
+      people
+    });
+  }
+  list.sort((a, b) => a.name.localeCompare(b.name) || a.town.localeCompare(b.town));
+  return { ok: true, rows: list, read: rows.length, message: "" };
 }
 
 // --- AV prospects (Messenger AVL kit) -----------------------------------------

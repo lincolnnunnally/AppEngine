@@ -30,3 +30,8 @@ codex.patch
 
 # Supabase CLI scratch (version cache) — never part of the repo
 supabase/.temp
+
+# Tech-director import reports written beside the CSV. The fixture stays tracked.
+*-unmatched.csv
+*-directory-only.csv
+*-flagged.csv

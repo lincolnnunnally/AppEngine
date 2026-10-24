@@ -5,17 +5,23 @@ import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
 import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
-import { loadAvProspects, loadCrmSnapshot, loadTopProspects } from "@/lib/engine/lpl-crm";
+import { loadAvProspects, loadCrmSnapshot, loadTechDirectorChurches, loadTopProspects } from "@/lib/engine/lpl-crm";
+import type { TechDirectorRow } from "@/lib/engine/tech-director-core";
 import { resolveTopProspectTier, type AvProspect, type AvTierIndex, type TopProspect, type TopProspectCounts } from "@/lib/engine/av-prospects-core";
 import {
   createOrg,
+  dismissLeadFromQueue,
   editOrg,
   logBusinessVisit,
+  logChurchContactOutreach,
   logChurchVisit,
+  logLeadContactOutreach,
   removeBusinessContact,
   removeChurchContact,
   saveBusinessContact,
   saveChurchContact,
+  searchChurchesForAttach,
+  attachLeadToChurch,
   undoBusinessDoNotContact,
   undoChurchDoNotContact,
   type OrgInput,
@@ -53,11 +59,40 @@ export async function saveChurchContactAction(_prev: CrmFormState, formData: For
     name: field(formData, "name"),
     title: field(formData, "title"),
     email: field(formData, "email"),
-    phone: field(formData, "phone")
+    phone: field(formData, "phone"),
+    tags: field(formData, "role_tag") ? [field(formData, "role_tag")] : [],
+    sourceUrl: field(formData, "source_url")
   };
   const result = lead
     ? await saveBusinessContact(await ownerEmail(), lead, contact)
     : await saveChurchContact(await ownerEmail(), field(formData, "church_id"), contact);
+  if (result.ok) revalidatePath("/crm");
+  return { ok: result.ok, message: result.message, at: Date.now(), warn: result.ok && result.warn === true };
+}
+
+export async function logContactOutreachAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const lead = leadOf(formData);
+  const tags = field(formData, "role_tag")
+    .split("|")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  const input = {
+    churchId: lead ? "" : field(formData, "church_id"),
+    leadId: lead,
+    contactId: field(formData, "contact_id"),
+    name: field(formData, "name"),
+    title: field(formData, "title"),
+    email: field(formData, "email"),
+    phone: field(formData, "phone"),
+    tags,
+    sourceUrl: field(formData, "source_url"),
+    note: field(formData, "note"),
+    day: field(formData, "day"),
+    status: field(formData, "status"),
+    clientRef: field(formData, "client_ref")
+  };
+  const result = lead ? await logLeadContactOutreach(await ownerEmail(), input) : await logChurchContactOutreach(await ownerEmail(), input);
   if (result.ok) revalidatePath("/crm");
   return { ok: result.ok, message: result.message, at: Date.now() };
 }
@@ -187,10 +222,23 @@ export async function suggestNextStepAction(_prev: SuggestState, formData: FormD
 // Owner only, read only: a ranked list of churches that may want help with
 // sound, video, lighting or streaming. Nothing is saved or sent.
 
-export type AvProspectState = { ok: boolean; message: string; at: number; prospects?: AvProspect[]; read?: number } | null;
+export type AvProspectState = {
+  ok: boolean;
+  message: string;
+  at: number;
+  prospects?: AvProspect[];
+  directors?: TechDirectorRow[];
+  read?: number;
+} | null;
 
-export async function loadAvProspectsAction(_prev: AvProspectState, _formData: FormData): Promise<AvProspectState> {
+export async function loadAvProspectsAction(_prev: AvProspectState, formData: FormData): Promise<AvProspectState> {
   if (!(await canAccessEngineOwner())) return refused(SUGGEST_OWNER_ONLY);
+  if (field(formData, "tech") === "1") {
+    const list = await loadTechDirectorChurches().catch(() => null);
+    if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now() };
+    if (!list.ok) return { ok: false, message: list.message, at: Date.now() };
+    return { ok: true, message: "", at: Date.now(), directors: list.rows, read: list.read };
+  }
   const list = await loadAvProspects().catch(() => null);
   if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now() };
   if (!list.ok) return { ok: false, message: list.message, at: Date.now() };
@@ -209,6 +257,37 @@ export type TopProspectState = {
   won?: TopProspect[];
   counts?: TopProspectCounts;
 } | null;
+
+export type ChurchPickState = { ok: boolean; message: string; at: number; churches?: { id: string; name: string; town: string }[] } | null;
+
+export async function searchChurchesAction(_prev: ChurchPickState, formData: FormData): Promise<ChurchPickState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const result = await searchChurchesForAttach(field(formData, "church_query"), {
+    city: field(formData, "lead_city"),
+    state: field(formData, "lead_state")
+  });
+  if (!result.ok) return { ok: false, message: result.message, at: Date.now(), churches: [] };
+  return {
+    ok: true,
+    message: result.churches.length ? "" : "No church with that name is on file.",
+    at: Date.now(),
+    churches: result.churches
+  };
+}
+
+export async function attachLeadAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const result = await attachLeadToChurch(await ownerEmail(), field(formData, "lead_id"), field(formData, "attach_church_id"), field(formData, "client_ref"));
+  if (result.ok) revalidatePath("/crm");
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function dismissLeadAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const result = await dismissLeadFromQueue(await ownerEmail(), field(formData, "lead_id"), field(formData, "client_ref"));
+  if (result.ok) revalidatePath("/crm");
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
 
 export async function loadTopProspectsAction(_prev: TopProspectState, formData: FormData): Promise<TopProspectState> {
   if (!(await canAccessEngineOwner())) return refused(SUGGEST_OWNER_ONLY);

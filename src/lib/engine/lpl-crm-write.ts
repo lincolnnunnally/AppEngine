@@ -9,13 +9,16 @@
 // one method and exact path. The only direct writes here are the shared
 // do-not-contact list (a visit that ends with "asked not to be contacted") and
 // business leads (op_leads, its contacts, and its visit log op_lead_activities),
-// which no app owns yet.
+// which no app owns yet. Attaching a lead-queue row calls crm_patch_church_doc.
+// This file never PATCHes cc_churches.
 // Nothing here logs a body, a contact detail, or the pass. Nothing is sent to
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, resolveOrgKind, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
+import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
 export const CRM_PASS_AUDIENCE = "churchconnect-crm";
@@ -33,7 +36,7 @@ export type OutcomeCode = (typeof OUTCOME_CODES)[number];
 
 export type SaveResult = { ok: true; message: string; duplicate?: boolean; contactId?: string; /** Saved, but the result needs a warning, not a success line. */ warn?: boolean } | { ok: false; message: string };
 
-export type ContactInput = { id: string; name: string; title: string; email: string; phone: string };
+export type ContactInput = { id: string; name: string; title: string; email: string; phone: string; tags: string[]; sourceUrl: string; status?: CrmContactStatus | "" };
 
 export type VisitInput = {
   churchId: string;
@@ -112,7 +115,16 @@ export function cleanContactInput(input: Partial<ContactInput>): ContactInput | 
   if (rawEmail && !email) return "That email doesn't look right.";
   const phone = text(input.phone, 40);
   if (phone && phone.replace(/\D/g, "").length < 7) return "That phone number looks too short.";
-  return { id, name, title: text(input.title, 80), email, phone };
+  return {
+    id,
+    name,
+    title: text(input.title, 80),
+    email,
+    phone,
+    tags: cleanRoleTags(input.tags),
+    sourceUrl: httpUrl(input.sourceUrl),
+    status: cleanContactStatus(input.status)
+  };
 }
 
 export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string {
@@ -198,12 +210,16 @@ export async function saveChurchContact(ownerEmail: string, churchId: string, ra
   const contact = cleanContactInput(raw);
   if (typeof contact === "string") return { ok: false, message: contact };
   const path = `/api/church-crm/leads/${churchId}/contacts/${contact.id}`;
-  const result = await callChurchConnect(config, "PUT", path, ownerEmail, {
+  const body: Record<string, unknown> = {
     name: contact.name,
     role: contact.title,
     email: contact.email,
     phone: contact.phone
-  });
+  };
+  if (contact.tags.length) body.tags = contact.tags;
+  if (contact.sourceUrl) body.source_url = contact.sourceUrl;
+  if (contact.status) body.status = contact.status;
+  const result = await callChurchConnect(config, "PUT", path, ownerEmail, body);
   if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
   return { ok: true, message: `Saved ${contact.name}.`, contactId: contact.id };
 }
@@ -243,6 +259,104 @@ export async function logChurchVisit(ownerEmail: string, raw: Partial<VisitInput
     }
   }
   return { ok: true, duplicate, message: duplicate ? `${label} was already saved.` : `${label} saved.` };
+}
+
+export type OutreachInput = {
+  churchId?: string;
+  leadId?: string;
+  contactId: string;
+  name: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  sourceUrl?: string;
+  note: string;
+  day: string;
+  status: string;
+  clientRef: string;
+};
+
+/** Log a note and a status on one contact. Nothing is sent. */
+export async function logChurchContactOutreach(ownerEmail: string, raw: OutreachInput): Promise<SaveResult> {
+  const config = await ccConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const outreach = cleanContactOutreach(raw);
+  if (typeof outreach === "string") return { ok: false, message: outreach };
+  const churchId = text(raw.churchId, 64);
+  if (!UUID_RE.test(churchId)) return { ok: false, message: "Outreach can only be logged on a church on this desk." };
+  const clientRef = text(raw.clientRef, 64);
+  if (!REF_RE.test(clientRef)) return { ok: false, message: "Reload the page and try again." };
+  const path = `/api/church-crm/leads/${churchId}/activities`;
+  const posted = await callChurchConnect(config, "POST", path, ownerEmail, {
+    type: "note",
+    description: outreach.note,
+    occurred_at: outreach.day,
+    contact: { id: outreach.contactId, name: outreach.name, title: text(raw.title, 80) },
+    outcome: outreach.status,
+    source: "owner_desk",
+    client_ref: clientRef
+  });
+  if (!posted.ok) return { ok: false, message: failure(posted.status, posted.json) };
+  const saved = await saveChurchContact(ownerEmail, churchId, {
+    id: outreach.contactId,
+    name: outreach.name,
+    title: text(raw.title, 80),
+    email: text(raw.email, 200),
+    phone: text(raw.phone, 40),
+    tags: raw.tags ?? [],
+    sourceUrl: text(raw.sourceUrl, 400),
+    status: outreach.status
+  });
+  if (!saved.ok) return { ok: false, message: `The note was saved, but the status was not. ${saved.message}` };
+  const duplicate = posted.json?.duplicate === true;
+  return { ok: true, duplicate, message: duplicate ? "That note was already saved." : "Outreach saved." };
+}
+
+export async function logLeadContactOutreach(ownerEmail: string, raw: OutreachInput): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const outreach = cleanContactOutreach(raw);
+  if (typeof outreach === "string") return { ok: false, message: outreach };
+  const leadId = text(raw.leadId, 64);
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "Outreach can only be logged on a lead on this desk." };
+  const clientRef = text(raw.clientRef, 64);
+  if (!REF_RE.test(clientRef)) return { ok: false, message: "Reload the page and try again." };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The lead couldn't be read. Nothing was saved." };
+  if (!lead) return { ok: false, message: "That lead isn't there any more." };
+  try {
+    const response = await fetch(`${config.url}/rest/v1/op_lead_activities?on_conflict=client_ref&select=id`, {
+      method: "POST",
+      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=representation" },
+      cache: "no-store",
+      body: JSON.stringify({
+        lead_id: leadId,
+        type: "note",
+        occurred_at: leadDayStamp(outreach.day),
+        contact: { id: outreach.contactId, name: outreach.name, title: text(raw.title, 80) },
+        outcome: outreach.note,
+        created_by: ownerEmail,
+        client_ref: clientRef,
+        source: "appengine_crm"
+      })
+    });
+    if (!response.ok) return { ok: false, message: "The note couldn't be saved. Nothing was saved — try again." };
+  } catch {
+    return { ok: false, message: "The database didn't answer. Nothing was saved — try again in a minute." };
+  }
+  const saved = await saveBusinessContact(ownerEmail, leadId, {
+    id: outreach.contactId,
+    name: outreach.name,
+    title: text(raw.title, 80),
+    email: text(raw.email, 200),
+    phone: text(raw.phone, 40),
+    tags: raw.tags ?? [],
+    sourceUrl: text(raw.sourceUrl, 400),
+    status: outreach.status
+  });
+  if (!saved.ok) return { ok: false, message: `The note was saved, but the status was not. ${saved.message}` };
+  return { ok: true, message: "Outreach saved." };
 }
 
 // ── Do-not-contact list (shared database) ──────────────────────────────────
@@ -534,26 +648,27 @@ export async function findOrgMatches(org: Pick<CleanOrg, "name" | "city" | "webs
   const like = nameLike(org.name);
 
   const churchSelect = "select=id,name:doc->>name,church_name:doc->>church_name,city:doc->>city,state:doc->>state,website:doc->>website,domain:doc->>domain,phone:doc->>phone,phone_office:doc->>phone_office,pastor_phone:doc->>pastor_phone,email:doc->>email,pastor_email:doc->>pastor_email,office_email:doc->>office_email,active:doc->>active,merged_into:doc->>merged_into,deleted_at:doc->>deleted_at";
-  const leadSelect = "select=id,business_name,city,state,website_url,phone,email,status";
+  const leadSelect = "select=id,business_name,city,state,website_url,phone,email,status,kind";
+  const notChurchLead = "or=(kind.is.null,kind.neq.church-lead)";
   const queries: Array<{ table: "cc_churches" | "op_leads"; query: string }> = [];
   if (like) {
     queries.push({ table: "cc_churches", query: `${churchSelect}&doc->>name=ilike.*${pgValue(like)}*&doc->>city=ilike.${pgValue(org.city)}&limit=10` });
-    queries.push({ table: "op_leads", query: `${leadSelect}&business_name=ilike.*${pgValue(like)}*&city=ilike.${pgValue(org.city)}&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&${notChurchLead}&business_name=ilike.*${pgValue(like)}*&city=ilike.${pgValue(org.city)}&limit=10` });
   }
   if (domain) {
     const d = `*${pgValue(domain)}*`;
     queries.push({ table: "cc_churches", query: `${churchSelect}&or=(doc->>website.ilike.${d},doc->>domain.ilike.${d})&limit=10` });
-    queries.push({ table: "op_leads", query: `${leadSelect}&website_url=ilike.${d}&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&${notChurchLead}&website_url=ilike.${d}&limit=10` });
   }
   if (phone) {
     const p = pgValue(phone);
     queries.push({ table: "cc_churches", query: `${churchSelect}&or=(doc->>phone.ilike.${p},doc->>phone_office.ilike.${p},doc->>pastor_phone.ilike.${p})&limit=10` });
-    queries.push({ table: "op_leads", query: `${leadSelect}&phone=ilike.${p}&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&${notChurchLead}&phone=ilike.${p}&limit=10` });
   }
   if (org.email) {
     const e = pgValue(org.email);
     queries.push({ table: "cc_churches", query: `${churchSelect}&or=(doc->>email.eq.${e},doc->>pastor_email.eq.${e},doc->>office_email.eq.${e})&limit=10` });
-    queries.push({ table: "op_leads", query: `${leadSelect}&email=eq.${e}&limit=10` });
+    queries.push({ table: "op_leads", query: `${leadSelect}&${notChurchLead}&email=eq.${e}&limit=10` });
   }
 
   try {
@@ -569,6 +684,7 @@ export async function findOrgMatches(org: Pick<CleanOrg, "name" | "city" | "webs
       for (const row of rows) {
         const kind: OrgKind = table === "cc_churches" ? "church" : "business";
         const id = String(row.id ?? "");
+        if (kind === "business" && String(row.kind ?? "") === "church-lead") continue;
         if (!id || (exclude && exclude.kind === kind && exclude.id === id)) continue;
         if (kind === "church" && (String(row.active) === "false" || row.merged_into || row.deleted_at)) continue;
         const name = String((kind === "church" ? row.name || row.church_name : row.business_name) ?? "");
@@ -853,20 +969,29 @@ async function patchLeadIfUnchanged(config: LplConfig, lead: LeadRow, patch: Rec
   }
 }
 
-type StoredContact = { id: string; name: string; role: string; email: string; phone: string };
+type StoredContact = { id: string; name: string; role: string; email: string; phone: string; tags?: string[]; source_url?: string; status?: string };
 
-/** op_leads.contacts in the same shape as ChurchConnect staff_contacts. */
+/** op_leads.contacts in the same shape as ChurchConnect staff_contacts. Keeps tags, source, and status. */
 export function leadContacts(value: unknown): StoredContact[] {
   const list = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
   return list
     .filter((item) => item && typeof item === "object" && text(item.name, 120))
-    .map((item) => ({
-      id: text(item.id, 64),
-      name: text(item.name, 120),
-      role: text(item.role ?? item.title, 80),
-      email: normEmail(item.email),
-      phone: text(item.phone, 40)
-    }));
+    .map((item) => {
+      const tags = cleanRoleTags(item.tags);
+      const source = httpUrl(item.source_url ?? item.sourceUrl);
+      const status = cleanContactStatus(item.status);
+      const entry: StoredContact = {
+        id: text(item.id, 64),
+        name: text(item.name, 120),
+        role: text(item.role ?? item.title, 80),
+        email: normEmail(item.email),
+        phone: text(item.phone, 40)
+      };
+      if (tags.length) entry.tags = tags;
+      if (source) entry.source_url = source;
+      if (status) entry.status = status;
+      return entry;
+    });
 }
 
 const LEAD_CONTACT_LIMIT = 25;
@@ -882,8 +1007,15 @@ export async function saveBusinessContact(_ownerEmail: string, leadId: string, r
   if (lead === "error") return { ok: false, message: "The business couldn't be read. Nothing was saved." };
   if (!lead) return { ok: false, message: "That business isn't there any more." };
   const contacts = leadContacts(lead.contacts);
-  const entry: StoredContact = { id: contact.id, name: contact.name, role: contact.title, email: contact.email, phone: contact.phone };
   const at = contacts.findIndex((item) => item.id === contact.id);
+  const previous = at >= 0 ? contacts[at] : undefined;
+  const entry: StoredContact = { id: contact.id, name: contact.name, role: contact.title, email: contact.email, phone: contact.phone };
+  const tags = contact.tags.length ? contact.tags : previous?.tags;
+  const source = contact.sourceUrl || previous?.source_url || "";
+  const status = contact.status || previous?.status || "";
+  if (tags?.length) entry.tags = tags;
+  if (source) entry.source_url = source;
+  if (status) entry.status = status;
   if (at >= 0) contacts[at] = entry;
   else if (contacts.length >= LEAD_CONTACT_LIMIT) return { ok: false, message: `A business can have up to ${LEAD_CONTACT_LIMIT} contacts.` };
   else contacts.push(entry);
@@ -1079,4 +1211,181 @@ export async function undoBusinessDoNotContact(_ownerEmail: string, leadId: stri
     return { ok: true, warn: true, message: `Still blocked. ${name} was already marked do-not-contact before this, so it stays blocked. Don't contact it.` };
   }
   return { ok: true, message: "Undone. You can contact this business again." };
+}
+
+const CHURCH_ID_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
+
+export type ChurchPick = { id: string; name: string; town: string };
+
+/** Churches already on file, by name, so a lead-queue row can be attached. Owner-gated by the action. */
+export async function searchChurchesForAttach(
+  query: string,
+  place: { city?: string; state?: string } = {}
+): Promise<{ ok: true; churches: ChurchPick[] } | { ok: false; message: string }> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  const words = normName(query).split(" ").filter(Boolean).slice(0, 4);
+  if (words.join(" ").length < 2) return { ok: false, message: "Type at least two letters of the church name." };
+  const like = pgValue(words.join("*"));
+  const select =
+    "select=id,name:doc->>name,church_name:doc->>church_name,city:doc->>city,state:doc->>state,active:doc->>active,merged_into:doc->>merged_into,deleted_at:doc->>deleted_at";
+  try {
+    const response = await fetch(
+      `${config.url}/rest/v1/cc_churches?${select}&or=(doc->>name.ilike.*${like}*,doc->>church_name.ilike.*${like}*)&limit=8`,
+      { method: "GET", headers: lplHeaders(config), cache: "no-store" }
+    );
+    if (!response.ok) return { ok: false, message: "Churches couldn't be read. Nothing was changed." };
+    const rows = (await response.json()) as Array<Record<string, unknown>>;
+    if (!Array.isArray(rows)) return { ok: false, message: "Churches couldn't be read. Nothing was changed." };
+    const churches = rankAttachChurches(
+      rows
+        .filter((row) => String(row.active ?? "") !== "false" && !row.merged_into && !row.deleted_at)
+        .map((row) => ({
+          id: String(row.id ?? ""),
+          name: String(row.name || row.church_name || "Church"),
+          town: [String(row.city ?? ""), String(row.state ?? "")].filter(Boolean).join(", "),
+          city: String(row.city ?? ""),
+          state: String(row.state ?? "")
+        }))
+        .filter((row) => CHURCH_ID_RE.test(row.id)),
+      place
+    ).map(({ id, name, town }) => ({ id, name, town }));
+    return { ok: true, churches };
+  } catch {
+    return { ok: false, message: "The database didn't answer. Nothing was changed." };
+  }
+}
+
+async function readChurchDoc(config: LplConfig, churchId: string): Promise<{ name: string; doc: Record<string, unknown> } | null | "error"> {
+  try {
+    const response = await fetch(`${config.url}/rest/v1/cc_churches?id=eq.${encodeURIComponent(churchId)}&select=id,doc&limit=1`, {
+      method: "GET",
+      headers: lplHeaders(config),
+      cache: "no-store"
+    });
+    if (!response.ok) return "error";
+    const rows = (await response.json()) as Array<{ doc?: Record<string, unknown> }>;
+    const doc = rows?.[0]?.doc;
+    if (!doc || typeof doc !== "object") return null;
+    return { name: String(doc.church_name || doc.name || "the church"), doc };
+  } catch {
+    return "error";
+  }
+}
+
+async function logLeadQueueActivity(config: LplConfig, leadId: string, ownerEmail: string, clientRef: string, outcome: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${config.url}/rest/v1/op_lead_activities?on_conflict=client_ref&select=id`, {
+      method: "POST",
+      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=representation" },
+      cache: "no-store",
+      body: JSON.stringify({
+        lead_id: leadId,
+        type: "note",
+        occurred_at: new Date().toISOString(),
+        outcome,
+        source: "owner_desk",
+        client_ref: clientRef,
+        created_by: ownerEmail
+      })
+    });
+    return response.ok || response.status === 409;
+  } catch {
+    return false;
+  }
+}
+
+/** Move the lead's contacts onto a church and take the lead out of the queue. Nothing is sent. */
+export async function attachLeadToChurch(ownerEmail: string, leadId: string, churchId: string, clientRef: string): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "That lead can't be attached. Reload the page and try again." };
+  if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "Pick a church on file." };
+  if (!REF_RE.test(clientRef)) return { ok: false, message: "Reload the page and try again." };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The lead couldn't be read. Nothing was changed." };
+  if (!lead) return { ok: false, message: "That lead isn't there any more." };
+  const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
+  if (String(signals.kind ?? "") !== "church-signal") return { ok: false, message: "Only a lead-queue row can be attached to a church." };
+  if (signals.queue === "attached" || signals.queue === "dismissed") return { ok: false, message: "That lead already left the queue." };
+  let churchName = "the church";
+  let patched = false;
+  for (let attempt = 0; attempt < 3 && !patched; attempt += 1) {
+    const church = await readChurchDoc(config, churchId);
+    if (church === "error") return { ok: false, message: "The church couldn't be read. Nothing was changed." };
+    if (!church) return { ok: false, message: "That church isn't there. Nothing was changed." };
+    churchName = church.name;
+    const people = leadContacts(lead.contacts);
+    const mergedContacts = mergeChurchSignalContacts(church.doc.staff_contacts, people);
+    const parsedTypes = parseSignalTypes(signals.signal_types);
+    const signalId = `sig-${leadId.replace(/-/g, "").slice(0, 12)}`;
+    const additions =
+      String(signals.tag ?? "") && String(signals.evidence_quote ?? "")
+        ? [
+            {
+              id: signalId,
+              tag: String(signals.tag),
+              evidence_quote: String(signals.evidence_quote),
+              source_url: String(signals.source_url ?? ""),
+              signal_date: String(signals.signal_date ?? ""),
+              score: Number(signals.score) || 0,
+              signal_types: parsedTypes.ok ? parsedTypes.types : []
+            }
+          ]
+        : [];
+    const mergedSignals = addChurchSignals(church.doc.crm_signals, additions);
+    const expected = typeof church.doc.updated_at === "string" ? church.doc.updated_at : null;
+    const patch = {
+      staff_contacts: mergedContacts.contacts,
+      crm_signals: mergedSignals.signals,
+      updated_at: new Date().toISOString()
+    };
+    try {
+      const rpc = await fetch(`${config.url}/rest/v1/rpc/crm_patch_church_doc`, {
+        method: "POST",
+        headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=representation" },
+        cache: "no-store",
+        body: JSON.stringify({ p_id: churchId, p_patch: patch, p_expected: expected })
+      });
+      if (!rpc.ok) {
+        const detail = await rpc.text().catch(() => "");
+        if (crmPatchRpcMissing(rpc.status, detail)) {
+          return { ok: false, message: "Attaching needs the church patch on the server. Nothing was changed." };
+        }
+        return { ok: false, message: "The church couldn't be updated. Nothing was changed." };
+      }
+      const rows = (await rpc.json()) as unknown[];
+      if (Array.isArray(rows) && rows.length === 1) patched = true;
+    } catch {
+      return { ok: false, message: "The database didn't answer. Nothing was changed." };
+    }
+  }
+  if (!patched) return { ok: false, message: "That church changed while this was saving. Nothing else was changed. Try again." };
+  const logged = await logLeadQueueActivity(config, leadId, ownerEmail, clientRef, `Attached to ${churchName}. Contact moved onto the church.`);
+  if (!logged) return { ok: false, message: "The contact was saved on the church, but the log was not. Try again." };
+  signals.queue = "attached";
+  signals.attached_church_id = churchId;
+  if (!(await patchLeadIfUnchanged(config, lead, { signals }))) {
+    return { ok: false, message: "The contact was saved on the church, but the lead is still in the queue. Try again." };
+  }
+  return { ok: true, message: `Attached to ${churchName}. The lead left the queue.` };
+}
+
+/** Take a lead-queue row off the queue. The row stays. Nothing is sent. */
+export async function dismissLeadFromQueue(ownerEmail: string, leadId: string, clientRef: string): Promise<SaveResult> {
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(leadId)) return { ok: false, message: "That lead can't be dismissed. Reload the page and try again." };
+  if (!REF_RE.test(clientRef)) return { ok: false, message: "Reload the page and try again." };
+  const lead = await readLead(config, leadId);
+  if (lead === "error") return { ok: false, message: "The lead couldn't be read. Nothing was changed." };
+  if (!lead) return { ok: false, message: "That lead isn't there any more." };
+  const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
+  if (String(signals.kind ?? "") !== "church-signal") return { ok: false, message: "Only a lead-queue row can be dismissed." };
+  if (signals.queue === "dismissed" || signals.queue === "attached") return { ok: true, message: "That lead already left the queue." };
+  const logged = await logLeadQueueActivity(config, leadId, ownerEmail, clientRef, "Dismissed from the lead queue.");
+  if (!logged) return { ok: false, message: "The lead couldn't be logged. Nothing was changed." };
+  signals.queue = "dismissed";
+  if (!(await patchLeadIfUnchanged(config, lead, { signals }))) return { ok: false, message: "The lead couldn't be updated. Try again." };
+  return { ok: true, message: "Dismissed. It left the lead queue." };
 }

@@ -4,9 +4,10 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { TopProspects } from "@/components/engine/crm-top-prospects";
 import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
-import { PeopleTools } from "@/components/engine/crm-church-tools";
+import { ChurchSignals, PeopleTools, SignalQueueActions, TechDirectorPeople } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
+import { SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode } from "@/lib/engine/tech-director-core";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -15,6 +16,7 @@ import {
   countTokens,
   hasClockTime,
   recordLink,
+  withOutreachLog,
   type CrmApp,
   type CrmCard,
   type FollowUp,
@@ -44,6 +46,12 @@ type Props = {
   topInitial?: TopProspectState;
   /** Local preview only: open AV prospects with fixture rows already read. */
   avInitial?: AvProspectState;
+  /** Local preview only: open the Technical director filter. */
+  techFirst?: boolean;
+  /** Owner search already applied on the server. The box submits back to /crm. */
+  searchQuery?: string;
+  /** preview=tech (and the others) must survive a search submit. */
+  preview?: string;
 };
 
 function ChipScroller({ label, children }: { label: string; children: ReactNode }) {
@@ -65,9 +73,9 @@ function ChipScroller({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
+type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet" | "tech";
 
-const FILTER_LABEL: Record<CardFilter, string> = {
+const FILTER_LABEL: Record<Exclude<CardFilter, "tech">, string> = {
   all: "Everyone",
   today: "On today's list",
   multi: "In more than one app",
@@ -91,6 +99,13 @@ function fmtDate(at: string | null | undefined): string {
   if (Number.isNaN(date.getTime())) return "";
   // "Oct 8" this year, "Oct 8, 2025" otherwise.
   return yearFmt.format(date) === yearFmt.format(new Date()) ? dayFmt.format(date) : dateFmt.format(date);
+}
+
+/** A logged day, always with the year: "Apr 2, 2026". */
+function fmtLoggedDay(at: string): string {
+  const date = new Date(`${at.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
 function fmtTime(at: string | null | undefined): string {
@@ -123,6 +138,8 @@ function matches(card: CrmCard, filter: CardFilter): boolean {
       return card.tokens.length > 0 || card.events.length > 0;
     case "quiet":
       return isQuiet(card);
+    case "tech":
+      return churchHasTechnicalDirector(card.contacts);
     default:
       return true;
   }
@@ -135,7 +152,7 @@ function AppPill({ app }: { app: CrmApp }) {
 function TouchLine({ touch }: { touch: Touch }) {
   return (
     <li className={`crm-touch${touch.outreach ? " is-outreach" : ""}${touch.signal ? " is-signal" : ""}`}>
-      <span className="crm-touch-when">{touch.dateOnly ? fmtDate(touch.at) : fmtTime(touch.at)}</span>
+      <span className="crm-touch-when">{touch.dateOnly || !hasClockTime(touch.at) ? fmtLoggedDay(touch.at) : fmtTime(touch.at)}</span>
       <span className="crm-touch-body">
         <span className="crm-touch-head">
           {/* A business lead's own notes don't need a second "Business lead" pill. */}
@@ -155,7 +172,7 @@ function TouchLine({ touch }: { touch: Touch }) {
 }
 
 function CardView({
-  card,
+  card: source,
   adminUrls,
   open,
   onOpen,
@@ -173,6 +190,7 @@ function CardView({
   isOwner: boolean;
   outreachHidden: boolean;
 }) {
+  const card = withOutreachLog(source);
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
   // A card that is only a business lead: say which apps were picked (or none yet): "Only in Operate", "In Operate and AI Website Design".
@@ -237,7 +255,7 @@ function CardView({
                 {card.lastOutreach.what}
                 <span className="crm-dim">
                   {" "}
-                  · {CRM_APP_LABEL[card.lastOutreach.app]} · {fmtDate(card.lastOutreach.at)}
+                  · {CRM_APP_LABEL[card.lastOutreach.app]} · {card.lastOutreach.dateOnly || !hasClockTime(card.lastOutreach.at) ? fmtLoggedDay(card.lastOutreach.at) : fmtDate(card.lastOutreach.at)}
                 </span>
               </>
             ) : (
@@ -272,6 +290,11 @@ function CardView({
         ) : null}
       </dl>
 
+      {isOwner ? <ChurchSignals signals={card.signals ?? []} /> : null}
+      {isOwner ? <TechDirectorPeople people={card.contacts} card={card} canSave={canSave} /> : null}
+      {isOwner && card.leadQueue && card.leadId ? (
+        <SignalQueueActions leadId={card.leadId} city={card.org?.city ?? ""} state={card.org?.state || card.state || ""} />
+      ) : null}
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
       <SuggestNextStep card={card} isOwner={isOwner} canSave={canSave} outreachHidden={outreachHidden} />
       <PeopleTools card={card} canSave={canSave} />
@@ -410,10 +433,13 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null }: Props) {
+export function CrmDesk({ cards: sourceCards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null, techFirst = false, searchQuery = "", preview = "" }: Props) {
+  const cards = useMemo(() => sourceCards.map(withOutreachLog), [sourceCards]);
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
-  const [filter, setFilter] = useState<CardFilter>("all");
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<CardFilter>(techFirst ? "tech" : "all");
+  const [signalFilter, setSignalFilter] = useState<"" | typeof SIGNAL_STAFF | typeof SIGNAL_BUILDING>("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [queueOnly, setQueueOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
   // Owner only: AV prospects or Top prospects show in place of the cards.
@@ -430,18 +456,40 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
   }, [followUps]);
 
   const filterCounts = useMemo(() => {
-    const out = {} as Record<CardFilter, number>;
-    for (const key of Object.keys(FILTER_LABEL) as CardFilter[]) out[key] = cards.filter((card) => matches(card, key)).length;
+    const out = {} as Record<Exclude<CardFilter, "tech">, number>;
+    for (const key of Object.keys(FILTER_LABEL) as Array<Exclude<CardFilter, "tech">>) out[key] = cards.filter((card) => matches(card, key)).length;
     return out;
+  }, [cards]);
+  const techCount = useMemo(() => cards.filter((card) => matches(card, "tech")).length, [cards]);
+  const staffCount = useMemo(() => cards.filter((card) => (card.signals ?? []).some((signal) => signal.tag === SIGNAL_STAFF)).length, [cards]);
+  const buildingCount = useMemo(() => cards.filter((card) => (card.signals ?? []).some((signal) => signal.tag === SIGNAL_BUILDING)).length, [cards]);
+  const stateOptions = useMemo(() => {
+    const codes = new Set<string>();
+    for (const card of cards) {
+      const code = stateCode(card.state || card.town.split(",").pop() || "");
+      if (code) codes.add(code);
+    }
+    return [...codes].sort();
   }, [cards]);
 
   const shownFollowUps = reason === "all" ? todayRows : followUps.filter((row) => row.reasons.includes(reason));
 
   const shownCards = useMemo(() => {
     if (focus) return cards.filter((card) => card.key === focus);
-    const q = query.trim().toLowerCase();
-    return cards.filter((card) => matches(card, filter) && (!q || `${card.name} ${card.town}`.toLowerCase().includes(q)));
-  }, [cards, filter, query, focus]);
+    const list = cards.filter((card) => {
+      if (queueOnly && !card.leadQueue) return false;
+      if (!matches(card, filter)) return false;
+      if (signalFilter && !(card.signals ?? []).some((signal) => signal.tag === signalFilter)) return false;
+      if (stateFilter && stateCode(card.state || card.town.split(",").pop() || "") !== stateFilter) return false;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      const aScore = churchSignalScore(a.signals ?? [], signalFilter || undefined) ?? Number.NEGATIVE_INFINITY;
+      const bScore = churchSignalScore(b.signals ?? [], signalFilter || undefined) ?? Number.NEGATIVE_INFINITY;
+      if (aScore !== bScore) return bScore - aScore;
+      return a.name.localeCompare(b.name);
+    });
+  }, [cards, filter, focus, signalFilter, stateFilter, queueOnly]);
 
   const openCard = (key: string) => {
     setPanel("cards");
@@ -527,28 +575,29 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               One card each <span className="crm-count crm-count--lg">{cards.length}</span>
             </h2>
           </div>
-          <label className="crm-search">
-            <span className="crm-sr-only">Search by name or town</span>
-            <input
-              type="search"
-              placeholder="Search name or town"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setFocus(null);
-                setLimit(PAGE);
-              }}
-            />
-          </label>
+          <div className="crm-search">
+            {isOwner ? (
+              <form action="/crm" method="get" className="crm-search-form">
+                <span className="crm-sr-only">Search loaded churches by name, person, title, city, or tag</span>
+                {preview ? <input type="hidden" name="preview" value={preview} /> : null}
+                <input type="search" name="q" defaultValue={searchQuery} placeholder="Search loaded churches, people, cities, or tags" aria-label="Search loaded churches by name, person, title, city, or tag" />
+                <button type="submit" className="dx-btn">
+                  Search
+                </button>
+              </form>
+            ) : null}
+          </div>
         </div>
         <ChipScroller label="Filter cards">
-          {(Object.keys(FILTER_LABEL) as CardFilter[]).map((key) => (
+          {(Object.keys(FILTER_LABEL) as Array<Exclude<CardFilter, "tech">>).map((key) => (
             <button
               type="button"
               key={key}
               className={`dx-chip crm-chip${panel === "cards" && !focus && filter === key ? " dx-chip--active" : ""}`}
               onClick={() => {
                 setFilter(key);
+                setSignalFilter("");
+                setQueueOnly(false);
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -558,6 +607,60 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               {FILTER_LABEL[key]} <strong>{filterCounts[key]}</strong>
             </button>
           ))}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && !focus && filter === "tech" ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setFilter("tech");
+                setSignalFilter("");
+                setQueueOnly(false);
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && !focus && filter === "tech"}
+              data-testid="crm-tech-chip"
+            >
+              Technical director <strong>{techCount}</strong>
+            </button>
+          ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && !focus && signalFilter === SIGNAL_STAFF ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setFilter("all");
+                setSignalFilter((current) => (current === SIGNAL_STAFF ? "" : SIGNAL_STAFF));
+                setQueueOnly(false);
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && !focus && signalFilter === SIGNAL_STAFF}
+              data-testid="crm-signal-staff"
+            >
+              Technical/media staff <strong>{staffCount}</strong>
+            </button>
+          ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && !focus && signalFilter === SIGNAL_BUILDING ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setFilter("all");
+                setSignalFilter((current) => (current === SIGNAL_BUILDING ? "" : SIGNAL_BUILDING));
+                setQueueOnly(false);
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && !focus && signalFilter === SIGNAL_BUILDING}
+              data-testid="crm-signal-building"
+            >
+              Building investment <strong>{buildingCount}</strong>
+            </button>
+          ) : null}
           {isOwner ? (
             <button
               type="button"
@@ -586,7 +689,46 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               Top prospects
             </button>
           ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && queueOnly ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setQueueOnly((current) => !current);
+                setPanel("cards");
+                setFocus(null);
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && queueOnly}
+              data-testid="crm-lead-queue"
+            >
+              Lead queue <strong>{cards.filter((card) => card.leadQueue).length}</strong>
+            </button>
+          ) : null}
         </ChipScroller>
+        {isOwner ? (
+          <label className="crm-state-filter">
+            <span>State</span>
+            <select
+              value={stateFilter}
+              data-testid="crm-state-filter"
+              onChange={(event) => {
+                setStateFilter(event.target.value);
+                setQueueOnly(false);
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+            >
+              <option value="">All states</option>
+              {stateOptions.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <details className="crm-legend">
           <summary>What the words mean</summary>
           <dl>
@@ -596,7 +738,11 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             <div><dt>Stop</dt><dd>Do not pitch: on the do-not-contact list, already a customer for that offer, or they said no.</dd></div>
             <div><dt>Possible match</dt><dd>Same name and town in another app. Not joined, so check before treating them as one.</dd></div>
             <div><dt>Matched by same website</dt><dd>Records joined into one card because they share a website (or a linked record, email, or phone).</dd></div>
-            <div><dt>Tokens printed</dt><dd>A Presence token counts as printed once it is engraved (or released or found).</dd></div>
+            <div><dt>Technical director</dt><dd>A church contact with that role tag. The card shows their name, title, and the contact published for them.</dd></div>
+            <div><dt>Technical/media staff</dt><dd>A church with a staff signal. The card shows the evidence quote and the source page.</dd></div>
+            <div><dt>Building investment</dt><dd>A campaign or renovation on file. The card shows the evidence quote, source page, date, and score. No person is required.</dd></div>
+            <div><dt>Lead queue</dt><dd>An unmatched church signal saved as a lead. Search finds it by church, person, city, or tag. Nothing is sent.</dd></div>
+            <div><dt>Outreach log</dt><dd>A note and a day on a contact, plus a status: new, contacted, follow-up, meeting, won, or lost. Logging only.</dd></div>
           </dl>
         </details>
         {canSave ? <AddOrg onOpen={openOrg} /> : null}
@@ -624,7 +770,27 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             ))}
           </div>
         ) : (
-          <p className="crm-empty">No cards match. Try another filter or clear the search.</p>
+          <div className="crm-empty">
+            <p>No cards match. Try another filter or clear the search.</p>
+            <button
+              type="button"
+              className="dx-btn"
+              onClick={() => {
+                if (searchQuery) {
+                  window.location.href = preview ? `/crm?preview=${encodeURIComponent(preview)}` : "/crm";
+                  return;
+                }
+                setFilter("all");
+                setSignalFilter("");
+                setStateFilter("");
+                setQueueOnly(false);
+                setFocus(null);
+                setPanel("cards");
+              }}
+            >
+              Clear
+            </button>
+          </div>
         )}
         {panel === "cards" && shownCards.length > limit ? (
           <div className="crm-more-wrap">

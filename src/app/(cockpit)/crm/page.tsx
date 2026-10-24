@@ -1,25 +1,159 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
-import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, contactsForViewer, orgForViewer } from "@/lib/engine/lpl-crm-core";
+import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, withOutreachLog, type CrmCard } from "@/lib/engine/lpl-crm-core";
+import { SIGNAL_BUILDING, SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG } from "@/lib/engine/tech-director-core";
 import { crmSavingConfigured, savingOffNote } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
 import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
 
 export const dynamic = "force-dynamic";
 
+function techPreviewCards(): CrmCard[] {
+  const grace: CrmCard = {
+    key: "preview-tech",
+    name: "Grace Chapel",
+    town: "Vidalia, GA",
+    state: "GA",
+    kinds: ["org"],
+    apps: ["churchconnect"],
+    matchedBy: [],
+    recordCount: 1,
+    touches: [],
+    lastOutreach: null,
+    lastTouch: null,
+    repeat: { level: null, text: "" },
+    stops: [],
+    possibleMatches: [],
+    tokens: [],
+    events: [],
+    locations: [],
+    nextActionDate: null,
+    nextActionMovedFrom: null,
+    nextAction: "",
+    nextStep: "",
+    followUpReasons: [],
+    recordPaths: { churchconnect: "/super-admin#crm/lead/11111111-1111-4111-8111-111111111111" },
+    churchId: "11111111-1111-4111-8111-111111111111",
+    leadId: null,
+    contacts: [
+      {
+        id: "td-preview",
+        name: "Jane Doe",
+        title: "Director of Media",
+        email: "jane@gracechapel.example",
+        phone: "(912) 555-0148",
+        source: "saved",
+        tags: [TECHNICAL_DIRECTOR_TAG],
+        sourceUrl: "https://gracechapel.example/staff",
+        status: "contacted",
+        notes: [{ at: "2026-04-02", note: "Left a message about the sanctuary sound." }]
+      }
+    ],
+    deskDoNotContact: false,
+    org: null,
+    signals: [
+      {
+        id: "sig-preview-staff",
+        tag: SIGNAL_STAFF,
+        evidenceQuote: "Jane Doe leads media.",
+        sourceUrl: "https://gracechapel.example/staff",
+        signalDate: "2026-04-01",
+        score: 80
+      }
+    ]
+  };
+  const palm: CrmCard = {
+    ...grace,
+    key: "preview-building",
+    name: "Palm Chapel",
+    town: "Orlando, FL",
+    state: "FL",
+    churchId: "22222222-2222-4222-8222-222222222222",
+    recordPaths: { churchconnect: "/super-admin#crm/lead/22222222-2222-4222-8222-222222222222" },
+    contacts: [],
+    signals: [
+      {
+        id: "sig-preview-building",
+        tag: SIGNAL_BUILDING,
+        evidenceQuote: "The sanctuary is being renovated.",
+        sourceUrl: "https://palmchapel.example/build",
+        signalDate: "2025-11-01",
+        score: 95
+      }
+    ]
+  };
+  const river: CrmCard = {
+    ...grace,
+    key: "preview-staff-low",
+    name: "River Church",
+    town: "Macon, GA",
+    state: "GA",
+    churchId: "33333333-3333-4333-8333-333333333333",
+    recordPaths: { churchconnect: "/super-admin#crm/lead/33333333-3333-4333-8333-333333333333" },
+    contacts: [],
+    signals: [
+      {
+        id: "sig-preview-staff-low",
+        tag: SIGNAL_STAFF,
+        evidenceQuote: "A media volunteer is listed.",
+        sourceUrl: "https://riverchurch.example/staff",
+        signalDate: "2026-02-02",
+        score: 20
+      }
+    ]
+  };
+  const queue: CrmCard = {
+    ...grace,
+    key: "preview-queue",
+    name: "Bethel AME",
+    town: "Savannah, GA",
+    state: "GA",
+    churchId: null,
+    leadId: "44444444-4444-4444-8444-444444444444",
+    leadQueue: true,
+    recordPaths: {},
+    contacts: [
+      {
+        id: "lq-preview",
+        name: "Pat Lee",
+        title: "Facilities",
+        email: "",
+        phone: "",
+        source: "saved",
+        tags: [],
+        status: "new",
+        sourceUrl: "https://bethel.example/build"
+      }
+    ],
+    signals: [
+      {
+        id: "sig-preview-queue",
+        tag: SIGNAL_BUILDING,
+        evidenceQuote: "The fellowship hall is being rebuilt.",
+        sourceUrl: "https://bethel.example/build",
+        signalDate: "2026-03-01",
+        score: 40
+      }
+    ]
+  };
+  return [palm, grace, river, queue].map(withOutreachLog);
+}
+
 // CRM — owner and admins can view. One card per org or person across
 // ChurchConnect, Laser, and Presence, read from the tables those apps already
 // keep. Only the owner can save (church visits and contacts, through
 // ChurchConnect); admins see names and titles, never emails or phones.
 // Nothing on this page sends anything to anyone.
-export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string; q?: string }> }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const params = await searchParams;
   const isOwner = await canAccessEngineOwner();
+  const searchQuery = isOwner ? String(params.q ?? "").trim().slice(0, 80) : "";
   // Dev preview only, and only for the owner. The non-production guard keeps the fixture out of the production bundle.
   const previewTop = process.env.NODE_ENV !== "production" && isOwner && params.preview === "top";
   const previewAv = process.env.NODE_ENV !== "production" && isOwner && params.preview === "av";
+  const previewTech = process.env.NODE_ENV !== "production" && isOwner && params.preview === "tech";
   let topInitial: TopProspectState = null;
   let avInitial: AvProspectState = null;
   if (previewTop) {
@@ -89,10 +223,20 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
   // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
-  const viewCards = snapshot.cards.map((card) => ({ ...card, contacts: contactsForViewer(card.contacts, isOwner), org: orgForViewer(card.org, isOwner) }));
+  const viewCards = [
+    ...(previewTech ? techPreviewCards() : []),
+    ...snapshot.cards.map((card) => ({
+      ...card,
+      contacts: contactsForViewer(card.contacts, isOwner),
+      org: orgForViewer(card.org, isOwner),
+      signals: isOwner ? card.signals ?? [] : []
+    }))
+  ].filter((card) => cardMatchesCrmSearch(card, searchQuery));
+  const visibleKeys = new Set(viewCards.map((card) => card.key));
+  const followUps = searchQuery ? snapshot.followUps.filter((row) => visibleKeys.has(row.cardKey)) : snapshot.followUps;
 
-  const todayRows = snapshot.followUps.filter((row) => row.today).length;
-  const waitRows = snapshot.followUps.filter((row) => !row.today).length;
+  const todayRows = followUps.filter((row) => row.today).length;
+  const waitRows = followUps.filter((row) => !row.today).length;
   const resting = snapshot.cards.filter((card) => card.repeat.level === "hold").length;
   const stops = snapshot.cards.filter((card) => card.stops.length > 0).length;
   const multi = snapshot.cards.filter((card) => card.apps.length > 1).length;
@@ -174,16 +318,19 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
         </p>
       </section>
 
-      {snapshot.configured || previewTop || previewAv ? (
+      {snapshot.configured || previewTop || previewAv || previewTech ? (
         <CrmDesk
           cards={viewCards}
-          followUps={snapshot.followUps}
-          adminUrls={previewTop || previewAv ? { ...snapshot.adminUrls, churchconnect: snapshot.adminUrls.churchconnect || "https://churchconnect.example" } : snapshot.adminUrls}
+          followUps={followUps}
+          adminUrls={previewTop || previewAv || previewTech ? { ...snapshot.adminUrls, churchconnect: snapshot.adminUrls.churchconnect || "https://churchconnect.example" } : snapshot.adminUrls}
           canSave={canSave}
           isOwner={isOwner}
           outreachHidden={snapshot.outreachHidden}
           topInitial={topInitial}
           avInitial={avInitial}
+          techFirst={previewTech}
+          searchQuery={searchQuery}
+          preview={params.preview ?? ""}
         />
       ) : (
         <section className="panel">
