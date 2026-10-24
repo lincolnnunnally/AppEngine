@@ -17,6 +17,7 @@ import {
   crmPatchStatementTimeout,
   rankAttachChurches,
   retryCrmPatchChurchDoc,
+  formatAppliedImportSummary,
   formatImportCounts,
   matchDirectoryChurch,
   mergeChurchSignalContacts,
@@ -1298,7 +1299,10 @@ describe("crm_patch_church_doc retry", () => {
     assert.equal(crmPatchStatementTimeout(timeoutBody), true);
     assert.equal(crmPatchStatementTimeout("upstream request timeout"), false);
     assert.equal(crmPatchRetryableFailure(500, "Internal Server Error"), true);
-    assert.equal(crmPatchRetryableFailure(504, timeoutBody), true);
+    assert.equal(crmPatchRetryableFailure(502, "bad gateway"), true);
+    assert.equal(crmPatchRetryableFailure(503, "unavailable"), true);
+    assert.equal(crmPatchRetryableFailure(504, "gateway timeout"), true);
+    assert.equal(crmPatchRetryableFailure(501, "not implemented"), false);
     assert.equal(crmPatchRetryableFailure(400, "operator does not exist: text = uuid"), false);
     assert.equal(crmPatchRetryableFailure(500, '{"code":"PGRST202","message":"Could not find the function public.crm_patch_church_doc"}'), false);
 
@@ -1326,10 +1330,22 @@ describe("crm_patch_church_doc retry", () => {
     posts = 0;
     const gatewayTimeout = await retryCrmPatchChurchDoc(async () => {
       posts += 1;
-      if (posts === 1) return { ok: false, status: 504, detail: timeoutBody };
+      if (posts === 1) return { ok: false, status: 502, detail: "bad gateway" };
+      if (posts === 2) return { ok: false, status: 503, detail: "unavailable" };
       return { ok: true, rows: [{ id: "church-1" }] };
     }, sleep);
     assert.deepEqual(gatewayTimeout, { outcome: "ok" });
+    assert.equal(posts, 3);
+    assert.deepEqual(sleeps, [2_000, 5_000]);
+
+    sleeps.length = 0;
+    posts = 0;
+    const fetchThrew = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      if (posts === 1) throw new Error("fetch failed");
+      return { ok: true, rows: [{ id: "church-1" }] };
+    }, sleep);
+    assert.deepEqual(fetchThrew, { outcome: "ok" });
     assert.equal(posts, 2);
     assert.deepEqual(sleeps, [2_000]);
 
@@ -1380,5 +1396,9 @@ describe("crm_patch_church_doc retry", () => {
     }, sleep);
     assert.equal(missing.outcome, "missing");
     assert.deepEqual(sleeps, []);
+    assert.equal(
+      formatAppliedImportSummary({ churchesUpdated: 2, alreadyLanded: 5, newContacts: 1, newSignals: 0, signalsUpdated: 3 }),
+      "applied: 2 churches updated, 5 already landed, 1 new contacts, 0 new signals, 3 signals updated"
+    );
   });
 });

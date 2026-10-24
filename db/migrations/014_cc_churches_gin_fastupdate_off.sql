@@ -1,5 +1,5 @@
 -- NOT APPLIED. Do not run this file against production from the app.
--- Owner-run and idempotent. An index that is not in pg_class is skipped.
+-- Owner-run. Run it in a quiet window, one statement at a time.
 --
 -- cc_churches is about 151k rows. Five GIN indexes still have fastupdate on
 -- (the default). A single-row update can take about 9 seconds when one of
@@ -8,10 +8,22 @@
 -- bulk import.
 --
 -- fastupdate = off makes later inserts maintain the main GIN structure
--- directly, instead of appending to a pending list that a later statement
--- has to flush inside the same 8s budget. Setting the parameter does not
--- itself flush a pending list already stored. The next insert into that
--- index, or vacuum, still cleans it. This file does not rebuild the index.
+-- directly, instead of appending to a pending list. ALTER INDEX SET
+-- (fastupdate) takes an AccessExclusiveLock on that index. While the lock
+-- is held, every query on cc_churches waits. Do not wrap this file in
+-- BEGIN/COMMIT. Each ALTER is its own statement and must be its own
+-- transaction so the lock is released before the next index is touched.
+-- Run each pair below as its own execute_sql call (SET, then that one
+-- ALTER). lock_timeout is 2s: if the lock is not free, that statement
+-- fails instead of queueing behind live traffic.
+--
+-- Turning fastupdate off does not flush entries already in the pending list.
+-- Those entries stay until 014a (gin_clean_pending_list) or
+-- VACUUM (ANALYZE) public.cc_churches. This file does not rebuild the index.
+--
+-- ALTER INDEX IF EXISTS skips a missing index with a notice.
+-- Running a statement again takes AccessExclusiveLock again, even when
+-- fastupdate is already off. Skip a statement that has already been applied.
 --
 -- Indexes:
 --   public.cc_churches_doc_gin
@@ -23,45 +35,32 @@
 --
 -- Btree indexes, including cc_churches_service_providers_present_idx and the
 -- vendor-name indexes, are not GIN and are not changed.
--- This is not CREATE INDEX CONCURRENTLY. It can run inside a transaction.
 --
--- Down (do not run as part of this file). Skip any index that is missing:
+-- Down (do not run as part of this file). Same quiet window, one statement
+-- per transaction, SET lock_timeout = '2s' in that same call. Skip any
+-- index that is missing:
 --   alter index public.cc_churches_doc_gin set (fastupdate = on);
 --   alter index public.cc_churches_name_trgm_idx set (fastupdate = on);
 --   alter index public.cc_churches_church_name_trgm_idx set (fastupdate = on);
 --   alter index public.cc_churches_city_trgm_idx set (fastupdate = on);
 --   alter index public.cc_churches_service_providers_idx set (fastupdate = on);
 
-do $$
-declare
-  index_name text;
-  index_options text[];
-begin
-  foreach index_name in array array[
-    'cc_churches_doc_gin',
-    'cc_churches_name_trgm_idx',
-    'cc_churches_church_name_trgm_idx',
-    'cc_churches_city_trgm_idx',
-    'cc_churches_service_providers_idx'
-  ]
-  loop
-    index_options := null;
-    select c.reloptions
-      into index_options
-      from pg_class c
-      join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'public'
-       and c.relname = index_name
-       and c.relkind = 'i';
-    if not found then
-      raise notice 'Index public.% is missing. Skipped.', index_name;
-      continue;
-    end if;
-    if index_options is not null and 'fastupdate=off' = any (index_options) then
-      raise notice 'Index public.% already has fastupdate off.', index_name;
-      continue;
-    end if;
-    execute format('alter index %I.%I set (fastupdate = off)', 'public', index_name);
-    raise notice 'Set fastupdate=off on public.%.', index_name;
-  end loop;
-end $$;
+-- 1. public.cc_churches_doc_gin
+SET lock_timeout = '2s';
+ALTER INDEX IF EXISTS public.cc_churches_doc_gin SET (fastupdate = off);
+
+-- 2. public.cc_churches_name_trgm_idx
+SET lock_timeout = '2s';
+ALTER INDEX IF EXISTS public.cc_churches_name_trgm_idx SET (fastupdate = off);
+
+-- 3. public.cc_churches_church_name_trgm_idx
+SET lock_timeout = '2s';
+ALTER INDEX IF EXISTS public.cc_churches_church_name_trgm_idx SET (fastupdate = off);
+
+-- 4. public.cc_churches_city_trgm_idx
+SET lock_timeout = '2s';
+ALTER INDEX IF EXISTS public.cc_churches_city_trgm_idx SET (fastupdate = off);
+
+-- 5. public.cc_churches_service_providers_idx
+SET lock_timeout = '2s';
+ALTER INDEX IF EXISTS public.cc_churches_service_providers_idx SET (fastupdate = off);

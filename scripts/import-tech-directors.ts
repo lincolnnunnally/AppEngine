@@ -37,8 +37,9 @@
 // and service_providers. A blank lead or JEV field
 // is omitted so it cannot clear a value already stored. A stale read returns
 // no row and the import re-reads. That compare-and-swap miss is not posted
-// again with the same expected timestamp. A 500 or a statement timeout is
-// retried up to 3 times, waiting 2s, then 5s, then 10s. If the function is
+// again with the same expected timestamp. A 500, 502, 503, 504, a statement
+// timeout, or a fetch that throws is retried up to 3 times, waiting 2s, then
+// 5s, then 10s. If the function is
 // missing, or an older copy accepts the call but drops the new keys, the
 // import stops. It does not patch the whole document. Apply 011 first.
 // Any other database error stops the import.
@@ -88,6 +89,7 @@ import {
   decideProductionWrite,
   directoryOnlyReportCsv,
   excludeFlaggedTechDirectorRows,
+  formatAppliedImportSummary,
   formatImportCounts,
   mergeChurchSignalContacts,
   mergeFlaggedTechDirectorRows,
@@ -324,6 +326,7 @@ const profilesByChurch = new Map(plan.profiles.map((profile) => [profile.churchI
 const churchIds = new Set([...contactsByChurch.keys(), ...signalsByChurch.keys(), ...updatesByChurch.keys(), ...profilesByChurch.keys()]);
 
 let wrote = 0;
+let alreadyLanded = 0;
 let contactsWritten = 0;
 let signalsWritten = 0;
 let signalsUpdated = 0;
@@ -337,16 +340,27 @@ for (const churchId of churchIds) {
     profilesByChurch.get(churchId)
   );
   if (!result.ok) {
-    console.error(`Could not update church ${churchId}. Stopped after writing ${wrote} churches.`);
+    console.error(`Could not update church ${churchId}. Stopped after writing ${wrote} churches. ${alreadyLanded} were already landed.`);
     process.exit(1);
   }
-  if (!result.changed) continue;
+  if (!result.changed) {
+    alreadyLanded += 1;
+    continue;
+  }
   wrote += 1;
   contactsWritten += result.addedContacts;
   signalsWritten += result.addedSignals;
   signalsUpdated += result.updatedSignals;
 }
-console.log(`applied: ${wrote} churches updated, ${contactsWritten} new contacts, ${signalsWritten} new signals, ${signalsUpdated} signals updated`);
+console.log(
+  formatAppliedImportSummary({
+    churchesUpdated: wrote,
+    alreadyLanded,
+    newContacts: contactsWritten,
+    newSignals: signalsWritten,
+    signalsUpdated
+  })
+);
 
 let queued = 0;
 let queueMerged = 0;
@@ -584,8 +598,9 @@ async function writeDoc(
     },
     undefined,
     (waitMs, failure, retry) => {
+      const reason = failure.status ? String(failure.status) : "no response";
       console.error(
-        `Church ${churchId} was not updated. crm_patch_church_doc failed (${failure.status}). Retrying in ${waitMs / 1000}s (retry ${retry}).`
+        `Church ${churchId} was not updated. crm_patch_church_doc failed (${reason}). Retrying in ${waitMs / 1000}s (retry ${retry}).`
       );
     }
   );

@@ -877,6 +877,17 @@ function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Ma
   return profiles;
 }
 
+/** Counts printed after an apply run. alreadyLanded means the church already had this write. */
+export function formatAppliedImportSummary(counts: {
+  churchesUpdated: number;
+  alreadyLanded: number;
+  newContacts: number;
+  newSignals: number;
+  signalsUpdated: number;
+}): string {
+  return `applied: ${counts.churchesUpdated} churches updated, ${counts.alreadyLanded} already landed, ${counts.newContacts} new contacts, ${counts.newSignals} new signals, ${counts.signalsUpdated} signals updated`;
+}
+
 export function formatImportCounts(plan: ImportPlan): string {
   const lines = [
     `matched: ${plan.matched}`,
@@ -1311,9 +1322,12 @@ export function crmPatchRpcMissing(_status: number, detail: string): boolean {
 
 /**
  * Waits before each retry of crm_patch_church_doc. The first post does not wait.
- * A 500 or a statement timeout is retried up to 3 times: 2s, then 5s, then 10s.
+ * A 500, 502, 503, 504, a statement timeout, or a thrown fetch is retried up to
+ * 3 times: 2s, then 5s, then 10s.
  */
 export const CRM_PATCH_RETRY_BACKOFF_MS = [2_000, 5_000, 10_000] as const;
+
+const CRM_PATCH_RETRYABLE_STATUSES = new Set([500, 502, 503, 504]);
 
 /** A statement timeout from the authenticator role, including SQLSTATE 57014. */
 export function crmPatchStatementTimeout(detail: string): boolean {
@@ -1322,14 +1336,14 @@ export function crmPatchStatementTimeout(detail: string): boolean {
 }
 
 /**
- * Retry a bulk-import patch when the REST call returns 500, or when the body
- * is a statement timeout at any status. A missing function is not retried.
+ * Retry a bulk-import patch on 500, 502, 503, or 504, or when the body is a
+ * statement timeout at any status. A missing function is not retried.
  * A compare-and-swap miss is a successful call that returned no row, so it
- * never reaches this check.
+ * never reaches this check. A thrown fetch is retried by retryCrmPatchChurchDoc.
  */
 export function crmPatchRetryableFailure(status: number, detail: string): boolean {
   if (crmPatchRpcMissing(status, detail)) return false;
-  return status === 500 || crmPatchStatementTimeout(detail);
+  return CRM_PATCH_RETRYABLE_STATUSES.has(status) || crmPatchStatementTimeout(detail);
 }
 
 export type CrmPatchPost =
@@ -1349,9 +1363,10 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Posts crm_patch_church_doc once, then retries a 500 or a statement timeout
- * up to 3 times, waiting 2s, 5s, and 10s. A compare-and-swap mismatch (the
- * call succeeded and did not return exactly one row) stops immediately.
+ * Posts crm_patch_church_doc once, then retries a 500, 502, 503, 504, a
+ * statement timeout, or a thrown fetch up to 3 times, waiting 2s, 5s, and 10s.
+ * A compare-and-swap mismatch (the call succeeded and did not return exactly
+ * one row) stops immediately.
  */
 export async function retryCrmPatchChurchDoc(
   post: () => Promise<CrmPatchPost>,
@@ -1360,7 +1375,17 @@ export async function retryCrmPatchChurchDoc(
 ): Promise<CrmPatchRetryResult> {
   let failure: { status: number; detail: string } = { status: 0, detail: "" };
   for (let attempt = 0; attempt <= CRM_PATCH_RETRY_BACKOFF_MS.length; attempt += 1) {
-    const result = await post();
+    let result: CrmPatchPost;
+    try {
+      result = await post();
+    } catch (error) {
+      failure = { status: 0, detail: error instanceof Error ? error.message : String(error) };
+      const waitMs = CRM_PATCH_RETRY_BACKOFF_MS[attempt];
+      if (waitMs === undefined) return { outcome: "error", status: failure.status, detail: failure.detail };
+      onRetry?.(waitMs, failure, attempt + 1);
+      await sleep(waitMs);
+      continue;
+    }
     if (result.ok) {
       return Array.isArray(result.rows) && result.rows.length === 1 ? { outcome: "ok" } : { outcome: "conflict" };
     }
