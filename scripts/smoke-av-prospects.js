@@ -738,12 +738,12 @@ await step("top prospects: ZIP3 territory, score, won, rest, twins, names", () =
   assert(ui.includes("Anyone who opted out of any of our messages is left off this list."), "opt-out footer");
   assert(!/xai|grok|openai|anthropic|claude|gpt|marketing/i.test(ui), "no vendor names and no marketing");
   const page = read("src/app/(cockpit)/crm/page.tsx");
-  const accessAt = page.indexOf("await canAccessEngineAdmin()");
   const ownerAt = page.indexOf("await canAccessEngineOwner()");
   const fixtureAt = page.indexOf("top-prospects-golden.json");
-  assert(accessAt >= 0 && ownerAt > accessAt && fixtureAt > ownerAt, "the admin and owner checks run before the preview fixture is loaded");
-  assert(page.includes('const previewTop = process.env.NODE_ENV !== "production" && isOwner && params.preview === "top"'), "one previewTop constant, owner-gated, non-production");
-  assert((page.match(/params\.preview === "top"/g) || []).length === 1, "preview=top is not written twice");
+  assert(ownerAt >= 0 && fixtureAt > ownerAt, "the owner check runs before the preview fixture is loaded");
+  assert(!page.includes("canAccessEngineAdmin"), "admins do not open the church list");
+  assert(page.includes('const previewTop = process.env.NODE_ENV !== "production" && isOwner && previewParam === "top"'), "one previewTop constant, owner-gated, non-production");
+  assert((page.match(/previewParam === "top"/g) || []).length === 1, "preview=top is not written twice");
   assert(page.includes("if (previewTop)") && page.includes('process.env.NODE_ENV !== "production"') && page.includes('await import("../../../../scripts/fixtures/top-prospects-golden.json")'), "the preview fixture is a dynamic import behind the non-production guard");
   assert(!page.includes('from "@/lib/engine/av-prospects-core"'), "the page does not statically import the ranker");
   assert(ui.includes("crm-legal-name") && ui.includes("item.lead") && ui.includes("item.legalLine"), "top rows lead with the chosen name and keep a muted line");

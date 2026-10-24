@@ -160,7 +160,7 @@ export default async function CrmPage({
   const previewTop = process.env.NODE_ENV !== "production" && isOwner && previewParam === "top";
   const previewAv = process.env.NODE_ENV !== "production" && isOwner && previewParam === "av";
   const previewTech = process.env.NODE_ENV !== "production" && isOwner && previewParam === "tech";
-  const previewDirectory = process.env.NODE_ENV !== "production" && previewParam === "directory";
+  const previewDirectory = process.env.NODE_ENV !== "production" && isOwner && previewParam === "directory";
   const directoryQuery = directoryQueryFromParams(params);
   const directory = previewDirectory
     ? { configured: true, ok: true, rows: filterDirectoryRows(directoryPreviewRows(), directoryQuery), nextCursor: "" }
@@ -345,7 +345,7 @@ export default async function CrmPage({
           searchQuery={searchQuery}
           preview={previewParam ?? ""}
         />
-      ) : (
+      ) : previewDirectory ? null : (
         <section className="panel">
           <p className="dx-callout dx-callout--alert">
             This deploy cannot read the shared database yet, so there are no cards to show. Nothing is invented. When the
