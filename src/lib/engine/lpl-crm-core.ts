@@ -241,9 +241,15 @@ export function churchHoldsAvlWork(row: {
   avlExistingRelationship?: unknown;
   avl_project_status?: unknown;
   avlProjectStatus?: unknown;
+  service_providers?: unknown;
+  serviceProviders?: unknown;
+  avHeld?: boolean;
 }): boolean {
+  if (row.avHeld === true) return true;
   if (truthyFlag(row.avl_existing_relationship) || truthyFlag(row.avlExistingRelationship)) return true;
-  return cleanAvlProjectStatus(row.avl_project_status ?? row.avlProjectStatus) === "avl_already_engaged";
+  if (cleanAvlProjectStatus(row.avl_project_status ?? row.avlProjectStatus) === "avl_already_engaged") return true;
+  const av = storedServiceProvider(row.service_providers ?? row.serviceProviders, "av");
+  return av?.providerType === "us" || av?.providerType === "vendor" || av?.providerType === "other";
 }
 
 /**
@@ -385,6 +391,123 @@ export function serviceOpportunitiesToDoc(opportunities: ServiceOpportunities): 
   return out;
 }
 
+/** AV plus the five service opportunities. Owner desk only. */
+export const SERVICE_PROVIDER_IDS = ["av", ...SERVICE_OPPORTUNITY_IDS] as const;
+export type ServiceProviderId = (typeof SERVICE_PROVIDER_IDS)[number];
+
+export const SERVICE_PROVIDER_LABEL: Record<ServiceProviderId, string> = {
+  av: "AV",
+  website: "Website needs",
+  toner: "Toner",
+  laser: "Laser engraved gifts/outreach material",
+  churchconnect: "ChurchConnect",
+  local_mission: "Local mission (Live on Mission)"
+};
+
+export const PROVIDER_TYPES = ["unknown", "us", "vendor", "other"] as const;
+export type ProviderType = (typeof PROVIDER_TYPES)[number];
+
+export const PROVIDER_TYPE_LABEL: Record<ProviderType, string> = {
+  unknown: "Unknown",
+  us: "Us",
+  vendor: "Vendor",
+  other: "Someone else"
+};
+
+export type ServiceProvider = {
+  providerType: ProviderType;
+  vendorName: string;
+  otherName: string;
+  note: string;
+  learnedFrom: string;
+  learnedAt: string;
+};
+
+export type ServiceProviders = Record<ServiceProviderId, ServiceProvider>;
+
+export function cleanProviderType(value: unknown): ProviderType | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (text === "someone_else") return "other";
+  return (PROVIDER_TYPES as readonly string[]).includes(text) ? (text as ProviderType) : "";
+}
+
+export function emptyServiceProvider(): ServiceProvider {
+  return { providerType: "unknown", vendorName: "", otherName: "", note: "", learnedFrom: "", learnedAt: "" };
+}
+
+export function emptyServiceProviders(): ServiceProviders {
+  const out = {} as ServiceProviders;
+  for (const service of SERVICE_PROVIDER_IDS) out[service] = emptyServiceProvider();
+  return out;
+}
+
+/** A provider_type Lincoln already saved, including unknown. Blank means it was never written. */
+export function storedServiceProvider(raw: unknown, service: ServiceProviderId): ServiceProvider | null {
+  const item = opportunityRecord(opportunityRecord(raw)[service]);
+  const providerType = cleanProviderType(item.provider_type ?? item.providerType);
+  if (!providerType) return null;
+  const vendorName = providerType === "vendor" ? String(item.vendor_name ?? item.vendorName ?? "").replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  const otherName = providerType === "other" ? String(item.other_name ?? item.otherName ?? "").replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  const note = String(item.note ?? item.weak_point ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const learnedFrom = String(item.learned_from ?? item.learnedFrom ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const day = String(item.learned_at ?? item.learnedAt ?? "").trim().slice(0, 10);
+  return {
+    providerType,
+    vendorName,
+    otherName,
+    note,
+    learnedFrom,
+    learnedAt: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : ""
+  };
+}
+
+export function serviceProvidersFromDoc(raw: unknown): ServiceProviders {
+  const out = emptyServiceProviders();
+  for (const service of SERVICE_PROVIDER_IDS) {
+    out[service] = storedServiceProvider(raw, service) ?? emptyServiceProvider();
+  }
+  return out;
+}
+
+export function serviceProvidersToDoc(providers: ServiceProviders): Record<string, { provider_type: ProviderType; vendor_name: string; other_name: string; note: string; learned_from: string; learned_at: string }> {
+  const out: Record<string, { provider_type: ProviderType; vendor_name: string; other_name: string; note: string; learned_from: string; learned_at: string }> = {};
+  for (const service of SERVICE_PROVIDER_IDS) {
+    const item = providers[service];
+    const providerType = cleanProviderType(item.providerType) || "unknown";
+    out[service] = {
+      provider_type: providerType,
+      vendor_name: providerType === "vendor" ? item.vendorName.replace(/\s+/g, " ").trim().slice(0, 200) : "",
+      other_name: providerType === "other" ? item.otherName.replace(/\s+/g, " ").trim().slice(0, 200) : "",
+      note: item.note.replace(/\s+/g, " ").trim().slice(0, 500),
+      learned_from: item.learnedFrom.replace(/\s+/g, " ").trim().slice(0, 200),
+      learned_at: /^\d{4}-\d{2}-\d{2}$/.test(item.learnedAt) ? item.learnedAt : ""
+    };
+  }
+  return out;
+}
+
+/** "av:vendor" and the other owner provider-type filters. */
+export function parseProviderTypeFilter(value: unknown): { service: ServiceProviderId; providerType: ProviderType } | null {
+  const text = String(value ?? "").trim().toLowerCase();
+  const split = text.indexOf(":");
+  if (split < 1) return null;
+  const service = text.slice(0, split);
+  const providerType = cleanProviderType(text.slice(split + 1));
+  if (!(SERVICE_PROVIDER_IDS as readonly string[]).includes(service) || !providerType) return null;
+  return { service: service as ServiceProviderId, providerType };
+}
+
+export function parseProviderService(value: unknown): ServiceProviderId | "" {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (SERVICE_PROVIDER_IDS as readonly string[]).includes(text) ? (text as ServiceProviderId) : "";
+}
+
+/** Opening filter is an opportunity service whose status is possible or interested. */
+export function parseOpeningService(value: unknown): ServiceOpportunityId | "" {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (SERVICE_OPPORTUNITY_IDS as readonly string[]).includes(text) ? (text as ServiceOpportunityId) : "";
+}
+
 export type CrmContactNote = { at: string; note: string };
 
 const CONTACT_STATUS_LABEL: Record<CrmContactStatus, string> = {
@@ -507,6 +630,8 @@ export type CrmNode = {
   /** Worked with them on a past project. Separate from crmStatus. */
   avlExistingRelationship?: boolean;
   avlProjectStatus?: string;
+  /** AV is already served. Does not carry a vendor name. */
+  avHeld?: boolean;
 };
 
 export type CrmChurchSignal = {
@@ -585,6 +710,8 @@ export type CrmCard = {
   jevProjectStage?: string;
   /** Worked with them on a past project. Owner only. Separate from crmStatus. */
   avlExistingRelationship?: boolean;
+  /** AV already has us, a vendor, or someone else. Owner desk. Does not carry the vendor name. */
+  avHeld?: boolean;
   avlExistingRelationshipNote?: string;
   /** none, or AVL already engaged. Owner only. Separate from crmStatus. */
   avlProjectStatus?: string;

@@ -14,7 +14,8 @@
 -- cc_churches_name_i on (doc->>'name'). The sort index in 012h is the
 -- normalized name (blank and null share ''), which is a different key.
 --
--- Expression indexes that call these helpers are 012b–012t. Apply this file
+-- Expression indexes that call these helpers are 012b–012t. Provider filters
+-- use 012u (jsonb containment) and 012v (vendor names). Apply this file
 -- first, then 012a (pg_trgm in the extensions schema), then each index file
 -- on its own with no transaction, and check indisvalid after each.
 -- service_role is granted execute on every helper below, not only the page function.
@@ -166,6 +167,7 @@ $$;
 -- other_services with nothing saved: ChurchConnect, website, and laser are possible.
 -- A church already on ChurchConnect, with nothing saved for that service, is an active customer.
 -- Indexes 012p–012t call this with a constant service name. Apply this file before those indexes.
+-- The report is owner-only. Vendor-name indexes are 012v–012za, one service each.
 create or replace function public.crm_church_opportunity_status(doc jsonb, service text)
 returns text
 language sql
@@ -189,6 +191,32 @@ as $$
   end;
 $$;
 
+create or replace function public.crm_service_provider_report()
+returns table (service text, provider_type text, vendor_name text, churches bigint)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    entry.key,
+    lower(btrim(coalesce(entry.value->>'provider_type', ''))),
+    case
+      when lower(btrim(coalesce(entry.value->>'provider_type', ''))) = 'vendor'
+      then left(btrim(coalesce(entry.value->>'vendor_name', '')), 200)
+      else ''
+    end,
+    count(*)::bigint
+  from public.cc_churches c
+  cross join lateral jsonb_each(coalesce(c.doc->'service_providers', '{}'::jsonb)) as entry
+  where entry.key in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
+    and lower(btrim(coalesce(entry.value->>'provider_type', ''))) in ('us', 'vendor', 'other', 'unknown')
+  group by 1, 2, 3
+  order by 1, 2, 4 desc;
+$$;
+
+drop function if exists public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text);
+
 create or replace function public.crm_directory_page(
   p_q text default '',
   p_state text default '',
@@ -205,7 +233,11 @@ create or replace function public.crm_directory_page(
   p_cursor_id text default '',
   p_cursor_value text default '',
   p_limit integer default 41,
-  p_opportunity text default ''
+  p_opportunity text default '',
+  p_provider text default '',
+  p_vendor text default '',
+  p_other_service text default '',
+  p_opening text default ''
 )
 returns table (
   id text,
@@ -239,7 +271,8 @@ returns table (
   service_opportunities jsonb,
   is_customer text,
   signed_up text,
-  invite_status text
+  invite_status text,
+  service_providers jsonb
 )
 language plpgsql
 stable
@@ -260,6 +293,12 @@ declare
   opportunity text := lower(left(btrim(coalesce(p_opportunity, '')), 80));
   opp_service text := split_part(opportunity, ':', 1);
   opp_status text := split_part(opportunity, ':', 2);
+  provider text := lower(left(btrim(coalesce(p_provider, '')), 80));
+  prov_service text := split_part(provider, ':', 1);
+  prov_type text := split_part(provider, ':', 2);
+  vendor text := left(btrim(coalesce(p_vendor, '')), 200);
+  other_service text := lower(left(btrim(coalesce(p_other_service, '')), 40));
+  opening text := lower(left(btrim(coalesce(p_opening, '')), 40));
   sort text := case when p_sort in ('id', 'name', 'fit', 'contact', 'tier') then p_sort else 'id' end;
   dir text := case when lower(coalesce(p_dir, 'asc')) = 'desc' then 'desc' else 'asc' end;
   cursor_id text := left(btrim(coalesce(p_cursor_id, '')), 80);
@@ -356,6 +395,48 @@ begin
     end if;
   end if;
 
+  if provider <> '' then
+    if prov_service in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
+       and prov_type in ('us', 'vendor', 'other', 'unknown')
+    then
+      clauses := clauses || format(
+        ' and coalesce(c.doc -> ''service_providers'', ''{}''::jsonb) @> jsonb_build_object(%L, jsonb_build_object(''provider_type'', %L))',
+        prov_service, prov_type
+      );
+    else
+      clauses := clauses || ' and false';
+    end if;
+  end if;
+
+  if vendor <> '' then
+    clauses := clauses || format(
+      ' and ((lower(btrim(coalesce(c.doc #>> ''{service_providers,av,provider_type}'', ''''))) = ''vendor'' and lower(btrim(coalesce(c.doc #>> ''{service_providers,av,vendor_name}'', ''''))) = lower(%L)) or (lower(btrim(coalesce(c.doc #>> ''{service_providers,website,provider_type}'', ''''))) = ''vendor'' and lower(btrim(coalesce(c.doc #>> ''{service_providers,website,vendor_name}'', ''''))) = lower(%L)) or (lower(btrim(coalesce(c.doc #>> ''{service_providers,toner,provider_type}'', ''''))) = ''vendor'' and lower(btrim(coalesce(c.doc #>> ''{service_providers,toner,vendor_name}'', ''''))) = lower(%L)) or (lower(btrim(coalesce(c.doc #>> ''{service_providers,laser,provider_type}'', ''''))) = ''vendor'' and lower(btrim(coalesce(c.doc #>> ''{service_providers,laser,vendor_name}'', ''''))) = lower(%L)) or (lower(btrim(coalesce(c.doc #>> ''{service_providers,churchconnect,provider_type}'', ''''))) = ''vendor'' and lower(btrim(coalesce(c.doc #>> ''{service_providers,churchconnect,vendor_name}'', ''''))) = lower(%L)) or (lower(btrim(coalesce(c.doc #>> ''{service_providers,local_mission,provider_type}'', ''''))) = ''vendor'' and lower(btrim(coalesce(c.doc #>> ''{service_providers,local_mission,vendor_name}'', ''''))) = lower(%L)))',
+      vendor, vendor, vendor, vendor, vendor, vendor
+    );
+  end if;
+
+  if other_service <> '' then
+    if other_service in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission') then
+      clauses := clauses || format(
+        ' and (coalesce(c.doc -> ''service_providers'', ''{}''::jsonb) @> jsonb_build_object(%L, jsonb_build_object(''provider_type'', ''vendor'')) or coalesce(c.doc -> ''service_providers'', ''{}''::jsonb) @> jsonb_build_object(%L, jsonb_build_object(''provider_type'', ''other'')))',
+        other_service, other_service
+      );
+    else
+      clauses := clauses || ' and false';
+    end if;
+  end if;
+
+  if opening <> '' then
+    if opening in ('website', 'toner', 'laser', 'churchconnect', 'local_mission') then
+      clauses := clauses || format(
+        ' and public.crm_church_opportunity_status(c.doc, %L) in (''possible'', ''interested'')',
+        opening
+      );
+    else
+      clauses := clauses || ' and false';
+    end if;
+  end if;
+
   if sort = 'name' then
     ord := 'public.crm_church_sort_name(c.doc) ' || dir || ', c.id ' || dir;
     if cursor_id <> '' then
@@ -430,7 +511,8 @@ begin
       c.doc->'service_opportunities',
       c.doc->>'is_customer',
       c.doc->>'signed_up',
-      c.doc->>'invite_status'
+      c.doc->>'invite_status',
+      c.doc->'service_providers'
     from public.cc_churches c
     where %s
       and %s
@@ -449,7 +531,8 @@ revoke all on function public.crm_church_last_contact(jsonb) from public, anon, 
 revoke all on function public.crm_church_has_staff(jsonb) from public, anon, authenticated;
 revoke all on function public.crm_church_building_stage(jsonb) from public, anon, authenticated;
 revoke all on function public.crm_church_opportunity_status(jsonb, text) from public, anon, authenticated;
-revoke all on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text) from public, anon, authenticated;
+revoke all on function public.crm_service_provider_report() from public, anon, authenticated;
+revoke all on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text, text, text, text, text) from public, anon, authenticated;
 grant execute on function public.crm_church_state_code(text) to service_role;
 grant execute on function public.crm_church_sort_name(jsonb) to service_role;
 grant execute on function public.crm_church_fit(jsonb) to service_role;
@@ -457,4 +540,5 @@ grant execute on function public.crm_church_last_contact(jsonb) to service_role;
 grant execute on function public.crm_church_has_staff(jsonb) to service_role;
 grant execute on function public.crm_church_building_stage(jsonb) to service_role;
 grant execute on function public.crm_church_opportunity_status(jsonb, text) to service_role;
-grant execute on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text) to service_role;
+grant execute on function public.crm_service_provider_report() to service_role;
+grant execute on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text, text, text, text, text) to service_role;

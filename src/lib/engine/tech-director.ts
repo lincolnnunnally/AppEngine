@@ -1,7 +1,7 @@
 // Match a technical-director CSV to churches already on file, and merge the
 // contact into that church's staff_contacts. No new churches. No sends.
 import { createHash } from "node:crypto";
-import { avlRelationshipIsSet, cleanAvlProjectStatus, isAllowedChurchStatus, normName, suppressionDomain } from "./lpl-crm-core.ts";
+import { avlRelationshipIsSet, cleanAvlProjectStatus, isAllowedChurchStatus, normName, serviceProvidersFromDoc, serviceProvidersToDoc, storedServiceProvider, suppressionDomain, SERVICE_PROVIDER_IDS, type ServiceProvider, type ServiceProviderId } from "./lpl-crm-core.ts";
 import {
   OTHER_SERVICES_OFFERS,
   SIGNAL_STAFF,
@@ -39,8 +39,7 @@ export const CHURCH_PROFILE_PATCH_KEYS = [
   "jev_avl_fit",
   "jev_project_stage",
   "crm_offers",
-  "avl_existing_relationship",
-  "avl_project_status"
+  "service_providers"
 ] as const;
 
 /** PostgREST page by id, not offset. lastId blank is the first page. */
@@ -118,6 +117,8 @@ export type DirectoryChurch = {
   avlExistingRelationship?: boolean;
   /** none or avl_already_engaged when already stored. Blank means unset. */
   avlProjectStatus?: string;
+  /** True when service_providers.av.provider_type is already stored, including unknown. */
+  avProviderSet?: boolean;
   /** Stored lead class. Blank means an import may set it. A re-run does not replace a value. */
   leadClass?: string;
   /** Stored fit as text, including "0". Blank means an import may set it. */
@@ -216,9 +217,8 @@ export type ChurchProfileWrite = {
   jevProjectStage?: JevProjectStage | "";
   /** Set only for Other services when the church has no offers yet. */
   crmOffers?: string[];
-  /** Set only when the church does not already have this field. */
-  avlExistingRelationship?: true;
-  avlProjectStatus?: "avl_already_engaged";
+  /** Set only when AV does not already have a provider, and the old relationship fields are still blank. */
+  serviceProviders?: Partial<Record<ServiceProviderId, ServiceProvider>>;
   tier: AvlTier | "";
   existingTalks: boolean;
 };
@@ -835,12 +835,15 @@ function tierCounts(tracked: Map<string, TrackedChurch>): Record<string, TierImp
   return out;
 }
 
-function ownerFieldsToWrite(church: DirectoryChurch, existing: boolean): { avlExistingRelationship?: true; avlProjectStatus?: "avl_already_engaged" } {
+function ownerFieldsToWrite(church: DirectoryChurch, existing: boolean): { serviceProviders?: ChurchProfileWrite["serviceProviders"] } {
   if (!existing) return {};
-  const next: { avlExistingRelationship?: true; avlProjectStatus?: "avl_already_engaged" } = {};
-  if (!avlRelationshipIsSet(church.avlExistingRelationship)) next.avlExistingRelationship = true;
-  if (!cleanAvlProjectStatus(church.avlProjectStatus)) next.avlProjectStatus = "avl_already_engaged";
-  return next;
+  if (church.avProviderSet || avlRelationshipIsSet(church.avlExistingRelationship) || cleanAvlProjectStatus(church.avlProjectStatus)) return {};
+  const note = "AVL is already engaged on the current project";
+  const av: ServiceProvider =
+    church.id === NORTHRIDGE_MILLEDGEVILLE_ID
+      ? { providerType: "vendor", vendorName: "Messenger AVL", otherName: "", note, learnedFrom: "", learnedAt: "" }
+      : { providerType: "us", vendorName: "", otherName: "", note, learnedFrom: "", learnedAt: "" };
+  return { serviceProviders: { av } };
 }
 
 function textAlreadySet(value: string | undefined): boolean {
@@ -858,7 +861,7 @@ function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Ma
     const leadClass = item.leadClass && !textAlreadySet(church.leadClass) ? item.leadClass : undefined;
     const jevAvlFit = typeof item.fit === "number" && !textAlreadySet(church.jevAvlFitText) ? item.fit : undefined;
     const jevProjectStage = item.stage && !textAlreadySet(church.jevProjectStage) ? item.stage : undefined;
-    const hasProfile = Boolean(leadClass || jevAvlFit !== undefined || jevProjectStage || offers || owner.avlExistingRelationship || owner.avlProjectStatus);
+    const hasProfile = Boolean(leadClass || jevAvlFit !== undefined || jevProjectStage || offers || owner.serviceProviders);
     if (!hasProfile) continue;
     profiles.push({
       churchId,
@@ -1005,8 +1008,7 @@ export type ChurchDocProfile = {
   jevAvlFit?: number | null;
   jevProjectStage?: string;
   crmOffers?: string[];
-  avlExistingRelationship?: boolean;
-  avlProjectStatus?: string;
+  serviceProviders?: Partial<Record<ServiceProviderId, ServiceProvider>>;
 };
 
 /** Keys this profile will put on the patch. Blank fields are left alone. */
@@ -1018,8 +1020,7 @@ export function profilePatchKeys(profile: ChurchDocProfile | null | undefined): 
   if (typeof profile.jevAvlFit === "number") keys.push("jev_avl_fit");
   if (profile.jevProjectStage) keys.push("jev_project_stage");
   if (profile.crmOffers && profile.crmOffers.length) keys.push("crm_offers");
-  if (profile.avlExistingRelationship === true) keys.push("avl_existing_relationship");
-  if (profile.avlProjectStatus) keys.push("avl_project_status");
+  if (profile.serviceProviders && Object.keys(profile.serviceProviders).length) keys.push("service_providers");
   return keys;
 }
 
@@ -1046,8 +1047,17 @@ function applyChurchProfile(doc: Record<string, unknown>, profile: ChurchDocProf
   if (typeof profile.jevAvlFit === "number" && storedFieldBlank(doc.jev_avl_fit)) set("jev_avl_fit", profile.jevAvlFit);
   if (profile.jevProjectStage && storedFieldBlank(doc.jev_project_stage)) set("jev_project_stage", profile.jevProjectStage);
   if (profile.crmOffers && profile.crmOffers.length) set("crm_offers", profile.crmOffers);
-  if (profile.avlExistingRelationship === true) set("avl_existing_relationship", true);
-  if (profile.avlProjectStatus) set("avl_project_status", profile.avlProjectStatus);
+  if (profile.serviceProviders && Object.keys(profile.serviceProviders).length) {
+    const current = serviceProvidersFromDoc(doc.service_providers);
+    let wrote = false;
+    for (const service of SERVICE_PROVIDER_IDS) {
+      const incoming = profile.serviceProviders[service];
+      if (!incoming || storedServiceProvider(doc.service_providers, service)) continue;
+      current[service] = incoming;
+      wrote = true;
+    }
+    if (wrote) set("service_providers", serviceProvidersToDoc(current));
+  }
   return { doc: next, changed, keys };
 }
 

@@ -18,7 +18,7 @@
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanAvlProjectStatus, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, cleanServiceOpportunityStatus, isAllowedChurchStatus, serviceOpportunitiesToDoc, storedServiceOpportunity, truthyFlag, resolveOrgKind, SERVICE_OPPORTUNITY_IDS, type CrmContactStatus, type OrgKind, type ServiceOpportunities, type ServiceOpportunityId } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, cleanProviderType, cleanServiceOpportunityStatus, isAllowedChurchStatus, serviceOpportunitiesToDoc, serviceProvidersToDoc, storedServiceOpportunity, storedServiceProvider, resolveOrgKind, SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type CrmContactStatus, type OrgKind, type ServiceOpportunities, type ServiceOpportunityId, type ServiceProvider, type ServiceProviders, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
 import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
@@ -1495,51 +1495,91 @@ export async function setChurchPipelineStatus(ownerEmail: string, churchId: stri
 }
 
 export type ChurchOwnerFields = {
-  avlExistingRelationship: boolean;
-  avlExistingRelationshipNote: string;
-  avlProjectStatus: string;
   buildingStage: string;
   buildingStageRecordedAt: string;
 };
 
-/** Owner-only AVL relationship, current project, and building-planning stage. Separate from contact status. */
+/** Owner-only building-planning stage. Separate from contact status and from who serves each service. */
 export async function setChurchOwnerFields(ownerEmail: string, churchId: string, fields: ChurchOwnerFields): Promise<SaveResult> {
   void ownerEmail;
   const config = lplConfig();
   if (!config) return { ok: false, message: savingOffMessage() };
   if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "That church can't be updated. Reload the page and try again." };
-  const project = cleanAvlProjectStatus(fields.avlProjectStatus);
   const stage = cleanBuildingStage(fields.buildingStage);
-  if (!project || !stage) return { ok: false, message: "Pick a project status and a building stage." };
-  const note = fields.avlExistingRelationshipNote.replace(/\s+/g, " ").trim().slice(0, 500);
+  if (!stage) return { ok: false, message: "Pick a building stage." };
   const recorded = fields.buildingStageRecordedAt.trim();
   const day = DAY_RE.test(recorded) ? recorded : new Date().toISOString().slice(0, 10);
-  const relationship = fields.avlExistingRelationship === true;
   return patchChurchDoc(
     config,
     churchId,
     {
-      avl_existing_relationship: relationship,
-      avl_existing_relationship_note: note,
-      avl_project_status: project,
       building_stage: stage,
       building_stage_recorded_at: day
     },
-    (doc) => {
-      const storedRelationship = relationship ? truthyFlag(doc.avl_existing_relationship) : doc.avl_existing_relationship === false || String(doc.avl_existing_relationship ?? "").trim().toLowerCase() === "false";
-      return (
-        storedRelationship &&
-        String(doc.avl_existing_relationship_note ?? "").trim() === note &&
-        cleanAvlProjectStatus(doc.avl_project_status) === project &&
-        cleanBuildingStage(doc.building_stage) === stage &&
-        String(doc.building_stage_recorded_at ?? "").slice(0, 10) === day
-      );
-    },
+    (doc) => cleanBuildingStage(doc.building_stage) === stage && String(doc.building_stage_recorded_at ?? "").slice(0, 10) === day,
     "Saved."
   );
 }
 
 export type ServiceOpportunityInput = Record<ServiceOpportunityId, { status: string; note: string; updatedAt: string }>;
+export type ServiceProviderInput = Record<ServiceProviderId, { providerType: string; vendorName: string; otherName: string; note: string; learnedFrom: string; learnedAt: string }>;
+
+function cleanProviderInput(input: ServiceProviderInput[ServiceProviderId] | undefined): ServiceProvider | { error: string } {
+  const providerType = cleanProviderType(input?.providerType);
+  if (!providerType) return { error: "Pick who serves each service." };
+  const vendorName = String(input?.vendorName ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const otherName = String(input?.otherName ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const learned = String(input?.learnedAt ?? "").trim().slice(0, 10);
+  return {
+    providerType,
+    vendorName: providerType === "vendor" ? vendorName : "",
+    otherName: providerType === "other" ? otherName : "",
+    note: String(input?.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500),
+    learnedFrom: String(input?.learnedFrom ?? "").replace(/\s+/g, " ").trim().slice(0, 200),
+    learnedAt: DAY_RE.test(learned) ? learned : ""
+  };
+}
+
+function mergeServiceProviders(doc: Record<string, unknown>, input: ServiceProviderInput): { next: ServiceProviders; changed: boolean } | { error: string } {
+  const next = {} as ServiceProviders;
+  let changed = false;
+  for (const service of SERVICE_PROVIDER_IDS) {
+    const item = cleanProviderInput(input[service]);
+    if ("error" in item) return item;
+    const stored = storedServiceProvider(doc.service_providers, service);
+    if (
+      stored &&
+      stored.providerType === item.providerType &&
+      stored.vendorName === item.vendorName &&
+      stored.otherName === item.otherName &&
+      stored.note === item.note &&
+      stored.learnedFrom === item.learnedFrom &&
+      stored.learnedAt === item.learnedAt
+    ) {
+      next[service] = stored;
+    } else {
+      next[service] = item;
+      changed = true;
+    }
+  }
+  return { next, changed };
+}
+
+function serviceProvidersLanded(doc: Record<string, unknown>, next: ServiceProviders): boolean {
+  return SERVICE_PROVIDER_IDS.every((service) => {
+    const stored = storedServiceProvider(doc.service_providers, service);
+    const item = next[service];
+    return Boolean(
+      stored &&
+        stored.providerType === item.providerType &&
+        stored.vendorName === item.vendorName &&
+        stored.otherName === item.otherName &&
+        stored.note === item.note &&
+        stored.learnedFrom === item.learnedFrom &&
+        stored.learnedAt === item.learnedAt
+    );
+  });
+}
 
 function mergeServiceOpportunities(doc: Record<string, unknown>, input: ServiceOpportunityInput, today: string): { next: ServiceOpportunities; changed: boolean } | { error: string } {
   const next: ServiceOpportunities = {
@@ -1581,8 +1621,13 @@ function serviceOpportunitiesLanded(doc: Record<string, unknown>, next: ServiceO
   });
 }
 
-/** Owner-only service opportunities. One jsonb key. The compare-and-swap version is the same read the merge was built from. */
-export async function setChurchServiceOpportunities(ownerEmail: string, churchId: string, input: ServiceOpportunityInput): Promise<SaveResult> {
+/** Owner-only service opportunities and who serves each service. Both keys come from the same read as the compare-and-swap version. */
+export async function setChurchServiceOpportunities(
+  ownerEmail: string,
+  churchId: string,
+  input: ServiceOpportunityInput,
+  providers: ServiceProviderInput
+): Promise<SaveResult> {
   void ownerEmail;
   const config = lplConfig();
   if (!config) return { ok: false, message: savingOffMessage() };
@@ -1594,15 +1639,25 @@ export async function setChurchServiceOpportunities(ownerEmail: string, churchId
     if (!current) return { ok: false, message: "That church isn't there. Nothing was changed." };
     const merged = mergeServiceOpportunities(current.doc, input, today);
     if ("error" in merged) return { ok: false, message: merged.error };
-    if (!merged.changed) return { ok: true, message: "Saved." };
+    const mergedProviders = mergeServiceProviders(current.doc, providers);
+    if ("error" in mergedProviders) return { ok: false, message: mergedProviders.error };
+    if (!merged.changed && !mergedProviders.changed) return { ok: true, message: "Saved." };
     const expected = typeof current.doc.updated_at === "string" ? current.doc.updated_at : null;
-    const posted = await postChurchPatch(config, churchId, { service_opportunities: serviceOpportunitiesToDoc(merged.next) }, expected);
+    const posted = await postChurchPatch(
+      config,
+      churchId,
+      {
+        service_opportunities: serviceOpportunitiesToDoc(merged.next),
+        service_providers: serviceProvidersToDoc(mergedProviders.next)
+      },
+      expected
+    );
     const failed = patchFailure(posted);
     if (failed) return failed;
     if (posted === "conflict") continue;
     const after = await readChurchRow(config, churchId);
     if (after === "error" || !after) return { ok: false, message: "The church was saved, but it couldn't be re-read. Reload the page." };
-    if (serviceOpportunitiesLanded(after.doc, merged.next)) return { ok: true, message: "Saved." };
+    if (serviceOpportunitiesLanded(after.doc, merged.next) && serviceProvidersLanded(after.doc, mergedProviders.next)) return { ok: true, message: "Saved." };
     return { ok: false, message: "That change did not stick. Apply the church patch that allows these fields. Nothing else was changed." };
   }
   return { ok: false, message: "That church changed while this was saving. Nothing else was changed. Try again." };

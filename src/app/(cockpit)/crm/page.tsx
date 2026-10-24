@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineOwner } from "@/lib/auth/access";
-import { directoryPreviewRows, directoryQueryFromParams, filterDirectoryRows } from "@/lib/engine/crm-directory-core";
-import { loadDirectoryPage } from "@/lib/engine/crm-directory";
+import { directoryPreviewRows, directoryQueryFromParams, filterDirectoryRows, providerReportFromRows } from "@/lib/engine/crm-directory-core";
+import { loadDirectoryPage, loadProviderReport } from "@/lib/engine/crm-directory";
 import { CrmDirectoryList } from "@/components/engine/crm-directory-list";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, withOutreachLog, type CrmCard } from "@/lib/engine/lpl-crm-core";
@@ -165,6 +165,7 @@ export default async function CrmPage({
   const directory = previewDirectory
     ? { configured: true, ok: true, rows: filterDirectoryRows(directoryPreviewRows(), directoryQuery), nextCursor: "" }
     : await loadDirectoryPage(directoryQuery);
+  const providerReport = previewDirectory ? providerReportFromRows(directoryPreviewRows()) : await loadProviderReport();
   let topInitial: TopProspectState = null;
   let avInitial: AvProspectState = null;
   if (previewTop) {
@@ -329,7 +330,7 @@ export default async function CrmPage({
         </p>
       </section>
 
-      <CrmDirectoryList query={directoryQuery} page={directory} preview={previewDirectory ? "directory" : ""} />
+      <CrmDirectoryList query={directoryQuery} page={directory} preview={previewDirectory ? "directory" : ""} providerReport={providerReport} />
 
       {snapshot.configured || previewTop || previewAv || previewTech ? (
         <CrmDesk

@@ -13,10 +13,11 @@ import {
   type DirectoryCursor,
   type DirectoryQuery,
   type DirectoryRow,
+  type ProviderReportRow,
   type TierWalk
 } from "./crm-directory-core.ts";
 import type { CrmCard, CrmChurchSignal, CrmContact } from "./lpl-crm-core.ts";
-import { normEmail } from "./lpl-crm-core.ts";
+import { PROVIDER_TYPE_LABEL, normEmail, type ProviderType } from "./lpl-crm-core.ts";
 
 export type DirectoryPage = {
   configured: boolean;
@@ -137,11 +138,52 @@ const DETAIL_FIELDS = [
   "crm_next_action", "crm_next_action_date", "do_not_contact", "do_not_contact_desk_claim"
 ];
 
+/** Owner desk only. Vendor names in this report are not part of any ChurchConnect public payload. */
+export async function loadProviderReport(): Promise<ProviderReportRow[]> {
+  const cfg = config();
+  if (!cfg) return [];
+  try {
+    const response = await fetch(`${cfg.url}/rest/v1/rpc/crm_service_provider_report`, {
+      method: "POST",
+      headers: {
+        apikey: cfg.key,
+        Authorization: `Bearer ${cfg.key}`,
+        "Content-Type": "application/json",
+        "accept-profile": "public",
+        "content-profile": "public"
+      },
+      cache: "no-store",
+      body: "{}",
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) return [];
+    const data = (await response.json()) as unknown;
+    if (!Array.isArray(data)) return [];
+    return data.flatMap((item) => {
+      if (!item || typeof item !== "object") return [];
+      const row = item as Record<string, unknown>;
+      const service = String(row.service ?? "");
+      const providerType = String(row.provider_type ?? "");
+      if (!service || !(providerType in PROVIDER_TYPE_LABEL)) return [];
+      const vendorName = providerType === "vendor" ? String(row.vendor_name ?? "").trim() : "";
+      return [{
+        service,
+        providerType,
+        providerTypeLabel: PROVIDER_TYPE_LABEL[providerType as ProviderType],
+        vendorName,
+        churches: Number(row.churches) || 0
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function loadChurchDetail(id: string): Promise<ChurchDetail | null | "unconfigured" | "unread"> {
   if (!/^[A-Za-z0-9_-]{6,80}$/.test(id)) return null;
   const cfg = config();
   if (!cfg) return "unconfigured";
-  const select = `select=id,${DETAIL_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_signals:doc->crm_signals,crm_offers:doc->crm_offers,service_opportunities:doc->service_opportunities`;
+  const select = `select=id,${DETAIL_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_signals:doc->crm_signals,crm_offers:doc->crm_offers,service_opportunities:doc->service_opportunities,service_providers:doc->service_providers`;
   const rows = await rest(cfg, `cc_churches?id=eq.${encodeURIComponent(id)}&${select}&limit=1`);
   if (!rows) return "unread";
   const raw = rows[0] as Record<string, unknown> | undefined;

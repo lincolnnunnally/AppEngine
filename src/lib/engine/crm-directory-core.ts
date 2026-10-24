@@ -10,12 +10,19 @@ import {
   churchIsOnChurchConnect,
   cleanAvlProjectStatus,
   cleanBuildingStage,
+  parseOpeningService,
+  parseProviderService,
+  parseProviderTypeFilter,
   parseServiceOpportunityFilter,
   serviceOpportunitiesFromDoc,
+  serviceProvidersFromDoc,
   truthyFlag,
+  PROVIDER_TYPE_LABEL,
+  SERVICE_PROVIDER_IDS,
   type AvlProjectStatus,
   type BuildingStage,
-  type ServiceOpportunities
+  type ServiceOpportunities,
+  type ServiceProviders
 } from "./lpl-crm-core.ts";
 import { AVL_TIER_LABEL, avlTierForLeadClass, stateCode, type AvlTier } from "./tech-director-core.ts";
 
@@ -59,6 +66,14 @@ export type DirectoryQuery = {
   stage: BuildingStage | "";
   /** "website:possible" and the other owner opportunity filters. Empty means any. */
   opportunity: string;
+  /** "av:vendor" and the other provider-type filters. Empty means any. */
+  provider: string;
+  /** Vendor name on any service, for example Messenger AVL. Owner desk only. */
+  vendor: string;
+  /** Service whose provider is a vendor or someone else. */
+  servedByOther: string;
+  /** Opportunity service that is possible or interested. With vendor, this is vendor X with an opening in Z. */
+  opening: string;
   sort: DirectorySort;
   dir: "asc" | "desc";
   cursor: string;
@@ -96,8 +111,18 @@ export type DirectoryRow = {
   buildingStageRecordedAt: string;
   /** Owner-only. Stored status, or the pre-fill from lead class and ChurchConnect. */
   opportunities: ServiceOpportunities;
-  /** Existing relationship or AVL already engaged. Kept off new-outreach views. */
+  /** Owner-only. Who serves each service. Vendor names stay on this desk. */
+  providers: ServiceProviders;
+  /** Existing relationship, AVL already engaged, or AV served by us, a vendor, or someone else. */
   existingAvlTalks: boolean;
+};
+
+export type ProviderReportRow = {
+  service: string;
+  providerType: string;
+  providerTypeLabel: string;
+  vendorName: string;
+  churches: number;
 };
 
 export type DirectoryRpcArgs = {
@@ -112,6 +137,10 @@ export type DirectoryRpcArgs = {
   p_contacted_on: string;
   p_building_stage: string;
   p_opportunity: string;
+  p_provider: string;
+  p_vendor: string;
+  p_other_service: string;
+  p_opening: string;
   p_sort: string;
   p_dir: "asc" | "desc";
   p_cursor_id: string;
@@ -150,6 +179,10 @@ export function emptyDirectoryQuery(): DirectoryQuery {
     contactedOn: "",
     stage: "",
     opportunity: "",
+    provider: "",
+    vendor: "",
+    servedByOther: "",
+    opening: "",
     sort: "id",
     dir: "asc",
     cursor: ""
@@ -184,6 +217,13 @@ export function directoryQueryFromParams(params: Record<string, string | string[
       const parsed = parseServiceOpportunityFilter(one("opp"));
       return parsed ? `${parsed.service}:${parsed.status}` : "";
     })(),
+    provider: (() => {
+      const parsed = parseProviderTypeFilter(one("provider"));
+      return parsed ? `${parsed.service}:${parsed.providerType}` : "";
+    })(),
+    vendor: text(Array.isArray(params.vendor) ? params.vendor[0] : params.vendor).slice(0, 200),
+    servedByOther: parseProviderService(one("other")),
+    opening: parseOpeningService(one("opening")),
     sort: (DIRECTORY_SORTS as readonly string[]).includes(sort) ? (sort as DirectorySort) : "id",
     dir: dir === "desc" ? "desc" : "asc",
     cursor: one("cursor").slice(0, 500)
@@ -257,6 +297,10 @@ export function directoryRpcArgs(
     p_contacted_on: query.contactedOn,
     p_building_stage: stage,
     p_opportunity: parseServiceOpportunityFilter(query.opportunity) ? query.opportunity : "",
+    p_provider: parseProviderTypeFilter(query.provider) ? query.provider : "",
+    p_vendor: query.vendor.trim().slice(0, 200),
+    p_other_service: parseProviderService(query.servedByOther),
+    p_opening: parseOpeningService(query.opening),
     p_sort: sort === "tier" ? "id" : sort,
     p_dir: sort === "tier" ? "asc" : dir,
     p_cursor_id: edge?.id ?? "",
@@ -307,7 +351,12 @@ export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryR
       leadClass,
       onChurchConnect: churchIsOnChurchConnect(row)
     }),
-    existingAvlTalks: churchHoldsAvlWork({ avl_existing_relationship: relationship, avl_project_status: project })
+    providers: serviceProvidersFromDoc(parseOpportunities(row.service_providers)),
+    existingAvlTalks: churchHoldsAvlWork({
+      avl_existing_relationship: relationship,
+      avl_project_status: project,
+      service_providers: parseOpportunities(row.service_providers)
+    })
   };
 }
 
@@ -390,6 +439,10 @@ export function directoryHref(query: DirectoryQuery, cursor = "", preview = ""):
   if (query.contactedOn) params.set("on", query.contactedOn);
   if (query.stage) params.set("stage", query.stage);
   if (query.opportunity) params.set("opp", query.opportunity);
+  if (query.provider) params.set("provider", query.provider);
+  if (query.vendor) params.set("vendor", query.vendor);
+  if (query.servedByOther) params.set("other", query.servedByOther);
+  if (query.opening) params.set("opening", query.opening);
   if (query.sort !== "id") params.set("sort", query.sort);
   if (query.dir !== "asc") params.set("dir", query.dir);
   if (cursor) params.set("cursor", cursor);
@@ -420,6 +473,23 @@ export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery)
     if (query.stage && query.stage !== "none" && row.buildingStage !== query.stage) return false;
     const opportunity = parseServiceOpportunityFilter(query.opportunity);
     if (opportunity && row.opportunities[opportunity.service].status !== opportunity.status) return false;
+    const provider = parseProviderTypeFilter(query.provider);
+    if (provider && row.providers[provider.service].providerType !== provider.providerType) return false;
+    if (query.vendor) {
+      const needle = query.vendor.trim().toLowerCase();
+      const hit = SERVICE_PROVIDER_IDS.some((service) => row.providers[service].providerType === "vendor" && row.providers[service].vendorName.toLowerCase() === needle);
+      if (!hit) return false;
+    }
+    if (query.servedByOther) {
+      const service = parseProviderService(query.servedByOther);
+      const type = service ? row.providers[service].providerType : "";
+      if (type !== "vendor" && type !== "other") return false;
+    }
+    if (query.opening) {
+      const service = parseOpeningService(query.opening);
+      const status = service ? row.opportunities[service].status : "";
+      if (status !== "possible" && status !== "interested") return false;
+    }
     if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
       const day = row.lastContact.slice(0, 10);
       if (!day) return false;
@@ -446,7 +516,7 @@ export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery)
 }
 
 export function directoryPreviewRows(): DirectoryRow[] {
-  const rows: Array<Omit<DirectoryRow, "opportunities">> = [
+  const rows: Array<Omit<DirectoryRow, "opportunities" | "providers">> = [
     {
       id: "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24",
       name: "Northridge Christian",
@@ -589,6 +659,38 @@ export function directoryPreviewRows(): DirectoryRow[] {
         ? { website: { status: "interested", note: "No public site", updated_at: "2026-09-01" } }
         : null,
       { leadClass: leadClass(row.tier), onChurchConnect: false }
+    ),
+    providers: serviceProvidersFromDoc(
+      row.id === "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24"
+        ? {
+            av: {
+              provider_type: "vendor",
+              vendor_name: "Messenger AVL",
+              other_name: "",
+              note: "AVL is already engaged on the current project",
+              learned_from: "",
+              learned_at: ""
+            }
+          }
+        : null
     )
   }));
+}
+
+/** Owner-only counts. A blank unknown on a preview row is not a recorded provider. */
+export function providerReportFromRows(rows: DirectoryRow[]): ProviderReportRow[] {
+  const counts = new Map<string, ProviderReportRow>();
+  for (const row of rows) {
+    for (const service of SERVICE_PROVIDER_IDS) {
+      const item = row.providers[service];
+      const recorded = item.providerType !== "unknown" || Boolean(item.vendorName || item.otherName || item.note || item.learnedFrom || item.learnedAt);
+      if (!recorded) continue;
+      const vendorName = item.providerType === "vendor" ? item.vendorName : "";
+      const key = `${service}\n${item.providerType}\n${vendorName.toLowerCase()}`;
+      const current = counts.get(key);
+      if (current) current.churches += 1;
+      else counts.set(key, { service, providerType: item.providerType, providerTypeLabel: PROVIDER_TYPE_LABEL[item.providerType], vendorName, churches: 1 });
+    }
+  }
+  return [...counts.values()].sort((a, b) => a.service.localeCompare(b.service) || a.providerType.localeCompare(b.providerType) || b.churches - a.churches);
 }

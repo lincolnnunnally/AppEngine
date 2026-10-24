@@ -24,6 +24,7 @@ import {
   shortPersonName,
   cleanContactStatus,
   cleanAvlProjectStatus,
+  churchHoldsAvlWork,
   truthyFlag,
   churchLeadInQueue,
   type CrmApp,
@@ -145,7 +146,7 @@ const CHURCH_FIELDS = [
   "lead_class", "jev_avl_fit", "jev_project_stage", "last_contact_at",
   "avl_existing_relationship", "avl_project_status"
 ];
-const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals`;
+const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals,service_providers:doc->service_providers`;
 const CHURCH_TOUCHED = [
   "doc->>crm_status.not.is.null",
   "doc->>crm_next_action_date.not.is.null",
@@ -273,7 +274,12 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     jevAvlFit: jevFit(row.jev_avl_fit),
     jevProjectStage: s(row.jev_project_stage),
     avlExistingRelationship: truthyFlag(row.avl_existing_relationship),
-    avlProjectStatus: cleanAvlProjectStatus(row.avl_project_status)
+    avlProjectStatus: cleanAvlProjectStatus(row.avl_project_status),
+    avHeld: churchHoldsAvlWork({
+      avl_existing_relationship: row.avl_existing_relationship,
+      avl_project_status: row.avl_project_status,
+      service_providers: row.service_providers
+    })
   };
 }
 
@@ -1289,7 +1295,7 @@ const AV_FIELDS = [
   "do_not_contact_desk_claim", "crm_status", "avl_existing_relationship", "avl_project_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
   "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at", "zip_code"
 ];
-const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals`;
+const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals,service_providers:doc->service_providers`;
 const AV_PAGE = 1000;
 const AV_MAX_PAGES = 15;
 const DNC_PAGE = 1000;
@@ -1323,7 +1329,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         "Churches for AV prospects"
       );
       if (!ring) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
-      tierRows = ring;
+      tierRows = ring.filter((row) => !churchHoldsAvlWork(row));
       let pool = [...kept, ...tierRows];
       if (!(await readProspectRests(config, pool, sources, fetchedMate))) {
         return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
@@ -1336,7 +1342,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         if (!(await readProspectRests(config, mates, sources, fetchedMate))) {
           return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
         }
-        pool = [...pool, ...mates];
+        pool = [...pool, ...mates.filter((row) => !churchHoldsAvlWork(row))];
         prospects = rankAvProspects(pool, suppressed, { blockedIds: nameLookupBlocked });
         if (mates.length === 0) break;
       }

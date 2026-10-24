@@ -952,14 +952,14 @@ describe("southeast directory import", () => {
     const keptProfile = plan.profiles.find((profile) => profile.churchId === "kept");
     const setProfile = plan.profiles.find((profile) => profile.churchId === "set");
     assert.equal(northProfile?.crmStatus, undefined);
-    assert.equal(northProfile?.avlExistingRelationship, true);
-    assert.equal(northProfile?.avlProjectStatus, "avl_already_engaged");
+    assert.equal(northProfile?.serviceProviders?.av?.providerType, "vendor");
+    assert.equal(northProfile?.serviceProviders?.av?.vendorName, "Messenger AVL");
+    assert.match(northProfile?.serviceProviders?.av?.note ?? "", /already engaged/);
     assert.equal(northProfile?.existingTalks, true);
     assert.equal(keptProfile?.crmStatus, undefined);
-    assert.equal(keptProfile?.avlExistingRelationship, true);
+    assert.equal(keptProfile?.serviceProviders?.av?.providerType, "us");
     assert.equal(keptProfile?.existingTalks, true);
-    assert.equal(setProfile?.avlExistingRelationship, undefined);
-    assert.equal(setProfile?.avlProjectStatus, undefined);
+    assert.equal(setProfile?.serviceProviders, undefined);
     assert.equal(setProfile?.crmStatus, undefined);
   });
 
@@ -978,9 +978,8 @@ describe("southeast directory import", () => {
     assert.equal(patch.pastor_name, undefined);
     const plain = churchDocPatch({ staff_contacts: [], crm_signals: [], updated_at: "2026-08-01" });
     assert.deepEqual(Object.keys(plain).sort(), ["crm_signals", "staff_contacts", "updated_at"]);
-    assert.deepEqual(profilePatchKeys({ avlExistingRelationship: true, avlProjectStatus: "avl_already_engaged" }).sort(), [
-      "avl_existing_relationship",
-      "avl_project_status"
+    assert.deepEqual(profilePatchKeys({ serviceProviders: { av: { providerType: "vendor", vendorName: "Messenger AVL", otherName: "", note: "AVL is already engaged on the current project", learnedFrom: "", learnedAt: "" } } }).sort(), [
+      "service_providers"
     ]);
     assert.deepEqual(profilePatchKeys({ jevProjectStage: "", crmOffers: [] }), []);
     assert.deepEqual(profilePatchKeys({ jevAvlFit: 0 }), ["jev_avl_fit"]);

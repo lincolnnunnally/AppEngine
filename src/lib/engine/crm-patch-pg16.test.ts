@@ -98,12 +98,12 @@ describe("crm_patch_church_doc on PostgreSQL 16", () => {
           'text-church-1',
           '{"crm_status":"contacted","updated_at":"2026-06-01"}'::jsonb,
           '2026-04-02'
-        )) <> 0 then
-          raise exception 'status-only patch wrote a row under 009';
+        )) <> 1 then
+          raise exception 'applied 009 did not copy updated_at';
         end if;
         select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
-        if doc->>'updated_at' is distinct from '2026-04-02' then
-          raise exception 'status-only patch bumped updated_at: %', doc;
+        if doc->>'updated_at' is distinct from '2026-06-01' then
+          raise exception 'applied 009 updated_at: %', doc;
         end if;
         if doc ? 'crm_status' and nullif(btrim(doc->>'crm_status'), '') is not null then
           raise exception 'status landed under 009: %', doc;
@@ -204,9 +204,9 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
         select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
         if doc->>'pastor_name' is distinct from 'Pat' then raise exception 'pastor changed %', doc; end if;
         if doc->>'lead_class' is distinct from 'campaign_planning' then raise exception 'lead cleared %', doc; end if;
-        if doc->>'avl_existing_relationship' is distinct from 'true' then raise exception 'relationship %', doc; end if;
-        if doc->>'avl_existing_relationship_note' is distinct from 'Past sanctuary' then raise exception 'note %', doc; end if;
-        if doc->>'avl_project_status' is distinct from 'avl_already_engaged' then raise exception 'project %', doc; end if;
+        if doc ? 'avl_existing_relationship' then raise exception 'old relationship landed %', doc; end if;
+        if doc ? 'avl_existing_relationship_note' then raise exception 'old note landed %', doc; end if;
+        if doc ? 'avl_project_status' then raise exception 'old project landed %', doc; end if;
         if doc->>'building_stage' is distinct from 'design' then raise exception 'stage %', doc; end if;
         if doc->>'building_stage_recorded_at' is distinct from '2026-08-01' then raise exception 'recorded %', doc; end if;
         if doc ? 'pastor_name' and doc->>'pastor_name' = 'nope' then raise exception 'extra landed %', doc; end if;
@@ -225,7 +225,35 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
         if doc->'service_opportunities' ? 'operate' then raise exception 'operate landed %', doc; end if;
         if doc->'service_opportunities'->'toner'->>'status' is distinct from 'unknown' then raise exception 'toner %', doc; end if;
         if doc->>'pastor_name' is distinct from 'Pat' then raise exception 'pastor changed %', doc; end if;
-        if doc->>'avl_project_status' is distinct from 'avl_already_engaged' then raise exception 'project cleared %', doc; end if;
+        if doc ? 'avl_project_status' then raise exception 'old project landed %', doc; end if;
+      end $$;
+      select id from public.crm_patch_church_doc(
+        'text-church-1',
+        '{"service_providers":{"av":{"provider_type":"vendor","vendor_name":"Messenger AVL","other_name":"should drop","note":"AVL is already engaged on the current project","learned_from":"Lincoln","learned_at":"2026-10-01"},"operate":{"provider_type":"us"},"website":{"provider_type":"nope","vendor_name":"Hidden"}},"updated_at":"2026-10-02","pastor_name":"nope"}'::jsonb,
+        '2026-09-02'
+      );
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->'service_providers'->'av'->>'provider_type' is distinct from 'vendor' then raise exception 'av type %', doc; end if;
+        if doc->'service_providers'->'av'->>'vendor_name' is distinct from 'Messenger AVL' then raise exception 'vendor %', doc; end if;
+        if coalesce(doc->'service_providers'->'av'->>'other_name', '') <> '' then raise exception 'other name on vendor %', doc; end if;
+        if doc->'service_providers' ? 'operate' then raise exception 'operate provider %', doc; end if;
+        if doc->'service_providers'->'website'->>'provider_type' is distinct from 'unknown' then raise exception 'bad type %', doc; end if;
+        if coalesce(doc->'service_providers'->'website'->>'vendor_name', '') <> '' then raise exception 'vendor name without vendor %', doc; end if;
+        if doc->>'updated_at' is distinct from '2026-10-02' then raise exception 'provider updated_at %', doc; end if;
+        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"updated_at":"2099-01-01"}'::jsonb, '2026-10-02')) <> 0 then
+          raise exception 'updated_at-only wrote a row';
+        end if;
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->>'updated_at' is distinct from '2026-10-02' then raise exception 'updated_at-only bumped %', doc; end if;
+        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"crm_status":"contacted","updated_at":"2026-10-03"}'::jsonb, '2026-10-02')) <> 1 then
+          raise exception 'status save did not write';
+        end if;
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->>'crm_status' is distinct from 'contacted' then raise exception 'status %', doc; end if;
+        if doc->>'updated_at' is distinct from '2026-10-03' then raise exception 'status save updated_at %', doc; end if;
       end $$;
       insert into public.cc_churches (id, doc) values ('fb3d153f-dac5-49fc-ad9f-2f594d4dcc24', null);
       ${readFileSync(NORTHRIDGE, "utf8")}
@@ -233,9 +261,11 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
       declare doc jsonb;
       begin
         select cc_churches.doc into doc from public.cc_churches where id = 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
-        if doc->>'avl_existing_relationship' is distinct from 'true' then raise exception 'northridge relationship %', doc; end if;
-        if doc->>'avl_project_status' is distinct from 'avl_already_engaged' then raise exception 'northridge project %', doc; end if;
+        if doc->'service_providers'->'av'->>'provider_type' is distinct from 'vendor' then raise exception 'northridge type %', doc; end if;
+        if doc->'service_providers'->'av'->>'vendor_name' is distinct from 'Messenger AVL' then raise exception 'northridge vendor %', doc; end if;
+        if doc->'service_providers'->'av'->>'note' is distinct from 'AVL is already engaged on the current project' then raise exception 'northridge note %', doc; end if;
         if doc ? 'crm_status' and nullif(btrim(doc->>'crm_status'), '') is not null then raise exception 'northridge status %', doc; end if;
+        if doc ? 'avl_existing_relationship' then raise exception 'northridge old relationship %', doc; end if;
       end $$;
       create temporary table northridge_stamp as
         select doc->>'updated_at' as updated_at from public.cc_churches where id = 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
@@ -245,7 +275,7 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
       begin
         select updated_at into stamp from northridge_stamp;
         select cc_churches.doc into doc from public.cc_churches where id = 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
-        if doc->>'avl_existing_relationship' is distinct from 'true' then raise exception 'second relationship %', doc; end if;
+        if doc->'service_providers'->'av'->>'vendor_name' is distinct from 'Messenger AVL' then raise exception 'second vendor %', doc; end if;
         if doc->>'updated_at' is distinct from stamp then raise exception 'second run moved updated_at from % to %', stamp, doc->>'updated_at'; end if;
       end $$;
       `

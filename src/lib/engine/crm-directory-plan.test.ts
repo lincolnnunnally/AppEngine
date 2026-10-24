@@ -42,7 +42,7 @@ describe("directory queries on a prod-sized table", () => {
     const functions = readFileSync(new URL("012_crm_directory_functions.sql", MIGRATIONS), "utf8");
     const extension = readFileSync(new URL("012a_cc_churches_pg_trgm.sql", MIGRATIONS), "utf8");
     const indexes = files
-      .filter((name) => /^012[b-t]_/.test(name))
+      .filter((name) => /^012[b-z]/.test(name))
       .sort()
       .map((name) => readFileSync(new URL(name, MIGRATIONS), "utf8").replace(/\bconcurrently\b/gi, ""))
       .join("\n");
@@ -78,6 +78,16 @@ describe("directory queries on a prod-sized table", () => {
                'building_stage_recorded_at', '2026-04-01',
                'is_customer', case when i % 2500 = 7 then 'true' else '' end,
                'service_opportunities', case when i % 2000 = 3 then jsonb_build_object('website', jsonb_build_object('status','interested','note','','updated_at','2026-04-01')) else '{}'::jsonb end,
+               'service_providers', case
+                 when i % 2000 = 3 then jsonb_build_object(
+                   'av', jsonb_build_object('provider_type','vendor','vendor_name','Messenger AVL','other_name','','note','AVL is already engaged on the current project','learned_from','','learned_at',''),
+                   'website', jsonb_build_object('provider_type','other','vendor_name','','other_name','A local shop','note','','learned_from','','learned_at','')
+                 )
+                 when i % 1800 = 4 then jsonb_build_object(
+                   'toner', jsonb_build_object('provider_type','vendor','vendor_name','Other Vendor','other_name','','note','','learned_from','','learned_at','')
+                 )
+                 else '{}'::jsonb
+               end,
                'pad', repeat('x', 1800)
              )
         from generate_series(1, 151000) as i;
@@ -165,6 +175,40 @@ describe("directory queries on a prod-sized table", () => {
        order by id
        limit 41;
       explain (analyze, format text)
+      select id from public.cc_churches
+       where coalesce(doc -> 'service_providers', '{}'::jsonb) @> jsonb_build_object('av', jsonb_build_object('provider_type', 'vendor'))
+       order by id
+       limit 41;
+      explain (analyze, format text)
+      select id from public.cc_churches
+       where (lower(btrim(coalesce(doc #>> '{service_providers,av,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,av,vendor_name}', ''))) = 'messenger avl')
+          or (lower(btrim(coalesce(doc #>> '{service_providers,website,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,website,vendor_name}', ''))) = 'messenger avl')
+          or (lower(btrim(coalesce(doc #>> '{service_providers,toner,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,toner,vendor_name}', ''))) = 'messenger avl')
+          or (lower(btrim(coalesce(doc #>> '{service_providers,laser,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,laser,vendor_name}', ''))) = 'messenger avl')
+          or (lower(btrim(coalesce(doc #>> '{service_providers,churchconnect,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,churchconnect,vendor_name}', ''))) = 'messenger avl')
+          or (lower(btrim(coalesce(doc #>> '{service_providers,local_mission,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,local_mission,vendor_name}', ''))) = 'messenger avl')
+       order by id
+       limit 41;
+      explain (analyze, format text)
+      select id from public.cc_churches
+       where coalesce(doc -> 'service_providers', '{}'::jsonb) @> jsonb_build_object('website', jsonb_build_object('provider_type', 'vendor'))
+          or coalesce(doc -> 'service_providers', '{}'::jsonb) @> jsonb_build_object('website', jsonb_build_object('provider_type', 'other'))
+       order by id
+       limit 41;
+      explain (analyze, format text)
+      select id from public.cc_churches
+       where (
+         (lower(btrim(coalesce(doc #>> '{service_providers,av,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,av,vendor_name}', ''))) = 'messenger avl')
+         or (lower(btrim(coalesce(doc #>> '{service_providers,website,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,website,vendor_name}', ''))) = 'messenger avl')
+         or (lower(btrim(coalesce(doc #>> '{service_providers,toner,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,toner,vendor_name}', ''))) = 'messenger avl')
+         or (lower(btrim(coalesce(doc #>> '{service_providers,laser,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,laser,vendor_name}', ''))) = 'messenger avl')
+         or (lower(btrim(coalesce(doc #>> '{service_providers,churchconnect,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,churchconnect,vendor_name}', ''))) = 'messenger avl')
+         or (lower(btrim(coalesce(doc #>> '{service_providers,local_mission,provider_type}', ''))) = 'vendor' and lower(btrim(coalesce(doc #>> '{service_providers,local_mission,vendor_name}', ''))) = 'messenger avl')
+       )
+         and public.crm_church_opportunity_status(doc, 'website') in ('possible', 'interested')
+       order by id
+       limit 41;
+      explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', '', false, null, '', '', '', 'id', 'asc', '', '', 41);
       explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', 'campaign_planning', false, null, '', '', '', 'id', 'asc', '', '', 41);
@@ -207,6 +251,10 @@ describe("directory queries on a prod-sized table", () => {
         "website interested",
         "churchconnect active customer",
         "website possible",
+        "provider type av vendor",
+        "vendor name",
+        "served by someone else",
+        "vendor with opening",
         "directory function id page",
         "directory function lead class",
         "directory function rare state + never",

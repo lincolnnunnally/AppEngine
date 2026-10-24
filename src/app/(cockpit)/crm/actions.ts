@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
 import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
-import { SERVICE_OPPORTUNITY_IDS, type ServiceOpportunityId } from "@/lib/engine/lpl-crm-core";
+import { SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type ServiceOpportunityId, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 import { loadAvProspects, loadCrmSnapshot, loadTechDirectorChurches, loadTopProspects } from "@/lib/engine/lpl-crm";
 import type { TechDirectorRow } from "@/lib/engine/tech-director-core";
 import { resolveTopProspectTier, type AvProspect, type AvTierIndex, type TopProspect, type TopProspectCounts } from "@/lib/engine/av-prospects-core";
@@ -319,9 +319,6 @@ export async function setChurchOwnerFieldsAction(_prev: CrmFormState, formData: 
   if (!(await canAccessEngineOwner())) return refused();
   const churchId = field(formData, "church_id");
   const result = await setChurchOwnerFields(await ownerEmail(), churchId, {
-    avlExistingRelationship: field(formData, "avl_existing_relationship") === "1",
-    avlExistingRelationshipNote: field(formData, "avl_existing_relationship_note"),
-    avlProjectStatus: field(formData, "avl_project_status"),
     buildingStage: field(formData, "building_stage"),
     buildingStageRecordedAt: field(formData, "building_stage_recorded_at")
   });
@@ -343,7 +340,18 @@ export async function setChurchServiceOpportunitiesAction(_prev: CrmFormState, f
       updatedAt: field(formData, `opp_${service}_updated`)
     };
   }
-  const result = await setChurchServiceOpportunities(await ownerEmail(), churchId, input);
+  const providers = {} as Record<ServiceProviderId, { providerType: string; vendorName: string; otherName: string; note: string; learnedFrom: string; learnedAt: string }>;
+  for (const service of SERVICE_PROVIDER_IDS) {
+    providers[service] = {
+      providerType: field(formData, `prov_${service}_type`),
+      vendorName: field(formData, `prov_${service}_vendor`),
+      otherName: field(formData, `prov_${service}_other`),
+      note: field(formData, `prov_${service}_note`),
+      learnedFrom: field(formData, `prov_${service}_from`),
+      learnedAt: field(formData, `prov_${service}_at`)
+    };
+  }
+  const result = await setChurchServiceOpportunities(await ownerEmail(), churchId, input, providers);
   if (result.ok) {
     revalidatePath("/crm");
     revalidatePath(`/crm/church/${churchId}`);

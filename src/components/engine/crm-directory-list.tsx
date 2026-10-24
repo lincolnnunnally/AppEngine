@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { buildingStageLabel, directoryHref, directoryStatusLabel, type DirectoryQuery } from "@/lib/engine/crm-directory-core";
+import { buildingStageLabel, directoryHref, directoryStatusLabel, type DirectoryQuery, type ProviderReportRow } from "@/lib/engine/crm-directory-core";
 import type { DirectoryPage } from "@/lib/engine/crm-directory";
-import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES, SERVICE_OPPORTUNITY_FILTER_LABEL, SERVICE_OPPORTUNITY_IDS, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL } from "@/lib/engine/lpl-crm-core";
+import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES, PROVIDER_TYPES, PROVIDER_TYPE_LABEL, SERVICE_OPPORTUNITY_FILTER_LABEL, SERVICE_OPPORTUNITY_IDS, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL, SERVICE_PROVIDER_IDS, SERVICE_PROVIDER_LABEL } from "@/lib/engine/lpl-crm-core";
 import { AVL_TIER_LABEL, AVL_TIER_NOTE, type AvlTier } from "@/lib/engine/tech-director-core";
 
 const TIERS: AvlTier[] = ["top", "second", "other_services", "staff_only"];
@@ -18,6 +18,10 @@ function moreFilterCount(query: DirectoryQuery): number {
   if (query.county.trim()) count += 1;
   if (query.stage) count += 1;
   if (query.opportunity) count += 1;
+  if (query.provider) count += 1;
+  if (query.vendor.trim()) count += 1;
+  if (query.servedByOther) count += 1;
+  if (query.opening) count += 1;
   if (query.tier) count += 1;
   if (query.fitMin !== null) count += 1;
   if (query.contacted) count += 1;
@@ -29,11 +33,13 @@ function moreFilterCount(query: DirectoryQuery): number {
 export function CrmDirectoryList({
   query,
   page,
-  preview
+  preview,
+  providerReport = []
 }: {
   query: DirectoryQuery;
   page: DirectoryPage;
   preview: string;
+  providerReport?: ProviderReportRow[];
 }) {
   const back = directoryHref(query, "", preview);
   const hiddenFilters = moreFilterCount(query);
@@ -144,6 +150,45 @@ export function CrmDirectoryList({
               <input type="checkbox" name="staff" value="1" defaultChecked={query.staff} />
               <span>Has a staff contact</span>
             </label>
+            <label>
+              <span>Provider</span>
+              <select name="provider" defaultValue={query.provider} aria-label="Provider type">
+                <option value="">Any provider</option>
+                {SERVICE_PROVIDER_IDS.flatMap((service) =>
+                  PROVIDER_TYPES.map((type) => (
+                    <option value={`${service}:${type}`} key={`${service}:${type}`}>
+                      {SERVICE_PROVIDER_LABEL[service]}: {PROVIDER_TYPE_LABEL[type].toLowerCase()}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <label>
+              <span>On vendor</span>
+              <input name="vendor" defaultValue={query.vendor} placeholder="e.g. a vendor name" aria-label="Vendor name" />
+            </label>
+            <label>
+              <span>Served by someone else</span>
+              <select name="other" defaultValue={query.servedByOther} aria-label="Service served by someone else">
+                <option value="">Any service</option>
+                {SERVICE_PROVIDER_IDS.map((service) => (
+                  <option value={service} key={service}>
+                    {SERVICE_PROVIDER_LABEL[service]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Opening in</span>
+              <select name="opening" defaultValue={query.opening} aria-label="Opening in a service">
+                <option value="">Any opening</option>
+                {SERVICE_OPPORTUNITY_IDS.map((service) => (
+                  <option value={service} key={service}>
+                    {SERVICE_OPPORTUNITY_FILTER_LABEL[service]} possible or interested
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </details>
         <div className="crm-dir-sort">
@@ -166,6 +211,36 @@ export function CrmDirectoryList({
           </label>
         </div>
       </form>
+      <section className="crm-provider-report" aria-label="Provider counts">
+        <h3 className="crm-h2">Providers</h3>
+        <p className="crm-dim">Counts by service and who serves it. Vendor names stay on this desk.</p>
+        {providerReport.length ? (
+          <div className="crm-dir-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Provider</th>
+                  <th>Vendor</th>
+                  <th>Churches</th>
+                </tr>
+              </thead>
+              <tbody>
+                {providerReport.map((item) => (
+                  <tr key={`${item.service}:${item.providerType}:${item.vendorName}`}>
+                    <td>{SERVICE_PROVIDER_LABEL[item.service as keyof typeof SERVICE_PROVIDER_LABEL] ?? item.service}</td>
+                    <td>{item.providerTypeLabel}</td>
+                    <td>{item.vendorName || "—"}</td>
+                    <td>{item.churches}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="crm-dim">No provider is recorded yet.</p>
+        )}
+      </section>
       {!page.configured ? (
         <p className="dx-callout dx-callout--alert">This deploy cannot read the church directory yet.</p>
       ) : !page.ok ? (
@@ -176,7 +251,7 @@ export function CrmDirectoryList({
             <thead>
               <tr>
                 <th>Church</th>
-                <th>Place</th>
+                <th className="crm-col-place">Place</th>
                 <th>Status</th>
                 <th>Tier</th>
                 <th>Fit</th>
@@ -193,7 +268,7 @@ export function CrmDirectoryList({
                       {row.hasStaff ? <span className="crm-staff-chip">staff</span> : null}
                     </Link>
                   </td>
-                  <td>
+                  <td className="crm-col-place">
                     {[row.city, row.state].filter(Boolean).join(", ")}
                     {row.county ? <span className="crm-dim"> · {row.county}</span> : null}
                     {row.zip ? <span className="crm-dim"> · {row.zip}</span> : null}

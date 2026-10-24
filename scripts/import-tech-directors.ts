@@ -16,9 +16,10 @@
 // reported. The desk reads the directory, so a church does not need a status
 // to appear. --add-to-crm is accepted and ignored. Matched churches get
 // staff_contacts, crm_signals, lead_class, and the JEV fields on the existing
-// row. Northridge Christian in Milledgeville, and existing=yes, set
-// avl_existing_relationship and avl_project_status when those fields are still
-// blank. Contact status is not changed for that. It never creates a
+// row. Northridge Christian in Milledgeville, and existing=yes, set the AV
+// provider when it is still blank and the older relationship fields are blank.
+// Northridge is the vendor Messenger AVL. Other existing talks are us.
+// Contact status is not changed for that. It never creates a
 // cc_churches row. Churches that share a website across states stay separate
 // and match by church_id. Writes only with --apply, and refuses production.
 //
@@ -26,7 +27,7 @@
 // when doc.updated_at still matches the value just read (the id is text).
 // When the row carries them, the same patch may also set crm_status,
 // lead_class, jev_avl_fit, jev_project_stage, crm_offers,
-// avl_existing_relationship, and avl_project_status. A blank lead or JEV field
+// and service_providers. A blank lead or JEV field
 // is omitted so it cannot clear a value already stored. A stale read returns
 // no row and the import re-reads. If the function is missing, or an older
 // copy accepts the call but drops the new keys, the import stops. It does
@@ -348,6 +349,7 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
     "crm_signals:doc->crm_signals",
     "avl_existing_relationship:doc->>avl_existing_relationship",
     "avl_project_status:doc->>avl_project_status",
+    "service_providers:doc->service_providers",
     "lead_class:doc->>lead_class",
     "jev_avl_fit:doc->>jev_avl_fit",
     "jev_project_stage:doc->>jev_project_stage"
@@ -381,6 +383,11 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
           ? ["true", "yes", "y"].includes(String(row.avl_existing_relationship ?? "").trim().toLowerCase())
           : undefined,
         avlProjectStatus: String(row.avl_project_status ?? ""),
+        avProviderSet: Boolean(
+          row.service_providers &&
+            typeof row.service_providers === "object" &&
+            String((row.service_providers as { av?: { provider_type?: string } }).av?.provider_type ?? "").trim()
+        ),
         leadClass: String(row.lead_class ?? ""),
         jevAvlFitText: String(row.jev_avl_fit ?? ""),
         jevProjectStage: String(row.jev_project_stage ?? ""),
@@ -433,8 +440,7 @@ function profileOf(profile: ChurchProfileWrite | undefined): ChurchDocProfile | 
     ...(typeof profile.jevAvlFit === "number" ? { jevAvlFit: profile.jevAvlFit } : {}),
     ...(profile.jevProjectStage ? { jevProjectStage: profile.jevProjectStage } : {}),
     ...(profile.crmOffers?.length ? { crmOffers: profile.crmOffers } : {}),
-    ...(profile.avlExistingRelationship ? { avlExistingRelationship: true as const } : {}),
-    ...(profile.avlProjectStatus ? { avlProjectStatus: profile.avlProjectStatus } : {})
+    ...(profile.serviceProviders ? { serviceProviders: profile.serviceProviders } : {})
   };
 }
 

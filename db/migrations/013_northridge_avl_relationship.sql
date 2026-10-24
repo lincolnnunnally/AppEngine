@@ -2,17 +2,20 @@
 -- Owner-run and idempotent. Run it only after 011 is applied.
 --
 -- Northridge Christian, Milledgeville (fb3d153f-dac5-49fc-ad9f-2f594d4dcc24):
--- set existing AVL relationship = yes and current project = AVL already engaged
--- through crm_patch_church_doc. Contact status is not changed. A blank
--- crm_status stays Not contacted.
+-- AV provider is the vendor Messenger AVL, with a note that AVL is already
+-- engaged on the current project. Written through crm_patch_church_doc.
+-- Contact status is not changed. A blank crm_status stays Not contacted.
+-- Other services already on service_providers are left in place.
 --
--- A field Lincoln already set (including relationship = no, or project = none)
--- is left alone. Running this again changes nothing.
+-- A provider_type Lincoln already set on AV (including unknown) is left alone.
+-- Running this again changes nothing and does not move updated_at.
 
 do $$
 declare
   church_id text := 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
   current_doc jsonb;
+  providers jsonb;
+  av_type text;
   expected text;
   patch jsonb := '{}'::jsonb;
   written text;
@@ -23,28 +26,33 @@ begin
     return;
   end if;
 
-  if current_doc is null
-     or not (current_doc ? 'avl_existing_relationship')
-     or jsonb_typeof(current_doc->'avl_existing_relationship') = 'null'
-  then
-    patch := patch || jsonb_build_object('avl_existing_relationship', true);
-  end if;
-
-  if current_doc is null
-     or not (current_doc ? 'avl_project_status')
-     or jsonb_typeof(current_doc->'avl_project_status') = 'null'
-     or nullif(btrim(current_doc->>'avl_project_status'), '') is null
-  then
-    patch := patch || jsonb_build_object('avl_project_status', 'avl_already_engaged');
-  end if;
-
-  if patch = '{}'::jsonb then
-    raise notice 'Northridge already has the owner fields. Nothing changed.';
+  providers := case
+    when current_doc is null or jsonb_typeof(current_doc->'service_providers') is distinct from 'object'
+    then '{}'::jsonb
+    else current_doc->'service_providers'
+  end;
+  av_type := lower(btrim(coalesce(providers->'av'->>'provider_type', '')));
+  if av_type <> '' then
+    raise notice 'Northridge already has an AV provider. Nothing changed.';
     return;
   end if;
 
+  providers := providers || jsonb_build_object(
+    'av',
+    jsonb_build_object(
+      'provider_type', 'vendor',
+      'vendor_name', 'Messenger AVL',
+      'other_name', '',
+      'note', 'AVL is already engaged on the current project',
+      'learned_from', '',
+      'learned_at', ''
+    )
+  );
   expected := current_doc->>'updated_at';
-  patch := patch || jsonb_build_object('updated_at', to_char(clock_timestamp() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+  patch := jsonb_build_object(
+    'service_providers', providers,
+    'updated_at', to_char(clock_timestamp() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  );
   select patched.id into written from public.crm_patch_church_doc(church_id, patch, expected) as patched;
   if written is null then
     raise notice 'Northridge changed while this ran. Nothing else was written. Run it again.';
