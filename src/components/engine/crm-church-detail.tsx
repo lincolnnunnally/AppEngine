@@ -248,32 +248,27 @@ function ServiceOpportunitiesForm({ row }: { row: DirectoryRow }) {
     <form action={action} className="crm-form crm-opps" data-testid="crm-service-opportunities">
       <input type="hidden" name="church_id" value={row.id} />
       <h2 className="crm-h2">Service opportunities</h2>
-      <p className="crm-dim">Next to AV. Separate from contact status. A blank one is filled from what we already know.</p>
+      <p className="crm-dim">What else this church might need.</p>
       {SERVICE_OPPORTUNITY_IDS.map((service) => {
         const item = row.opportunities[service];
         const label = SERVICE_OPPORTUNITY_LABEL[service];
         return (
-          <fieldset className="crm-opp" key={service}>
-            <legend>{label}</legend>
-            <label className="crm-field">
-              <span>Status</span>
-              <select name={`opp_${service}_status`} defaultValue={item.status} aria-label={`${label} status`}>
-                {SERVICE_OPPORTUNITY_STATUSES.map((status) => (
-                  <option value={status} key={status}>
-                    {SERVICE_OPPORTUNITY_STATUS_LABEL[status]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="crm-field">
-              <span>Note</span>
-              <input name={`opp_${service}_note`} defaultValue={item.note} maxLength={500} aria-label={`${label} note`} />
-            </label>
-            <label className="crm-field">
-              <span>Updated</span>
-              <input name={`opp_${service}_updated`} type="date" defaultValue={item.updatedAt} aria-label={`${label} updated date`} />
-            </label>
-          </fieldset>
+          <div className="crm-opp-row" key={service}>
+            <span className="crm-opp-name">{label}</span>
+            <select className="crm-opp-status" name={`opp_${service}_status`} defaultValue={item.status} aria-label={`${label} status`}>
+              {SERVICE_OPPORTUNITY_STATUSES.map((status) => (
+                <option value={status} key={status}>
+                  {SERVICE_OPPORTUNITY_STATUS_LABEL[status]}
+                </option>
+              ))}
+            </select>
+            <details className="crm-opp-note">
+              <summary>Note</summary>
+              <input name={`opp_${service}_note`} defaultValue={item.note} maxLength={500} placeholder="Optional note" aria-label={`${label} note`} />
+            </details>
+            <span className="crm-opp-updated">{item.updatedAt ? when(item.updatedAt) : "Not dated"}</span>
+            <input type="hidden" name={`opp_${service}_updated`} value={item.updatedAt} />
+          </div>
         );
       })}
       <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>

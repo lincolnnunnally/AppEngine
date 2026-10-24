@@ -9,4 +9,4 @@
 -- Do not wrap this file in BEGIN/COMMIT.
 
 create index concurrently if not exists cc_churches_city_trgm_idx
-  on public.cc_churches using gin ((coalesce(doc->>'city', '')) gin_trgm_ops);
+  on public.cc_churches using gin ((coalesce(doc->>'city', '')) extensions.gin_trgm_ops);

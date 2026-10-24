@@ -347,7 +347,10 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
     "crm_offers:doc->crm_offers",
     "crm_signals:doc->crm_signals",
     "avl_existing_relationship:doc->>avl_existing_relationship",
-    "avl_project_status:doc->>avl_project_status"
+    "avl_project_status:doc->>avl_project_status",
+    "lead_class:doc->>lead_class",
+    "jev_avl_fit:doc->>jev_avl_fit",
+    "jev_project_stage:doc->>jev_project_stage"
   ].join(",");
   const churches: DirectoryChurch[] = [];
   let lastId = "";
@@ -378,6 +381,9 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
           ? ["true", "yes", "y"].includes(String(row.avl_existing_relationship ?? "").trim().toLowerCase())
           : undefined,
         avlProjectStatus: String(row.avl_project_status ?? ""),
+        leadClass: String(row.lead_class ?? ""),
+        jevAvlFitText: String(row.jev_avl_fit ?? ""),
+        jevProjectStage: String(row.jev_project_stage ?? ""),
         offers,
         inCrm: churchIsInCrm({
           crmStatus: row.crm_status,

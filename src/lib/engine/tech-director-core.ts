@@ -260,10 +260,18 @@ export type AvlTier = (typeof AVL_TIERS)[number];
 
 /** Owner desk labels. These do not name a vendor and are not church-facing copy. */
 export const AVL_TIER_LABEL: Record<AvlTier, string> = {
-  top: "Top AVL tier",
-  second: "AVL second tier, lower confidence",
+  top: "Top tier",
+  second: "Second tier",
   other_services: "Other services",
   staff_only: "Staff only"
+};
+
+/** Confidence and meaning, shown as a tooltip on the short tier label. */
+export const AVL_TIER_NOTE: Record<AvlTier, string> = {
+  top: "Highest confidence",
+  second: "Lower confidence",
+  other_services: "ChurchConnect, the church website, and Laser church gifts",
+  staff_only: "A staff contact, with no building signal"
 };
 
 /** Other services may be offered these. Never Operate, and not church sound, video, and lighting. */

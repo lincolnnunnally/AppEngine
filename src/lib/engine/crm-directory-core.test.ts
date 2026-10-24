@@ -40,7 +40,7 @@ describe("church directory pages", () => {
     const row = directoryRowFromRecord({ id: "a", name: "Grace", crm_status: "", lead_class: "campaign_planning", jev_avl_fit: "3.5" });
     assert.equal(row?.statusLabel, "Not contacted");
     assert.equal(row?.tier, "top");
-    assert.equal(row?.tierLabel, "Top AVL tier");
+    assert.equal(row?.tierLabel, "Top tier");
     assert.equal(row?.jevAvlFit, 3.5);
     assert.equal(row?.existingAvlTalks, false);
   });

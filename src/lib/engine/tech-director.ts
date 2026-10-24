@@ -118,6 +118,12 @@ export type DirectoryChurch = {
   avlExistingRelationship?: boolean;
   /** none or avl_already_engaged when already stored. Blank means unset. */
   avlProjectStatus?: string;
+  /** Stored lead class. Blank means an import may set it. A re-run does not replace a value. */
+  leadClass?: string;
+  /** Stored fit as text, including "0". Blank means an import may set it. */
+  jevAvlFitText?: string;
+  /** Stored project stage. Blank means an import may set it. */
+  jevProjectStage?: string;
   /** Apps already picked. Empty means Other services may set the church list. */
   offers?: string[];
   contacts: Array<{ name: string }>;
@@ -837,6 +843,10 @@ function ownerFieldsToWrite(church: DirectoryChurch, existing: boolean): { avlEx
   return next;
 }
 
+function textAlreadySet(value: string | undefined): boolean {
+  return Boolean(value && value.trim());
+}
+
 function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Map<string, DirectoryChurch>): ChurchProfileWrite[] {
   const profiles: ChurchProfileWrite[] = [];
   for (const [churchId, item] of tracked) {
@@ -845,9 +855,9 @@ function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Ma
     const tier = avlTierForLeadClass(item.leadClass);
     const owner = ownerFieldsToWrite(church, item.existing);
     const offers = tier === "other_services" && !(church.offers ?? []).length ? [...OTHER_SERVICES_OFFERS] : undefined;
-    const leadClass = item.leadClass || undefined;
-    const jevAvlFit = typeof item.fit === "number" ? item.fit : undefined;
-    const jevProjectStage = item.stage || undefined;
+    const leadClass = item.leadClass && !textAlreadySet(church.leadClass) ? item.leadClass : undefined;
+    const jevAvlFit = typeof item.fit === "number" && !textAlreadySet(church.jevAvlFitText) ? item.fit : undefined;
+    const jevProjectStage = item.stage && !textAlreadySet(church.jevProjectStage) ? item.stage : undefined;
     const hasProfile = Boolean(leadClass || jevAvlFit !== undefined || jevProjectStage || offers || owner.avlExistingRelationship || owner.avlProjectStatus);
     if (!hasProfile) continue;
     profiles.push({
@@ -1013,23 +1023,32 @@ export function profilePatchKeys(profile: ChurchDocProfile | null | undefined): 
   return keys;
 }
 
-function applyChurchProfile(doc: Record<string, unknown>, profile: ChurchDocProfile | null | undefined): { doc: Record<string, unknown>; changed: boolean } {
-  if (!profile) return { doc, changed: false };
+/** Blank, null, and missing are unset. 0 and "0" are set. */
+function storedFieldBlank(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string" && value.trim() === "") return true;
+  return false;
+}
+
+function applyChurchProfile(doc: Record<string, unknown>, profile: ChurchDocProfile | null | undefined): { doc: Record<string, unknown>; changed: boolean; keys: string[] } {
+  if (!profile) return { doc, changed: false, keys: [] };
   const next = { ...doc };
   let changed = false;
+  const keys: string[] = [];
   const set = (key: string, value: unknown) => {
     if (JSON.stringify(doc[key]) === JSON.stringify(value)) return;
     next[key] = value;
     changed = true;
+    keys.push(key);
   };
   if (profile.crmStatus && isAllowedChurchStatus(profile.crmStatus)) set("crm_status", profile.crmStatus);
-  if (profile.leadClass) set("lead_class", profile.leadClass);
-  if (typeof profile.jevAvlFit === "number") set("jev_avl_fit", profile.jevAvlFit);
-  if (profile.jevProjectStage) set("jev_project_stage", profile.jevProjectStage);
+  if (profile.leadClass && storedFieldBlank(doc.lead_class)) set("lead_class", profile.leadClass);
+  if (typeof profile.jevAvlFit === "number" && storedFieldBlank(doc.jev_avl_fit)) set("jev_avl_fit", profile.jevAvlFit);
+  if (profile.jevProjectStage && storedFieldBlank(doc.jev_project_stage)) set("jev_project_stage", profile.jevProjectStage);
   if (profile.crmOffers && profile.crmOffers.length) set("crm_offers", profile.crmOffers);
   if (profile.avlExistingRelationship === true) set("avl_existing_relationship", true);
   if (profile.avlProjectStatus) set("avl_project_status", profile.avlProjectStatus);
-  return { doc: next, changed };
+  return { doc: next, changed, keys };
 }
 
 /** Copy of the church doc with only staff_contacts, crm_signals, and updated_at changed. */
@@ -1054,7 +1073,7 @@ export function nextChurchDoc(
     },
     profile
   );
-  const patchKeys = profilePatchKeys(profile);
+  const patchKeys = profiled.keys;
   if (!addedContacts && !addedSignals && !updatedSignals && !profiled.changed) {
     return { doc, addedContacts: 0, addedSignals: 0, updatedSignals: 0, changed: false, patchKeys: [] };
   }

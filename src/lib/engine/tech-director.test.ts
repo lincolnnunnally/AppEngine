@@ -986,6 +986,68 @@ describe("southeast directory import", () => {
     assert.deepEqual(profilePatchKeys({ jevAvlFit: 0 }), ["jev_avl_fit"]);
   });
 
+  it("does not replace lead class, fit, or project stage that are already set", () => {
+    const locked: DirectoryChurch = {
+      id: "locked",
+      name: "Locked Church",
+      churchName: "",
+      city: "Macon",
+      state: "GA",
+      website: "",
+      domain: "",
+      inCrm: true,
+      contacts: [],
+      leadClass: "staff_only",
+      jevAvlFitText: "0",
+      jevProjectStage: "none"
+    };
+    const plan = planTechDirectorImport(
+      [
+        row({
+          church: "Locked Church",
+          church_id: "locked",
+          city: "Macon",
+          state: "GA",
+          name: "Ann",
+          lead_class: "campaign_planning",
+          jev_avl_fit: "3.5",
+          jev_project_stage: "planning-campaign"
+        })
+      ],
+      [locked]
+    );
+    const profile = plan.profiles.find((item) => item.churchId === "locked");
+    assert.equal(profile?.leadClass, undefined);
+    assert.equal(profile?.jevAvlFit, undefined);
+    assert.equal(profile?.jevProjectStage, undefined);
+    const kept = nextChurchDoc(
+      { lead_class: "staff_only", jev_avl_fit: 0, jev_project_stage: "none", staff_contacts: [], crm_signals: [] },
+      [],
+      [],
+      [],
+      "2026-08-01T00:00:00.000Z",
+      { leadClass: "campaign_planning", jevAvlFit: 3.5, jevProjectStage: "planning-campaign" }
+    );
+    assert.equal(kept.changed, false);
+    assert.equal(kept.doc.lead_class, "staff_only");
+    assert.equal(kept.doc.jev_avl_fit, 0);
+    assert.equal(kept.doc.jev_project_stage, "none");
+    assert.deepEqual(kept.patchKeys, []);
+    const filled = nextChurchDoc(
+      { lead_class: "", jev_avl_fit: "", jev_project_stage: " ", staff_contacts: [], crm_signals: [] },
+      [],
+      [],
+      [],
+      "2026-08-01T00:00:00.000Z",
+      { leadClass: "campaign_planning", jevAvlFit: 0, jevProjectStage: "planning-campaign" }
+    );
+    assert.equal(filled.changed, true);
+    assert.equal(filled.doc.lead_class, "campaign_planning");
+    assert.equal(filled.doc.jev_avl_fit, 0);
+    assert.equal(filled.doc.jev_project_stage, "planning-campaign");
+    assert.ok(filled.patchKeys.includes("jev_avl_fit"));
+  });
+
   it("keeps two churches that share a website in different states", () => {
     const node = (id: string, state: string): CrmNode => ({
       id,

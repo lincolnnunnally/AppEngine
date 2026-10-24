@@ -94,6 +94,20 @@ describe("crm_patch_church_doc on PostgreSQL 16", () => {
         if doc->'staff_contacts'->0->>'name' is distinct from 'Jane Doe' then
           raise exception 'stale version replaced contacts: %', doc;
         end if;
+        if (select count(*) from public.crm_patch_church_doc(
+          'text-church-1',
+          '{"crm_status":"contacted","updated_at":"2026-06-01"}'::jsonb,
+          '2026-04-02'
+        )) <> 0 then
+          raise exception 'status-only patch wrote a row under 009';
+        end if;
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->>'updated_at' is distinct from '2026-04-02' then
+          raise exception 'status-only patch bumped updated_at: %', doc;
+        end if;
+        if doc ? 'crm_status' and nullif(btrim(doc->>'crm_status'), '') is not null then
+          raise exception 'status landed under 009: %', doc;
+        end if;
         if split_part(current_setting('server_version'), '.', 1) is distinct from '16' then
           raise exception 'not PostgreSQL 16: %', current_setting('server_version');
         end if;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { buildingStageLabel, directoryHref, directoryStatusLabel, type DirectoryQuery } from "@/lib/engine/crm-directory-core";
 import type { DirectoryPage } from "@/lib/engine/crm-directory";
 import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES, SERVICE_OPPORTUNITY_FILTER_LABEL, SERVICE_OPPORTUNITY_IDS, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL } from "@/lib/engine/lpl-crm-core";
-import { AVL_TIER_LABEL, type AvlTier } from "@/lib/engine/tech-director-core";
+import { AVL_TIER_LABEL, AVL_TIER_NOTE, type AvlTier } from "@/lib/engine/tech-director-core";
 
 const TIERS: AvlTier[] = ["top", "second", "other_services", "staff_only"];
 
@@ -11,6 +11,19 @@ function day(value: string): string {
   const date = value.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return value.slice(0, 16);
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(new Date(`${date}T12:00:00Z`));
+}
+
+function moreFilterCount(query: DirectoryQuery): number {
+  let count = 0;
+  if (query.county.trim()) count += 1;
+  if (query.stage) count += 1;
+  if (query.opportunity) count += 1;
+  if (query.tier) count += 1;
+  if (query.fitMin !== null) count += 1;
+  if (query.contacted) count += 1;
+  if (query.contactedOn) count += 1;
+  if (query.staff) count += 1;
+  return count;
 }
 
 export function CrmDirectoryList({
@@ -23,6 +36,7 @@ export function CrmDirectoryList({
   preview: string;
 }) {
   const back = directoryHref(query, "", preview);
+  const hiddenFilters = moreFilterCount(query);
   return (
     <section className="panel" id="crm-directory" aria-labelledby="crm-directory-title">
       <div className="crm-section-head">
@@ -36,113 +50,122 @@ export function CrmDirectoryList({
       </div>
       <form action="/crm" method="get" className="crm-dir-filters">
         {preview ? <input type="hidden" name="preview" value={preview} /> : null}
-        <label>
-          <span>Name, city, or ZIP</span>
-          <input name="q" defaultValue={query.q} placeholder="Atlanta or 31061" aria-label="Search by name, city, or ZIP" />
-        </label>
-        <label>
-          <span>State</span>
-          <input name="state" defaultValue={query.state} placeholder="GA" maxLength={20} aria-label="State" />
-        </label>
-        <label>
-          <span>County or region</span>
-          <input name="county" defaultValue={query.county} placeholder="Fulton" aria-label="County or region" />
-        </label>
-        <label>
-          <span>Status</span>
-          <select name="status" defaultValue={query.status} aria-label="CRM status">
-            <option value="">Any status</option>
-            <option value="not_contacted">Not contacted</option>
-            {CRM_CHURCH_STATUSES.map((status) => (
-              <option value={status} key={status}>
-                {directoryStatusLabel(status)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Building stage</span>
-          <select name="stage" defaultValue={query.stage} aria-label="Building-planning stage">
-            <option value="">Any stage</option>
-            {BUILDING_STAGES.map((stage) => (
-              <option value={stage} key={stage}>
-                {BUILDING_STAGE_LABEL[stage]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Opportunity</span>
-          <select name="opp" defaultValue={query.opportunity} aria-label="Service opportunity">
-            <option value="">Any opportunity</option>
-            {SERVICE_OPPORTUNITY_IDS.flatMap((service) =>
-              SERVICE_OPPORTUNITY_STATUSES.map((status) => (
-                <option value={`${service}:${status}`} key={`${service}:${status}`}>
-                  {SERVICE_OPPORTUNITY_FILTER_LABEL[service]}: {SERVICE_OPPORTUNITY_STATUS_LABEL[status].toLowerCase()}
+        <div className="crm-dir-primary">
+          <label>
+            <span>Search</span>
+            <input name="q" defaultValue={query.q} placeholder="e.g. Atlanta or 31061" aria-label="Search by name, city, or ZIP" />
+          </label>
+          <label>
+            <span>State</span>
+            <input name="state" defaultValue={query.state} placeholder="e.g. GA" maxLength={20} aria-label="State" />
+          </label>
+          <label>
+            <span>Status</span>
+            <select name="status" defaultValue={query.status} aria-label="CRM status">
+              <option value="">Any status</option>
+              <option value="not_contacted">Not contacted</option>
+              {CRM_CHURCH_STATUSES.map((status) => (
+                <option value={status} key={status}>
+                  {directoryStatusLabel(status)}
                 </option>
-              ))
-            )}
-          </select>
-        </label>
-        <label>
-          <span>Lead tier</span>
-          <select name="tier" defaultValue={query.tier} aria-label="Lead tier">
-            <option value="">Any tier</option>
-            {TIERS.map((tier) => (
-              <option value={tier} key={tier}>
-                {AVL_TIER_LABEL[tier]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>AVL fit at least</span>
-          <select name="fit" defaultValue={query.fitMin === null ? "" : String(query.fitMin)} aria-label="AVL fit">
-            <option value="">Any</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-          </select>
-        </label>
-        <label>
-          <span>Last contact</span>
-          <select name="contacted" defaultValue={query.contacted} aria-label="Last contact">
-            <option value="">Any</option>
-            <option value="never">Never</option>
-            <option value="since">Since</option>
-            <option value="before">Before</option>
-          </select>
-        </label>
-        <label>
-          <span>Contact date</span>
-          <input name="on" type="date" defaultValue={query.contactedOn} aria-label="Contact date" />
-        </label>
-        <label className="crm-dir-check">
-          <input type="checkbox" name="staff" value="1" defaultChecked={query.staff} /> Has a staff contact
-        </label>
-        <label>
-          <span>Sort</span>
-          <select name="sort" defaultValue={query.sort} aria-label="Sort">
-            <option value="id">Directory order</option>
-            <option value="name">Name</option>
-            <option value="tier">Tier</option>
-            <option value="fit">AVL fit</option>
-            <option value="contact">Last contact</option>
-          </select>
-        </label>
-        <label>
-          <span>Direction</span>
-          <select name="dir" defaultValue={query.dir} aria-label="Sort direction">
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </label>
-        <button type="submit" className="dx-btn dx-btn--primary">
-          Show churches
-        </button>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="dx-btn dx-btn--primary">
+            Show churches
+          </button>
+        </div>
+        <details className="crm-more-filters">
+          <summary>More filters ({hiddenFilters})</summary>
+          <div className="crm-dir-more">
+            <label>
+              <span>County or region</span>
+              <input name="county" defaultValue={query.county} placeholder="e.g. Fulton" aria-label="County or region" />
+            </label>
+            <label>
+              <span>Building stage</span>
+              <select name="stage" defaultValue={query.stage} aria-label="Building-planning stage">
+                <option value="">Any stage</option>
+                {BUILDING_STAGES.map((stage) => (
+                  <option value={stage} key={stage}>
+                    {BUILDING_STAGE_LABEL[stage]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Opportunity</span>
+              <select name="opp" defaultValue={query.opportunity} aria-label="Service opportunity">
+                <option value="">Any opportunity</option>
+                {SERVICE_OPPORTUNITY_IDS.flatMap((service) =>
+                  SERVICE_OPPORTUNITY_STATUSES.map((status) => (
+                    <option value={`${service}:${status}`} key={`${service}:${status}`}>
+                      {SERVICE_OPPORTUNITY_FILTER_LABEL[service]}: {SERVICE_OPPORTUNITY_STATUS_LABEL[status].toLowerCase()}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <label>
+              <span>Lead tier</span>
+              <select name="tier" defaultValue={query.tier} aria-label="Lead tier">
+                <option value="">Any tier</option>
+                {TIERS.map((tier) => (
+                  <option value={tier} key={tier}>
+                    {AVL_TIER_LABEL[tier]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>AVL fit at least</span>
+              <select name="fit" defaultValue={query.fitMin === null ? "" : String(query.fitMin)} aria-label="AVL fit">
+                <option value="">Any</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+            <label>
+              <span>Last contact</span>
+              <select name="contacted" defaultValue={query.contacted} aria-label="Last contact">
+                <option value="">Any</option>
+                <option value="never">Never</option>
+                <option value="since">Since</option>
+                <option value="before">Before</option>
+              </select>
+            </label>
+            <label>
+              <span>Contact date</span>
+              <input name="on" type="date" defaultValue={query.contactedOn} aria-label="Contact date" />
+            </label>
+            <label className="crm-dir-check">
+              <input type="checkbox" name="staff" value="1" defaultChecked={query.staff} />
+              <span>Has a staff contact</span>
+            </label>
+          </div>
+        </details>
+        <div className="crm-dir-sort">
+          <label>
+            <span>Sort</span>
+            <select name="sort" defaultValue={query.sort} aria-label="Sort">
+              <option value="id">Directory order</option>
+              <option value="name">Name</option>
+              <option value="tier">Tier</option>
+              <option value="fit">AVL fit</option>
+              <option value="contact">Last contact</option>
+            </select>
+          </label>
+          <label>
+            <span>Direction</span>
+            <select name="dir" defaultValue={query.dir} aria-label="Sort direction">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </label>
+        </div>
       </form>
-      <p className="crm-dim crm-pad">Other services means ChurchConnect, the church website, and Laser church gifts.</p>
       {!page.configured ? (
         <p className="dx-callout dx-callout--alert">This deploy cannot read the church directory yet.</p>
       ) : !page.ok ? (
@@ -165,8 +188,10 @@ export function CrmDirectoryList({
               {page.rows.map((row) => (
                 <tr key={row.id} data-testid="crm-dir-row">
                   <td>
-                    <Link href={`/crm/church/${row.id}${preview ? "?preview=1" : ""}`}>{row.name}</Link>
-                    {row.hasStaff ? <span className="crm-dim"> · staff</span> : null}
+                    <Link className="crm-church-link" href={`/crm/church/${row.id}${preview ? "?preview=1" : ""}`}>
+                      <span className="crm-church-name">{row.name}</span>
+                      {row.hasStaff ? <span className="crm-staff-chip">staff</span> : null}
+                    </Link>
                   </td>
                   <td>
                     {[row.city, row.state].filter(Boolean).join(", ")}
@@ -174,7 +199,16 @@ export function CrmDirectoryList({
                     {row.zip ? <span className="crm-dim"> · {row.zip}</span> : null}
                   </td>
                   <td>{row.statusLabel}</td>
-                  <td>{row.tierLabel || "—"}</td>
+                  <td>
+                    {row.tier && row.tierLabel ? (
+                      <span className="crm-tier" title={AVL_TIER_NOTE[row.tier]}>
+                        <span className={`crm-tier-dot crm-tier-dot--${row.tier}`} aria-hidden="true" />
+                        {row.tierLabel}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td>{row.jevAvlFit === null ? "—" : row.jevAvlFit}</td>
                   <td>{row.buildingStage ? buildingStageLabel(row.buildingStage) : "—"}</td>
                   <td>{day(row.lastContact)}</td>

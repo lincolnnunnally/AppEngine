@@ -584,6 +584,11 @@ export function directoryPreviewRows(): DirectoryRow[] {
     tier === "top" ? "campaign_planning" : tier === "second" ? "under_construction" : tier === "other_services" ? "other_services" : tier === "staff_only" ? "staff_only" : "";
   return rows.map((row) => ({
     ...row,
-    opportunities: serviceOpportunitiesFromDoc(null, { leadClass: leadClass(row.tier), onChurchConnect: false })
+    opportunities: serviceOpportunitiesFromDoc(
+      row.id === "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24"
+        ? { website: { status: "interested", note: "No public site", updated_at: "2026-09-01" } }
+        : null,
+      { leadClass: leadClass(row.tier), onChurchConnect: false }
+    )
   }));
 }

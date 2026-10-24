@@ -7,7 +7,7 @@ import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/acti
 import { ChurchSignals, PeopleTools, SignalQueueActions, TechDirectorPeople } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
-import { AVL_TIER_LABEL, SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode, type AvlTier } from "@/lib/engine/tech-director-core";
+import { AVL_TIER_LABEL, AVL_TIER_NOTE, SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode, type AvlTier } from "@/lib/engine/tech-director-core";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -216,7 +216,8 @@ function CardView({
             {card.town || "Town not recorded"} · {matchText}
           </p>
           {isOwner && card.avlTier && AVL_TIER_LABEL[card.avlTier as AvlTier] ? (
-            <p className="crm-dim" data-testid="crm-avl-tier">
+            <p className="crm-dim crm-tier" data-testid="crm-avl-tier" title={AVL_TIER_NOTE[card.avlTier as AvlTier]}>
+              <span className={`crm-tier-dot crm-tier-dot--${card.avlTier}`} aria-hidden="true" />
               {AVL_TIER_LABEL[card.avlTier as AvlTier]}
               {typeof card.jevAvlFit === "number" ? ` · fit ${card.jevAvlFit}` : ""}
             </p>
@@ -747,6 +748,7 @@ export function CrmDesk({ cards: sourceCards, followUps, adminUrls, canSave = fa
             <div><dt>Technical director</dt><dd>A church contact with that role tag. The card shows their name, title, and the contact published for them.</dd></div>
             <div><dt>Technical/media staff</dt><dd>A church with a staff signal. The card shows the evidence quote and the source page.</dd></div>
             <div><dt>Building investment</dt><dd>A campaign or renovation on file. The card shows the evidence quote, source page, date, and score. No person is required.</dd></div>
+            <div><dt>Other services</dt><dd>ChurchConnect, the church website, and Laser church gifts.</dd></div>
             <div><dt>Lead queue</dt><dd>An unmatched church signal saved as a lead. Search finds it by church, person, city, or tag. Nothing is sent.</dd></div>
             <div><dt>Outreach log</dt><dd>A note and a day on a contact, plus a status: new, contacted, follow-up, meeting, won, or lost. Logging only.</dd></div>
           </dl>

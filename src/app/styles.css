@@ -7214,27 +7214,90 @@ button.compose-arch:hover {
 
 /* Cards */
 .crm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 14px; margin-top: 8px; align-items: start; }
-.crm-dir-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 8px 0; }
-.crm-dir-filters label { display: grid; gap: 4px; font-size: 0.875rem; color: var(--muted); }
-.crm-dir-filters input:not([type="checkbox"]), .crm-dir-filters select { min-height: 44px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); font: inherit; font-size: 1rem; }
-.crm-dir-check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.crm-dir-filters { display: grid; gap: 10px; margin: 8px 0; min-width: 0; }
+.crm-dir-primary, .crm-dir-more, .crm-dir-sort { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; min-width: 0; }
+.crm-dir-primary > label, .crm-dir-more > label:not(.crm-dir-check), .crm-dir-sort > label { flex: 1 1 140px; min-width: 0; }
+.crm-dir-sort { flex-wrap: nowrap; }
+.crm-dir-sort > label { flex: 1 1 0; }
+.crm-dir-filters label { display: grid; gap: 4px; font-size: 0.875rem; color: var(--muted); text-transform: none; letter-spacing: normal; font-weight: 600; }
+.crm-dir-filters input:not([type="checkbox"]):not([type="hidden"]), .crm-dir-filters select { min-height: 44px; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); font: inherit; font-size: 1rem; }
+.crm-page input::placeholder, .crm-page textarea::placeholder { color: var(--muted); opacity: 0.55; }
+.crm-dir-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; width: auto; }
 .crm-page .crm-dir-check { font-size: 1rem; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--ink); }
-.crm-dir-check input { width: 44px; height: 44px; min-height: 44px; flex: 0 0 44px; }
-.crm-dir-scroll { overflow-x: auto; }
+.crm-page .crm-dir-check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  min-width: 44px;
+  flex: 0 0 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.crm-page .crm-dir-check input[type="checkbox"]::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: 2px solid var(--teal);
+  border-radius: 4px;
+  background: var(--paper);
+}
+.crm-page .crm-dir-check input[type="checkbox"]:checked::before {
+  background-color: var(--teal);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 14px 14px;
+}
+.crm-page .crm-dir-check input[type="checkbox"]:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.crm-more-filters { border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; background: var(--panel); min-width: 0; }
+.crm-more-filters summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 1rem; color: var(--ink); list-style: none; }
+.crm-more-filters summary::-webkit-details-marker { display: none; }
+.crm-more-filters summary::before { content: "▸"; color: var(--muted); margin-right: 8px; }
+.crm-more-filters[open] summary::before { content: "▾"; }
+.crm-more-filters .crm-dir-more { padding-bottom: 12px; }
+.crm-page .crm-dir-primary .dx-btn { align-self: end; }
+.crm-dir-scroll { overflow-x: auto; max-width: 100%; }
 .crm-dir-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
 .crm-dir-table th, .crm-dir-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .crm-dir-table th { font-size: 0.875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .crm-page .crm-dir-table a, .crm-page .crm-facts a { display: inline-flex; align-items: center; min-height: 44px; }
+.crm-page .crm-church-link { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 6px; max-width: 100%; min-height: 44px; }
+.crm-page .crm-church-name { min-width: 0; overflow-wrap: anywhere; }
+.crm-staff-chip { flex: none; display: inline-flex; align-items: center; font-size: 0.875rem; line-height: 1.2; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--teal) 18%, var(--paper)); color: var(--ink); white-space: nowrap; }
+.crm-tier { display: inline-flex; align-items: center; gap: 6px; }
+.crm-tier-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.crm-tier-dot--top { background: var(--teal); }
+.crm-tier-dot--second { background: color-mix(in srgb, var(--teal) 55%, var(--muted)); }
 .crm-page .crm-dir-filters .dx-btn, .crm-page .crm-status-form .dx-btn, .crm-page .crm-detail .crm-card-head .dx-btn { min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
 .crm-page .crm-status-form select, .crm-page .crm-status-form input:not([type="checkbox"]) { min-height: 44px; font-size: 1rem; }
 .crm-page .crm-status-form > .crm-dim { flex-basis: 100%; margin: 0; font-size: 0.875rem; }
-.crm-page .crm-opps { display: grid; gap: 12px; margin: 8px 0 16px; min-width: 0; }
+.crm-page .crm-opps { display: grid; gap: 8px; margin: 8px 0 16px; min-width: 0; }
 .crm-page .crm-opps > .crm-h2 { font-size: 1.15rem; }
-.crm-page .crm-opps > .crm-dim { margin: 0; font-size: 0.875rem; }
-.crm-page .crm-opp { display: grid; gap: 8px; margin: 0; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-.crm-page .crm-opp legend { font-size: 0.875rem; font-weight: 600; padding: 0; overflow-wrap: anywhere; }
-.crm-page .crm-opp select, .crm-page .crm-opp input { min-height: 44px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+.crm-page .crm-opps > .crm-dim { margin: 0; font-size: 1rem; }
+.crm-page .crm-opp-row { display: grid; grid-template-columns: minmax(10rem, 16rem) minmax(8.5rem, 12rem) minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; min-width: 0; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.crm-page .crm-opp-name { font-size: 1rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.crm-page .crm-opp-status, .crm-page .crm-opp-note input { min-height: 44px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+.crm-page .crm-opp-note { min-width: 0; }
+.crm-page .crm-opp-note summary { min-height: 44px; display: none; align-items: center; font-size: 1rem; cursor: pointer; color: var(--ink); }
+.crm-page .crm-opp-note input { display: block; }
+.crm-page .crm-opp-updated { font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
 .crm-page .crm-opps > .dx-btn { justify-self: start; min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
+@media (max-width: 799px) {
+  .crm-page .crm-opp-row { grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 48%); }
+  .crm-page .crm-opp-note, .crm-page .crm-opp-updated { grid-column: 1 / -1; }
+  .crm-page .crm-opp-note summary { display: flex; }
+  .crm-page .crm-opp-note:not([open]) input { display: none; }
+}
 .crm-dir-pager { display: flex; gap: 8px; margin-top: 12px; }
 .crm-detail { margin-top: 8px; }
 .crm-status-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 8px 0 16px; }

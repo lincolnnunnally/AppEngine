@@ -5,12 +5,14 @@
 -- id are text, same as the column.
 --
 -- The function copies only staff_contacts, crm_signals, and updated_at out of
--- p_patch. Any other key is ignored. It writes those keys only when
--- doc.updated_at still equals p_expected (the value the caller just read,
--- null when the church has none). A stale read returns no row, and the caller
--- re-reads instead of replacing the arrays. Until this function is applied,
--- the import falls back to compare-and-swap only when PostgREST returns
--- PGRST202. Any other error stops the import.
+-- p_patch. Any other key is ignored, including crm_status. updated_at is
+-- copied only when staff_contacts or crm_signals is in the patch. A status
+-- save under this file changes nothing and does not bump updated_at. It
+-- writes those keys only when doc.updated_at still equals p_expected (the
+-- value the caller just read, null when the church has none). A stale read
+-- returns no row, and the caller re-reads instead of replacing the arrays.
+-- Until this function is applied, the import falls back to compare-and-swap
+-- only when PostgREST returns PGRST202. Any other error stops the import.
 --
 -- Default privileges can grant EXECUTE on a function created later to
 -- public, anon, and authenticated. The revoke below covers this function
@@ -34,8 +36,11 @@ begin
   if p_patch ? 'crm_signals' then
     allowed := allowed || jsonb_build_object('crm_signals', p_patch -> 'crm_signals');
   end if;
-  if p_patch ? 'updated_at' then
+  if p_patch ? 'updated_at' and (p_patch ? 'staff_contacts' or p_patch ? 'crm_signals') then
     allowed := allowed || jsonb_build_object('updated_at', p_patch -> 'updated_at');
+  end if;
+  if allowed = '{}'::jsonb then
+    return;
   end if;
   return query
   update public.cc_churches

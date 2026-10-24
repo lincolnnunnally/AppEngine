@@ -14,8 +14,10 @@
 -- cc_churches_name_i on (doc->>'name'). The sort index in 012h is the
 -- normalized name (blank and null share ''), which is a different key.
 --
--- Expression indexes that call these helpers are 012b–012o. Apply this file
--- first, then each index file on its own, and check indisvalid after each.
+-- Expression indexes that call these helpers are 012b–012t. Apply this file
+-- first, then 012a (pg_trgm in the extensions schema), then each index file
+-- on its own with no transaction, and check indisvalid after each.
+-- service_role is granted execute on every helper below, not only the page function.
 -- This file is a normal function migration. It is not CREATE INDEX CONCURRENTLY.
 
 create or replace function public.crm_church_state_code(p text)
@@ -448,4 +450,11 @@ revoke all on function public.crm_church_has_staff(jsonb) from public, anon, aut
 revoke all on function public.crm_church_building_stage(jsonb) from public, anon, authenticated;
 revoke all on function public.crm_church_opportunity_status(jsonb, text) from public, anon, authenticated;
 revoke all on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text) from public, anon, authenticated;
+grant execute on function public.crm_church_state_code(text) to service_role;
+grant execute on function public.crm_church_sort_name(jsonb) to service_role;
+grant execute on function public.crm_church_fit(jsonb) to service_role;
+grant execute on function public.crm_church_last_contact(jsonb) to service_role;
+grant execute on function public.crm_church_has_staff(jsonb) to service_role;
+grant execute on function public.crm_church_building_stage(jsonb) to service_role;
+grant execute on function public.crm_church_opportunity_status(jsonb, text) to service_role;
 grant execute on function public.crm_directory_page(text, text, text, text, text, boolean, numeric, text, text, text, text, text, text, text, integer, text) to service_role;
