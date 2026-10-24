@@ -242,13 +242,33 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
         if doc->'service_providers' ? 'operate' then raise exception 'operate provider %', doc; end if;
         if doc->'service_providers'->'website'->>'provider_type' is distinct from 'unknown' then raise exception 'bad type %', doc; end if;
         if coalesce(doc->'service_providers'->'website'->>'vendor_name', '') <> '' then raise exception 'vendor name without vendor %', doc; end if;
+        if doc->'service_providers'->'av'->>'learned_at' is distinct from '2026-10-01' then raise exception 'learned %', doc; end if;
         if doc->>'updated_at' is distinct from '2026-10-02' then raise exception 'provider updated_at %', doc; end if;
-        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"updated_at":"2099-01-01"}'::jsonb, '2026-10-02')) <> 0 then
+      end $$;
+      select id from public.crm_patch_church_doc(
+        'text-church-1',
+        '{"service_providers":{"av":{"provider_type":"vendor","vendor_name":"Messenger AVL","note":"AVL is already engaged on the current project","learned_from":"Lincoln","learned_at":"2026-02-31"},"website":{"provider_type":"unknown","learned_at":"2026-04-31"}},"updated_at":"2026-10-04"}'::jsonb,
+        '2026-10-02'
+      );
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if coalesce(doc->'service_providers'->'av'->>'learned_at', '') <> '' then raise exception 'bad learned day %', doc; end if;
+        if coalesce(doc->'service_providers'->'website'->>'learned_at', '') <> '' then raise exception 'bad website day %', doc; end if;
+        if doc->'service_providers'->'av'->>'vendor_name' is distinct from 'Messenger AVL' then raise exception 'vendor kept %', doc; end if;
+        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"service_providers":{"operate":{"provider_type":"us"}},"updated_at":"2098-01-01"}'::jsonb, '2026-10-04')) <> 0 then
+          raise exception 'empty provider patch wrote a row';
+        end if;
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->'service_providers'->'av'->>'vendor_name' is distinct from 'Messenger AVL' then raise exception 'providers wiped %', doc; end if;
+        if doc->>'updated_at' is distinct from '2026-10-04' then raise exception 'empty provider patch bumped %', doc; end if;
+        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"updated_at":"2099-01-01"}'::jsonb, '2026-10-04')) <> 0 then
           raise exception 'updated_at-only wrote a row';
         end if;
         select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
-        if doc->>'updated_at' is distinct from '2026-10-02' then raise exception 'updated_at-only bumped %', doc; end if;
-        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"crm_status":"contacted","updated_at":"2026-10-03"}'::jsonb, '2026-10-02')) <> 1 then
+        if doc->>'updated_at' is distinct from '2026-10-04' then raise exception 'updated_at-only bumped %', doc; end if;
+        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"crm_status":"contacted","updated_at":"2026-10-03"}'::jsonb, '2026-10-04')) <> 1 then
           raise exception 'status save did not write';
         end if;
         select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';

@@ -162,10 +162,14 @@ export default async function CrmPage({
   const previewTech = process.env.NODE_ENV !== "production" && isOwner && previewParam === "tech";
   const previewDirectory = process.env.NODE_ENV !== "production" && isOwner && previewParam === "directory";
   const directoryQuery = directoryQueryFromParams(params);
-  const directory = previewDirectory
-    ? { configured: true, ok: true, rows: filterDirectoryRows(directoryPreviewRows(), directoryQuery), nextCursor: "" }
-    : await loadDirectoryPage(directoryQuery);
-  const providerReport = previewDirectory ? providerReportFromRows(directoryPreviewRows()) : await loadProviderReport();
+  const [directory, providerReport] = await Promise.all([
+    previewDirectory
+      ? Promise.resolve({ configured: true, ok: true, rows: filterDirectoryRows(directoryPreviewRows(), directoryQuery), nextCursor: "" })
+      : loadDirectoryPage(directoryQuery),
+    previewDirectory
+      ? Promise.resolve({ ok: true, rows: providerReportFromRows(directoryPreviewRows()) })
+      : loadProviderReport()
+  ]);
   let topInitial: TopProspectState = null;
   let avInitial: AvProspectState = null;
   if (previewTop) {
@@ -330,7 +334,7 @@ export default async function CrmPage({
         </p>
       </section>
 
-      <CrmDirectoryList query={directoryQuery} page={directory} preview={previewDirectory ? "directory" : ""} providerReport={providerReport} />
+      <CrmDirectoryList query={directoryQuery} page={directory} preview={previewDirectory ? "directory" : ""} providerReport={providerReport.rows} providerReportOk={providerReport.ok} />
 
       {snapshot.configured || previewTop || previewAv || previewTech ? (
         <CrmDesk

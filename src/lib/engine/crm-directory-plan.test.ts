@@ -60,7 +60,7 @@ describe("directory queries on a prod-sized table", () => {
       ${extension}
       insert into public.cc_churches (id, doc)
       select 'id-' || lpad(i::text, 7, '0'),
-             jsonb_build_object(
+             jsonb_strip_nulls(jsonb_build_object(
                'name', case when i % 80 = 0 then '' when i % 500 = 0 then 'Grace Chapel ' || i else 'Church ' || i end,
                'church_name', 'Church ' || i,
                'city', (array['Atlanta','Macon','Savannah','Augusta','Valdosta'])[1 + (i % 5)],
@@ -86,10 +86,10 @@ describe("directory queries on a prod-sized table", () => {
                  when i % 1800 = 4 then jsonb_build_object(
                    'toner', jsonb_build_object('provider_type','vendor','vendor_name','Other Vendor','other_name','','note','','learned_from','','learned_at','')
                  )
-                 else '{}'::jsonb
+                 else null
                end,
                'pad', repeat('x', 1800)
-             )
+             ))
         from generate_series(1, 151000) as i;
       create index cc_churches_name_i on public.cc_churches ((doc->>'name'));
       ${indexes}
@@ -107,6 +107,19 @@ describe("directory queries on a prod-sized table", () => {
         if got is distinct from 'interested' then raise exception 'stored interested %', got; end if;
         select public.crm_church_opportunity_status(doc, 'toner') into got from public.cc_churches where id = 'id-0000002';
         if got is distinct from 'unknown' then raise exception 'toner %', got; end if;
+        if exists (
+          select 1 from public.cc_churches
+          where id = 'id-0000003'
+            and lower(btrim(coalesce(doc #>> '{service_providers,av,provider_type}', ''))) not in ('us', 'vendor', 'other')
+        ) then raise exception 'vendor matched unknown'; end if;
+        if not exists (
+          select 1 from public.cc_churches
+          where id = 'id-0000002'
+            and lower(btrim(coalesce(doc #>> '{service_providers,av,provider_type}', ''))) not in ('us', 'vendor', 'other')
+        ) then raise exception 'missing provider is not unknown'; end if;
+        if (select count(*) from public.crm_service_provider_report()) < 1 then
+          raise exception 'provider report empty';
+        end if;
       end $$;
       `
     );
@@ -209,6 +222,15 @@ describe("directory queries on a prod-sized table", () => {
        order by id
        limit 41;
       explain (analyze, format text)
+      select entry.key, count(*)
+      from public.cc_churches c
+      cross join lateral jsonb_each(c.doc->'service_providers') as entry
+      where c.doc ? 'service_providers'
+        and entry.key in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
+      group by 1;
+      explain (analyze, format text)
+      select * from public.crm_service_provider_report();
+      explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', '', false, null, '', '', '', 'id', 'asc', '', '', 41);
       explain (analyze, format text)
       select id from public.crm_directory_page('', '', '', '', 'campaign_planning', false, null, '', '', '', 'id', 'asc', '', '', 41);
@@ -255,6 +277,8 @@ describe("directory queries on a prod-sized table", () => {
         "vendor name",
         "served by someone else",
         "vendor with opening",
+        "provider report",
+        "provider report function",
         "directory function id page",
         "directory function lead class",
         "directory function rare state + never",
@@ -264,13 +288,14 @@ describe("directory queries on a prod-sized table", () => {
       const lines: string[] = [];
       queries.forEach((query, index) => {
         const label = labels[index] ?? `query ${index}`;
-        if (label.startsWith("directory function")) {
+        if (label.startsWith("directory function") || label === "provider report function") {
           const timing = query.match(/Execution Time: ([0-9.]+) ms/);
           assert.ok(timing, query);
           assert.ok(Number(timing[1]) < 1000, `${label} ${timing[1]} ms\n${query}`);
           lines.push(`${label}: ${timing[1]} ms`);
           return;
         }
+        if (label === "provider report") assert.match(query, /cc_churches_service_providers_present_idx/, query);
         lines.push(assertFast(query, label));
       });
       writeFileSync("/tmp/crm-explain.txt", `${lines.join("\n")}\n\n${plan}`);

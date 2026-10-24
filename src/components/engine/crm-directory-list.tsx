@@ -34,12 +34,14 @@ export function CrmDirectoryList({
   query,
   page,
   preview,
-  providerReport = []
+  providerReport = [],
+  providerReportOk = true
 }: {
   query: DirectoryQuery;
   page: DirectoryPage;
   preview: string;
   providerReport?: ProviderReportRow[];
+  providerReportOk?: boolean;
 }) {
   const back = directoryHref(query, "", preview);
   const hiddenFilters = moreFilterCount(query);
@@ -211,36 +213,6 @@ export function CrmDirectoryList({
           </label>
         </div>
       </form>
-      <section className="crm-provider-report" aria-label="Provider counts">
-        <h3 className="crm-h2">Providers</h3>
-        <p className="crm-dim">Counts by service and who serves it. Vendor names stay on this desk.</p>
-        {providerReport.length ? (
-          <div className="crm-dir-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Service</th>
-                  <th>Provider</th>
-                  <th>Vendor</th>
-                  <th>Churches</th>
-                </tr>
-              </thead>
-              <tbody>
-                {providerReport.map((item) => (
-                  <tr key={`${item.service}:${item.providerType}:${item.vendorName}`}>
-                    <td>{SERVICE_PROVIDER_LABEL[item.service as keyof typeof SERVICE_PROVIDER_LABEL] ?? item.service}</td>
-                    <td>{item.providerTypeLabel}</td>
-                    <td>{item.vendorName || "—"}</td>
-                    <td>{item.churches}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="crm-dim">No provider is recorded yet.</p>
-        )}
-      </section>
       {!page.configured ? (
         <p className="dx-callout dx-callout--alert">This deploy cannot read the church directory yet.</p>
       ) : !page.ok ? (
@@ -250,11 +222,11 @@ export function CrmDirectoryList({
           <table className="crm-dir-table">
             <thead>
               <tr>
-                <th>Church</th>
+                <th className="crm-col-church">Church</th>
                 <th className="crm-col-place">Place</th>
                 <th>Status</th>
                 <th>Tier</th>
-                <th>Fit</th>
+                <th className="crm-col-fit">Fit</th>
                 <th>Building stage</th>
                 <th>Last contact</th>
               </tr>
@@ -262,7 +234,7 @@ export function CrmDirectoryList({
             <tbody>
               {page.rows.map((row) => (
                 <tr key={row.id} data-testid="crm-dir-row">
-                  <td>
+                  <td className="crm-col-church">
                     <Link className="crm-church-link" href={`/crm/church/${row.id}${preview ? "?preview=1" : ""}`}>
                       <span className="crm-church-name">{row.name}</span>
                       {row.hasStaff ? <span className="crm-staff-chip">staff</span> : null}
@@ -284,7 +256,7 @@ export function CrmDirectoryList({
                       "—"
                     )}
                   </td>
-                  <td>{row.jevAvlFit === null ? "—" : row.jevAvlFit}</td>
+                  <td className="crm-col-fit">{row.jevAvlFit === null ? "—" : row.jevAvlFit}</td>
                   <td>{row.buildingStage ? buildingStageLabel(row.buildingStage) : "—"}</td>
                   <td>{day(row.lastContact)}</td>
                 </tr>
@@ -307,6 +279,40 @@ export function CrmDirectoryList({
           </Link>
         ) : null}
       </p>
+      <section className="crm-provider-report" aria-label="Provider counts">
+        <h3 className="crm-h2">Providers</h3>
+        <p className="crm-dim">Counts by service and who serves it. Vendor names stay on this desk.</p>
+        {providerReportOk ? (
+          providerReport.length ? (
+            <div className="crm-dir-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Service</th>
+                    <th>Provider</th>
+                    <th>Vendor</th>
+                    <th>Churches</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {providerReport.map((item) => (
+                    <tr key={`${item.service}:${item.providerType}:${item.vendorName}`}>
+                      <td>{SERVICE_PROVIDER_LABEL[item.service as keyof typeof SERVICE_PROVIDER_LABEL] ?? item.service}</td>
+                      <td>{item.providerTypeLabel}</td>
+                      <td>{item.vendorName || "—"}</td>
+                      <td>{item.churches}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="crm-dim">No provider is recorded yet.</p>
+          )
+        ) : (
+          <p className="dx-callout dx-callout--alert" role="alert">Couldn&apos;t load provider counts</p>
+        )}
+      </section>
     </section>
   );
 }

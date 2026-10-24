@@ -138,10 +138,12 @@ const DETAIL_FIELDS = [
   "crm_next_action", "crm_next_action_date", "do_not_contact", "do_not_contact_desk_claim"
 ];
 
+export type ProviderReportLoad = { ok: boolean; rows: ProviderReportRow[] };
+
 /** Owner desk only. Vendor names in this report are not part of any ChurchConnect public payload. */
-export async function loadProviderReport(): Promise<ProviderReportRow[]> {
+export async function loadProviderReport(): Promise<ProviderReportLoad> {
   const cfg = config();
-  if (!cfg) return [];
+  if (!cfg) return { ok: true, rows: [] };
   try {
     const response = await fetch(`${cfg.url}/rest/v1/rpc/crm_service_provider_report`, {
       method: "POST",
@@ -154,12 +156,12 @@ export async function loadProviderReport(): Promise<ProviderReportRow[]> {
       },
       cache: "no-store",
       body: "{}",
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(3000)
     });
-    if (!response.ok) return [];
+    if (!response.ok) return { ok: false, rows: [] };
     const data = (await response.json()) as unknown;
-    if (!Array.isArray(data)) return [];
-    return data.flatMap((item) => {
+    if (!Array.isArray(data)) return { ok: false, rows: [] };
+    return { ok: true, rows: data.flatMap((item) => {
       if (!item || typeof item !== "object") return [];
       const row = item as Record<string, unknown>;
       const service = String(row.service ?? "");
@@ -173,9 +175,9 @@ export async function loadProviderReport(): Promise<ProviderReportRow[]> {
         vendorName,
         churches: Number(row.churches) || 0
       }];
-    });
+    }) };
   } catch {
-    return [];
+    return { ok: false, rows: [] };
   }
 }
 

@@ -7270,13 +7270,16 @@ button.compose-arch:hover {
 .crm-dir-table th, .crm-dir-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .crm-dir-table th { font-size: 0.875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .crm-page .crm-dir-table a, .crm-page .crm-facts a { display: inline-flex; align-items: center; min-height: 44px; }
-.crm-page .crm-church-link { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-height: 44px; white-space: nowrap; }
-.crm-page .crm-church-name { white-space: nowrap; }
+.crm-dir-table th, .crm-dir-table td { word-break: normal; overflow-wrap: break-word; }
+.crm-dir-table .crm-col-church { min-width: 200px; width: 200px; }
+.crm-dir-table .crm-col-fit { width: 48px; min-width: 48px; }
+.crm-page .crm-dir-table a.crm-church-link { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; min-height: 44px; max-width: 100%; white-space: normal; }
+.crm-page .crm-church-name { white-space: normal; word-break: normal; overflow-wrap: break-word; }
 @media (min-width: 800px) {
   .crm-dir-table { width: 100%; min-width: 0; table-layout: fixed; }
   .crm-dir-table .crm-col-place { width: 16%; }
-  .crm-dir-table th, .crm-dir-table td { white-space: normal; overflow-wrap: break-word; }
-  .crm-page .crm-church-link, .crm-page .crm-church-name { white-space: normal; }
+  .crm-dir-table .crm-col-church { width: 200px; }
+  .crm-dir-table .crm-col-fit { width: 48px; }
 }
 @media (max-width: 799px) {
   .crm-dir-sort { flex-wrap: wrap; }
@@ -7293,8 +7296,12 @@ button.compose-arch:hover {
 .crm-page .crm-opps { display: grid; gap: 8px; margin: 8px 0 16px; min-width: 0; }
 .crm-page .crm-opps > .crm-h2 { font-size: 1.15rem; }
 .crm-page .crm-opps > .crm-dim { margin: 0; font-size: 1rem; }
-.crm-page .crm-opp-row { display: grid; grid-template-columns: minmax(6.5rem, 11rem) minmax(8rem, 11rem) minmax(0, 1fr) auto minmax(7.5rem, 9.5rem) minmax(0, 0.9fr); gap: 8px 10px; align-items: center; min-width: 0; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.crm-page .crm-opp-name { font-size: 1rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.crm-opp-scroll { overflow-x: auto; max-width: 100%; }
+.crm-page .crm-opp-head, .crm-page .crm-opp-row { display: grid; grid-template-columns: minmax(8.5rem, 1.15fr) minmax(8.5rem, 1fr) minmax(10rem, 1.45fr) minmax(12rem, 1.35fr) minmax(6.5rem, auto) auto; gap: 8px 10px; align-items: center; min-width: 52rem; }
+.crm-page .crm-opp-head { padding-bottom: 4px; }
+.crm-page .crm-opp-head > span { font-size: 0.875rem; font-weight: 600; color: var(--muted); word-break: normal; overflow-wrap: break-word; }
+.crm-page .crm-opp-row { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.crm-page .crm-opp-name { font-size: 1rem; font-weight: 600; color: var(--ink); word-break: normal; overflow-wrap: break-word; }
 .crm-page .crm-opp-status,
 .crm-page .crm-opp-note-input,
 .crm-page .crm-prov-type,
@@ -7318,26 +7325,33 @@ button.compose-arch:hover {
 .crm-page .crm-opp-status option,
 .crm-page .crm-prov-type option,
 .crm-page .crm-status-form select option { background: var(--paper); color: var(--ink); }
+.crm-page .crm-opp-status-label { display: flex; align-items: center; white-space: normal; word-break: normal; overflow-wrap: break-word; overflow: visible; text-overflow: clip; line-height: 1.25; }
 .crm-page .crm-opp-note { display: block; min-width: 0; }
 .crm-page .crm-opp-note summary { display: none; }
 .crm-page .crm-opp-note summary { min-height: 44px; align-items: center; font-size: 1rem; cursor: pointer; color: var(--ink); }
 .crm-page .crm-opp-note[open] > .crm-opp-note-input { display: block; }
+.crm-page .crm-opp-note-text { display: block; min-height: 44px; word-break: normal; overflow-wrap: break-word; white-space: normal; overflow: visible; }
 @media (min-width: 800px) {
   .crm-page .crm-opp-note > .crm-opp-note-input { display: block; }
 }
-.crm-page .crm-opp-updated { font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
+.crm-page .crm-opp-updated { font-size: 0.875rem; color: var(--muted); white-space: normal; word-break: normal; overflow-wrap: break-word; }
+.crm-page .crm-opp-provider { display: flex; gap: 8px; min-width: 0; align-items: center; }
+.crm-page .crm-opp-provider > * { min-width: 0; flex: 1 1 0; }
 .crm-page .crm-prov-vendor, .crm-page .crm-prov-other { display: none; }
 .crm-page .crm-opp-row:has(.crm-prov-type option[value="vendor"]:checked) .crm-prov-vendor { display: block; }
 .crm-page .crm-opp-row:has(.crm-prov-type option[value="other"]:checked) .crm-prov-other { display: block; }
-.crm-page .crm-prov-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.crm-page .crm-prov-extra > * { flex: 1 1 140px; min-width: 0; }
+.crm-page .crm-opp-details { grid-column: 6; grid-row: 1; min-width: 0; }
+.crm-page .crm-opp-details[open] { grid-column: 1 / -1; grid-row: 2; }
+.crm-page .crm-opp-details:not([open]) > .crm-prov-extra { display: none; }
+.crm-page .crm-opp-details summary { display: flex; align-items: center; min-height: 44px; padding: 0 12px; font-size: 1rem; font-weight: 600; text-transform: none; letter-spacing: normal; cursor: pointer; color: var(--ink); }
+.crm-page .crm-prov-extra { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; padding-top: 8px; }
+.crm-page .crm-prov-field { flex: 1 1 180px; min-width: 0; display: grid; gap: 4px; font-size: 0.875rem; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--muted); }
+.crm-page .crm-prov-field > span { font-size: 0.875rem; color: var(--muted); text-transform: none; letter-spacing: normal; }
 .crm-page .crm-opps > .dx-btn { justify-self: start; min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
-.crm-provider-report { margin: 8px 0 12px; min-width: 0; }
+.crm-provider-report { margin: 16px 0 12px; min-width: 0; }
 .crm-provider-report table { width: 100%; border-collapse: collapse; font-size: 1rem; }
-.crm-provider-report th, .crm-provider-report td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.crm-provider-report th, .crm-provider-report td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); word-break: normal; overflow-wrap: break-word; }
 @media (max-width: 799px) {
-  .crm-page .crm-opp-row { grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 48%); }
-  .crm-page .crm-opp-note, .crm-page .crm-opp-updated, .crm-page .crm-prov-type, .crm-page .crm-prov-vendor, .crm-page .crm-prov-other, .crm-page .crm-prov-extra { grid-column: 1 / -1; }
   .crm-page .crm-opp-note summary { display: flex; }
   .crm-page .crm-opp-note:not([open]) > .crm-opp-note-input { display: none !important; }
 }

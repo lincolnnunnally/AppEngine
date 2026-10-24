@@ -6,7 +6,7 @@ import { setChurchOwnerFieldsAction, setChurchServiceOpportunitiesAction, setChu
 import { ChurchSignals, PeopleTools, Status } from "@/components/engine/crm-church-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
 import { buildingStageLabel, directoryStatusLabel, type DirectoryRow } from "@/lib/engine/crm-directory-core";
-import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES, PROVIDER_TYPES, PROVIDER_TYPE_LABEL, SERVICE_OPPORTUNITY_IDS, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL, SERVICE_PROVIDER_IDS, SERVICE_PROVIDER_LABEL, type CrmCard, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
+import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES, PROVIDER_TYPES, PROVIDER_TYPE_LABEL, SERVICE_OPPORTUNITY_STATUSES, SERVICE_OPPORTUNITY_STATUS_LABEL, SERVICE_PROVIDER_IDS, SERVICE_PROVIDER_LABEL, churchHoldsAvlWork, type CrmCard, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 
 function subscribeWide(onChange: () => void) {
   const media = window.matchMedia("(min-width: 800px)");
@@ -239,58 +239,85 @@ function ServiceOpportunitySummary({ row }: { row: DirectoryRow }) {
 function ServiceOpportunitiesForm({ row }: { row: DirectoryRow }) {
   const [state, action, pending] = useActionState<CrmFormState, FormData>(setChurchServiceOpportunitiesAction, null);
   const wide = useWideDesk();
+  const avEngaged = churchHoldsAvlWork({
+    avlExistingRelationship: row.avlExistingRelationship,
+    avlProjectStatus: row.avlProjectStatus,
+    serviceProviders: row.providers
+  });
   return (
     <form action={action} className="crm-form crm-opps" data-testid="crm-service-opportunities">
       <input type="hidden" name="church_id" value={row.id} />
       <h2 className="crm-h2">Service opportunities</h2>
       <p className="crm-dim">What else this church might need, and who serves it now.</p>
-      {SERVICE_PROVIDER_IDS.map((service) => {
-        const opportunity = service === "av" ? null : row.opportunities[service];
-        const provider = row.providers[service];
-        const label = SERVICE_PROVIDER_LABEL[service];
-        return (
-          <div className="crm-opp-row" key={service}>
-            <span className="crm-opp-name">{label}</span>
-            {opportunity ? (
-              <select className="crm-opp-status" name={`opp_${service}_status`} defaultValue={opportunity.status} aria-label={`${label} status`}>
-                {SERVICE_OPPORTUNITY_STATUSES.map((status) => (
-                  <option value={status} key={status}>
-                    {SERVICE_OPPORTUNITY_STATUS_LABEL[status]}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="crm-opp-status-slot" />
-            )}
-            <details className="crm-opp-note" open={wide ? true : undefined}>
-              <summary>Note</summary>
+      <div className="crm-opp-scroll">
+        <div className="crm-opp-head">
+          <span>Service</span>
+          <span>Status</span>
+          <span>Note</span>
+          <span>Provider</span>
+          <span>Updated</span>
+          <span />
+        </div>
+        {SERVICE_PROVIDER_IDS.map((service) => {
+          const opportunity = service === "av" ? null : row.opportunities[service];
+          const provider = row.providers[service];
+          const label = SERVICE_PROVIDER_LABEL[service];
+          return (
+            <div className="crm-opp-row" key={service}>
+              <span className="crm-opp-name">{label}</span>
               {opportunity ? (
-                <input className="crm-opp-note-input" name={`opp_${service}_note`} defaultValue={opportunity.note} maxLength={500} placeholder="Optional note" aria-label={`${label} note`} />
+                <select className="crm-opp-status" name={`opp_${service}_status`} defaultValue={opportunity.status} aria-label={`${label} status`}>
+                  {SERVICE_OPPORTUNITY_STATUSES.map((status) => (
+                    <option value={status} key={status}>
+                      {SERVICE_OPPORTUNITY_STATUS_LABEL[status]}
+                    </option>
+                  ))}
+                </select>
               ) : (
-                <input className="crm-opp-note-input" name={`prov_${service}_note`} defaultValue={provider.note} maxLength={500} placeholder="Weak point" aria-label={`${label} weak point`} />
+                <span className="crm-opp-status crm-opp-status-label">{avEngaged ? "AVL engaged" : "—"}</span>
               )}
-            </details>
-            <span className="crm-opp-updated">{opportunity?.updatedAt ? when(opportunity.updatedAt) : opportunity ? "—" : ""}</span>
-            {opportunity ? <input type="hidden" name={`opp_${service}_updated`} value={opportunity.updatedAt} /> : null}
-            <select className="crm-prov-type" name={`prov_${service}_type`} defaultValue={provider.providerType} aria-label={`${label} provider`}>
-              {PROVIDER_TYPES.map((type) => (
-                <option value={type} key={type}>
-                  {PROVIDER_TYPE_LABEL[type]}
-                </option>
-              ))}
-            </select>
-            <input className="crm-prov-vendor" name={`prov_${service}_vendor`} defaultValue={provider.vendorName} maxLength={200} placeholder="Vendor name" aria-label={`${label} vendor name`} />
-            <input className="crm-prov-other" name={`prov_${service}_other`} defaultValue={provider.otherName} maxLength={200} placeholder="Who else" aria-label={`${label} other provider`} />
-            <div className="crm-prov-extra">
               {opportunity ? (
-                <input className="crm-prov-note" name={`prov_${service}_note`} defaultValue={provider.note} maxLength={500} placeholder="Weak point" aria-label={`${label} weak point`} />
-              ) : null}
-              <input className="crm-prov-learned" name={`prov_${service}_from`} defaultValue={provider.learnedFrom} maxLength={200} placeholder="Learned from" aria-label={`${label} learned from`} />
-              <input className="crm-prov-learned" name={`prov_${service}_at`} type="date" defaultValue={provider.learnedAt} aria-label={`${label} learned on`} />
+                <details className="crm-opp-note" open={wide ? true : undefined}>
+                  <summary>Note</summary>
+                  <input className="crm-opp-note-input" name={`opp_${service}_note`} defaultValue={opportunity.note} maxLength={500} placeholder="Optional note" aria-label={`${label} note`} />
+                </details>
+              ) : (
+                <span className="crm-opp-note-text">{provider.note || "—"}</span>
+              )}
+              <div className="crm-opp-provider">
+                <select className="crm-prov-type" name={`prov_${service}_type`} defaultValue={provider.providerType} aria-label={`${label} provider`}>
+                  {PROVIDER_TYPES.map((type) => (
+                    <option value={type} key={type}>
+                      {PROVIDER_TYPE_LABEL[type]}
+                    </option>
+                  ))}
+                </select>
+                <input className="crm-prov-vendor" name={`prov_${service}_vendor`} defaultValue={provider.vendorName} maxLength={200} placeholder="Vendor name" aria-label={`${label} vendor name`} />
+                <input className="crm-prov-other" name={`prov_${service}_other`} defaultValue={provider.otherName} maxLength={200} placeholder="Who else" aria-label={`${label} other provider`} />
+              </div>
+              <span className="crm-opp-updated">{opportunity?.updatedAt ? when(opportunity.updatedAt) : "—"}</span>
+              {opportunity ? <input type="hidden" name={`opp_${service}_updated`} value={opportunity.updatedAt} /> : null}
+              <details className="crm-opp-details">
+                <summary>Details</summary>
+                <div className="crm-prov-extra">
+                  <label className="crm-prov-field">
+                    <span>Weak point</span>
+                    <input className="crm-prov-note" name={`prov_${service}_note`} defaultValue={provider.note} maxLength={500} placeholder="Weak point" aria-label="Weak point" />
+                  </label>
+                  <label className="crm-prov-field">
+                    <span>Learned from</span>
+                    <input className="crm-prov-learned" name={`prov_${service}_from`} defaultValue={provider.learnedFrom} maxLength={200} placeholder="Learned from" aria-label={`${label} learned from`} />
+                  </label>
+                  <label className="crm-prov-field">
+                    <span>Learned on</span>
+                    <input className="crm-prov-learned" name={`prov_${service}_at`} type="date" defaultValue={provider.learnedAt} aria-label={`${label} learned on`} />
+                  </label>
+                </div>
+              </details>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
       <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>
         {pending ? "Saving…" : "Save opportunities"}
       </button>

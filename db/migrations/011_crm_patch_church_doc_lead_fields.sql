@@ -22,6 +22,33 @@
 -- avl_existing_relationship_note, and avl_project_status keys are not copied.
 -- A stale doc.updated_at returns no row. cc_churches.id stays text.
 -- These owner fields are not the pipeline status. Contact status stays crm_status.
+-- A service_providers patch with no allowlisted service key is skipped, so it
+-- does not replace a saved object with {}. learned_at is kept only when it is
+-- a real calendar day.
+
+create or replace function public.crm_iso_date(raw text)
+returns text
+language plpgsql
+immutable
+parallel safe
+set search_path = public, pg_temp
+as $$
+declare
+  day text := left(btrim(coalesce(raw, '')), 10);
+begin
+  if day !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+    return '';
+  end if;
+  if to_char(day::date, 'YYYY-MM-DD') is distinct from day then
+    return '';
+  end if;
+  return day;
+exception when others then
+  return '';
+end
+$$;
+
+revoke all on function public.crm_iso_date(text) from public, anon, authenticated;
 
 create or replace function public.crm_patch_church_doc(p_id text, p_patch jsonb, p_expected text)
 returns table (id text)
@@ -31,6 +58,7 @@ set search_path = public, pg_temp
 as $$
 declare
   allowed jsonb := '{}'::jsonb;
+  providers jsonb;
 begin
   if p_patch ? 'staff_contacts' then
     allowed := allowed || jsonb_build_object('staff_contacts', p_patch -> 'staff_contacts');
@@ -73,44 +101,36 @@ begin
     );
   end if;
   if p_patch ? 'service_providers' and jsonb_typeof(p_patch -> 'service_providers') = 'object' then
-    allowed := allowed || jsonb_build_object(
-      'service_providers',
-      coalesce(
-        (
-          select jsonb_object_agg(
-            entry.key,
-            jsonb_build_object(
-              'provider_type', case
-                when lower(btrim(coalesce(entry.value->>'provider_type', ''))) in ('us', 'vendor', 'other', 'unknown')
-                then lower(btrim(entry.value->>'provider_type'))
-                else 'unknown'
-              end,
-              'vendor_name', case
-                when lower(btrim(coalesce(entry.value->>'provider_type', ''))) = 'vendor'
-                then left(btrim(coalesce(entry.value->>'vendor_name', '')), 200)
-                else ''
-              end,
-              'other_name', case
-                when lower(btrim(coalesce(entry.value->>'provider_type', ''))) = 'other'
-                then left(btrim(coalesce(entry.value->>'other_name', '')), 200)
-                else ''
-              end,
-              'note', left(btrim(coalesce(entry.value->>'note', '')), 500),
-              'learned_from', left(btrim(coalesce(entry.value->>'learned_from', '')), 200),
-              'learned_at', case
-                when btrim(coalesce(entry.value->>'learned_at', '')) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
-                then left(btrim(entry.value->>'learned_at'), 10)
-                else ''
-              end
-            )
-          )
-          from jsonb_each(p_patch -> 'service_providers') as entry
-          where entry.key in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
-            and jsonb_typeof(entry.value) = 'object'
-        ),
-        '{}'::jsonb
+    select jsonb_object_agg(
+      entry.key,
+      jsonb_build_object(
+        'provider_type', case
+          when lower(btrim(coalesce(entry.value->>'provider_type', ''))) in ('us', 'vendor', 'other', 'unknown')
+          then lower(btrim(entry.value->>'provider_type'))
+          else 'unknown'
+        end,
+        'vendor_name', case
+          when lower(btrim(coalesce(entry.value->>'provider_type', ''))) = 'vendor'
+          then left(btrim(coalesce(entry.value->>'vendor_name', '')), 200)
+          else ''
+        end,
+        'other_name', case
+          when lower(btrim(coalesce(entry.value->>'provider_type', ''))) = 'other'
+          then left(btrim(coalesce(entry.value->>'other_name', '')), 200)
+          else ''
+        end,
+        'note', left(btrim(coalesce(entry.value->>'note', '')), 500),
+        'learned_from', left(btrim(coalesce(entry.value->>'learned_from', '')), 200),
+        'learned_at', public.crm_iso_date(entry.value->>'learned_at')
       )
-    );
+    )
+    into providers
+    from jsonb_each(p_patch -> 'service_providers') as entry
+    where entry.key in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
+      and jsonb_typeof(entry.value) = 'object';
+    if providers is not null then
+      allowed := allowed || jsonb_build_object('service_providers', providers);
+    end if;
   end if;
   if allowed <> '{}'::jsonb and p_patch ? 'updated_at' then
     allowed := allowed || jsonb_build_object('updated_at', p_patch -> 'updated_at');

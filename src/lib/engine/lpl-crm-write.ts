@@ -18,7 +18,7 @@
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, cleanProviderType, cleanServiceOpportunityStatus, isAllowedChurchStatus, serviceOpportunitiesToDoc, serviceProvidersToDoc, storedServiceOpportunity, storedServiceProvider, resolveOrgKind, SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type CrmContactStatus, type OrgKind, type ServiceOpportunities, type ServiceOpportunityId, type ServiceProvider, type ServiceProviders, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, cleanProviderType, cleanServiceOpportunityStatus, isAllowedChurchStatus, realIsoDay, serviceOpportunitiesToDoc, serviceProvidersToDoc, storedServiceOpportunity, storedServiceProvider, resolveOrgKind, SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type CrmContactStatus, type OrgKind, type ServiceOpportunities, type ServiceOpportunityId, type ServiceProvider, type ServiceProviders, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
 import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
@@ -1529,14 +1529,13 @@ function cleanProviderInput(input: ServiceProviderInput[ServiceProviderId] | und
   if (!providerType) return { error: "Pick who serves each service." };
   const vendorName = String(input?.vendorName ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
   const otherName = String(input?.otherName ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
-  const learned = String(input?.learnedAt ?? "").trim().slice(0, 10);
   return {
     providerType,
     vendorName: providerType === "vendor" ? vendorName : "",
     otherName: providerType === "other" ? otherName : "",
     note: String(input?.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500),
     learnedFrom: String(input?.learnedFrom ?? "").replace(/\s+/g, " ").trim().slice(0, 200),
-    learnedAt: DAY_RE.test(learned) ? learned : ""
+    learnedAt: realIsoDay(input?.learnedAt)
   };
 }
 

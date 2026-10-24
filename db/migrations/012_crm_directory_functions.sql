@@ -167,7 +167,8 @@ $$;
 -- other_services with nothing saved: ChurchConnect, website, and laser are possible.
 -- A church already on ChurchConnect, with nothing saved for that service, is an active customer.
 -- Indexes 012p–012t call this with a constant service name. Apply this file before those indexes.
--- The report is owner-only. Vendor-name indexes are 012v–012za, one service each.
+-- The report is owner-only. It reads only rows where doc has service_providers (012zb).
+-- Vendor-name indexes are 012v–012za, one service each.
 create or replace function public.crm_church_opportunity_status(doc jsonb, service text)
 returns text
 language sql
@@ -208,8 +209,9 @@ as $$
     end,
     count(*)::bigint
   from public.cc_churches c
-  cross join lateral jsonb_each(coalesce(c.doc->'service_providers', '{}'::jsonb)) as entry
-  where entry.key in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
+  cross join lateral jsonb_each(c.doc->'service_providers') as entry
+  where c.doc ? 'service_providers'
+    and entry.key in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
     and lower(btrim(coalesce(entry.value->>'provider_type', ''))) in ('us', 'vendor', 'other', 'unknown')
   group by 1, 2, 3
   order by 1, 2, 4 desc;
@@ -397,11 +399,19 @@ begin
 
   if provider <> '' then
     if prov_service in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
-       and prov_type in ('us', 'vendor', 'other', 'unknown')
+       and prov_type in ('us', 'vendor', 'other')
     then
       clauses := clauses || format(
         ' and coalesce(c.doc -> ''service_providers'', ''{}''::jsonb) @> jsonb_build_object(%L, jsonb_build_object(''provider_type'', %L))',
         prov_service, prov_type
+      );
+    elsif prov_service in ('av', 'website', 'toner', 'laser', 'churchconnect', 'local_mission')
+          and prov_type = 'unknown'
+    then
+      -- A missing entry is unknown, same as the preview list. prov_service is allowlisted above.
+      clauses := clauses || format(
+        ' and lower(btrim(coalesce(c.doc #>> ''{service_providers,%s,provider_type}'', ''''))) not in (''us'', ''vendor'', ''other'')',
+        prov_service
       );
     else
       clauses := clauses || ' and false';
@@ -500,6 +510,7 @@ begin
       public.crm_church_has_staff(c.doc),
       c.doc->>'merged_into',
       c.doc->>'deleted_at',
+      -- TODO(2026-10-24): Remove the 34 legacy AVL reads once service_providers is the only source.
       c.doc->>'avl_existing_relationship',
       c.doc->>'avl_existing_relationship_note',
       c.doc->>'avl_project_status',

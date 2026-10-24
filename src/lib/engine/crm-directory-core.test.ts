@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { realIsoDay, storedServiceProvider } from "./lpl-crm-core.ts";
 import {
   directoryPreviewRows,
   directoryQueryFromParams,
@@ -113,11 +114,18 @@ describe("church directory pages", () => {
     assert.deepEqual(onVendor.map((row) => row.name), ["Northridge Christian"]);
     const served = filterDirectoryRows(directoryPreviewRows(), { ...emptyDirectoryQuery(), servedByOther: "av" });
     assert.deepEqual(served.map((row) => row.name), ["Northridge Christian"]);
+    const unknownAv = filterDirectoryRows(directoryPreviewRows(), { ...emptyDirectoryQuery(), provider: "av:unknown" });
+    assert.equal(unknownAv.some((row) => row.name === "Northridge Christian"), false);
+    assert.equal(unknownAv.some((row) => row.name === "River Services Church"), true);
     const website = filterDirectoryRows(directoryPreviewRows(), { ...emptyDirectoryQuery(), opportunity: "website:possible" });
     assert.deepEqual(website.map((row) => row.name), ["River Services Church"]);
     assert.equal(website[0].opportunities.churchconnect.status, "possible");
     assert.equal(website[0].opportunities.laser.status, "possible");
     assert.equal(website[0].opportunities.toner.status, "unknown");
+    assert.equal(realIsoDay("2026-02-31"), "");
+    assert.equal(realIsoDay("2026-04-31"), "");
+    assert.equal(storedServiceProvider({ av: { provider_type: "us", learned_at: "2026-10-01" } }, "av")?.learnedAt, "2026-10-01");
+    assert.equal(storedServiceProvider({ av: { provider_type: "us", learned_at: "2026-02-31" } }, "av")?.learnedAt, "");
   });
 
   it("pre-fills opportunities from the lead class and a ChurchConnect customer, and keeps a saved status", () => {

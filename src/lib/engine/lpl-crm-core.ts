@@ -441,6 +441,17 @@ export function emptyServiceProviders(): ServiceProviders {
   return out;
 }
 
+// TODO(2026-10-24): Remove the 34 legacy AVL reads (avl_existing_relationship,
+// avl_existing_relationship_note, avl_project_status) once service_providers is the only source.
+
+/** A calendar day, or blank. 2026-02-31 is not a day. */
+export function realIsoDay(value: unknown): string {
+  const day = String(value ?? "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  const date = new Date(`${day}T12:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === day ? day : "";
+}
+
 /** A provider_type Lincoln already saved, including unknown. Blank means it was never written. */
 export function storedServiceProvider(raw: unknown, service: ServiceProviderId): ServiceProvider | null {
   const item = opportunityRecord(opportunityRecord(raw)[service]);
@@ -450,14 +461,13 @@ export function storedServiceProvider(raw: unknown, service: ServiceProviderId):
   const otherName = providerType === "other" ? String(item.other_name ?? item.otherName ?? "").replace(/\s+/g, " ").trim().slice(0, 200) : "";
   const note = String(item.note ?? item.weak_point ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
   const learnedFrom = String(item.learned_from ?? item.learnedFrom ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
-  const day = String(item.learned_at ?? item.learnedAt ?? "").trim().slice(0, 10);
   return {
     providerType,
     vendorName,
     otherName,
     note,
     learnedFrom,
-    learnedAt: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : ""
+    learnedAt: realIsoDay(item.learned_at ?? item.learnedAt)
   };
 }
 
