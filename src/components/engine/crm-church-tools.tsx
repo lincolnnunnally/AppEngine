@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
 import { logChurchVisitAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
+import { TECHNICAL_DIRECTOR_TAG, httpUrl, isTechnicalDirector, type ChurchSignal } from "@/lib/engine/tech-director-core";
 
 // Contacts and "log a visit" on a CRM card, for a ChurchConnect church or a
 // business lead (the same forms; the form carries church_id or lead_id and the
@@ -81,14 +82,86 @@ export function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** Owner-only: evidence quote, source page, date, and score. Nothing is sent. */
+export function ChurchSignals({ signals }: { signals: ChurchSignal[] }) {
+  if (!signals.length) return null;
+  const ordered = [...signals].sort((a, b) => b.score - a.score || a.tag.localeCompare(b.tag));
+  return (
+    <section className="crm-sub crm-signals" aria-label="Church signals" data-testid="crm-church-signals">
+      {ordered.map((signal) => {
+        const source = httpUrl(signal.sourceUrl);
+        return (
+          <div key={signal.id || `${signal.tag}-${signal.sourceUrl}`} className="crm-signal">
+            <h4>{signal.tag}</h4>
+            {signal.evidenceQuote ? <blockquote className="crm-signal-quote">{signal.evidenceQuote}</blockquote> : null}
+            <div className="crm-contact-links">
+              {source ? (
+                <a className="crm-contact-link" href={source} target="_blank" rel="noopener noreferrer">
+                  Source
+                </a>
+              ) : null}
+              {signal.signalDate ? <span className="crm-dim">{signal.signalDate}</span> : null}
+              <span className="crm-dim">Score {signal.score}</span>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/** Owner-only block: name, exact title, published contact, and the staff page. */
+export function TechDirectorPeople({ people }: { people: Array<Pick<CrmContact, "id" | "name" | "title" | "email" | "phone" | "sourceUrl" | "tags">> }) {
+  const directors = people.filter((person) => isTechnicalDirector(person));
+  if (!directors.length) return null;
+  return (
+    <section className="crm-sub crm-tech" aria-label="Technical director" data-testid="crm-tech-director">
+      <h4>Technical director</h4>
+      <ul className="crm-contacts">
+        {directors.map((person) => {
+          const source = httpUrl(person.sourceUrl);
+          return (
+            <li key={person.id || person.name} className="crm-contact">
+              <div>
+                <span className="crm-contact-name">{person.name}</span>
+                {person.title ? <span className="crm-dim"> · {person.title}</span> : null}
+              </div>
+              {person.email || person.phone || source ? (
+                <div className="crm-contact-links">
+                  {person.phone ? (
+                    <a className="crm-contact-link" href={`tel:${person.phone.replace(/[^\d+]/g, "")}`}>
+                      {person.phone}
+                    </a>
+                  ) : null}
+                  {person.email ? (
+                    <a className="crm-contact-link" href={`mailto:${person.email}`}>
+                      {person.email}
+                    </a>
+                  ) : null}
+                  {source ? (
+                    <a className="crm-contact-link" href={source} target="_blank" rel="noopener noreferrer">
+                      Staff page
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function todayEastern(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 export function Status({ state }: { state: CrmFormState }) {
   if (!state) return null;
+  const warn = Boolean(state.ok && state.warn);
   return (
-    <p className={`crm-form-status ${state.ok ? "crm-ok-text" : "crm-warn-text"}`} role={state.ok ? "status" : "alert"}>
+    <p className={`crm-form-status ${state.ok && !warn ? "crm-ok-text" : "crm-warn-text"}`} role={warn || !state.ok ? "alert" : "status"}>
       {state.message}
     </p>
   );
@@ -98,7 +171,7 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
   const [contactId] = useState(() => contact?.id ?? newId());
   const [state, action, pending] = useActionState<CrmFormState, FormData>(saveChurchContactAction, null);
   useEffect(() => {
-    if (state?.ok) onDone();
+    if (state?.ok && !state.warn) onDone();
   }, [state, onDone]);
   return (
     <form action={action} className="crm-form" data-testid="crm-contact-form">
@@ -109,9 +182,24 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
         <input name="name" required maxLength={120} defaultValue={contact?.name ?? ""} autoComplete="off" />
       </label>
       <label className="crm-field">
-        <span>{target.noun === "church" ? "Role (pastor, secretary, deacon…)" : "Role (owner, manager…)"}</span>
+        <span>{target.noun === "church" ? "Title (pastor, secretary, deacon…)" : "Role (owner, manager…)"}</span>
         <input name="title" maxLength={80} defaultValue={contact?.title ?? ""} autoComplete="off" />
       </label>
+      {target.noun === "church" ? (
+        <>
+          <label className="crm-field">
+            <span>Role tag</span>
+            <select name="role_tag" defaultValue={contact && isTechnicalDirector(contact) ? TECHNICAL_DIRECTOR_TAG : ""}>
+              <option value="">None</option>
+              <option value={TECHNICAL_DIRECTOR_TAG}>Technical director</option>
+            </select>
+          </label>
+          <label className="crm-field">
+            <span>Source page</span>
+            <input name="source_url" type="text" inputMode="url" maxLength={400} defaultValue={contact?.sourceUrl ?? ""} placeholder="Link to the staff page" autoComplete="off" />
+          </label>
+        </>
+      ) : null}
       <label className="crm-field">
         <span>Email</span>
         <input name="email" type="email" maxLength={200} defaultValue={contact?.email ?? ""} autoComplete="off" />
@@ -412,6 +500,7 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
               <div>
                 <span className="crm-contact-name">{contact.name}</span>
                 {contact.title ? <span className="crm-dim"> · {contact.title}</span> : null}
+                {isTechnicalDirector(contact) ? <span className="crm-contact-note">Technical director</span> : null}
                 {SOURCE_LABEL[contact.source] ? <span className="crm-contact-note">{SOURCE_LABEL[contact.source]}</span> : null}
               </div>
               {/* While this contact is being edited, the form shows the phone and email; don't show them twice. */}
@@ -425,6 +514,11 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
                   {contact.email ? (
                     <a className="crm-contact-link" href={`mailto:${contact.email}`}>
                       {contact.email}
+                    </a>
+                  ) : null}
+                  {httpUrl(contact.sourceUrl) ? (
+                    <a className="crm-contact-link" href={httpUrl(contact.sourceUrl)} target="_blank" rel="noopener noreferrer">
+                      Staff page
                     </a>
                   ) : null}
                 </div>

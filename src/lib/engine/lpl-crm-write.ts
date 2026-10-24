@@ -16,6 +16,7 @@ import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
 import { domainFromEmail, normDomain, normEmail, normName, normPhone, resolveOrgKind, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { cleanRoleTags, httpUrl } from "@/lib/engine/tech-director-core";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
 export const CRM_PASS_AUDIENCE = "churchconnect-crm";
@@ -33,7 +34,7 @@ export type OutcomeCode = (typeof OUTCOME_CODES)[number];
 
 export type SaveResult = { ok: true; message: string; duplicate?: boolean; contactId?: string; /** Saved, but the result needs a warning, not a success line. */ warn?: boolean } | { ok: false; message: string };
 
-export type ContactInput = { id: string; name: string; title: string; email: string; phone: string };
+export type ContactInput = { id: string; name: string; title: string; email: string; phone: string; tags: string[]; sourceUrl: string };
 
 export type VisitInput = {
   churchId: string;
@@ -112,7 +113,7 @@ export function cleanContactInput(input: Partial<ContactInput>): ContactInput | 
   if (rawEmail && !email) return "That email doesn't look right.";
   const phone = text(input.phone, 40);
   if (phone && phone.replace(/\D/g, "").length < 7) return "That phone number looks too short.";
-  return { id, name, title: text(input.title, 80), email, phone };
+  return { id, name, title: text(input.title, 80), email, phone, tags: cleanRoleTags(input.tags), sourceUrl: httpUrl(input.sourceUrl) };
 }
 
 export function cleanVisitInput(input: Partial<VisitInput>): VisitInput | string {
@@ -198,12 +199,15 @@ export async function saveChurchContact(ownerEmail: string, churchId: string, ra
   const contact = cleanContactInput(raw);
   if (typeof contact === "string") return { ok: false, message: contact };
   const path = `/api/church-crm/leads/${churchId}/contacts/${contact.id}`;
-  const result = await callChurchConnect(config, "PUT", path, ownerEmail, {
+  const body: Record<string, unknown> = {
     name: contact.name,
     role: contact.title,
     email: contact.email,
     phone: contact.phone
-  });
+  };
+  if (contact.tags.length) body.tags = contact.tags;
+  if (contact.sourceUrl) body.source_url = contact.sourceUrl;
+  const result = await callChurchConnect(config, "PUT", path, ownerEmail, body);
   if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
   return { ok: true, message: `Saved ${contact.name}.`, contactId: contact.id };
 }

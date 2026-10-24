@@ -141,6 +141,10 @@ export type CrmContact = {
   email: string;
   phone: string;
   source: "saved" | "pastor" | "secretary" | "contact";
+  /** Role tags. "Technical director" is the desk filter. The exact title stays in `title`. */
+  tags?: string[];
+  /** Public page this contact was taken from. Shown to the owner only. */
+  sourceUrl?: string;
 };
 
 export type CrmNode = {
@@ -175,6 +179,19 @@ export type CrmNode = {
   deskDoNotContact?: boolean;
   /** Basics the owner can edit from the desk (ChurchConnect church or business lead). */
   org?: CrmOrg;
+  /** Church state, used by the owner signal filter. */
+  state?: string;
+  /** Church signals (technical/media staff, building investment). Owner only on the page. */
+  signals?: CrmChurchSignal[];
+};
+
+export type CrmChurchSignal = {
+  id: string;
+  tag: string;
+  evidenceQuote: string;
+  sourceUrl: string;
+  signalDate: string;
+  score: number;
 };
 
 export type Suppressions = { emails: Set<string>; domains: Set<string>; phones: Set<string> };
@@ -228,6 +245,10 @@ export type CrmCard = {
   deskDoNotContact: boolean;
   /** The org's editable basics (church first). Phone and email are removed for viewers who are not the owner. */
   org: CrmOrg | null;
+  /** Church state code or the stored state text. */
+  state?: string;
+  /** Owner only. Evidence for technical/media staff or building investment. */
+  signals?: CrmChurchSignal[];
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -679,7 +700,21 @@ function contactsOf(members: CrmNode[]): CrmContact[] {
 
 /** Owner view keeps everything; anyone else sees names and titles only. */
 export function contactsForViewer(contacts: CrmContact[], isOwner: boolean): CrmContact[] {
-  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "" }));
+  return isOwner ? contacts : contacts.map((contact) => ({ ...contact, email: "", phone: "", sourceUrl: "" }));
+}
+
+function signalsOf(members: CrmNode[]): CrmChurchSignal[] {
+  const out: CrmChurchSignal[] = [];
+  const seen = new Set<string>();
+  for (const member of members) {
+    for (const signal of member.signals ?? []) {
+      const key = `${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(signal);
+    }
+  }
+  return out.sort((a, b) => b.score - a.score || a.tag.localeCompare(b.tag));
 }
 
 export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Date): CrmCard[] {
@@ -810,7 +845,9 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       leadId: saveLead,
       contacts: contactsOf(targetMembers(members, saveChurch, saveLead)),
       deskDoNotContact: targetMembers(members, saveChurch, saveLead).some((member) => member.deskDoNotContact && !member.contextOnly),
-      org: orgOf(members)
+      org: orgOf(members),
+      state: members.map((member) => member.state).find(Boolean) || "",
+      signals: signalsOf(members)
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));

@@ -7367,6 +7367,13 @@ button.compose-arch:hover {
 
 /* CRM v2 slice 1 — church people + log a visit. Labels ≥14px, body 16px, every control ≥44px. */
 .crm-page .crm-church-tools h4 { font-size: 0.875rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.crm-page .crm-tech { margin: 0 0 12px; }
+.crm-page .crm-signals { margin: 0 0 12px; display: grid; gap: 10px; }
+.crm-page .crm-signal h4 { margin: 0 0 4px; font-size: 0.95rem; }
+.crm-page .crm-signal-quote { margin: 0 0 6px; }
+.crm-page .crm-state-filter { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 0.875rem; }
+.crm-page .crm-state-filter select { min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
+.crm-page .crm-av .crm-form-actions { margin: 12px 0; }
 .crm-page .crm-contacts { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
 .crm-page .crm-contact { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 1rem; }
 .crm-page .crm-contact-name { font-size: 1rem; font-weight: 650; color: var(--ink); }

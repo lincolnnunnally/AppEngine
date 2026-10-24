@@ -4,9 +4,10 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { TopProspects } from "@/components/engine/crm-top-prospects";
 import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
-import { PeopleTools } from "@/components/engine/crm-church-tools";
+import { ChurchSignals, PeopleTools, TechDirectorPeople } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
+import { SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode } from "@/lib/engine/tech-director-core";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -44,6 +45,8 @@ type Props = {
   topInitial?: TopProspectState;
   /** Local preview only: open AV prospects with fixture rows already read. */
   avInitial?: AvProspectState;
+  /** Local preview only: open the Technical director filter. */
+  techFirst?: boolean;
 };
 
 function ChipScroller({ label, children }: { label: string; children: ReactNode }) {
@@ -65,9 +68,9 @@ function ChipScroller({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet";
+type CardFilter = "all" | "today" | "multi" | "resting" | "stops" | "possible" | "presence" | "quiet" | "tech";
 
-const FILTER_LABEL: Record<CardFilter, string> = {
+const FILTER_LABEL: Record<Exclude<CardFilter, "tech">, string> = {
   all: "Everyone",
   today: "On today's list",
   multi: "In more than one app",
@@ -123,6 +126,8 @@ function matches(card: CrmCard, filter: CardFilter): boolean {
       return card.tokens.length > 0 || card.events.length > 0;
     case "quiet":
       return isQuiet(card);
+    case "tech":
+      return churchHasTechnicalDirector(card.contacts);
     default:
       return true;
   }
@@ -272,6 +277,8 @@ function CardView({
         ) : null}
       </dl>
 
+      {isOwner ? <ChurchSignals signals={card.signals ?? []} /> : null}
+      {isOwner ? <TechDirectorPeople people={card.contacts} /> : null}
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
       <SuggestNextStep card={card} isOwner={isOwner} canSave={canSave} outreachHidden={outreachHidden} />
       <PeopleTools card={card} canSave={canSave} />
@@ -410,9 +417,11 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null }: Props) {
+export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null, techFirst = false }: Props) {
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
-  const [filter, setFilter] = useState<CardFilter>("all");
+  const [filter, setFilter] = useState<CardFilter>(techFirst ? "tech" : "all");
+  const [signalFilter, setSignalFilter] = useState<"" | typeof SIGNAL_STAFF | typeof SIGNAL_BUILDING>("");
+  const [stateFilter, setStateFilter] = useState("");
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [focus, setFocus] = useState<string | null>(null);
@@ -430,9 +439,20 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
   }, [followUps]);
 
   const filterCounts = useMemo(() => {
-    const out = {} as Record<CardFilter, number>;
-    for (const key of Object.keys(FILTER_LABEL) as CardFilter[]) out[key] = cards.filter((card) => matches(card, key)).length;
+    const out = {} as Record<Exclude<CardFilter, "tech">, number>;
+    for (const key of Object.keys(FILTER_LABEL) as Array<Exclude<CardFilter, "tech">>) out[key] = cards.filter((card) => matches(card, key)).length;
     return out;
+  }, [cards]);
+  const techCount = useMemo(() => cards.filter((card) => matches(card, "tech")).length, [cards]);
+  const staffCount = useMemo(() => cards.filter((card) => (card.signals ?? []).some((signal) => signal.tag === SIGNAL_STAFF)).length, [cards]);
+  const buildingCount = useMemo(() => cards.filter((card) => (card.signals ?? []).some((signal) => signal.tag === SIGNAL_BUILDING)).length, [cards]);
+  const stateOptions = useMemo(() => {
+    const codes = new Set<string>();
+    for (const card of cards) {
+      const code = stateCode(card.state || card.town.split(",").pop() || "");
+      if (code) codes.add(code);
+    }
+    return [...codes].sort();
   }, [cards]);
 
   const shownFollowUps = reason === "all" ? todayRows : followUps.filter((row) => row.reasons.includes(reason));
@@ -440,8 +460,20 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
   const shownCards = useMemo(() => {
     if (focus) return cards.filter((card) => card.key === focus);
     const q = query.trim().toLowerCase();
-    return cards.filter((card) => matches(card, filter) && (!q || `${card.name} ${card.town}`.toLowerCase().includes(q)));
-  }, [cards, filter, query, focus]);
+    const list = cards.filter((card) => {
+      if (!matches(card, filter)) return false;
+      if (signalFilter && !(card.signals ?? []).some((signal) => signal.tag === signalFilter)) return false;
+      if (stateFilter && stateCode(card.state || card.town.split(",").pop() || "") !== stateFilter) return false;
+      return !q || `${card.name} ${card.town}`.toLowerCase().includes(q);
+    });
+    if (!signalFilter && !stateFilter) return list;
+    return [...list].sort((a, b) => {
+      const aScore = churchSignalScore(a.signals ?? [], signalFilter || undefined) ?? Number.NEGATIVE_INFINITY;
+      const bScore = churchSignalScore(b.signals ?? [], signalFilter || undefined) ?? Number.NEGATIVE_INFINITY;
+      if (aScore !== bScore) return bScore - aScore;
+      return a.name.localeCompare(b.name);
+    });
+  }, [cards, filter, query, focus, signalFilter, stateFilter]);
 
   const openCard = (key: string) => {
     setPanel("cards");
@@ -542,13 +574,14 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
           </label>
         </div>
         <ChipScroller label="Filter cards">
-          {(Object.keys(FILTER_LABEL) as CardFilter[]).map((key) => (
+          {(Object.keys(FILTER_LABEL) as Array<Exclude<CardFilter, "tech">>).map((key) => (
             <button
               type="button"
               key={key}
               className={`dx-chip crm-chip${panel === "cards" && !focus && filter === key ? " dx-chip--active" : ""}`}
               onClick={() => {
                 setFilter(key);
+                setSignalFilter("");
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -558,6 +591,57 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               {FILTER_LABEL[key]} <strong>{filterCounts[key]}</strong>
             </button>
           ))}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && !focus && filter === "tech" ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setFilter("tech");
+                setSignalFilter("");
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && !focus && filter === "tech"}
+              data-testid="crm-tech-chip"
+            >
+              Technical director <strong>{techCount}</strong>
+            </button>
+          ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && !focus && signalFilter === SIGNAL_STAFF ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setFilter("all");
+                setSignalFilter((current) => (current === SIGNAL_STAFF ? "" : SIGNAL_STAFF));
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && !focus && signalFilter === SIGNAL_STAFF}
+              data-testid="crm-signal-staff"
+            >
+              Technical/media staff <strong>{staffCount}</strong>
+            </button>
+          ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              className={`dx-chip crm-chip${panel === "cards" && !focus && signalFilter === SIGNAL_BUILDING ? " dx-chip--active" : ""}`}
+              onClick={() => {
+                setFilter("all");
+                setSignalFilter((current) => (current === SIGNAL_BUILDING ? "" : SIGNAL_BUILDING));
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+              aria-pressed={panel === "cards" && !focus && signalFilter === SIGNAL_BUILDING}
+              data-testid="crm-signal-building"
+            >
+              Building investment <strong>{buildingCount}</strong>
+            </button>
+          ) : null}
           {isOwner ? (
             <button
               type="button"
@@ -587,6 +671,28 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             </button>
           ) : null}
         </ChipScroller>
+        {isOwner ? (
+          <label className="crm-state-filter">
+            <span>State</span>
+            <select
+              value={stateFilter}
+              data-testid="crm-state-filter"
+              onChange={(event) => {
+                setStateFilter(event.target.value);
+                setFocus(null);
+                setPanel("cards");
+                setLimit(PAGE);
+              }}
+            >
+              <option value="">All states</option>
+              {stateOptions.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <details className="crm-legend">
           <summary>What the words mean</summary>
           <dl>
@@ -596,6 +702,9 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             <div><dt>Stop</dt><dd>Do not pitch: on the do-not-contact list, already a customer for that offer, or they said no.</dd></div>
             <div><dt>Possible match</dt><dd>Same name and town in another app. Not joined, so check before treating them as one.</dd></div>
             <div><dt>Matched by same website</dt><dd>Records joined into one card because they share a website (or a linked record, email, or phone).</dd></div>
+            <div><dt>Technical director</dt><dd>A church contact with that role tag. The card shows their name, title, and the contact published for them.</dd></div>
+            <div><dt>Technical/media staff</dt><dd>A church with a staff signal. The card shows the evidence quote and the source page.</dd></div>
+            <div><dt>Building investment</dt><dd>A campaign or renovation on file. The card shows the evidence quote, source page, date, and score. No person is required.</dd></div>
             <div><dt>Tokens printed</dt><dd>A Presence token counts as printed once it is engraved (or released or found).</dd></div>
           </dl>
         </details>
