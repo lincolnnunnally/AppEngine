@@ -911,6 +911,160 @@ export function formatImportCounts(plan: ImportPlan): string {
   return lines.join("\n");
 }
 
+/** Life Produces Life production Supabase project. Not a key. */
+export const PRODUCTION_PROJECT_REF = "uqhqulrqcygsmmzdzemx";
+
+/** Hostname only. A ref buried in the user, path, or query is not a host. */
+export function databaseHost(url: string): string {
+  try {
+    return new URL(url.trim()).hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Project ref when the host is exactly `<ref>.supabase.co`.
+ * A custom domain, a pooler host, and a ref that only appears in the query do not match.
+ */
+export function supabaseProjectRef(url: string): string {
+  const host = databaseHost(url);
+  const suffix = ".supabase.co";
+  if (!host.endsWith(suffix)) return "";
+  const ref = host.slice(0, -suffix.length);
+  if (!/^[a-z0-9]+$/.test(ref)) return "";
+  return ref;
+}
+
+const LOCAL_DATABASE_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+export type ProductionWriteInput = {
+  url: string;
+  vercelEnv?: string;
+  /** True when the CLI was passed --allow-production. */
+  allowProduction: boolean;
+  /** IMPORT_ALLOW_PROD. It must equal the production project ref. */
+  importAllowProd?: string;
+};
+
+export type ProductionWriteDecision =
+  | { allow: true; production: false; projectRef: string }
+  | { allow: true; production: true; projectRef: string }
+  | { allow: false; projectRef: string; message: string };
+
+/**
+ * Fail closed. --apply may write only to localhost, a known non-production
+ * `<ref>.supabase.co` host, or the production project when both
+ * --allow-production and IMPORT_ALLOW_PROD equal that project ref.
+ * A custom domain, a pooler host, and any other host are refused.
+ * VERCEL_ENV=production is allowed only for the production project ref.
+ */
+export function decideProductionWrite(input: ProductionWriteInput): ProductionWriteDecision {
+  const host = databaseHost(input.url);
+  const projectRef = supabaseProjectRef(input.url);
+  const confirmed = (input.importAllowProd ?? "").trim();
+  const optedIn = input.allowProduction && confirmed === PRODUCTION_PROJECT_REF;
+  const vercelProduction = input.vercelEnv === "production";
+  if (LOCAL_DATABASE_HOSTS.has(host)) {
+    if (vercelProduction) {
+      return {
+        allow: false,
+        projectRef: "",
+        message: "Refusing to write: VERCEL_ENV=production is not a local database. Nothing was written."
+      };
+    }
+    return { allow: true, production: false, projectRef: "" };
+  }
+  if (projectRef === PRODUCTION_PROJECT_REF) {
+    if (!optedIn) {
+      return {
+        allow: false,
+        projectRef,
+        message: "Refusing to write: this is the production database. Nothing was written."
+      };
+    }
+    return { allow: true, production: true, projectRef: PRODUCTION_PROJECT_REF };
+  }
+  if (projectRef && !vercelProduction) return { allow: true, production: false, projectRef };
+  if (projectRef && vercelProduction) {
+    return {
+      allow: false,
+      projectRef,
+      message: "Refusing to write: VERCEL_ENV=production does not match this project. Nothing was written."
+    };
+  }
+  return {
+    allow: false,
+    projectRef: "",
+    message: "Refusing to write: the database host is not localhost or a known Supabase project. Nothing was written."
+  };
+}
+
+/** Shown after the row counts and before the production confirmation. The project ref only, never the key. */
+export function productionWriteBanner(projectRef: string, counts: string): string {
+  const ref = /^[a-z0-9]+$/.test(projectRef) ? projectRef : "(withheld)";
+  return ["PRODUCTION WRITE", `target project ref: ${ref}`, counts.trimEnd()].join("\n");
+}
+
+/** Flagged-file identity: church, person, source page, and quote. Other columns can differ. */
+export function techDirectorRowKey(row: Pick<TechDirectorCsvRow, "church" | "name" | "source_url" | "evidence_quote">): string {
+  return [row.church, row.name, row.source_url, row.evidence_quote].map((value) => value.trim()).join("\u001f");
+}
+
+/** Drop input rows that are already listed in the flagged file. */
+export function excludeFlaggedTechDirectorRows(
+  rows: readonly TechDirectorCsvRow[],
+  flagged: readonly TechDirectorCsvRow[]
+): { rows: TechDirectorCsvRow[]; skipped: TechDirectorCsvRow[] } {
+  const keys = new Set(flagged.map((row) => techDirectorRowKey(row)));
+  const kept: TechDirectorCsvRow[] = [];
+  const skipped: TechDirectorCsvRow[] = [];
+  for (const row of rows) {
+    if (keys.has(techDirectorRowKey(row))) skipped.push(row);
+    else kept.push(row);
+  }
+  return { rows: kept, skipped };
+}
+
+/** Keep the first copy of each row. Existing review reasons stay ahead of a new plan. */
+export function mergeFlaggedTechDirectorRows(
+  existing: readonly UnmatchedTechDirector[],
+  planned: readonly UnmatchedTechDirector[]
+): UnmatchedTechDirector[] {
+  const seen = new Set<string>();
+  const merged: UnmatchedTechDirector[] = [];
+  for (const item of [...existing, ...planned]) {
+    const key = techDirectorRowKey(item.row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  return merged;
+}
+
+/**
+ * The flagged report is the import CSV plus a reason column.
+ * A header-only file is an empty skip list.
+ */
+export function parseFlaggedTechDirectorReport(text: string): { ok: true; entries: UnmatchedTechDirector[] } | { ok: false; message: string } {
+  const parsed = parseTechDirectorCsv(text);
+  if (!parsed.ok) return parsed;
+  const table = parseCsv(text);
+  const header = (table[0] ?? []).map((cell) => cell.trim().toLowerCase());
+  const reasonAt = header.indexOf("reason");
+  const entries: UnmatchedTechDirector[] = [];
+  let data = 0;
+  for (let i = 1; i < table.length && data < parsed.rows.length; i += 1) {
+    const record = table[i];
+    if (record.every((value) => !String(value ?? "").trim())) continue;
+    const reason = reasonAt >= 0 ? String(record[reasonAt] ?? "").trim() : "";
+    entries.push({ row: parsed.rows[data], reason: reason || "Listed in the flagged file." });
+    data += 1;
+  }
+  if (data !== parsed.rows.length) return { ok: false, message: "The flagged file could not be read." };
+  return { ok: true, entries };
+}
+
 type StaffItem = Record<string, unknown>;
 
 function staffList(staff: unknown): StaffItem[] {
