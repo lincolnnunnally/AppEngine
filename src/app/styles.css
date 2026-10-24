@@ -7321,7 +7321,10 @@ button.compose-arch:hover {
 .crm-page .crm-opp-note { display: block; min-width: 0; }
 .crm-page .crm-opp-note summary { display: none; }
 .crm-page .crm-opp-note summary { min-height: 44px; align-items: center; font-size: 1rem; cursor: pointer; color: var(--ink); }
-.crm-page .crm-opp-note-input { display: block; }
+.crm-page .crm-opp-note[open] > .crm-opp-note-input { display: block; }
+@media (min-width: 800px) {
+  .crm-page .crm-opp-note > .crm-opp-note-input { display: block; }
+}
 .crm-page .crm-opp-updated { font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
 .crm-page .crm-prov-vendor, .crm-page .crm-prov-other { display: none; }
 .crm-page .crm-opp-row:has(.crm-prov-type option[value="vendor"]:checked) .crm-prov-vendor { display: block; }
@@ -7336,6 +7339,7 @@ button.compose-arch:hover {
   .crm-page .crm-opp-row { grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 48%); }
   .crm-page .crm-opp-note, .crm-page .crm-opp-updated, .crm-page .crm-prov-type, .crm-page .crm-prov-vendor, .crm-page .crm-prov-other, .crm-page .crm-prov-extra { grid-column: 1 / -1; }
   .crm-page .crm-opp-note summary { display: flex; }
+  .crm-page .crm-opp-note:not([open]) > .crm-opp-note-input { display: none !important; }
 }
 .crm-dir-pager { display: flex; gap: 8px; margin-top: 12px; }
 .crm-detail { margin-top: 8px; }
