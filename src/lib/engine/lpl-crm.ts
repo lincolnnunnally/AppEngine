@@ -23,6 +23,7 @@ import {
   scrubContact,
   shortPersonName,
   cleanContactStatus,
+  churchLeadInQueue,
   type CrmApp,
   type CrmCard,
   type CrmContact,
@@ -392,7 +393,7 @@ export function businessNode(row: Row, reasons?: SuppressionReasonIndex): CrmNod
     leadId: id,
     contacts: leadContactList(row.contacts),
     signals: churchSignalFromLead(signals),
-    leadQueue: s(signals.kind) === "church-signal",
+    leadQueue: churchLeadInQueue(signals),
     deskDoNotContact: status === "suppressed" && s(signals.dnc_source) === "crm_visit",
     state: s(row.state),
     org: {

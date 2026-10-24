@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
-import { logChurchVisitAction, logContactOutreachAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
+import { logChurchVisitAction, logContactOutreachAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, searchChurchesAction, attachLeadAction, dismissLeadAction, type ChurchPickState, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { CRM_CONTACT_STATUSES, DROP_OFF_REST_DAYS, VISIT_REST_DAYS, contactStatusLabel, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
 import { SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG, httpUrl, isTechnicalDirector, signalsForContact, type ChurchSignal } from "@/lib/engine/tech-director-core";
 
@@ -302,6 +302,60 @@ function OutreachForm({
 
 function todayEastern(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+/** Attach a lead-queue row to a church on file, or dismiss it. Owner only. Nothing is sent. */
+export function SignalQueueActions({ leadId }: { leadId: string }) {
+  const [clientRef] = useState(() => newId());
+  const [search, searchAction, searching] = useActionState<ChurchPickState, FormData>(searchChurchesAction, null);
+  const [attached, attachAction, attaching] = useActionState(attachLeadAction, null);
+  const [dismissed, dismissAction, dismissing] = useActionState(dismissLeadAction, null);
+  const churches = search?.churches ?? [];
+  return (
+    <section className="crm-sub" aria-label="Lead queue actions" data-testid="crm-lead-queue-tools">
+      <h4>Lead queue</h4>
+      <form action={searchAction} className="crm-form">
+        <label className="crm-field">
+          <span>Find a church on file</span>
+          <input name="church_query" required minLength={2} maxLength={80} placeholder="Church name" autoComplete="off" />
+        </label>
+        <button type="submit" className="dx-btn" disabled={searching || attaching}>
+          {searching ? "Looking…" : "Find church"}
+        </button>
+        {search && !search.ok ? <p className="crm-warn-text">{search.message}</p> : null}
+        {search?.ok && !churches.length ? <p className="crm-dim">{search.message}</p> : null}
+      </form>
+      {churches.length ? (
+        <form action={attachAction} className="crm-form">
+          <input type="hidden" name="lead_id" value={leadId} />
+          <input type="hidden" name="client_ref" value={clientRef} />
+          <fieldset className="crm-field">
+            <legend>Attach to church</legend>
+            {churches.map((church) => (
+              <label key={church.id}>
+                <input type="radio" name="attach_church_id" value={church.id} required /> {church.name}
+                {church.town ? <span className="crm-dim"> · {church.town}</span> : null}
+              </label>
+            ))}
+          </fieldset>
+          <p className="crm-dim">Moves the contact onto that church and takes this lead out of the queue. Nothing is sent.</p>
+          <button type="submit" className="dx-btn dx-btn--primary" disabled={attaching}>
+            {attaching ? "Attaching…" : "Attach to church"}
+          </button>
+          <Status state={attached} />
+        </form>
+      ) : null}
+      <form action={dismissAction} className="crm-form">
+        <input type="hidden" name="lead_id" value={leadId} />
+        <input type="hidden" name="client_ref" value={`${clientRef}-dismiss`} />
+        <p className="crm-dim">Leaves the queue. The lead stays on file. Nothing is sent.</p>
+        <button type="submit" className="dx-btn" disabled={dismissing || attaching}>
+          {dismissing ? "Dismissing…" : "Dismiss"}
+        </button>
+        <Status state={dismissed} />
+      </form>
+    </section>
+  );
 }
 
 export function Status({ state }: { state: CrmFormState }) {

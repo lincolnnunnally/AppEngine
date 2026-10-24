@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
-import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, type CrmCard } from "@/lib/engine/lpl-crm-core";
+import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, withOutreachLog, type CrmCard } from "@/lib/engine/lpl-crm-core";
 import { SIGNAL_BUILDING, SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG } from "@/lib/engine/tech-director-core";
 import { crmSavingConfigured, savingOffNote } from "@/lib/engine/lpl-crm-write";
 import { CrmDesk } from "@/components/engine/crm-desk";
@@ -137,7 +137,7 @@ function techPreviewCards(): CrmCard[] {
       }
     ]
   };
-  return [palm, grace, river, queue];
+  return [palm, grace, river, queue].map(withOutreachLog);
 }
 
 // CRM — owner and admins can view. One card per org or person across

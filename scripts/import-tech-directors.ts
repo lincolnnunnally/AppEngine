@@ -17,9 +17,16 @@
 //
 // The write re-reads the church doc and merges only staff_contacts,
 // crm_signals, and updated_at through crm_patch_church_doc (doc || patch on
-// the server). Until that function is applied, it falls back to a
-// compare-and-swap on doc.updated_at. A conflict re-reads and tries again.
+// the server; the id is text). Until that function is applied, and only when
+// PostgREST says it is not installed, the import falls back to a
+// compare-and-swap on doc.updated_at. Any other database error stops the
+// import. A conflict re-reads and tries again.
 // Re-running is safe after a partial failure.
+//
+// Unmatched rows are saved as church-lead rows (op_leads.kind church-lead),
+// not shops. The slug is the normalized church, city, and state, so a second
+// import merges new contacts onto that lead and writes an op_lead_activities
+// row. Other op_leads readers skip kind church-lead.
 //
 // Columns: church, church_id (optional), city, state (optional), website,
 // staff_page_url, name, title, contact, signal_types, evidence_quote,
@@ -41,9 +48,12 @@ import { resolve } from "node:path";
 import {
   churchDocPatch,
   churchIsInCrm,
+  churchSignalActivity,
   churchSignalLeadBody,
+  crmPatchRpcMissing,
   directoryOnlyReportCsv,
   formatImportCounts,
+  mergeChurchSignalContacts,
   nextChurchDoc,
   parseImportSkipFile,
   parseTechDirectorCsv,
@@ -87,7 +97,8 @@ Re-running is safe after a partial failure: a contact or signal already stored i
 Columns are read by header name. builder_name, builder_role, builder_url, and other unknown columns are ignored.
 The Archdiocese of Atlanta office and a Cristo Para Todas Las Naciones row on shallowford.org are flagged and not written.
 A church id whose church has a different name or state is flagged and not written.
-Unmatched rows are also saved as church-signal leads (op_leads) so the desk can search them.
+A city and a bare website match only when the state is present on the row and the church, and they agree.
+Unmatched rows are saved as church-lead rows (not shops) so the desk can search them. The same church, city, and state merges contacts on a later import and logs an activity.
 Optional: --report <unmatched.csv>   --skip-file <church ids or names>`);
   process.exit(1);
 }
@@ -207,6 +218,7 @@ for (const churchId of churchIds) {
 console.log(`applied: ${wrote} churches updated, ${contactsWritten} new contacts, ${signalsWritten} new signals, ${signalsUpdated} signals updated`);
 
 let queued = 0;
+let queueMerged = 0;
 let queueSkipped = 0;
 for (const item of plan.unmatched) {
   const body = churchSignalLeadBody(item.row, item.reason);
@@ -215,13 +227,17 @@ for (const item of plan.unmatched) {
     queueSkipped += 1;
     continue;
   }
+  if (saved === "merged") {
+    queueMerged += 1;
+    continue;
+  }
   if (saved === "error") {
     console.error(`Could not save unmatched row ${item.row.line} to the lead queue. Stopped after ${queued} new leads. Re-running is safe.`);
     process.exit(1);
   }
   queued += 1;
 }
-console.log(`lead queue: ${queued} new, ${queueSkipped} already there`);
+console.log(`lead queue: ${queued} new, ${queueMerged} merged, ${queueSkipped} already there`);
 
 function databaseConfig(): { url: string; key: string } | null {
   const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim().replace(/\/$/, "");
@@ -337,8 +353,6 @@ async function writeChurchDoc(
   return { ok: false };
 }
 
-const CHURCH_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 async function writeDoc(
   config: { url: string; key: string },
   churchId: string,
@@ -346,19 +360,19 @@ async function writeDoc(
   fullDoc: Record<string, unknown>,
   previousUpdatedAt: string
 ): Promise<"ok" | "conflict" | "error"> {
-  if (CHURCH_UUID.test(churchId)) {
-    const rpc = await rest(config, "rpc/crm_patch_church_doc", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify({ p_id: churchId, p_patch: patch })
-    });
-    if (rpc.ok) {
-      const rows = (await rpc.json()) as unknown[];
-      return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
-    }
-    const detail = await rpc.text().catch(() => "");
-    const missing = rpc.status === 404 || /PGRST202|could not find the function|schema cache/i.test(detail);
-    if (!missing) return "error";
+  const rpc = await rest(config, "rpc/crm_patch_church_doc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({ p_id: churchId, p_patch: patch })
+  });
+  if (rpc.ok) {
+    const rows = (await rpc.json()) as unknown[];
+    return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
+  }
+  const detail = await rpc.text().catch(() => "");
+  if (!crmPatchRpcMissing(rpc.status, detail)) {
+    console.error(`Church ${churchId} was not updated. crm_patch_church_doc failed (${rpc.status}): ${detail.slice(0, 400)}`);
+    return "error";
   }
   const guard = previousUpdatedAt
     ? `&doc->>updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
@@ -373,21 +387,46 @@ async function writeDoc(
   return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
 }
 
-async function writeChurchSignalLead(config: { url: string; key: string }, body: Record<string, unknown>): Promise<"ok" | "exists" | "error"> {
+async function writeChurchSignalLead(config: { url: string; key: string }, body: Record<string, unknown>): Promise<"ok" | "merged" | "exists" | "error"> {
   const slug = encodeURIComponent(String(body.slug ?? ""));
-  const existing = await rest(config, `op_leads?slug=eq.${slug}&select=id&limit=1`);
+  const existing = await rest(config, `op_leads?slug=eq.${slug}&select=id,contacts&limit=1`);
   if (!existing.ok) return "error";
-  const rows = (await existing.json()) as unknown[];
-  if (Array.isArray(rows) && rows.length > 0) return "exists";
-  const response = await rest(config, "op_leads?select=id", {
+  const rows = (await existing.json()) as Array<{ id?: string; contacts?: unknown }>;
+  let leadId = "";
+  let outcome: "ok" | "merged" | "exists" = "ok";
+  if (Array.isArray(rows) && rows.length > 0) {
+    leadId = String(rows[0].id ?? "");
+    if (!leadId) return "error";
+    const merged = mergeChurchSignalContacts(rows[0].contacts, body.contacts);
+    if (merged.added > 0) {
+      const response = await rest(config, `op_leads?id=eq.${encodeURIComponent(leadId)}&select=id`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ contacts: merged.contacts })
+      });
+      if (!response.ok) return "error";
+      outcome = "merged";
+    } else outcome = "exists";
+  } else {
+    const response = await rest(config, "op_leads?select=id", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify(body)
+    });
+    if (response.status === 409) return "exists";
+    if (!response.ok) return "error";
+    const saved = (await response.json()) as Array<{ id?: string }>;
+    leadId = String(saved?.[0]?.id ?? "");
+    if (!leadId) return "error";
+  }
+  const reason = body.signals && typeof body.signals === "object" ? String((body.signals as { reason?: string }).reason ?? "") : "";
+  const logged = await rest(config, "op_lead_activities?on_conflict=client_ref&select=id", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-    body: JSON.stringify(body)
+    headers: { "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify(churchSignalActivity(leadId, body, reason))
   });
-  if (response.status === 409) return "exists";
-  if (!response.ok) return "error";
-  const saved = (await response.json()) as unknown[];
-  return Array.isArray(saved) && saved.length === 1 ? "ok" : "error";
+  if (!logged.ok && logged.status !== 409) return "error";
+  return outcome;
 }
 
 async function rest(config: { url: string; key: string }, query: string, init: RequestInit = {}): Promise<Response> {

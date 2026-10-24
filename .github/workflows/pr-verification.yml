@@ -48,7 +48,10 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-16
+          npm test
 
       - name: Build
         run: npm run build

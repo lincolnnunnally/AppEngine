@@ -322,6 +322,10 @@ function domainAgrees(church: DirectoryChurch, row: TechDirectorCsvRow): boolean
   if (!statesOk(row.state, church.state)) return false;
   if (sameChurchName(church, row)) return true;
   const city = cityKey(row.city);
+  const want = stateKey(row.state);
+  const have = stateKey(church.state);
+  // City and a bare host still need a state on both sides. A blank state does not agree.
+  if (!want || !have || want !== have) return false;
   return Boolean(city) && city === cityKey(church.city) && bareHostWebsite(row.website);
 }
 
@@ -337,8 +341,9 @@ export type DirectoryMatch = { church: DirectoryChurch } | { reason: string; fla
  * name and the state, or the row is flagged and does not fall through. Otherwise
  * a website domain that is not a shared host (suppressionDomain drops umc.org,
  * ag.org, jw.org, and the rest) matches only when the normalized name agrees,
- * or the city, the state, and a bare host (no path) all agree. A shared host
- * is not a domain match. Name and city are the fallback.
+ * or the city, the state, and a bare host (no path) all agree. The city path
+ * requires a state on both sides. A shared host is not a domain match. Name
+ * and city are the fallback.
  */
 export function matchDirectoryChurch(row: TechDirectorCsvRow, churches: DirectoryChurch[]): DirectoryMatch {
   const churchId = String(row.church_id ?? "").trim();
@@ -775,14 +780,66 @@ export function stampStaffContact(staff: unknown, meta: { id: string; tags: stri
   return { staff: next, found: true };
 }
 
-/** Stable op_leads slug for an unmatched church-signal row. Re-running finds the same slug. */
+/** op_leads.kind for an unmatched church signal. Not a shop. Other lead readers skip this kind. */
+export const CHURCH_LEAD_KIND = "church-lead";
+
+/**
+ * Stable op_leads slug from the normalized church, city, and state only.
+ * A later import of the same church finds this row and merges contacts onto it.
+ */
 export function churchSignalLeadSlug(row: TechDirectorCsvRow): string {
-  const digest = createHash("sha1")
-    .update([row.church, row.city, row.state, row.website, row.name, row.signal_types, row.evidence_quote, row.source_url].join("|"), "utf8")
-    .digest("hex")
-    .slice(0, 10);
-  const base = normName(`${row.church} ${row.city}`).replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "church-signal";
+  const church = churchMatchName(row.church);
+  const city = cityKey(row.city);
+  const state = stateKey(row.state);
+  const digest = createHash("sha1").update([church, city, state].join("|"), "utf8").digest("hex").slice(0, 10);
+  const base = church.replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "church-signal";
   return `cs-${base}-${digest}`.slice(0, 80);
+}
+
+/** Add people who are not already on the lead, matched by normalized name. Existing rows stay as they are. */
+export function mergeChurchSignalContacts(existing: unknown, incoming: unknown): { contacts: StaffItem[]; added: number } {
+  const next = staffList(existing);
+  const names = new Set(next.map((item) => normPersonName(item.name)).filter(Boolean));
+  let added = 0;
+  for (const contact of staffList(incoming)) {
+    const key = normPersonName(contact.name);
+    if (!key || names.has(key)) continue;
+    names.add(key);
+    next.push(contact);
+    added += 1;
+  }
+  return { contacts: next, added };
+}
+
+/**
+ * True only when PostgREST says crm_patch_church_doc is not installed.
+ * A SQL error, including "operator does not exist: text = uuid", is not this.
+ */
+export function crmPatchRpcMissing(status: number, detail: string): boolean {
+  if (status === 404) return true;
+  const text = detail.toLowerCase();
+  if (text.includes("pgrst202")) return true;
+  return text.includes("could not find the function") && text.includes("schema cache");
+}
+
+/** One import log row on op_lead_activities. client_ref is stable for the same slug, person, and quote. */
+export function churchSignalActivity(leadId: string, body: { slug?: unknown; contacts?: unknown; signals?: unknown }, reason: string): Record<string, unknown> {
+  const contacts = Array.isArray(body.contacts) ? body.contacts : [];
+  const person = contacts.find((item) => item && typeof item === "object") as Record<string, unknown> | undefined;
+  const signals = body.signals && typeof body.signals === "object" ? (body.signals as Record<string, unknown>) : {};
+  const quote = String(signals.evidence_quote ?? "");
+  const who = person ? String(person.name ?? "") : "";
+  const clientRef = `cs${createHash("sha1").update(`${String(body.slug ?? "")}|${who}|${quote}`, "utf8").digest("hex")}`.slice(0, 40);
+  return {
+    lead_id: leadId,
+    type: "note",
+    occurred_at: new Date().toISOString(),
+    contact: person ? { id: person.id ?? "", name: person.name ?? "", title: person.role ?? "" } : null,
+    outcome: clip(reason, 200) || "Imported as a church signal",
+    source: "church_signal_import",
+    client_ref: clientRef,
+    created_by: "church_signal_import"
+  };
 }
 
 /**
@@ -808,7 +865,7 @@ export function churchSignalLeadBody(row: TechDirectorCsvRow, reason: string): R
   return {
     slug: churchSignalLeadSlug(row),
     business_name: clip(row.church, 160) || "Church signal",
-    kind: "shop",
+    kind: CHURCH_LEAD_KIND,
     city: clip(row.city, 80) || null,
     state: clip(row.state, 40) || null,
     phone: published.phone || null,

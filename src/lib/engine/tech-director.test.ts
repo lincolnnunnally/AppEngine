@@ -7,9 +7,12 @@ import {
   addStaffContacts,
   churchDocPatch,
   churchIsInCrm,
+  churchSignalActivity,
   churchSignalLeadBody,
+  crmPatchRpcMissing,
   formatImportCounts,
   matchDirectoryChurch,
+  mergeChurchSignalContacts,
   nextChurchDoc,
   parseImportSkipFile,
   parseTechDirectorCsv,
@@ -19,7 +22,7 @@ import {
   type DirectoryChurch,
   type TechDirectorCsvRow
 } from "./tech-director.ts";
-import { cardMatchesCrmSearch, cleanContactOutreach } from "./lpl-crm-core.ts";
+import { cardMatchesCrmSearch, churchLeadInQueue, cleanContactOutreach, mergeOutreachLog, type Touch } from "./lpl-crm-core.ts";
 
 const churches: DirectoryChurch[] = [
   { id: "g1", name: "Grace Chapel", churchName: "", city: "Vidalia", state: "GA", website: "https://gracechapel.example", domain: "", inCrm: true, contacts: [] },
@@ -104,6 +107,14 @@ describe("technical director matching", () => {
     const match = matchDirectoryChurch(
       row({ church: "Bethel AME", city: "Savannah", state: "GA", website: "https://elca.org/find/bethel", name: "Pat" }),
       list
+    );
+    assert.equal("church" in match, false);
+  });
+
+  it("does not attach on city and a bare host when the state is missing", () => {
+    const match = matchDirectoryChurch(
+      row({ church: "Some Other Name", city: "Vidalia", state: "", website: "https://www.gracechapel.example", name: "Jane Doe" }),
+      churches
     );
     assert.equal("church" in match, false);
   });
@@ -820,6 +831,65 @@ describe("crm search and contact status", () => {
     assert.equal(body.business_name, "Bethel AME");
     assert.equal(Array.isArray(body.contacts), true);
     assert.equal((body.contacts as Array<{ status: string }>)[0].status, "new");
+    assert.equal(body.kind, "church-lead");
     assert.match(String(body.slug), /^cs-/);
+    const again = churchSignalLeadBody(
+      row({
+        church: "Bethel AME Church",
+        city: "Savannah",
+        state: "Georgia",
+        website: "https://other.example/path",
+        name: "Someone Else",
+        signal_types: "staff",
+        evidence_quote: "A different quote.",
+        source_url: "https://other.example/staff"
+      }),
+      "No church on file matches this row."
+    );
+    assert.equal(again.slug, body.slug);
+    const otherState = churchSignalLeadBody(row({ church: "Bethel AME", city: "Savannah", state: "SC", signal_types: "renovation" }), "No church on file matches this row.");
+    assert.notEqual(otherState.slug, body.slug);
+    const merged = mergeChurchSignalContacts(body.contacts, again.contacts);
+    assert.equal(merged.added, 1);
+    assert.equal(merged.contacts.length, 2);
+    assert.equal(mergeChurchSignalContacts(merged.contacts, again.contacts).added, 0);
+    const activity = churchSignalActivity("44444444-4444-4444-8444-444444444444", body, "No church on file matches this row.");
+    assert.equal(activity.type, "note");
+    assert.equal(activity.source, "church_signal_import");
+    assert.equal(activity.lead_id, "44444444-4444-4444-8444-444444444444");
+    assert.equal(churchSignalActivity("44444444-4444-4444-8444-444444444444", body, "No church on file matches this row.").client_ref, activity.client_ref);
+  });
+
+  it("treats a text-equals-uuid failure as a real error, not a missing function", () => {
+    assert.equal(crmPatchRpcMissing(400, 'operator does not exist: text = uuid'), false);
+    assert.equal(crmPatchRpcMissing(404, "not found"), true);
+    assert.equal(crmPatchRpcMissing(404, 'Could not find the function public.crm_patch_church_doc in the schema cache'), true);
+    assert.equal(crmPatchRpcMissing(400, "PGRST202"), true);
+  });
+
+  it("counts an outreach log in the timeline and as the last reach-out, without doubling a note already there", () => {
+    const logged = mergeOutreachLog([], [{ notes: [{ at: "2026-04-02", note: "Left a message about the sanctuary sound." }] }], "churchconnect");
+    assert.equal(logged.length, 1);
+    assert.equal(logged[0].outreach, true);
+    assert.equal(logged[0].at, "2026-04-02");
+    assert.equal(logged[0].dateOnly, true);
+    const again = mergeOutreachLog(logged, [{ notes: [{ at: "2026-04-02", note: "Left a message about the sanctuary sound." }] }], "churchconnect");
+    assert.equal(again.length, 1);
+    const existing: Touch[] = [
+      {
+        at: "2026-04-02T16:00:00.000Z",
+        app: "churchconnect",
+        kind: "note",
+        what: "Note: Left a message about the sanctuary sound.",
+        outreach: false
+      }
+    ];
+    const flipped = mergeOutreachLog(existing, [{ notes: [{ at: "2026-04-02T16:00:00.000Z", note: "Left a message about the sanctuary sound." }] }], "churchconnect");
+    assert.equal(flipped.length, 1);
+    assert.equal(flipped[0].outreach, true);
+    assert.equal(churchLeadInQueue({ kind: "church-signal" }), true);
+    assert.equal(churchLeadInQueue({ kind: "church-signal", queue: "dismissed" }), false);
+    assert.equal(churchLeadInQueue({ kind: "church-signal", queue: "attached" }), false);
+    assert.equal(churchLeadInQueue({ kind: "shop" }), false);
   });
 });

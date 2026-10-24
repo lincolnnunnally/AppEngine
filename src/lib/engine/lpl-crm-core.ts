@@ -726,6 +726,54 @@ export function dedupeTouches(touchesNewestFirst: Touch[]): Touch[] {
   return kept;
 }
 
+function outreachDay(at: string): string {
+  return at.slice(0, 10);
+}
+
+function sameOutreachNote(touch: Touch, note: string, day: string): boolean {
+  if (outreachDay(touch.at) !== day) return false;
+  const text = note.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!text) return false;
+  const what = touch.what.replace(/\s+/g, " ").trim().toLowerCase();
+  return what === text || what.endsWith(`: ${text}`);
+}
+
+/**
+ * A note saved on a person is part of the timeline and counts as a reach-out.
+ * A note already stored as a timeline line on that day is not added again;
+ * that line becomes the reach-out. Newest first.
+ */
+export function mergeOutreachLog(touches: Touch[], contacts: ReadonlyArray<{ notes?: CrmContactNote[] }>, app: CrmApp): Touch[] {
+  const merged = touches.map((touch) => ({ ...touch }));
+  for (const contact of contacts) {
+    for (const note of contact.notes ?? []) {
+      const text = note.note.replace(/\s+/g, " ").trim().slice(0, 160);
+      const day = outreachDay(note.at);
+      if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      const existing = merged.find((touch) => touch.kind === "note" && sameOutreachNote(touch, text, day));
+      if (existing) {
+        if (!existing.outreach) existing.outreach = true;
+        continue;
+      }
+      merged.push({ at: day, app, kind: "note", what: text, outreach: true, dateOnly: true });
+    }
+  }
+  return dedupeTouches(sortTouches(merged));
+}
+
+/** Card timeline and last reach-out, including notes logged on a person. */
+export function withOutreachLog(card: CrmCard): CrmCard {
+  const touches = mergeOutreachLog(card.touches, card.contacts, card.apps[0] ?? "churchconnect");
+  return { ...card, touches, lastOutreach: touches.find((touch) => touch.outreach) ?? null, lastTouch: touches[0] ?? null };
+}
+
+/** A church-signal lead still waiting. Attached and dismissed rows leave the queue. */
+export function churchLeadInQueue(signals: { kind?: unknown; queue?: unknown } | null | undefined): boolean {
+  if (!signals || String(signals.kind ?? "") !== "church-signal") return false;
+  const queue = String(signals.queue ?? "");
+  return queue !== "dismissed" && queue !== "attached";
+}
+
 const SAFE_RECORD_PATH = /^[#/A-Za-z0-9_.\-]+$/;
 
 /** First record path per app (non-context records first). Never carries contact details. */
@@ -864,7 +912,11 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
     const matchedBy = [
       ...new Set(edges.filter((edge) => ids.has(edge.a) && ids.has(edge.b)).map((edge) => edge.kind))
     ] as MatchKind[];
-    const touches = dedupeTouches(sortTouches(members.flatMap((member) => member.touches)));
+    const rawTouches = dedupeTouches(sortTouches(members.flatMap((member) => member.touches)));
+    const saveChurch = churchIdOf(members);
+    const saveLead = leadIdOf(members, saveChurch);
+    const contacts = contactsOf(targetMembers(members, saveChurch, saveLead));
+    const touches = mergeOutreachLog(rawTouches, contacts, lead.app);
     const lastOutreach = touches.find((touch) => touch.outreach) ?? null;
     const stops: CrmStop[] = [];
 
@@ -896,8 +948,6 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       .filter((item) => item.date)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
-    const saveChurch = churchIdOf(members);
-    const saveLead = leadIdOf(members, saveChurch);
     const card: CrmCard = {
       // Hashed so an id that contains contact details never reaches the page.
       key: `c${hashKey(root)}`,
@@ -926,7 +976,7 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       recordPaths: recordPathsOf(members),
       churchId: saveChurch,
       leadId: saveLead,
-      contacts: contactsOf(targetMembers(members, saveChurch, saveLead)),
+      contacts,
       deskDoNotContact: targetMembers(members, saveChurch, saveLead).some((member) => member.deskDoNotContact && !member.contextOnly),
       org: orgOf(members),
       state: members.map((member) => member.state).find(Boolean) || "",

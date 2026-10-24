@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { AvProspects } from "@/components/engine/crm-av-prospects";
 import { TopProspects } from "@/components/engine/crm-top-prospects";
 import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/actions";
-import { ChurchSignals, PeopleTools, TechDirectorPeople } from "@/components/engine/crm-church-tools";
+import { ChurchSignals, PeopleTools, SignalQueueActions, TechDirectorPeople } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
 import { SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode } from "@/lib/engine/tech-director-core";
@@ -16,6 +16,7 @@ import {
   countTokens,
   hasClockTime,
   recordLink,
+  withOutreachLog,
   type CrmApp,
   type CrmCard,
   type FollowUp,
@@ -100,6 +101,13 @@ function fmtDate(at: string | null | undefined): string {
   return yearFmt.format(date) === yearFmt.format(new Date()) ? dayFmt.format(date) : dateFmt.format(date);
 }
 
+/** A logged day, always with the year: "Apr 2, 2026". */
+function fmtLoggedDay(at: string): string {
+  const date = new Date(`${at.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(date);
+}
+
 function fmtTime(at: string | null | undefined): string {
   if (!at) return "";
   if (!hasClockTime(at)) return fmtDate(at);
@@ -144,7 +152,7 @@ function AppPill({ app }: { app: CrmApp }) {
 function TouchLine({ touch }: { touch: Touch }) {
   return (
     <li className={`crm-touch${touch.outreach ? " is-outreach" : ""}${touch.signal ? " is-signal" : ""}`}>
-      <span className="crm-touch-when">{touch.dateOnly ? fmtDate(touch.at) : fmtTime(touch.at)}</span>
+      <span className="crm-touch-when">{touch.dateOnly || !hasClockTime(touch.at) ? fmtLoggedDay(touch.at) : fmtTime(touch.at)}</span>
       <span className="crm-touch-body">
         <span className="crm-touch-head">
           {/* A business lead's own notes don't need a second "Business lead" pill. */}
@@ -164,7 +172,7 @@ function TouchLine({ touch }: { touch: Touch }) {
 }
 
 function CardView({
-  card,
+  card: source,
   adminUrls,
   open,
   onOpen,
@@ -182,6 +190,7 @@ function CardView({
   isOwner: boolean;
   outreachHidden: boolean;
 }) {
+  const card = withOutreachLog(source);
   const printed = countTokens(card.tokens, true);
   const notPrinted = countTokens(card.tokens, false);
   // A card that is only a business lead: say which apps were picked (or none yet): "Only in Operate", "In Operate and AI Website Design".
@@ -246,7 +255,7 @@ function CardView({
                 {card.lastOutreach.what}
                 <span className="crm-dim">
                   {" "}
-                  · {CRM_APP_LABEL[card.lastOutreach.app]} · {fmtDate(card.lastOutreach.at)}
+                  · {CRM_APP_LABEL[card.lastOutreach.app]} · {card.lastOutreach.dateOnly || !hasClockTime(card.lastOutreach.at) ? fmtLoggedDay(card.lastOutreach.at) : fmtDate(card.lastOutreach.at)}
                 </span>
               </>
             ) : (
@@ -283,6 +292,7 @@ function CardView({
 
       {isOwner ? <ChurchSignals signals={card.signals ?? []} /> : null}
       {isOwner ? <TechDirectorPeople people={card.contacts} signals={card.signals ?? []} card={card} canSave={canSave} /> : null}
+      {isOwner && card.leadQueue && card.leadId ? <SignalQueueActions leadId={card.leadId} /> : null}
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
       <SuggestNextStep card={card} isOwner={isOwner} canSave={canSave} outreachHidden={outreachHidden} />
       <PeopleTools card={card} canSave={canSave} />
@@ -421,7 +431,8 @@ function FollowRow({ row, onOpen }: { row: FollowUp; onOpen: (key: string) => vo
   );
 }
 
-export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null, techFirst = false, searchQuery = "", preview = "" }: Props) {
+export function CrmDesk({ cards: sourceCards, followUps, adminUrls, canSave = false, isOwner = false, outreachHidden = false, topInitial = null, avInitial = null, techFirst = false, searchQuery = "", preview = "" }: Props) {
+  const cards = useMemo(() => sourceCards.map(withOutreachLog), [sourceCards]);
   const [reason, setReason] = useState<FollowUpReason | "all">("all");
   const [filter, setFilter] = useState<CardFilter>(techFirst ? "tech" : "all");
   const [signalFilter, setSignalFilter] = useState<"" | typeof SIGNAL_STAFF | typeof SIGNAL_BUILDING>("");
@@ -565,9 +576,9 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
           <div className="crm-search">
             {isOwner ? (
               <form action="/crm" method="get" className="crm-search-form">
-                <span className="crm-sr-only">Search by church, person, title, city, or tag</span>
+                <span className="crm-sr-only">Search loaded churches by name, person, title, city, or tag</span>
                 {preview ? <input type="hidden" name="preview" value={preview} /> : null}
-                <input type="search" name="q" defaultValue={searchQuery} placeholder="Church, person, title, city, or tag" aria-label="Search by church, person, title, city, or tag" />
+                <input type="search" name="q" defaultValue={searchQuery} placeholder="Search loaded churches, people, cities, or tags" aria-label="Search loaded churches by name, person, title, city, or tag" />
                 <button type="submit" className="dx-btn">
                   Search
                 </button>
@@ -584,6 +595,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               onClick={() => {
                 setFilter(key);
                 setSignalFilter("");
+                setQueueOnly(false);
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -600,6 +612,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               onClick={() => {
                 setFilter("tech");
                 setSignalFilter("");
+                setQueueOnly(false);
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -617,6 +630,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               onClick={() => {
                 setFilter("all");
                 setSignalFilter((current) => (current === SIGNAL_STAFF ? "" : SIGNAL_STAFF));
+                setQueueOnly(false);
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -634,6 +648,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               onClick={() => {
                 setFilter("all");
                 setSignalFilter((current) => (current === SIGNAL_BUILDING ? "" : SIGNAL_BUILDING));
+                setQueueOnly(false);
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -697,6 +712,7 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
               data-testid="crm-state-filter"
               onChange={(event) => {
                 setStateFilter(event.target.value);
+                setQueueOnly(false);
                 setFocus(null);
                 setPanel("cards");
                 setLimit(PAGE);
@@ -752,7 +768,27 @@ export function CrmDesk({ cards, followUps, adminUrls, canSave = false, isOwner 
             ))}
           </div>
         ) : (
-          <p className="crm-empty">No cards match. Try another filter or clear the search.</p>
+          <div className="crm-empty">
+            <p>No cards match. Try another filter or clear the search.</p>
+            <button
+              type="button"
+              className="dx-btn"
+              onClick={() => {
+                if (searchQuery) {
+                  window.location.href = preview ? `/crm?preview=${encodeURIComponent(preview)}` : "/crm";
+                  return;
+                }
+                setFilter("all");
+                setSignalFilter("");
+                setStateFilter("");
+                setQueueOnly(false);
+                setFocus(null);
+                setPanel("cards");
+              }}
+            >
+              Clear
+            </button>
+          </div>
         )}
         {panel === "cards" && shownCards.length > limit ? (
           <div className="crm-more-wrap">
