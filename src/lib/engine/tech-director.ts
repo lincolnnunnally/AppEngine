@@ -1309,6 +1309,72 @@ export function crmPatchRpcMissing(_status: number, detail: string): boolean {
   return detail.toLowerCase().includes("pgrst202");
 }
 
+/**
+ * Waits before each retry of crm_patch_church_doc. The first post does not wait.
+ * A 500 or a statement timeout is retried up to 3 times: 2s, then 5s, then 10s.
+ */
+export const CRM_PATCH_RETRY_BACKOFF_MS = [2_000, 5_000, 10_000] as const;
+
+/** A statement timeout from the authenticator role, including SQLSTATE 57014. */
+export function crmPatchStatementTimeout(detail: string): boolean {
+  const text = detail.toLowerCase();
+  return text.includes("statement timeout") || text.includes("57014");
+}
+
+/**
+ * Retry a bulk-import patch when the REST call returns 500, or when the body
+ * is a statement timeout at any status. A missing function is not retried.
+ * A compare-and-swap miss is a successful call that returned no row, so it
+ * never reaches this check.
+ */
+export function crmPatchRetryableFailure(status: number, detail: string): boolean {
+  if (crmPatchRpcMissing(status, detail)) return false;
+  return status === 500 || crmPatchStatementTimeout(detail);
+}
+
+export type CrmPatchPost =
+  | { ok: true; rows: unknown }
+  | { ok: false; status: number; detail: string };
+
+export type CrmPatchRetryResult =
+  | { outcome: "ok" }
+  | { outcome: "conflict" }
+  | { outcome: "missing"; status: number; detail: string }
+  | { outcome: "error"; status: number; detail: string };
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * Posts crm_patch_church_doc once, then retries a 500 or a statement timeout
+ * up to 3 times, waiting 2s, 5s, and 10s. A compare-and-swap mismatch (the
+ * call succeeded and did not return exactly one row) stops immediately.
+ */
+export async function retryCrmPatchChurchDoc(
+  post: () => Promise<CrmPatchPost>,
+  sleep: (ms: number) => Promise<void> = delay,
+  onRetry?: (waitMs: number, failure: { status: number; detail: string }, retry: number) => void
+): Promise<CrmPatchRetryResult> {
+  let failure: { status: number; detail: string } = { status: 0, detail: "" };
+  for (let attempt = 0; attempt <= CRM_PATCH_RETRY_BACKOFF_MS.length; attempt += 1) {
+    const result = await post();
+    if (result.ok) {
+      return Array.isArray(result.rows) && result.rows.length === 1 ? { outcome: "ok" } : { outcome: "conflict" };
+    }
+    failure = { status: result.status, detail: result.detail };
+    if (crmPatchRpcMissing(result.status, result.detail)) return { outcome: "missing", status: failure.status, detail: failure.detail };
+    if (!crmPatchRetryableFailure(result.status, result.detail)) return { outcome: "error", status: failure.status, detail: failure.detail };
+    const waitMs = CRM_PATCH_RETRY_BACKOFF_MS[attempt];
+    if (waitMs === undefined) return { outcome: "error", status: failure.status, detail: failure.detail };
+    onRetry?.(waitMs, failure, attempt + 1);
+    await sleep(waitMs);
+  }
+  return { outcome: "error", status: failure.status, detail: failure.detail };
+}
+
 /** Same city and state first, then the same state, then the same city. The rest stay in the order they arrived. */
 export function rankAttachChurches<T extends { city: string; state: string }>(rows: readonly T[], lead: { city?: string; state?: string }): T[] {
   const city = cityKey(lead.city ?? "");

@@ -11,8 +11,12 @@ import {
   NORTHRIDGE_MILLEDGEVILLE_ID,
   churchSignalActivity,
   churchSignalLeadBody,
+  CRM_PATCH_RETRY_BACKOFF_MS,
+  crmPatchRetryableFailure,
   crmPatchRpcMissing,
+  crmPatchStatementTimeout,
   rankAttachChurches,
+  retryCrmPatchChurchDoc,
   formatImportCounts,
   matchDirectoryChurch,
   mergeChurchSignalContacts,
@@ -1283,5 +1287,98 @@ describe("production import guard", () => {
     const partial = excludeFlaggedTechDirectorRows([keep, samePerson], parsed.entries.map((entry) => entry.row));
     assert.deepEqual(partial.skipped.map((item) => item.score), ["99"]);
     assert.deepEqual(partial.rows.map((item) => item.name), ["Ada"]);
+  });
+});
+
+describe("crm_patch_church_doc retry", () => {
+  const timeoutBody = '{"code":"57014","message":"canceling statement due to statement timeout"}';
+
+  it("retries a 500 or a statement timeout up to 3 times, waiting 2s, 5s, and 10s, and does not retry a CAS mismatch", async () => {
+    assert.deepEqual([...CRM_PATCH_RETRY_BACKOFF_MS], [2_000, 5_000, 10_000]);
+    assert.equal(crmPatchStatementTimeout(timeoutBody), true);
+    assert.equal(crmPatchStatementTimeout("upstream request timeout"), false);
+    assert.equal(crmPatchRetryableFailure(500, "Internal Server Error"), true);
+    assert.equal(crmPatchRetryableFailure(504, timeoutBody), true);
+    assert.equal(crmPatchRetryableFailure(400, "operator does not exist: text = uuid"), false);
+    assert.equal(crmPatchRetryableFailure(500, '{"code":"PGRST202","message":"Could not find the function public.crm_patch_church_doc"}'), false);
+
+    const sleeps: number[] = [];
+    const sleep = async (ms: number) => {
+      sleeps.push(ms);
+    };
+
+    const saved = await retryCrmPatchChurchDoc(async () => ({ ok: true, rows: [{ id: "church-1" }] }), sleep);
+    assert.deepEqual(saved, { outcome: "ok" });
+    assert.deepEqual(sleeps, []);
+
+    sleeps.length = 0;
+    let posts = 0;
+    const recovered = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      if (posts < 4) return { ok: false, status: 500, detail: timeoutBody };
+      return { ok: true, rows: [{ id: "church-1" }] };
+    }, sleep);
+    assert.deepEqual(recovered, { outcome: "ok" });
+    assert.equal(posts, 4);
+    assert.deepEqual(sleeps, [2_000, 5_000, 10_000]);
+
+    sleeps.length = 0;
+    posts = 0;
+    const gatewayTimeout = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      if (posts === 1) return { ok: false, status: 504, detail: timeoutBody };
+      return { ok: true, rows: [{ id: "church-1" }] };
+    }, sleep);
+    assert.deepEqual(gatewayTimeout, { outcome: "ok" });
+    assert.equal(posts, 2);
+    assert.deepEqual(sleeps, [2_000]);
+
+    sleeps.length = 0;
+    posts = 0;
+    const gaveUp = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      return { ok: false, status: 500, detail: "canceling statement due to statement timeout" };
+    }, sleep);
+    assert.deepEqual(gaveUp, { outcome: "error", status: 500, detail: "canceling statement due to statement timeout" });
+    assert.equal(posts, 4);
+    assert.deepEqual(sleeps, [2_000, 5_000, 10_000]);
+
+    sleeps.length = 0;
+    posts = 0;
+    const casMiss = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      return { ok: true, rows: [] };
+    }, sleep);
+    assert.deepEqual(casMiss, { outcome: "conflict" });
+    assert.equal(posts, 1);
+    assert.deepEqual(sleeps, []);
+
+    sleeps.length = 0;
+    posts = 0;
+    const casAfterTimeout = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      if (posts === 1) return { ok: false, status: 500, detail: timeoutBody };
+      return { ok: true, rows: [] };
+    }, sleep);
+    assert.deepEqual(casAfterTimeout, { outcome: "conflict" });
+    assert.equal(posts, 2);
+    assert.deepEqual(sleeps, [2_000]);
+
+    sleeps.length = 0;
+    posts = 0;
+    const sqlError = await retryCrmPatchChurchDoc(async () => {
+      posts += 1;
+      return { ok: false, status: 400, detail: "operator does not exist: text = uuid" };
+    }, sleep);
+    assert.equal(sqlError.outcome, "error");
+    assert.equal(posts, 1);
+    assert.deepEqual(sleeps, []);
+
+    sleeps.length = 0;
+    const missing = await retryCrmPatchChurchDoc(async () => {
+      return { ok: false, status: 404, detail: '{"code":"PGRST202","message":"Could not find the function public.crm_patch_church_doc in the schema cache"}' };
+    }, sleep);
+    assert.equal(missing.outcome, "missing");
+    assert.deepEqual(sleeps, []);
   });
 });

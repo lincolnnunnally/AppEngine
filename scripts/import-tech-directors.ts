@@ -36,10 +36,12 @@
 // lead_class, jev_avl_fit, jev_project_stage, crm_offers,
 // and service_providers. A blank lead or JEV field
 // is omitted so it cannot clear a value already stored. A stale read returns
-// no row and the import re-reads. If the function is missing, or an older
-// copy accepts the call but drops the new keys, the import stops. It does
-// not patch the whole document. Apply 011 first. Any other database error
-// stops the import.
+// no row and the import re-reads. That compare-and-swap miss is not posted
+// again with the same expected timestamp. A 500 or a statement timeout is
+// retried up to 3 times, waiting 2s, then 5s, then 10s. If the function is
+// missing, or an older copy accepts the call but drops the new keys, the
+// import stops. It does not patch the whole document. Apply 011 first.
+// Any other database error stops the import.
 // Re-running is safe after a partial failure.
 //
 // Unmatched rows are saved as church-lead rows (op_leads.kind church-lead),
@@ -83,7 +85,6 @@ import {
   churchPageQuery,
   churchSignalActivity,
   churchSignalLeadBody,
-  crmPatchRpcMissing,
   decideProductionWrite,
   directoryOnlyReportCsv,
   excludeFlaggedTechDirectorRows,
@@ -98,6 +99,7 @@ import {
   planTechDirectorImport,
   productionWriteBanner,
   profilePatchLanded,
+  retryCrmPatchChurchDoc,
   type ChurchDocProfile,
   type ChurchProfileWrite,
   type ProductionWriteDecision,
@@ -566,21 +568,34 @@ async function writeDoc(
   patch: Record<string, unknown>,
   previousUpdatedAt: string
 ): Promise<"ok" | "conflict" | "error"> {
-  const rpc = await rest(config, "rpc/crm_patch_church_doc", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-    body: JSON.stringify({ p_id: churchId, p_patch: patch, p_expected: previousUpdatedAt || null })
-  });
-  if (rpc.ok) {
-    const rows = (await rpc.json()) as unknown[];
-    return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
-  }
-  const detail = await rpc.text().catch(() => "");
-  if (crmPatchRpcMissing(rpc.status, detail)) {
+  const result = await retryCrmPatchChurchDoc(
+    async () => {
+      const rpc = await rest(config, "rpc/crm_patch_church_doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ p_id: churchId, p_patch: patch, p_expected: previousUpdatedAt || null })
+      });
+      if (rpc.ok) {
+        const rows = (await rpc.json()) as unknown;
+        return { ok: true, rows };
+      }
+      const detail = await rpc.text().catch(() => "");
+      return { ok: false, status: rpc.status, detail };
+    },
+    undefined,
+    (waitMs, failure, retry) => {
+      console.error(
+        `Church ${churchId} was not updated. crm_patch_church_doc failed (${failure.status}). Retrying in ${waitMs / 1000}s (retry ${retry}).`
+      );
+    }
+  );
+  if (result.outcome === "ok") return "ok";
+  if (result.outcome === "conflict") return "conflict";
+  if (result.outcome === "missing") {
     console.error("crm_patch_church_doc is not on the server. Apply db/migrations/011_crm_patch_church_doc_lead_fields.sql. Nothing was written.");
     return "error";
   }
-  console.error(`Church ${churchId} was not updated. crm_patch_church_doc failed (${rpc.status}).`);
+  console.error(`Church ${churchId} was not updated. crm_patch_church_doc failed (${result.status}).`);
   return "error";
 }
 
