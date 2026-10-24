@@ -1,7 +1,7 @@
 // Match a technical-director CSV to churches already on file, and merge the
 // contact into that church's staff_contacts. No new churches. No sends.
 import { createHash } from "node:crypto";
-import { normDomain, normName } from "./lpl-crm-core.ts";
+import { normName, suppressionDomain } from "./lpl-crm-core.ts";
 import {
   SIGNAL_STAFF,
   TECHNICAL_DIRECTOR_TAG,
@@ -18,6 +18,7 @@ import {
 
 export const TECH_DIRECTOR_CSV_COLUMNS = [
   "church",
+  "church_id",
   "city",
   "state",
   "website",
@@ -48,6 +49,7 @@ export const TECH_DIRECTOR_CSV_REQUIRED = [
 
 export type TechDirectorCsvRow = {
   church: string;
+  church_id: string;
   city: string;
   state: string;
   website: string;
@@ -74,7 +76,15 @@ export type DirectoryChurch = {
   /** Already on the CRM desk (pipeline). A directory-only church is not written. */
   inCrm: boolean;
   contacts: Array<{ name: string }>;
-  signals?: Array<{ tag: string; evidenceQuote?: string; evidence_quote?: string; sourceUrl?: string; source_url?: string }>;
+  signals?: Array<{
+    tag: string;
+    evidenceQuote?: string;
+    evidence_quote?: string;
+    sourceUrl?: string;
+    source_url?: string;
+    signalDate?: string;
+    signal_date?: string;
+  }>;
 };
 
 export type StaffContactWrite = {
@@ -107,6 +117,7 @@ export type StateImportCounts = {
   duplicatesSkipped: number;
   newSignals: number;
   signalDuplicatesSkipped: number;
+  signalsUpdated: number;
   unmatched: number;
 };
 
@@ -118,11 +129,14 @@ export type ImportPlan = {
   duplicatesSkipped: number;
   newSignals: number;
   signalDuplicatesSkipped: number;
+  signalsUpdated: number;
   unmatched: UnmatchedTechDirector[];
   directoryOnlyRows: UnmatchedTechDirector[];
   byState: Record<string, StateImportCounts>;
   additions: Array<{ churchId: string; contact: StaffContactWrite }>;
   signalAdditions: Array<{ churchId: string; signal: ChurchSignalWrite }>;
+  /** Same tag, quote, and source already stored, with a later signal date. */
+  signalUpdates: Array<{ churchId: string; signal: ChurchSignalWrite }>;
 };
 
 /** Pipeline fields that already put a ChurchConnect church on the CRM desk. */
@@ -173,7 +187,7 @@ export function techDirectorContactId(churchId: string, name: string): string {
   return `td-${digest}`;
 }
 
-/** Parse CSV text. `state` may be omitted. Other columns are required. */
+/** Parse CSV text. `state` and `church_id` may be omitted. Other columns are required. */
 export function parseTechDirectorCsv(text: string): { ok: true; rows: TechDirectorCsvRow[] } | { ok: false; message: string } {
   const table = parseCsv(text);
   if (!table.length) return { ok: false, message: `The CSV needs a header row: ${TECH_DIRECTOR_CSV_COLUMNS.join(", ")}.` };
@@ -193,6 +207,7 @@ export function parseTechDirectorCsv(text: string): { ok: true; rows: TechDirect
     if (record.every((value) => !String(value ?? "").trim())) continue;
     rows.push({
       church: cell(record, "church"),
+      church_id: cell(record, "church_id"),
       city: cell(record, "city"),
       state: cell(record, "state"),
       website: cell(record, "website"),
@@ -269,12 +284,33 @@ function byNameCity(pool: DirectoryChurch[], row: TechDirectorCsvRow): Directory
   return pool.filter((church) => sameChurchName(church, row) && cityKey(church.city) === city && statesOk(row.state, church.state));
 }
 
-/** Website domain first. If that is missing or shared by several churches, name and city. */
+/** A domain hit is not enough. The normalized name or the city has to agree too. */
+function domainAgrees(church: DirectoryChurch, row: TechDirectorCsvRow): boolean {
+  if (sameChurchName(church, row)) return true;
+  const city = cityKey(row.city);
+  return Boolean(city) && city === cityKey(church.city);
+}
+
+/**
+ * church_id when that column is filled. Otherwise a website domain that is not
+ * a shared host (suppressionDomain drops umc.org, ag.org, jw.org, and the
+ * rest) and that also agrees on the normalized name or the city. A shared host
+ * is not a domain match. Name and city are the fallback.
+ */
 export function matchDirectoryChurch(row: TechDirectorCsvRow, churches: DirectoryChurch[]): { church: DirectoryChurch } | { reason: string } {
-  const domain = normDomain(row.website);
+  const churchId = String(row.church_id ?? "").trim();
+  if (churchId) {
+    const found = churches.find((church) => church.id === churchId);
+    if (found) return { church: found };
+    return { reason: "No church on file has that church id." };
+  }
+  const domain = suppressionDomain(row.website);
   if (domain) {
-    const byDomain = churches.filter((church) => normDomain(church.website) === domain || normDomain(church.domain) === domain);
-    if (byDomain.length === 1) return { church: byDomain[0] };
+    const byDomain = churches.filter((church) => suppressionDomain(church.website) === domain || suppressionDomain(church.domain) === domain);
+    if (byDomain.length === 1) {
+      if (domainAgrees(byDomain[0], row)) return { church: byDomain[0] };
+      return { reason: "The website matches one church, but the name and city do not agree." };
+    }
     if (byDomain.length > 1) {
       const named = byNameCity(byDomain, row);
       if (named.length === 1) return { church: named[0] };
@@ -289,6 +325,27 @@ export function matchDirectoryChurch(row: TechDirectorCsvRow, churches: Director
   return { reason: "No church on file matches this row." };
 }
 
+/** True when the incoming signal date is later than the one already stored. A blank incoming date is not newer. */
+export function evidenceIsNewer(incoming: string, stored: string): boolean {
+  const next = signalTime(incoming);
+  if (next === null) return false;
+  const previous = signalTime(stored);
+  if (previous === null) return true;
+  return next > previous;
+}
+
+function signalTime(value: string): number | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function storedSignalDate(signal: NonNullable<DirectoryChurch["signals"]>[number]): string {
+  if (typeof signal.signalDate === "string") return signal.signalDate;
+  return String(signal.signal_date ?? "");
+}
+
 function emptyStateCounts(): StateImportCounts {
   return {
     matched: 0,
@@ -298,6 +355,7 @@ function emptyStateCounts(): StateImportCounts {
     duplicatesSkipped: 0,
     newSignals: 0,
     signalDuplicatesSkipped: 0,
+    signalsUpdated: 0,
     unmatched: 0
   };
 }
@@ -320,11 +378,19 @@ export function churchSignalId(churchId: string, tag: string, quote: string, sou
 
 export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: DirectoryChurch[]): ImportPlan {
   const namesByChurch = new Map<string, Set<string>>();
-  const signalsByChurch = new Map<string, Set<string>>();
+  const signalDates = new Map<string, Map<string, string>>();
   for (const church of churches) {
     namesByChurch.set(church.id, new Set(church.contacts.map((contact) => normPersonName(contact.name)).filter(Boolean)));
-    signalsByChurch.set(church.id, new Set((church.signals ?? []).map((signal) => churchSignalKey(signal))));
+    const dates = new Map<string, string>();
+    for (const signal of church.signals ?? []) {
+      const key = churchSignalKey(signal);
+      const date = storedSignalDate(signal);
+      const previous = dates.get(key);
+      if (previous === undefined || evidenceIsNewer(date, previous)) dates.set(key, date);
+    }
+    signalDates.set(church.id, dates);
   }
+  const pendingSignals = new Map<string, ChurchSignalWrite>();
   const plan: ImportPlan = {
     matched: 0,
     inCrm: 0,
@@ -333,11 +399,13 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     duplicatesSkipped: 0,
     newSignals: 0,
     signalDuplicatesSkipped: 0,
+    signalsUpdated: 0,
     unmatched: [],
     directoryOnlyRows: [],
     byState: {},
     additions: [],
-    signalAdditions: []
+    signalAdditions: [],
+    signalUpdates: []
   };
   for (const row of rows) {
     const types = parseSignalTypes(row.signal_types);
@@ -399,28 +467,42 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     const quote = clip(row.evidence_quote, 500);
     const source = httpUrl(row.source_url);
     const date = clip(row.signal_date, 40);
-    const known = signalsByChurch.get(church.id) ?? new Set<string>();
-    signalsByChurch.set(church.id, known);
+    const known = signalDates.get(church.id) ?? new Map<string, string>();
+    signalDates.set(church.id, known);
     for (const tag of signalTagsForTypes(types.types)) {
       const signalKey = churchSignalKey({ tag, evidenceQuote: quote, sourceUrl: source });
+      const signal: ChurchSignalWrite = {
+        id: churchSignalId(church.id, tag, quote, source),
+        tag,
+        evidence_quote: quote,
+        source_url: source,
+        signal_date: date,
+        score,
+        signal_types: types.types.filter((type) => (tag === SIGNAL_STAFF ? type === "staff" : type !== "staff"))
+      };
+      const pendingKey = `${church.id}|${signalKey}`;
       if (known.has(signalKey)) {
-        plan.signalDuplicatesSkipped += 1;
-        bucket.signalDuplicatesSkipped += 1;
+        const stored = known.get(signalKey) ?? "";
+        if (evidenceIsNewer(date, stored)) {
+          known.set(signalKey, date);
+          const queued = pendingSignals.get(pendingKey);
+          if (queued) {
+            queued.score = score;
+            queued.signal_date = date;
+          } else {
+            plan.signalUpdates.push({ churchId: church.id, signal });
+            plan.signalsUpdated += 1;
+            bucket.signalsUpdated += 1;
+          }
+        } else {
+          plan.signalDuplicatesSkipped += 1;
+          bucket.signalDuplicatesSkipped += 1;
+        }
         continue;
       }
-      known.add(signalKey);
-      plan.signalAdditions.push({
-        churchId: church.id,
-        signal: {
-          id: churchSignalId(church.id, tag, quote, source),
-          tag,
-          evidence_quote: quote,
-          source_url: source,
-          signal_date: date,
-          score,
-          signal_types: types.types.filter((type) => (tag === SIGNAL_STAFF ? type === "staff" : type !== "staff"))
-        }
-      });
+      known.set(signalKey, date);
+      pendingSignals.set(pendingKey, signal);
+      plan.signalAdditions.push({ churchId: church.id, signal });
       plan.newSignals += 1;
       bucket.newSignals += 1;
     }
@@ -437,13 +519,14 @@ export function formatImportCounts(plan: ImportPlan): string {
     `duplicates skipped: ${plan.duplicatesSkipped}`,
     `new signals: ${plan.newSignals}`,
     `signal duplicates skipped: ${plan.signalDuplicatesSkipped}`,
+    `signals updated: ${plan.signalsUpdated}`,
     `unmatched: ${plan.unmatched.length}`,
     "by state:"
   ];
   for (const state of Object.keys(plan.byState).sort()) {
     const row = plan.byState[state];
     lines.push(
-      `  ${state}: matched ${row.matched}, in CRM ${row.inCrm}, directory only ${row.directoryOnly}, new contacts ${row.newContacts}, duplicates skipped ${row.duplicatesSkipped}, new signals ${row.newSignals}, signal duplicates skipped ${row.signalDuplicatesSkipped}, unmatched ${row.unmatched}`
+      `  ${state}: matched ${row.matched}, in CRM ${row.inCrm}, directory only ${row.directoryOnly}, new contacts ${row.newContacts}, duplicates skipped ${row.duplicatesSkipped}, new signals ${row.newSignals}, signal duplicates skipped ${row.signalDuplicatesSkipped}, signals updated ${row.signalsUpdated}, unmatched ${row.unmatched}`
     );
   }
   return lines.join("\n");
@@ -475,23 +558,76 @@ export function addStaffContacts(staff: unknown, additions: StaffContactWrite[])
   return { staff: next, added, duplicates };
 }
 
-/** Append church signals that are not already stored. Existing objects keep their other keys. */
-export function addChurchSignals(existing: unknown, additions: ChurchSignalWrite[]): { signals: StaffItem[]; added: number; duplicates: number } {
+/**
+ * Append church signals that are not already stored. When the same tag, quote,
+ * and source are already there and the incoming date is later, update the score
+ * and the date and leave every other key on that object alone.
+ */
+export function addChurchSignals(
+  existing: unknown,
+  additions: ChurchSignalWrite[],
+  updates: ChurchSignalWrite[] = []
+): { signals: StaffItem[]; added: number; duplicates: number; updated: number } {
   const next = staffList(existing);
-  const keys = new Set(next.map((item) => churchSignalKey(item as { tag?: string; evidence_quote?: string; source_url?: string })));
+  const indexByKey = new Map<string, number>();
+  next.forEach((item, index) => {
+    const key = churchSignalKey(item as { tag?: string; evidence_quote?: string; source_url?: string });
+    if (key && !indexByKey.has(key)) indexByKey.set(key, index);
+  });
   let added = 0;
   let duplicates = 0;
-  for (const signal of additions) {
+  let updated = 0;
+  const applyOne = (signal: ChurchSignalWrite) => {
     const key = churchSignalKey(signal);
-    if (keys.has(key)) {
-      duplicates += 1;
-      continue;
+    const at = indexByKey.get(key);
+    if (at === undefined) {
+      indexByKey.set(key, next.length);
+      next.push({ ...signal });
+      added += 1;
+      return;
     }
-    keys.add(key);
-    next.push({ ...signal });
-    added += 1;
+    const current = next[at];
+    const stored = String(current.signal_date ?? current.signalDate ?? "");
+    if (!evidenceIsNewer(signal.signal_date, stored)) {
+      duplicates += 1;
+      return;
+    }
+    next[at] = { ...current, score: signal.score, signal_date: signal.signal_date };
+    updated += 1;
+  };
+  for (const signal of additions) applyOne(signal);
+  for (const signal of updates) applyOne(signal);
+  return { signals: next, added, duplicates, updated };
+}
+
+/** Copy of the church doc with only staff_contacts, crm_signals, and updated_at changed. */
+export function nextChurchDoc(
+  doc: Record<string, unknown>,
+  contacts: StaffContactWrite[],
+  signals: ChurchSignalWrite[],
+  updates: ChurchSignalWrite[],
+  now: string
+): { doc: Record<string, unknown>; addedContacts: number; addedSignals: number; updatedSignals: number; changed: boolean } {
+  const mergedContacts = addStaffContacts(doc.staff_contacts, contacts);
+  const mergedSignals = addChurchSignals(doc.crm_signals, signals, updates);
+  const addedContacts = mergedContacts.added;
+  const addedSignals = mergedSignals.added;
+  const updatedSignals = mergedSignals.updated;
+  if (!addedContacts && !addedSignals && !updatedSignals) {
+    return { doc, addedContacts: 0, addedSignals: 0, updatedSignals: 0, changed: false };
   }
-  return { signals: next, added, duplicates };
+  return {
+    doc: {
+      ...doc,
+      staff_contacts: mergedContacts.staff,
+      crm_signals: mergedSignals.signals,
+      updated_at: now
+    },
+    addedContacts,
+    addedSignals,
+    updatedSignals,
+    changed: true
+  };
 }
 
 /** Set or clear the role tag and source page on the contact with this id. */

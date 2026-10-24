@@ -1,14 +1,26 @@
 // Import church signals onto churches already on file.
 //
-// Matches each CSV row to an existing church: normalized website domain first,
-// then name and city. Never creates a church. A staff row adds the person
-// (same name at that church is skipped). A campaign or renovation row stores
-// the evidence on the church and does not create a person. Churches in the
+// Matches each CSV row to an existing church. A filled church_id matches that
+// id and does not fall through. Otherwise a website domain matches only when
+// suppressionDomain keeps the host (shared hosts such as umc.org, ag.org,
+// jw.org, churchfinder.com, and givelify.com do not) and the normalized name
+// or the city also agrees. If that domain hits one church and neither agrees,
+// the row is unmatched. Name and city are the fallback. Never creates a church.
+// A staff row adds the person (same name at that church is skipped). A campaign
+// or renovation row stores the evidence on the church and does not create a
+// person. A signal already stored with the same tag, quote, and source keeps
+// its score and date unless the new signal date is later. Churches in the
 // ChurchConnect directory that are not already on the CRM are counted and
 // reported, not written. Writes only with --apply, and refuses production.
 //
-// Columns: church, city, state (optional), website, staff_page_url, name, title,
-// contact, signal_types, evidence_quote, source_url, signal_date, score
+// The write re-reads the church doc, changes only staff_contacts and
+// crm_signals (and doc.updated_at, so the next write can see this one), and
+// patches only when doc.updated_at is still the value just read. A conflict
+// re-reads and tries again. Other keys on the doc are copied from that read.
+//
+// Columns: church, church_id (optional), city, state (optional), website,
+// staff_page_url, name, title, contact, signal_types, evidence_quote,
+// source_url, signal_date, score
 // signal_types is staff, campaign, renovation, or several joined with |
 //
 // Dry run (counts only, no writes):
@@ -24,11 +36,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  addChurchSignals,
-  addStaffContacts,
   churchIsInCrm,
   directoryOnlyReportCsv,
   formatImportCounts,
+  nextChurchDoc,
   parseTechDirectorCsv,
   planTechDirectorImport,
   TECH_DIRECTOR_CSV_COLUMNS,
@@ -59,7 +70,7 @@ if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath)) {
   node --experimental-strip-types scripts/import-tech-directors.ts --apply <file.csv>
 
 Columns: ${TECH_DIRECTOR_CSV_COLUMNS.join(", ")}
-state may be omitted. signal_types is staff, campaign, renovation, or several joined with |.
+state and church_id may be omitted. signal_types is staff, campaign, renovation, or several joined with |.
 --dry-run prints counts by state and writes nothing to the database.
 It also counts rows that match a ChurchConnect church that is not on the CRM.
 --apply writes only churches already on the CRM. It does not create churches.
@@ -126,31 +137,37 @@ for (const addition of plan.signalAdditions) {
   list.push(addition.signal);
   signalsByChurch.set(addition.churchId, list);
 }
-const churchIds = new Set([...contactsByChurch.keys(), ...signalsByChurch.keys()]);
+const updatesByChurch = new Map<string, ChurchSignalWrite[]>();
+for (const update of plan.signalUpdates) {
+  const list = updatesByChurch.get(update.churchId) ?? [];
+  list.push(update.signal);
+  updatesByChurch.set(update.churchId, list);
+}
+const churchIds = new Set([...contactsByChurch.keys(), ...signalsByChurch.keys(), ...updatesByChurch.keys()]);
 
 let wrote = 0;
 let contactsWritten = 0;
 let signalsWritten = 0;
+let signalsUpdated = 0;
 for (const churchId of churchIds) {
-  const doc = await readDoc(config, churchId);
-  if (!doc) {
-    console.error(`Could not read church ${churchId}. Stopped after writing ${wrote} churches.`);
-    process.exit(1);
-  }
-  const mergedContacts = addStaffContacts(doc.staff_contacts, contactsByChurch.get(churchId) ?? []);
-  const mergedSignals = addChurchSignals(doc.crm_signals, signalsByChurch.get(churchId) ?? []);
-  if (!mergedContacts.added && !mergedSignals.added) continue;
-  const next = { ...doc, staff_contacts: mergedContacts.staff, crm_signals: mergedSignals.signals };
-  const ok = await writeDoc(config, churchId, next);
-  if (!ok) {
+  const result = await writeChurchDoc(
+    config,
+    churchId,
+    contactsByChurch.get(churchId) ?? [],
+    signalsByChurch.get(churchId) ?? [],
+    updatesByChurch.get(churchId) ?? []
+  );
+  if (!result.ok) {
     console.error(`Could not update church ${churchId}. Stopped after writing ${wrote} churches.`);
     process.exit(1);
   }
+  if (!result.changed) continue;
   wrote += 1;
-  contactsWritten += mergedContacts.added;
-  signalsWritten += mergedSignals.added;
+  contactsWritten += result.addedContacts;
+  signalsWritten += result.addedSignals;
+  signalsUpdated += result.updatedSignals;
 }
-console.log(`applied: ${wrote} churches updated, ${contactsWritten} new contacts, ${signalsWritten} new signals`);
+console.log(`applied: ${wrote} churches updated, ${contactsWritten} new contacts, ${signalsWritten} new signals, ${signalsUpdated} signals updated`);
 
 function databaseConfig(): { url: string; key: string } | null {
   const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim().replace(/\/$/, "");
@@ -239,15 +256,50 @@ async function readDoc(config: { url: string; key: string }, churchId: string): 
   return doc && typeof doc === "object" ? doc : null;
 }
 
-async function writeDoc(config: { url: string; key: string }, churchId: string, doc: Record<string, unknown>): Promise<boolean> {
-  const response = await rest(config, `cc_churches?id=eq.${encodeURIComponent(churchId)}&select=id`, {
+async function writeChurchDoc(
+  config: { url: string; key: string },
+  churchId: string,
+  contacts: StaffContactWrite[],
+  signals: ChurchSignalWrite[],
+  updates: ChurchSignalWrite[]
+): Promise<{ ok: true; changed: boolean; addedContacts: number; addedSignals: number; updatedSignals: number } | { ok: false }> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const current = await readDoc(config, churchId);
+    if (!current) return { ok: false };
+    const merged = nextChurchDoc(current, contacts, signals, updates, new Date().toISOString());
+    if (!merged.changed) return { ok: true, changed: false, addedContacts: 0, addedSignals: 0, updatedSignals: 0 };
+    const written = await writeDoc(config, churchId, merged.doc, String(current.updated_at ?? ""));
+    if (written === "ok") {
+      return {
+        ok: true,
+        changed: true,
+        addedContacts: merged.addedContacts,
+        addedSignals: merged.addedSignals,
+        updatedSignals: merged.updatedSignals
+      };
+    }
+    if (written === "error") return { ok: false };
+  }
+  return { ok: false };
+}
+
+async function writeDoc(
+  config: { url: string; key: string },
+  churchId: string,
+  doc: Record<string, unknown>,
+  previousUpdatedAt: string
+): Promise<"ok" | "conflict" | "error"> {
+  const guard = previousUpdatedAt
+    ? `&doc->>updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
+    : "&or=(doc->>updated_at.is.null,doc->>updated_at.eq.)";
+  const response = await rest(config, `cc_churches?id=eq.${encodeURIComponent(churchId)}${guard}&select=id`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Prefer: "return=representation" },
     body: JSON.stringify({ doc })
   });
-  if (!response.ok) return false;
+  if (!response.ok) return "error";
   const rows = (await response.json()) as unknown[];
-  return Array.isArray(rows) && rows.length === 1;
+  return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
 }
 
 async function rest(config: { url: string; key: string }, query: string, init: RequestInit = {}): Promise<Response> {
