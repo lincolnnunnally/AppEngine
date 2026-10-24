@@ -18,7 +18,7 @@ import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
 import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
-import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts } from "@/lib/engine/tech-director";
+import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
 export const CRM_PASS_AUDIENCE = "churchconnect-crm";
@@ -1218,7 +1218,10 @@ const CHURCH_ID_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
 export type ChurchPick = { id: string; name: string; town: string };
 
 /** Churches already on file, by name, so a lead-queue row can be attached. Owner-gated by the action. */
-export async function searchChurchesForAttach(query: string): Promise<{ ok: true; churches: ChurchPick[] } | { ok: false; message: string }> {
+export async function searchChurchesForAttach(
+  query: string,
+  place: { city?: string; state?: string } = {}
+): Promise<{ ok: true; churches: ChurchPick[] } | { ok: false; message: string }> {
   const config = lplConfig();
   if (!config) return { ok: false, message: savingOffMessage() };
   const words = normName(query).split(" ").filter(Boolean).slice(0, 4);
@@ -1234,14 +1237,19 @@ export async function searchChurchesForAttach(query: string): Promise<{ ok: true
     if (!response.ok) return { ok: false, message: "Churches couldn't be read. Nothing was changed." };
     const rows = (await response.json()) as Array<Record<string, unknown>>;
     if (!Array.isArray(rows)) return { ok: false, message: "Churches couldn't be read. Nothing was changed." };
-    const churches = rows
-      .filter((row) => String(row.active ?? "") !== "false" && !row.merged_into && !row.deleted_at)
-      .map((row) => ({
-        id: String(row.id ?? ""),
-        name: String(row.name || row.church_name || "Church"),
-        town: [String(row.city ?? ""), String(row.state ?? "")].filter(Boolean).join(", ")
-      }))
-      .filter((row) => CHURCH_ID_RE.test(row.id));
+    const churches = rankAttachChurches(
+      rows
+        .filter((row) => String(row.active ?? "") !== "false" && !row.merged_into && !row.deleted_at)
+        .map((row) => ({
+          id: String(row.id ?? ""),
+          name: String(row.name || row.church_name || "Church"),
+          town: [String(row.city ?? ""), String(row.state ?? "")].filter(Boolean).join(", "),
+          city: String(row.city ?? ""),
+          state: String(row.state ?? "")
+        }))
+        .filter((row) => CHURCH_ID_RE.test(row.id)),
+      place
+    ).map(({ id, name, town }) => ({ id, name, town }));
     return { ok: true, churches };
   } catch {
     return { ok: false, message: "The database didn't answer. Nothing was changed." };
@@ -1300,65 +1308,67 @@ export async function attachLeadToChurch(ownerEmail: string, leadId: string, chu
   const signals = { ...(lead.signals && typeof lead.signals === "object" ? lead.signals : {}) };
   if (String(signals.kind ?? "") !== "church-signal") return { ok: false, message: "Only a lead-queue row can be attached to a church." };
   if (signals.queue === "attached" || signals.queue === "dismissed") return { ok: false, message: "That lead already left the queue." };
-  const church = await readChurchDoc(config, churchId);
-  if (church === "error") return { ok: false, message: "The church couldn't be read. Nothing was changed." };
-  if (!church) return { ok: false, message: "That church isn't there. Nothing was changed." };
-  const people = leadContacts(lead.contacts);
-  const mergedContacts = mergeChurchSignalContacts(church.doc.staff_contacts, people);
-  const parsedTypes = parseSignalTypes(signals.signal_types);
-  const signalId = `sig-${leadId.replace(/-/g, "").slice(0, 12)}`;
-  const additions =
-    String(signals.tag ?? "") && String(signals.evidence_quote ?? "")
-      ? [
-          {
-            id: signalId,
-            tag: String(signals.tag),
-            evidence_quote: String(signals.evidence_quote),
-            source_url: String(signals.source_url ?? ""),
-            signal_date: String(signals.signal_date ?? ""),
-            score: Number(signals.score) || 0,
-            signal_types: parsedTypes.ok ? parsedTypes.types : []
-          }
-        ]
-      : [];
-  const mergedSignals = addChurchSignals(church.doc.crm_signals, additions);
-  const patch = {
-    staff_contacts: mergedContacts.contacts,
-    crm_signals: mergedSignals.signals,
-    updated_at: new Date().toISOString()
-  };
-  let detail = "";
-  let status = 0;
-  try {
-    const rpc = await fetch(`${config.url}/rest/v1/rpc/crm_patch_church_doc`, {
-      method: "POST",
-      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=representation" },
-      cache: "no-store",
-      body: JSON.stringify({ p_id: churchId, p_patch: patch })
-    });
-    status = rpc.status;
-    if (!rpc.ok) detail = await rpc.text().catch(() => "");
-    else {
+  let churchName = "the church";
+  let patched = false;
+  for (let attempt = 0; attempt < 3 && !patched; attempt += 1) {
+    const church = await readChurchDoc(config, churchId);
+    if (church === "error") return { ok: false, message: "The church couldn't be read. Nothing was changed." };
+    if (!church) return { ok: false, message: "That church isn't there. Nothing was changed." };
+    churchName = church.name;
+    const people = leadContacts(lead.contacts);
+    const mergedContacts = mergeChurchSignalContacts(church.doc.staff_contacts, people);
+    const parsedTypes = parseSignalTypes(signals.signal_types);
+    const signalId = `sig-${leadId.replace(/-/g, "").slice(0, 12)}`;
+    const additions =
+      String(signals.tag ?? "") && String(signals.evidence_quote ?? "")
+        ? [
+            {
+              id: signalId,
+              tag: String(signals.tag),
+              evidence_quote: String(signals.evidence_quote),
+              source_url: String(signals.source_url ?? ""),
+              signal_date: String(signals.signal_date ?? ""),
+              score: Number(signals.score) || 0,
+              signal_types: parsedTypes.ok ? parsedTypes.types : []
+            }
+          ]
+        : [];
+    const mergedSignals = addChurchSignals(church.doc.crm_signals, additions);
+    const expected = typeof church.doc.updated_at === "string" ? church.doc.updated_at : null;
+    const patch = {
+      staff_contacts: mergedContacts.contacts,
+      crm_signals: mergedSignals.signals,
+      updated_at: new Date().toISOString()
+    };
+    try {
+      const rpc = await fetch(`${config.url}/rest/v1/rpc/crm_patch_church_doc`, {
+        method: "POST",
+        headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=representation" },
+        cache: "no-store",
+        body: JSON.stringify({ p_id: churchId, p_patch: patch, p_expected: expected })
+      });
+      if (!rpc.ok) {
+        const detail = await rpc.text().catch(() => "");
+        if (crmPatchRpcMissing(rpc.status, detail)) {
+          return { ok: false, message: "Attaching needs the church patch on the server. Nothing was changed." };
+        }
+        return { ok: false, message: "The church couldn't be updated. Nothing was changed." };
+      }
       const rows = (await rpc.json()) as unknown[];
-      if (!Array.isArray(rows) || rows.length !== 1) return { ok: false, message: "That church isn't there. Nothing else was changed." };
+      if (Array.isArray(rows) && rows.length === 1) patched = true;
+    } catch {
+      return { ok: false, message: "The database didn't answer. Nothing was changed." };
     }
-  } catch {
-    return { ok: false, message: "The database didn't answer. Nothing was changed." };
   }
-  if (detail || status >= 400) {
-    if (crmPatchRpcMissing(status, detail)) {
-      return { ok: false, message: "Attaching needs the church patch on the server. Nothing was changed." };
-    }
-    return { ok: false, message: "The church couldn't be updated. Nothing was changed." };
-  }
-  const logged = await logLeadQueueActivity(config, leadId, ownerEmail, clientRef, `Attached to ${church.name}. Contact moved onto the church.`);
+  if (!patched) return { ok: false, message: "That church changed while this was saving. Nothing else was changed. Try again." };
+  const logged = await logLeadQueueActivity(config, leadId, ownerEmail, clientRef, `Attached to ${churchName}. Contact moved onto the church.`);
   if (!logged) return { ok: false, message: "The contact was saved on the church, but the log was not. Try again." };
   signals.queue = "attached";
   signals.attached_church_id = churchId;
   if (!(await patchLeadIfUnchanged(config, lead, { signals }))) {
     return { ok: false, message: "The contact was saved on the church, but the lead is still in the queue. Try again." };
   }
-  return { ok: true, message: `Attached to ${church.name}. The lead left the queue.` };
+  return { ok: true, message: `Attached to ${churchName}. The lead left the queue.` };
 }
 
 /** Take a lead-queue row off the queue. The row stays. Nothing is sent. */

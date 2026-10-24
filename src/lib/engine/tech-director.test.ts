@@ -10,6 +10,7 @@ import {
   churchSignalActivity,
   churchSignalLeadBody,
   crmPatchRpcMissing,
+  rankAttachChurches,
   formatImportCounts,
   matchDirectoryChurch,
   mergeChurchSignalContacts,
@@ -862,9 +863,19 @@ describe("crm search and contact status", () => {
 
   it("treats a text-equals-uuid failure as a real error, not a missing function", () => {
     assert.equal(crmPatchRpcMissing(400, 'operator does not exist: text = uuid'), false);
-    assert.equal(crmPatchRpcMissing(404, "not found"), true);
-    assert.equal(crmPatchRpcMissing(404, 'Could not find the function public.crm_patch_church_doc in the schema cache'), true);
-    assert.equal(crmPatchRpcMissing(400, "PGRST202"), true);
+    assert.equal(crmPatchRpcMissing(404, "not found"), false);
+    assert.equal(crmPatchRpcMissing(404, 'Could not find the function public.crm_patch_church_doc in the schema cache'), false);
+    assert.equal(crmPatchRpcMissing(404, '{"code":"PGRST202","message":"Could not find the function public.crm_patch_church_doc in the schema cache"}'), true);
+    const ranked = rankAttachChurches(
+      [
+        { id: "atl", city: "Atlanta", state: "GA" },
+        { id: "sav", city: "Savannah", state: "Georgia" },
+        { id: "sc", city: "Savannah", state: "SC" },
+        { id: "oh", city: "Columbus", state: "OH" }
+      ],
+      { city: "Savannah", state: "GA" }
+    );
+    assert.deepEqual(ranked.map((row) => row.id), ["sav", "atl", "sc", "oh"]);
   });
 
   it("counts an outreach log in the timeline and as the last reach-out, without doubling a note already there", () => {

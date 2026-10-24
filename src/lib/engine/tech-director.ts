@@ -812,14 +812,29 @@ export function mergeChurchSignalContacts(existing: unknown, incoming: unknown):
 }
 
 /**
- * True only when PostgREST says crm_patch_church_doc is not installed.
- * A SQL error, including "operator does not exist: text = uuid", is not this.
+ * True only when PostgREST returns PGRST202 (the function is not in the schema cache).
+ * A plain 404, and a SQL error such as "operator does not exist: text = uuid", are not this.
  */
-export function crmPatchRpcMissing(status: number, detail: string): boolean {
-  if (status === 404) return true;
-  const text = detail.toLowerCase();
-  if (text.includes("pgrst202")) return true;
-  return text.includes("could not find the function") && text.includes("schema cache");
+export function crmPatchRpcMissing(_status: number, detail: string): boolean {
+  return detail.toLowerCase().includes("pgrst202");
+}
+
+/** Same city and state first, then the same state, then the same city. The rest stay in the order they arrived. */
+export function rankAttachChurches<T extends { city: string; state: string }>(rows: readonly T[], lead: { city?: string; state?: string }): T[] {
+  const city = cityKey(lead.city ?? "");
+  const state = stateKey(lead.state ?? "");
+  const tier = (row: T) => {
+    const sameCity = Boolean(city) && cityKey(row.city) === city;
+    const sameState = Boolean(state) && stateKey(row.state) === state;
+    if (sameCity && sameState) return 0;
+    if (sameState) return 1;
+    if (sameCity) return 2;
+    return 3;
+  };
+  return rows
+    .map((row, index) => ({ row, index, tier: tier(row) }))
+    .sort((a, b) => a.tier - b.tier || a.index - b.index)
+    .map((item) => item.row);
 }
 
 /** One import log row on op_lead_activities. client_ref is stable for the same slug, person, and quote. */

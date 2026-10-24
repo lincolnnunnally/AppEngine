@@ -262,7 +262,10 @@ export type ChurchPickState = { ok: boolean; message: string; at: number; church
 
 export async function searchChurchesAction(_prev: ChurchPickState, formData: FormData): Promise<ChurchPickState> {
   if (!(await canAccessEngineOwner())) return refused();
-  const result = await searchChurchesForAttach(field(formData, "church_query"));
+  const result = await searchChurchesForAttach(field(formData, "church_query"), {
+    city: field(formData, "lead_city"),
+    state: field(formData, "lead_state")
+  });
   if (!result.ok) return { ok: false, message: result.message, at: Date.now(), churches: [] };
   return {
     ok: true,

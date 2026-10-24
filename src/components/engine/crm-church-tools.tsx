@@ -126,15 +126,13 @@ export function ChurchSignals({ signals }: { signals: ChurchSignal[] }) {
 type ShownContact = Pick<CrmContact, "id" | "name" | "title" | "email" | "phone"> &
   Partial<Pick<CrmContact, "source" | "sourceUrl" | "tags" | "status" | "notes">>;
 
-/** Owner-only block: name, exact title, published contact, evidence, and the outreach log. */
+/** Owner-only block: name, exact title, published contact, and status. The quote stays on the church signal. */
 export function TechDirectorPeople({
   people,
-  signals = [],
   card = null,
   canSave = false
 }: {
   people: ShownContact[];
-  signals?: ChurchSignal[];
   card?: CrmCard | null;
   canSave?: boolean;
 }) {
@@ -172,7 +170,6 @@ export function TechDirectorPeople({
                   ) : null}
                 </div>
               ) : null}
-              <ContactEvidence contact={person} signals={signals} />
               <ContactOutreach contact={person} target={target} />
             </li>
           );
@@ -305,7 +302,7 @@ function todayEastern(): string {
 }
 
 /** Attach a lead-queue row to a church on file, or dismiss it. Owner only. Nothing is sent. */
-export function SignalQueueActions({ leadId }: { leadId: string }) {
+export function SignalQueueActions({ leadId, city = "", state = "" }: { leadId: string; city?: string; state?: string }) {
   const [clientRef] = useState(() => newId());
   const [search, searchAction, searching] = useActionState<ChurchPickState, FormData>(searchChurchesAction, null);
   const [attached, attachAction, attaching] = useActionState(attachLeadAction, null);
@@ -315,6 +312,8 @@ export function SignalQueueActions({ leadId }: { leadId: string }) {
     <section className="crm-sub" aria-label="Lead queue actions" data-testid="crm-lead-queue-tools">
       <h4>Lead queue</h4>
       <form action={searchAction} className="crm-form">
+        <input type="hidden" name="lead_city" value={city} />
+        <input type="hidden" name="lead_state" value={state} />
         <label className="crm-field">
           <span>Find a church on file</span>
           <input name="church_query" required minLength={2} maxLength={80} placeholder="Church name" autoComplete="off" />

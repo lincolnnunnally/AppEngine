@@ -7372,7 +7372,7 @@ button.compose-arch:hover {
 .crm-page .crm-tech { margin: 0 0 12px; }
 .crm-page .crm-signals { margin: 0 0 12px; display: grid; gap: 10px; }
 .crm-page .crm-signal h4 { margin: 0 0 4px; font-size: 0.95rem; }
-.crm-page .crm-signal-quote { margin: 0 0 4px; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); font-size: 1rem; line-height: 1.45; }
+.crm-page .crm-signal-quote { margin: 0 0 4px; padding: 2px 0 2px 12px; border-left: 2px solid color-mix(in srgb, var(--cyan) 60%, transparent); font-size: 1rem; line-height: 1.45; }
 .crm-page .crm-signal-meta { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.4; }
 .crm-page .crm-signal-meta a { color: var(--teal); display: inline-flex; align-items: center; min-height: 44px; }
 .crm-page .crm-state-filter { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 0.875rem; }

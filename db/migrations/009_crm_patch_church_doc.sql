@@ -4,22 +4,22 @@
 -- with "operator does not exist: text = uuid". The parameter and the returned
 -- id are text, same as the column.
 --
--- ChurchConnect church_crm.py sets doc.updated_at on its own clock, so a
--- compare-and-swap on that field rejects a good write. This function merges
--- a patch on the server:
---   doc = coalesce(doc, '{}') || allowed
--- Only staff_contacts, crm_signals, and updated_at are copied out of p_patch.
--- Any other key is ignored. Until this function is applied, the import falls
--- back to compare-and-swap only when PostgREST says the function is not
--- installed. Any other error stops the import.
+-- The function copies only staff_contacts, crm_signals, and updated_at out of
+-- p_patch. Any other key is ignored. It writes those keys only when
+-- doc.updated_at still equals p_expected (the value the caller just read,
+-- null when the church has none). A stale read returns no row, and the caller
+-- re-reads instead of replacing the arrays. Until this function is applied,
+-- the import falls back to compare-and-swap only when PostgREST returns
+-- PGRST202. Any other error stops the import.
 --
 -- Default privileges can grant EXECUTE on a function created later to
 -- public, anon, and authenticated. The revoke below covers this function
 -- only and does not change schema-wide default privileges.
 
 drop function if exists public.crm_patch_church_doc(uuid, jsonb);
+drop function if exists public.crm_patch_church_doc(text, jsonb);
 
-create or replace function public.crm_patch_church_doc(p_id text, p_patch jsonb)
+create or replace function public.crm_patch_church_doc(p_id text, p_patch jsonb, p_expected text)
 returns table (id text)
 language plpgsql
 security definer
@@ -41,8 +41,9 @@ begin
   update public.cc_churches
      set doc = coalesce(cc_churches.doc, '{}'::jsonb) || allowed
    where cc_churches.id = p_id
+     and cc_churches.doc->>'updated_at' is not distinct from p_expected
   returning cc_churches.id;
 end $$;
 
-revoke all on function public.crm_patch_church_doc(text, jsonb) from public, anon, authenticated;
-grant execute on function public.crm_patch_church_doc(text, jsonb) to service_role;
+revoke all on function public.crm_patch_church_doc(text, jsonb, text) from public, anon, authenticated;
+grant execute on function public.crm_patch_church_doc(text, jsonb, text) to service_role;

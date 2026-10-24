@@ -291,8 +291,10 @@ function CardView({
       </dl>
 
       {isOwner ? <ChurchSignals signals={card.signals ?? []} /> : null}
-      {isOwner ? <TechDirectorPeople people={card.contacts} signals={card.signals ?? []} card={card} canSave={canSave} /> : null}
-      {isOwner && card.leadQueue && card.leadId ? <SignalQueueActions leadId={card.leadId} /> : null}
+      {isOwner ? <TechDirectorPeople people={card.contacts} card={card} canSave={canSave} /> : null}
+      {isOwner && card.leadQueue && card.leadId ? (
+        <SignalQueueActions leadId={card.leadId} city={card.org?.city ?? ""} state={card.org?.state || card.state || ""} />
+      ) : null}
       <OrgTools card={card} canSave={canSave} onOpen={onOpenOrg} />
       <SuggestNextStep card={card} isOwner={isOwner} canSave={canSave} outreachHidden={outreachHidden} />
       <PeopleTools card={card} canSave={canSave} />
