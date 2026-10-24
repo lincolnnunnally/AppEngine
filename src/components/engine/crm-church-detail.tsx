@@ -262,6 +262,17 @@ function ServiceOpportunitiesForm({ row }: { row: DirectoryRow }) {
           const opportunity = service === "av" ? null : row.opportunities[service];
           const provider = row.providers[service];
           const label = SERVICE_PROVIDER_LABEL[service];
+          const namedProvider = provider.providerType === "vendor" || provider.providerType === "other";
+          const providerName = provider.providerType === "vendor" ? provider.vendorName : provider.providerType === "other" ? provider.otherName : "";
+          const typeSelect = (
+            <select className="crm-prov-type" name={`prov_${service}_type`} defaultValue={provider.providerType} aria-label={`${label} provider`}>
+              {PROVIDER_TYPES.map((type) => (
+                <option value={type} key={type}>
+                  {PROVIDER_TYPE_LABEL[type]}
+                </option>
+              ))}
+            </select>
+          );
           return (
             <div className="crm-opp-row" key={service}>
               <span className="crm-opp-name">{label}</span>
@@ -285,21 +296,34 @@ function ServiceOpportunitiesForm({ row }: { row: DirectoryRow }) {
                 <span className="crm-opp-note-text">{provider.note || "—"}</span>
               )}
               <div className="crm-opp-provider">
-                <select className="crm-prov-type" name={`prov_${service}_type`} defaultValue={provider.providerType} aria-label={`${label} provider`}>
-                  {PROVIDER_TYPES.map((type) => (
-                    <option value={type} key={type}>
-                      {PROVIDER_TYPE_LABEL[type]}
-                    </option>
-                  ))}
-                </select>
-                <input className="crm-prov-vendor" name={`prov_${service}_vendor`} defaultValue={provider.vendorName} maxLength={200} placeholder="Vendor name" aria-label={`${label} vendor name`} />
-                <input className="crm-prov-other" name={`prov_${service}_other`} defaultValue={provider.otherName} maxLength={200} placeholder="Who else" aria-label={`${label} other provider`} />
+                {namedProvider ? (
+                  <span className="crm-prov-summary">
+                    {PROVIDER_TYPE_LABEL[provider.providerType]}
+                    {providerName ? ` · ${providerName}` : ""}
+                  </span>
+                ) : (
+                  typeSelect
+                )}
               </div>
               <span className="crm-opp-updated">{opportunity?.updatedAt ? when(opportunity.updatedAt) : "—"}</span>
               {opportunity ? <input type="hidden" name={`opp_${service}_updated`} value={opportunity.updatedAt} /> : null}
               <details className="crm-opp-details">
                 <summary>Details</summary>
                 <div className="crm-prov-extra">
+                  {namedProvider ? (
+                    <label className="crm-prov-field">
+                      <span>Provider</span>
+                      {typeSelect}
+                    </label>
+                  ) : null}
+                  <label className="crm-prov-field crm-prov-vendor-field">
+                    <span>Vendor name</span>
+                    <input className="crm-prov-vendor" name={`prov_${service}_vendor`} defaultValue={provider.vendorName} maxLength={200} placeholder="Vendor name" aria-label={`${label} vendor name`} />
+                  </label>
+                  <label className="crm-prov-field crm-prov-other-field">
+                    <span>Who else</span>
+                    <input className="crm-prov-other" name={`prov_${service}_other`} defaultValue={provider.otherName} maxLength={200} placeholder="Who else" aria-label={`${label} other provider`} />
+                  </label>
                   <label className="crm-prov-field">
                     <span>Weak point</span>
                     <input className="crm-prov-note" name={`prov_${service}_note`} defaultValue={provider.note} maxLength={500} placeholder="Weak point" aria-label="Weak point" />

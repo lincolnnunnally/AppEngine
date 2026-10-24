@@ -200,7 +200,7 @@ export type BuildingStage = (typeof BUILDING_STAGES)[number];
 export const BUILDING_STAGE_LABEL: Record<BuildingStage, string> = {
   none: "None",
   exploring: "Exploring",
-  campaign_planning: "Campaign/fund planning",
+  campaign_planning: "Campaign / fund planning",
   design: "Design",
   under_construction: "Under construction",
   recently_completed: "Recently completed"
@@ -441,7 +441,7 @@ export function emptyServiceProviders(): ServiceProviders {
   return out;
 }
 
-// TODO(2026-10-24): Remove the 34 legacy AVL reads (avl_existing_relationship,
+// TODO(2026-10-24): Remove the legacy AVL reads (avl_existing_relationship,
 // avl_existing_relationship_note, avl_project_status) once service_providers is the only source.
 
 /** A calendar day, or blank. 2026-02-31 is not a day. */

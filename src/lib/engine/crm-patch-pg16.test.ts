@@ -243,6 +243,12 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
         if doc->'service_providers'->'website'->>'provider_type' is distinct from 'unknown' then raise exception 'bad type %', doc; end if;
         if coalesce(doc->'service_providers'->'website'->>'vendor_name', '') <> '' then raise exception 'vendor name without vendor %', doc; end if;
         if doc->'service_providers'->'av'->>'learned_at' is distinct from '2026-10-01' then raise exception 'learned %', doc; end if;
+        if not has_function_privilege('service_role', 'public.crm_iso_date(text)', 'execute') then
+          raise exception 'service_role cannot execute crm_iso_date';
+        end if;
+        if has_function_privilege('anon', 'public.crm_iso_date(text)', 'execute') then
+          raise exception 'anon can execute crm_iso_date';
+        end if;
         if doc->>'updated_at' is distinct from '2026-10-02' then raise exception 'provider updated_at %', doc; end if;
       end $$;
       select id from public.crm_patch_church_doc(

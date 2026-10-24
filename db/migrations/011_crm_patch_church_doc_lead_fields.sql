@@ -49,6 +49,7 @@ end
 $$;
 
 revoke all on function public.crm_iso_date(text) from public, anon, authenticated;
+grant execute on function public.crm_iso_date(text) to service_role;
 
 create or replace function public.crm_patch_church_doc(p_id text, p_patch jsonb, p_expected text)
 returns table (id text)

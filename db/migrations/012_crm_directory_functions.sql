@@ -510,7 +510,7 @@ begin
       public.crm_church_has_staff(c.doc),
       c.doc->>'merged_into',
       c.doc->>'deleted_at',
-      -- TODO(2026-10-24): Remove the 34 legacy AVL reads once service_providers is the only source.
+      -- TODO(2026-10-24): Remove the legacy AVL reads once service_providers is the only source.
       c.doc->>'avl_existing_relationship',
       c.doc->>'avl_existing_relationship_note',
       c.doc->>'avl_project_status',

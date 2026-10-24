@@ -7335,11 +7335,8 @@ button.compose-arch:hover {
   .crm-page .crm-opp-note > .crm-opp-note-input { display: block; }
 }
 .crm-page .crm-opp-updated { font-size: 0.875rem; color: var(--muted); white-space: normal; word-break: normal; overflow-wrap: break-word; }
-.crm-page .crm-opp-provider { display: flex; gap: 8px; min-width: 0; align-items: center; }
-.crm-page .crm-opp-provider > * { min-width: 0; flex: 1 1 0; }
-.crm-page .crm-prov-vendor, .crm-page .crm-prov-other { display: none; }
-.crm-page .crm-opp-row:has(.crm-prov-type option[value="vendor"]:checked) .crm-prov-vendor { display: block; }
-.crm-page .crm-opp-row:has(.crm-prov-type option[value="other"]:checked) .crm-prov-other { display: block; }
+.crm-page .crm-opp-provider { display: block; min-width: 0; }
+.crm-page .crm-prov-summary { display: flex; align-items: center; width: 100%; min-height: 44px; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); font-size: 1rem; line-height: 1.25; white-space: normal; word-break: normal; overflow-wrap: break-word; overflow: visible; }
 .crm-page .crm-opp-details { grid-column: 6; grid-row: 1; min-width: 0; }
 .crm-page .crm-opp-details[open] { grid-column: 1 / -1; grid-row: 2; }
 .crm-page .crm-opp-details:not([open]) > .crm-prov-extra { display: none; }
@@ -7347,6 +7344,9 @@ button.compose-arch:hover {
 .crm-page .crm-prov-extra { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; padding-top: 8px; }
 .crm-page .crm-prov-field { flex: 1 1 180px; min-width: 0; display: grid; gap: 4px; font-size: 0.875rem; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--muted); }
 .crm-page .crm-prov-field > span { font-size: 0.875rem; color: var(--muted); text-transform: none; letter-spacing: normal; }
+.crm-page .crm-prov-vendor-field, .crm-page .crm-prov-other-field { display: none; }
+.crm-page .crm-opp-row:has(.crm-prov-type option[value="vendor"]:checked) .crm-prov-vendor-field { display: grid; }
+.crm-page .crm-opp-row:has(.crm-prov-type option[value="other"]:checked) .crm-prov-other-field { display: grid; }
 .crm-page .crm-opps > .dx-btn { justify-self: start; min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
 .crm-provider-report { margin: 16px 0 12px; min-width: 0; }
 .crm-provider-report table { width: 100%; border-collapse: collapse; font-size: 1rem; }
