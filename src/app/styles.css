@@ -7218,6 +7218,7 @@ button.compose-arch:hover {
 .crm-dir-filters label { display: grid; gap: 4px; font-size: 0.875rem; color: var(--muted); }
 .crm-dir-filters input:not([type="checkbox"]), .crm-dir-filters select { min-height: 44px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); font: inherit; font-size: 1rem; }
 .crm-dir-check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.crm-page .crm-dir-check { font-size: 1rem; font-weight: 600; text-transform: none; letter-spacing: normal; color: var(--ink); }
 .crm-dir-check input { width: 44px; height: 44px; min-height: 44px; flex: 0 0 44px; }
 .crm-dir-scroll { overflow-x: auto; }
 .crm-dir-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
