@@ -122,6 +122,87 @@ describe("crm_patch_church_doc on PostgreSQL 16", () => {
   });
 });
 
+const LEAD_MIGRATION = new URL("../../../db/migrations/011_crm_patch_church_doc_lead_fields.sql", import.meta.url);
+const BASE_MIGRATION = new URL("../../../db/migrations/009_crm_patch_church_doc.sql", import.meta.url);
+
+describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
+  it("keeps the old keys and writes the new ones without clearing a later staff-only patch", () => {
+    const dir = mkdtempSync(join(tmpdir(), "crm-patch-lead-pg16-"));
+    const port = 54331;
+    execFileSync(`${BIN}/initdb`, ["-D", dir, "--auth-local=trust", "--no-sync", "--username=postgres"], { stdio: "ignore" });
+    const server = spawn(`${BIN}/postgres`, ["-D", dir, "-p", String(port), "-k", dir, "-c", "listen_addresses="], { stdio: "ignore" });
+    const sql = join(dir, "lead.sql");
+    writeFileSync(
+      sql,
+      `
+      select set_config('client_min_messages', 'warning', false);
+      do $$ begin
+        if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon; end if;
+        if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated; end if;
+        if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role; end if;
+      end $$;
+      create table public.cc_churches (id text primary key, doc jsonb);
+      insert into public.cc_churches (id, doc) values (
+        'text-church-1',
+        '{"name":"Grace","pastor_name":"Pat","staff_contacts":[],"updated_at":"2026-01-01"}'::jsonb
+      );
+      ${readFileSync(BASE_MIGRATION, "utf8")}
+      ${readFileSync(LEAD_MIGRATION, "utf8")}
+      select id from public.crm_patch_church_doc(
+        'text-church-1',
+        '{"staff_contacts":[{"name":"Jane"}],"crm_signals":[{"tag":"Technical/media staff"}],"crm_status":"new","lead_class":"campaign_planning","jev_avl_fit":3.5,"jev_project_stage":"planning-campaign","crm_offers":["churchconnect","easypeazy","laser"],"updated_at":"2026-04-02","pastor_name":"nope"}'::jsonb,
+        '2026-01-01'
+      );
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->>'pastor_name' is distinct from 'Pat' then raise exception 'pastor changed %', doc; end if;
+        if doc->>'lead_class' is distinct from 'campaign_planning' then raise exception 'lead_class %', doc; end if;
+        if doc->>'jev_avl_fit' is distinct from '3.5' then raise exception 'fit %', doc; end if;
+        if doc->>'crm_status' is distinct from 'new' then raise exception 'status %', doc; end if;
+        if doc->'crm_offers'->>2 is distinct from 'laser' then raise exception 'offers %', doc; end if;
+      end $$;
+      select id from public.crm_patch_church_doc(
+        'text-church-1',
+        '{"staff_contacts":[{"name":"Jane"},{"name":"Sam"}],"updated_at":"2026-05-01"}'::jsonb,
+        '2026-04-02'
+      );
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->>'lead_class' is distinct from 'campaign_planning' then raise exception 'lead cleared %', doc; end if;
+        if doc->'staff_contacts'->1->>'name' is distinct from 'Sam' then raise exception 'staff %', doc; end if;
+        if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"lead_class":"staff_only","updated_at":"1999-01-01"}'::jsonb, '1999-01-01')) <> 0 then
+          raise exception 'stale write';
+        end if;
+      end $$;
+      `
+    );
+    try {
+      let ready = false;
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        try {
+          execFileSync(`${BIN}/pg_isready`, ["-h", dir, "-p", String(port), "-d", "postgres"], { stdio: "ignore" });
+          ready = true;
+          break;
+        } catch {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+        }
+      }
+      assert.equal(ready, true, "PostgreSQL 16 did not start");
+      execFileSync(`${BIN}/psql`, ["-h", dir, "-p", String(port), "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-f", sql], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+    } finally {
+      server.kill("SIGTERM");
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 const KIND_MIGRATION = new URL("../../../db/migrations/010_op_leads_kind_church_lead.sql", import.meta.url);
 
 describe("op_leads_kind_check on PostgreSQL 16", () => {

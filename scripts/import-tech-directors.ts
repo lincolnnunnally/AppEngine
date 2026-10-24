@@ -13,14 +13,24 @@
 // person. A signal already stored with the same tag, quote, and source keeps
 // its score and date unless the new signal date is later. Churches in the
 // ChurchConnect directory that are not already on the CRM are counted and
-// reported, not written. Writes only with --apply, and refuses production.
+// reported. The desk reads the directory, so a church does not need a status
+// to appear. --add-to-crm is accepted and ignored. Matched churches get
+// staff_contacts, crm_signals, lead_class, and the JEV fields on the existing
+// row. Status is written only for existing talks (Northridge Christian in
+// Milledgeville, and existing=yes) when the current status is blank or new.
+// It never creates a cc_churches row. Churches that share a website
+// across states stay separate and match by church_id. Writes only with
+// --apply, and refuses production.
 //
-// The write re-reads the church doc and merges only staff_contacts,
-// crm_signals, and updated_at through crm_patch_church_doc when doc.updated_at
-// still matches the value just read (the id is text). A stale read returns no
-// row and the import re-reads. Until that function is applied, and only when
-// PostgREST returns PGRST202, the import falls back to a compare-and-swap on
-// doc.updated_at. Any other database error stops the import.
+// The write re-reads the church doc and merges staff_contacts, crm_signals,
+// and updated_at through crm_patch_church_doc when doc.updated_at still matches
+// the value just read (the id is text). When the row carries them, the same
+// patch may also set crm_status, lead_class, jev_avl_fit, jev_project_stage,
+// and crm_offers. A stale read returns no row and the import re-reads. Until
+// that function is applied, and only when PostgREST returns PGRST202, the
+// import falls back to a compare-and-swap on doc.updated_at. If an older
+// function accepts the call but drops the new keys, the import uses that same
+// fallback once. Any other database error stops the import.
 // Re-running is safe after a partial failure.
 //
 // Unmatched rows are saved as church-lead rows (op_leads.kind church-lead),
@@ -32,8 +42,13 @@
 //
 // Columns: church, church_id (optional), city, state (optional), website,
 // staff_page_url, name, title, contact, signal_types, evidence_quote,
-// source_url, signal_date, score
+// source_url, signal_date, score, plus optional lead_class, existing,
+// jev_avl_fit, and jev_project_stage.
 // signal_types is staff, campaign, renovation, or several joined with |
+// lead_class is campaign_planning, under_construction, staff_only, or other_services.
+// existing=yes, and Northridge Christian in Milledgeville GA, are existing talks.
+// Optional --jev file columns: church_id, jev_avl_fit, jev_project_stage.
+// jev_staff_real is ignored.
 //
 // Dry run (counts only, no writes):
 //   node --experimental-strip-types scripts/import-tech-directors.ts --dry-run scripts/fixtures/tech-directors.csv
@@ -48,8 +63,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  CHURCH_READ_MAX_PAGES,
+  CHURCH_READ_PAGE,
   churchDocPatch,
   churchIsInCrm,
+  churchPageQuery,
   churchSignalActivity,
   churchSignalLeadBody,
   crmPatchRpcMissing,
@@ -58,8 +76,12 @@ import {
   mergeChurchSignalContacts,
   nextChurchDoc,
   parseImportSkipFile,
+  parseJevCsv,
   parseTechDirectorCsv,
   planTechDirectorImport,
+  profilePatchLanded,
+  type ChurchDocProfile,
+  type ChurchProfileWrite,
   type ImportFlag,
   TECH_DIRECTOR_CSV_COLUMNS,
   unmatchedReportCsv,
@@ -70,8 +92,8 @@ import {
 import { readChurchSignals } from "../src/lib/engine/tech-director-core.ts";
 
 const PROD_REFS = ["uqhqulrqcygsmmzdzemx"];
-const PAGE = 1000;
-const MAX_PAGES = 40;
+const PAGE = CHURCH_READ_PAGE;
+const MAX_PAGES = CHURCH_READ_MAX_PAGES;
 
 loadEnvFile(".env.local");
 loadEnvFile(".env");
@@ -79,41 +101,53 @@ loadEnvFile(".env");
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const apply = args.includes("--apply");
+const addToCrm = args.includes("--add-to-crm");
 const reportFlag = args.indexOf("--report");
 const reportPath = reportFlag >= 0 ? args[reportFlag + 1] : "";
 const skipFlag = args.indexOf("--skip-file");
 const skipPath = skipFlag >= 0 ? args[skipFlag + 1] : "";
-const file = args.filter((arg, index) => !arg.startsWith("--") && args[index - 1] !== "--report" && args[index - 1] !== "--skip-file")[0];
+const jevFlag = args.indexOf("--jev");
+const jevPath = jevFlag >= 0 ? args[jevFlag + 1] : "";
+const valueFlags = new Set(["--report", "--skip-file", "--jev"]);
+const file = args.filter((arg, index) => !arg.startsWith("--") && !valueFlags.has(args[index - 1] ?? ""))[0];
 
-if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath) || (skipFlag >= 0 && !skipPath)) {
+if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath) || (skipFlag >= 0 && !skipPath) || (jevFlag >= 0 && !jevPath)) {
   console.error(`Usage:
   node --experimental-strip-types scripts/import-tech-directors.ts --dry-run <file.csv>
   node --experimental-strip-types scripts/import-tech-directors.ts --apply <file.csv>
 
 Columns: ${TECH_DIRECTOR_CSV_COLUMNS.join(", ")}
 state and church_id may be omitted. signal_types is staff, campaign, renovation, or several joined with |.
---dry-run prints counts by state and writes nothing to the database.
+--dry-run prints counts by state and by tier and writes nothing to the database.
 It also counts rows that match a ChurchConnect church that is not on the CRM.
---apply writes only churches already on the CRM. It does not create churches.
+--apply stores contacts, signals, and lead fields on matched churches. It does not set a status just so a church appears.
+--add-to-crm is accepted and not required. The directory is already the church list.
+Optional --jev <file.csv> joins jev_avl_fit and jev_project_stage by church_id. jev_staff_real is ignored.
 Re-running is safe after a partial failure: a contact or signal already stored is skipped, and a later signal date updates that signal.
 Columns are read by header name. builder_name, builder_role, builder_url, and other unknown columns are ignored.
 The Archdiocese of Atlanta office and a Cristo Para Todas Las Naciones row on shallowford.org are flagged and not written.
 A church id whose church has a different name or state is flagged and not written.
 A city and a bare website match only when the state is present on the row and the church, and they agree.
 Unmatched rows are saved as church-lead rows (not shops) so the desk can search them. The same church, city, and state merges contacts on a later import and logs an activity.
-Optional: --report <unmatched.csv>   --skip-file <church ids or names>`);
+Optional: --report <unmatched.csv>   --skip-file <church ids or names>   --add-to-crm   --jev <file.csv>`);
   process.exit(1);
 }
 
+const churchesJson = (process.env.IMPORT_CHURCHES_JSON || "").trim();
+if (apply && churchesJson) {
+  console.error("Refusing to write from a mocked church list. Nothing was written.");
+  process.exit(1);
+}
 const config = databaseConfig();
-if (!config) {
+if (!churchesJson && !config) {
   console.error("No shared database is configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   process.exit(1);
 }
-if (apply && isProduction(config.url)) {
+if (apply && config && isProduction(config.url)) {
   console.error("Refusing to write: this is the production database. Nothing was written.");
   process.exit(1);
 }
+if (addToCrm) console.log("The directory is the CRM. --add-to-crm is not required.");
 
 const csvPath = resolve(file);
 let csvText = "";
@@ -129,7 +163,7 @@ if (!parsed.ok) {
   process.exit(1);
 }
 
-const churches = await readChurches(config);
+const churches = churchesJson ? readMockChurches(churchesJson) : await readChurches(config as { url: string; key: string });
 let extraFlags: ImportFlag[] = [];
 if (skipPath) {
   let skipText = "";
@@ -146,7 +180,24 @@ if (skipPath) {
   }
   extraFlags = skip.flags;
 }
-const plan = planTechDirectorImport(parsed.rows, churches, extraFlags);
+let jevByChurchId: Map<string, { churchId: string; jevAvlFit: number | null; jevProjectStage: "" | "planning-campaign" | "under-construction" | "recently-completed" | "unclear" | "none" }> | undefined;
+if (jevPath) {
+  let jevText = "";
+  try {
+    jevText = readFileSync(resolve(jevPath), "utf8");
+  } catch {
+    console.error(`Could not read ${resolve(jevPath)}.`);
+    process.exit(1);
+  }
+  const jev = parseJevCsv(jevText);
+  if (!jev.ok) {
+    console.error(jev.message);
+    process.exit(1);
+  }
+  jevByChurchId = jev.byChurchId;
+  if (jev.skipped) console.log(`jev rows skipped: ${jev.skipped}`);
+}
+const plan = planTechDirectorImport(parsed.rows, churches, extraFlags, { addToCrm, jevByChurchId });
 console.log(formatImportCounts(plan));
 const unmatchedPath = plan.unmatched.length ? resolve(reportPath || csvPath.replace(/\.csv$/i, "") + "-unmatched.csv") : "";
 if (unmatchedPath) {
@@ -174,6 +225,10 @@ if (!apply) {
   console.log("dry run: no churches were written");
   process.exit(0);
 }
+if (!config) {
+  console.error("No shared database is configured. Nothing was written.");
+  process.exit(1);
+}
 
 const contactsByChurch = new Map<string, StaffContactWrite[]>();
 for (const addition of plan.additions) {
@@ -193,7 +248,8 @@ for (const update of plan.signalUpdates) {
   list.push(update.signal);
   updatesByChurch.set(update.churchId, list);
 }
-const churchIds = new Set([...contactsByChurch.keys(), ...signalsByChurch.keys(), ...updatesByChurch.keys()]);
+const profilesByChurch = new Map(plan.profiles.map((profile) => [profile.churchId, profile]));
+const churchIds = new Set([...contactsByChurch.keys(), ...signalsByChurch.keys(), ...updatesByChurch.keys(), ...profilesByChurch.keys()]);
 
 let wrote = 0;
 let contactsWritten = 0;
@@ -205,7 +261,8 @@ for (const churchId of churchIds) {
     churchId,
     contactsByChurch.get(churchId) ?? [],
     signalsByChurch.get(churchId) ?? [],
-    updatesByChurch.get(churchId) ?? []
+    updatesByChurch.get(churchId) ?? [],
+    profilesByChurch.get(churchId)
   );
   if (!result.ok) {
     console.error(`Could not update church ${churchId}. Stopped after writing ${wrote} churches.`);
@@ -253,6 +310,21 @@ function isProduction(url: string): boolean {
   return PROD_REFS.some((ref) => url.includes(ref));
 }
 
+function readMockChurches(filePath: string): DirectoryChurch[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(resolve(filePath), "utf8"));
+  } catch {
+    console.error("The mocked church list could not be read. Nothing was written.");
+    process.exit(1);
+  }
+  if (!Array.isArray(parsed)) {
+    console.error("The mocked church list could not be read. Nothing was written.");
+    process.exit(1);
+  }
+  return parsed.filter((church): church is DirectoryChurch => Boolean(church) && typeof church === "object" && typeof (church as DirectoryChurch).id === "string");
+}
+
 async function readChurches(config: { url: string; key: string }): Promise<DirectoryChurch[]> {
   const select = [
     "id",
@@ -271,11 +343,13 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
     "is_customer:doc->>is_customer",
     "signed_up:doc->>signed_up",
     "staff_contacts:doc->staff_contacts",
+    "crm_offers:doc->crm_offers",
     "crm_signals:doc->crm_signals"
   ].join(",");
   const churches: DirectoryChurch[] = [];
+  let lastId = "";
   for (let page = 0; page < MAX_PAGES; page += 1) {
-    const response = await rest(config, `cc_churches?select=${select}&order=id&limit=${PAGE}&offset=${page * PAGE}`);
+    const response = await rest(config, churchPageQuery(select, lastId, PAGE));
     if (!response.ok) {
       console.error("Churches could not be read. Nothing was written.");
       process.exit(1);
@@ -287,6 +361,7 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
     }
     for (const row of rows) {
       const staff = Array.isArray(row.staff_contacts) ? row.staff_contacts : [];
+      const offers = Array.isArray(row.crm_offers) ? row.crm_offers.map((offer) => String(offer ?? "")).filter(Boolean) : [];
       churches.push({
         id: String(row.id ?? ""),
         name: String(row.name ?? ""),
@@ -295,6 +370,8 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
         state: String(row.state ?? ""),
         website: String(row.website ?? ""),
         domain: String(row.domain ?? ""),
+        crmStatus: String(row.crm_status ?? ""),
+        offers,
         inCrm: churchIsInCrm({
           crmStatus: row.crm_status,
           crmNextActionDate: row.crm_next_action_date,
@@ -312,12 +389,19 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
       });
     }
     if (rows.length < PAGE) return churches.filter((church) => church.id);
+    const pageLast = String(rows[rows.length - 1]?.id ?? "");
+    if (!pageLast || pageLast === lastId) {
+      console.error("The church list did not finish reading. Nothing was written.");
+      process.exit(1);
+    }
+    lastId = pageLast;
     if (page === MAX_PAGES - 1) {
       console.error("The church list did not finish reading. Nothing was written.");
       process.exit(1);
     }
   }
-  return churches;
+  console.error("The church list did not finish reading. Nothing was written.");
+  process.exit(1);
 }
 
 async function readDoc(config: { url: string; key: string }, churchId: string): Promise<Record<string, unknown> | null> {
@@ -328,20 +412,41 @@ async function readDoc(config: { url: string; key: string }, churchId: string): 
   return doc && typeof doc === "object" ? doc : null;
 }
 
+function profileOf(profile: ChurchProfileWrite | undefined): ChurchDocProfile | null {
+  if (!profile) return null;
+  return {
+    crmStatus: profile.crmStatus,
+    leadClass: profile.leadClass,
+    jevAvlFit: profile.jevAvlFit,
+    jevProjectStage: profile.jevProjectStage,
+    crmOffers: profile.crmOffers
+  };
+}
+
 async function writeChurchDoc(
   config: { url: string; key: string },
   churchId: string,
   contacts: StaffContactWrite[],
   signals: ChurchSignalWrite[],
-  updates: ChurchSignalWrite[]
+  updates: ChurchSignalWrite[],
+  profile: ChurchProfileWrite | undefined
 ): Promise<{ ok: true; changed: boolean; addedContacts: number; addedSignals: number; updatedSignals: number } | { ok: false }> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const current = await readDoc(config, churchId);
     if (!current) return { ok: false };
-    const merged = nextChurchDoc(current, contacts, signals, updates, new Date().toISOString());
+    const merged = nextChurchDoc(current, contacts, signals, updates, new Date().toISOString(), profileOf(profile));
     if (!merged.changed) return { ok: true, changed: false, addedContacts: 0, addedSignals: 0, updatedSignals: 0 };
-    const written = await writeDoc(config, churchId, churchDocPatch(merged.doc), merged.doc, String(current.updated_at ?? ""));
+    const patch = churchDocPatch(merged.doc, merged.patchKeys);
+    const written = await writeDoc(config, churchId, patch, merged.doc, String(current.updated_at ?? ""));
     if (written === "ok") {
+      if (merged.patchKeys.length) {
+        const after = await readDoc(config, churchId);
+        if (!profilePatchLanded(after, patch)) {
+          const expected = String(after?.updated_at ?? "");
+          const fallback = await writeFullDoc(config, churchId, merged.doc, expected);
+          if (fallback !== "ok") continue;
+        }
+      }
       return {
         ok: true,
         changed: true,
@@ -355,10 +460,29 @@ async function writeChurchDoc(
   return { ok: false };
 }
 
+async function writeFullDoc(
+  config: { url: string; key: string },
+  churchId: string,
+  fullDoc: Record<string, unknown>,
+  previousUpdatedAt: string
+): Promise<"ok" | "conflict" | "error"> {
+  const guard = previousUpdatedAt
+    ? `&doc->>updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
+    : "&or=(doc->>updated_at.is.null,doc->>updated_at.eq.)";
+  const response = await rest(config, `cc_churches?id=eq.${encodeURIComponent(churchId)}${guard}&select=id`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({ doc: fullDoc })
+  });
+  if (!response.ok) return "error";
+  const rows = (await response.json()) as unknown[];
+  return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
+}
+
 async function writeDoc(
   config: { url: string; key: string },
   churchId: string,
-  patch: { staff_contacts: unknown; crm_signals: unknown; updated_at: unknown },
+  patch: Record<string, unknown>,
   fullDoc: Record<string, unknown>,
   previousUpdatedAt: string
 ): Promise<"ok" | "conflict" | "error"> {

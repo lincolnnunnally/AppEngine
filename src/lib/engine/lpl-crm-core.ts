@@ -154,6 +154,41 @@ export type CrmContact = {
 export const CRM_CONTACT_STATUSES = ["new", "contacted", "follow-up", "meeting", "won", "lost"] as const;
 export type CrmContactStatus = (typeof CRM_CONTACT_STATUSES)[number];
 
+/**
+ * ChurchConnect starts a church at "new" (the pipeline's New Lead). The desk
+ * treats that untouched church as not reached out yet.
+ */
+export const CRM_INITIAL_LEAD_STATUS = "new";
+
+/** Already in conversation. Not a new-outreach lead. Lincoln can still change it. */
+export const EXISTING_AVL_TALKS_STATUS = "In progress - existing AVL talks";
+
+/**
+ * ChurchConnect pipeline stages, plus existing talks. A status Lincoln already
+ * set that is not on this list is left as he set it. This list does not lock
+ * the stage.
+ */
+export const CRM_CHURCH_STATUSES = [
+  "new",
+  "contacted",
+  "interested",
+  "demo_scheduled",
+  "proposal_sent",
+  "negotiating",
+  "won",
+  "lost",
+  EXISTING_AVL_TALKS_STATUS
+] as const;
+
+export function isAllowedChurchStatus(value: unknown): boolean {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (CRM_CHURCH_STATUSES as readonly string[]).some((status) => status.toLowerCase() === text);
+}
+
+export function isExistingAvlTalksStatus(value: unknown): boolean {
+  return String(value ?? "").trim().toLowerCase() === EXISTING_AVL_TALKS_STATUS.toLowerCase();
+}
+
 export type CrmContactNote = { at: string; note: string };
 
 const CONTACT_STATUS_LABEL: Record<CrmContactStatus, string> = {
@@ -264,6 +299,15 @@ export type CrmNode = {
   signals?: CrmChurchSignal[];
   /** Unmatched church-signal row stored as an op_leads lead. */
   leadQueue?: boolean;
+  /** ChurchConnect pipeline status, when the row has one. */
+  crmStatus?: string;
+  /** Lincoln's lead class from the tech-director file. */
+  leadClass?: string;
+  /** Top AVL, second tier, other services, or staff only. Blank when unset. */
+  avlTier?: string;
+  /** Fractional fit from 0 to 4. Null when the file had none. */
+  jevAvlFit?: number | null;
+  jevProjectStage?: string;
 };
 
 export type CrmChurchSignal = {
@@ -332,6 +376,16 @@ export type CrmCard = {
   signals?: CrmChurchSignal[];
   /** This card is an unmatched church-signal lead (op_leads). */
   leadQueue?: boolean;
+  /** ChurchConnect pipeline status. */
+  crmStatus?: string;
+  /** campaign_planning, under_construction, staff_only, or other_services. */
+  leadClass?: string;
+  /** top, second, other_services, or staff_only. */
+  avlTier?: string;
+  jevAvlFit?: number | null;
+  jevProjectStage?: string;
+  /** Status is existing talks: leave this card out of new-outreach views. */
+  existingAvlTalks?: boolean;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -686,6 +740,16 @@ class Union {
 const KIND_RANK: Record<CrmNode["kind"], number> = { org: 0, place: 1, batch: 2, event: 3, person: 4 };
 const APP_RANK: Record<CrmApp, number> = { churchconnect: 0, presence: 1, laser: 2, business: 3 };
 
+/** Two ChurchConnect churches in different states are not the same church, even on one website. */
+function churchStatesStaySeparate(a: CrmNode | undefined, b: CrmNode | undefined): boolean {
+  if (!a || !b) return false;
+  if (a.app !== "churchconnect" || b.app !== "churchconnect") return false;
+  if (a.kind !== "org" || b.kind !== "org") return false;
+  const left = a.state?.trim().toLowerCase().replace(/\./g, "") ?? "";
+  const right = b.state?.trim().toLowerCase().replace(/\./g, "") ?? "";
+  return Boolean(left && right && left !== right);
+}
+
 function nodeKeys(node: CrmNode): { email: string[]; domain: string[]; phone: string[] } {
   const emails = [...new Set(node.emails.map(normEmail).filter(Boolean))];
   const domains = new Set(node.domains.map(normDomain).filter(Boolean));
@@ -880,8 +944,13 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       // Count distinct already-merged groups so one org's many rows don't look generic.
       const groups = new Set(unique.map((id) => union.find(id)));
       if (groups.size > AMBIGUOUS_KEY_LIMIT) continue;
+      const anchor = unique[0];
       for (const id of unique.slice(1)) {
-        if (union.join(unique[0], id)) edges.push({ a: unique[0], b: id, kind });
+        // Two churches that share a website but sit in different states stay
+        // separate. church_id is the match. thefountainchurch.org in GA and FL
+        // is two churches.
+        if (kind === "domain" && churchStatesStaySeparate(byId.get(anchor), byId.get(id))) continue;
+        if (union.join(anchor, id)) edges.push({ a: anchor, b: id, kind });
       }
     }
   }
@@ -981,7 +1050,13 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       org: orgOf(members),
       state: members.map((member) => member.state).find(Boolean) || "",
       signals: signalsOf(members),
-      leadQueue: members.some((member) => member.leadQueue)
+      leadQueue: members.some((member) => member.leadQueue),
+      crmStatus: members.map((member) => member.crmStatus).find((status) => status) || "",
+      leadClass: members.map((member) => member.leadClass).find((value) => value) || "",
+      avlTier: members.map((member) => member.avlTier).find((value) => value) || "",
+      jevAvlFit: members.map((member) => member.jevAvlFit).find((value) => typeof value === "number") ?? null,
+      jevProjectStage: members.map((member) => member.jevProjectStage).find((value) => value) || "",
+      existingAvlTalks: members.some((member) => isExistingAvlTalksStatus(member.crmStatus))
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));
@@ -1192,9 +1267,11 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
     const recentOutreach = card.lastOutreach ? daysBetween(card.lastOutreach.at, now) : Number.POSITIVE_INFINITY;
     const resting = card.repeat.level === "hold";
     const restingUntil = resting && card.repeat.until ? card.repeat.until : null;
+    // Existing talks stay on the card. They are not a new-outreach follow-up.
+    const newOutreach = !card.existingAvlTalks;
 
     // Due — the app's own next-action date (already moved past any rest).
-    if (card.nextActionDate && !options.outreachHidden) {
+    if (newOutreach && card.nextActionDate && !options.outreachHidden) {
       const due = dayOf(card.nextActionDate);
       if (due <= today) {
         add("due", due < today ? `Next step was due ${friendlyDay(due)}.` : "Next step is due today.", card.nextAction || "Do the next step on file.", card.nextActionDate);
@@ -1203,7 +1280,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
 
     // Warm — they did something in the last 7 days and nobody followed up.
     const signal = card.touches.find((touch) => touch.signal && !touch.outreach);
-    if (signal && !options.outreachHidden && daysBetween(signal.at, now) <= WARM_DAYS) {
+    if (newOutreach && signal && !options.outreachHidden && daysBetween(signal.at, now) <= WARM_DAYS) {
       const followed = card.touches.some((touch) => touch.outreach && ms(touch.at) > ms(signal.at));
       if (!followed && recentOutreach >= WAITING_MIN_DAYS) {
         add("warm", `${CRM_APP_LABEL[signal.app]}: ${signal.what}.`, card.lastOutreach ? `Follow up while it is fresh. ${followThroughStep(card)}` : "Follow up while it is fresh.", signal.at);
@@ -1212,13 +1289,13 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
 
     // Not paid yet.
     for (const touch of card.touches) {
-      if (touch.unpaid && !options.outreachHidden && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
+      if (newOutreach && touch.unpaid && !options.outreachHidden && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
         add("unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${friendlyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
       }
     }
 
     // Resting: every outreach item is held — one "wait" line instead.
-    if (resting && restingUntil && !options.outreachHidden) {
+    if (newOutreach && resting && restingUntil && !options.outreachHidden) {
       const held = items.filter((item) => OUTREACH_REASONS.includes(item.reason));
       for (const item of held) items.splice(items.indexOf(item), 1);
       const last = card.lastOutreach!;

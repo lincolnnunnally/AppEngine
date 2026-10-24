@@ -53,7 +53,7 @@ import {
 } from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
-import { httpUrl, readChurchSignals, readRoleTags, technicalDirectorsFromStaff, type TechDirectorRow } from "@/lib/engine/tech-director-core";
+import { avlTierForLeadClass, httpUrl, readChurchSignals, readRoleTags, technicalDirectorsFromStaff, type TechDirectorRow } from "@/lib/engine/tech-director-core";
 
 type LplConfig = { url: string; serviceKey: string };
 
@@ -139,7 +139,8 @@ const CHURCH_FIELDS = [
   "crm_status", "crm_next_action", "crm_next_action_date", "invite_status", "last_invited_at", "invite_campaign",
   "website_offer_status", "is_customer", "signed_up", "converted_at", "merged_into", "duplicate_of", "deleted_at",
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
-  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim"
+  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim",
+  "lead_class", "jev_avl_fit", "jev_project_stage", "last_contact_at"
 ];
 const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals`;
 const CHURCH_TOUCHED = [
@@ -262,8 +263,21 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     deskDoNotContact: UUID_RE.test(id) && (truthy(row.do_not_contact_desk_claim) || (truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit")),
     org: UUID_RE.test(id) ? churchOrg(row, id) : undefined,
     state: s(row.state),
-    signals: readChurchSignals(row.crm_signals)
+    signals: readChurchSignals(row.crm_signals),
+    crmStatus: s(row.crm_status),
+    leadClass: s(row.lead_class),
+    avlTier: avlTierForLeadClass(row.lead_class),
+    jevAvlFit: jevFit(row.jev_avl_fit),
+    jevProjectStage: s(row.jev_project_stage)
   };
+}
+
+function jevFit(value: unknown): number | null {
+  const raw = s(value);
+  if (!raw) return null;
+  const fit = Number(raw);
+  if (!Number.isFinite(fit) || fit < 0 || fit > 4) return null;
+  return fit;
 }
 
 function churchOrg(row: Row, id: string): CrmOrg {
@@ -681,6 +695,11 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     existing.recordPath = existing.recordPath || node.recordPath;
     if (!existing.town && node.town) existing.town = node.town;
     if (!existing.state && node.state) existing.state = node.state;
+    if (!existing.crmStatus && node.crmStatus) existing.crmStatus = node.crmStatus;
+    if (!existing.leadClass && node.leadClass) existing.leadClass = node.leadClass;
+    if (!existing.avlTier && node.avlTier) existing.avlTier = node.avlTier;
+    if (existing.jevAvlFit == null && node.jevAvlFit != null) existing.jevAvlFit = node.jevAvlFit;
+    if (!existing.jevProjectStage && node.jevProjectStage) existing.jevProjectStage = node.jevProjectStage;
     if (node.signals?.length) {
       const seen = new Set((existing.signals ?? []).map((signal) => `${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`));
       const extra = node.signals.filter((signal) => !seen.has(`${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`));

@@ -24,6 +24,7 @@ import {
   attachLeadToChurch,
   undoBusinessDoNotContact,
   undoChurchDoNotContact,
+  setChurchPipelineStatus,
   type OrgInput,
   type OrgMatch,
   type OutcomeCode,
@@ -298,4 +299,15 @@ export async function loadTopProspectsAction(_prev: TopProspectState, formData: 
   if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now(), tier };
   if (!list.ok) return { ok: false, message: list.message, at: Date.now(), tier };
   return { ok: true, message: "", at: Date.now(), tier, open: list.open, won: list.won, counts: list.counts };
+}
+
+export async function setChurchStatusAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const churchId = field(formData, "church_id");
+  const result = await setChurchPipelineStatus(await ownerEmail(), churchId, field(formData, "crm_status"));
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath(`/crm/church/${churchId}`);
+  }
+  return { ok: result.ok, message: result.message, at: Date.now() };
 }

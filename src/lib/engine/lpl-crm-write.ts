@@ -16,7 +16,7 @@
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, isAllowedChurchStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
 import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
@@ -1388,4 +1388,16 @@ export async function dismissLeadFromQueue(ownerEmail: string, leadId: string, c
   signals.queue = "dismissed";
   if (!(await patchLeadIfUnchanged(config, lead, { signals }))) return { ok: false, message: "The lead couldn't be updated. Try again." };
   return { ok: true, message: "Dismissed. It left the lead queue." };
+}
+
+/** Owner sets the church pipeline status through ChurchConnect. Blank clears it (Not contacted). Does not lock the stage. */
+export async function setChurchPipelineStatus(ownerEmail: string, churchId: string, status: string): Promise<SaveResult> {
+  const cc = await ccConfig();
+  if (!cc) return { ok: false, message: savingOffMessage() };
+  if (!UUID_RE.test(churchId)) return { ok: false, message: "Status can only be saved on a ChurchConnect church." };
+  const trimmed = status.trim();
+  if (trimmed && !isAllowedChurchStatus(trimmed)) return { ok: false, message: "That status isn't on the list." };
+  const result = await callChurchConnect(cc, "PATCH", `/api/church-crm/leads/${churchId}`, ownerEmail, { crm_status: trimmed || null });
+  if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
+  return { ok: true, message: trimmed ? "Status saved." : "Status cleared. This church shows as not contacted." };
 }

@@ -7,6 +7,8 @@ import {
   addStaffContacts,
   churchDocPatch,
   churchIsInCrm,
+  churchPageQuery,
+  NORTHRIDGE_MILLEDGEVILLE_ID,
   churchSignalActivity,
   churchSignalLeadBody,
   crmPatchRpcMissing,
@@ -23,7 +25,7 @@ import {
   type DirectoryChurch,
   type TechDirectorCsvRow
 } from "./tech-director.ts";
-import { cardMatchesCrmSearch, churchLeadInQueue, cleanContactOutreach, mergeOutreachLog, type Touch } from "./lpl-crm-core.ts";
+import { buildCards, buildFollowUps, cardMatchesCrmSearch, churchLeadInQueue, cleanContactOutreach, EXISTING_AVL_TALKS_STATUS, mergeOutreachLog, type CrmCard, type CrmNode, type Touch } from "./lpl-crm-core.ts";
 
 const churches: DirectoryChurch[] = [
   { id: "g1", name: "Grace Chapel", churchName: "", city: "Vidalia", state: "GA", website: "https://gracechapel.example", domain: "", inCrm: true, contacts: [] },
@@ -49,6 +51,10 @@ function row(partial: Partial<TechDirectorCsvRow> & Pick<TechDirectorCsvRow, "ch
     source_url: "",
     signal_date: "",
     score: "1",
+    lead_class: "",
+    existing: "",
+    jev_avl_fit: "",
+    jev_project_stage: "",
     line: 2,
     ...partial
   };
@@ -262,7 +268,7 @@ describe("technical director dedupe", () => {
     if (!parsed.ok) return;
     assert.deepEqual(
       Object.keys(parsed.rows[0]).filter((key) => key !== "line"),
-      ["church", "church_id", "city", "state", "website", "staff_page_url", "name", "title", "contact", "signal_types", "evidence_quote", "source_url", "signal_date", "score"]
+      ["church", "church_id", "city", "state", "website", "staff_page_url", "name", "title", "contact", "signal_types", "evidence_quote", "source_url", "signal_date", "score", "lead_class", "existing", "jev_avl_fit", "jev_project_stage"]
     );
     const plan = planTechDirectorImport(parsed.rows, churches);
     assert.equal(plan.matched, 6);
@@ -270,7 +276,7 @@ describe("technical director dedupe", () => {
     assert.equal(plan.directoryOnly, 2);
     assert.equal(plan.newContacts, 2);
     assert.equal(plan.duplicatesSkipped, 1);
-    assert.equal(plan.newSignals, 3);
+    assert.equal(plan.newSignals, 5);
     assert.equal(plan.signalDuplicatesSkipped, 1);
     assert.equal(plan.unmatched.length, 2);
     assert.equal(plan.byState.GA.inCrm, 4);
@@ -281,13 +287,15 @@ describe("technical director dedupe", () => {
     assert.equal(plan.byState["(none)"].unmatched, 1);
     assert.match(formatImportCounts(plan), /directory only: 2/);
     assert.match(formatImportCounts(plan), /AL: matched 1, in CRM 0, directory only 1/);
-    const building = plan.signalAdditions.find((item) => item.signal.tag === "Building investment");
+    const building = plan.signalAdditions.find((item) => item.churchId === "g1" && item.signal.tag === "Building investment");
     assert.ok(building);
     assert.equal(building.churchId, "g1");
     assert.equal(building.signal.evidence_quote, "The sanctuary is being renovated.");
     assert.equal(building.signal.score, 60);
     assert.equal(plan.additions.length, 2);
-    assert.equal(plan.directoryOnlyRows.map((item) => item.row.church).join(","), "Hope Church,Palm Chapel");
+    assert.equal(plan.directoryOnlyRows.length, 0);
+    assert.equal(plan.addedToCrm, 2);
+    assert.equal(plan.profiles.some((profile) => profile.crmStatus === "new"), false);
     assert.deepEqual(
       plan.unmatched.map((item) => item.row.church),
       ["Unknown Mission", "Shared Site Church"]
@@ -612,7 +620,7 @@ describe("technical director contact fields", () => {
     assert.equal(plan.byState.GA.signalsUpdated, 1);
   });
 
-  it("counts a directory church outside Georgia separately and does not write it", () => {
+  it("stores a directory church's signal and does not set a status just so it appears", () => {
     const plan = planTechDirectorImport(
       [
         row({
@@ -632,7 +640,8 @@ describe("technical director contact fields", () => {
     assert.equal(plan.directoryOnly, 1);
     assert.equal(plan.inCrm, 0);
     assert.equal(plan.additions.length, 0);
-    assert.equal(plan.signalAdditions.length, 0);
+    assert.equal(plan.signalAdditions.length, 1);
+    assert.equal(plan.profiles.some((profile) => profile.crmStatus), false);
     assert.equal(plan.byState.AL.directoryOnly, 1);
   });
 });
@@ -902,5 +911,111 @@ describe("crm search and contact status", () => {
     assert.equal(churchLeadInQueue({ kind: "church-signal", queue: "dismissed" }), false);
     assert.equal(churchLeadInQueue({ kind: "church-signal", queue: "attached" }), false);
     assert.equal(churchLeadInQueue({ kind: "shop" }), false);
+  });
+});
+
+describe("southeast directory import", () => {
+  it("pages churches by id instead of offset", () => {
+    const first = churchPageQuery("id,name:doc->>name", "");
+    const next = churchPageQuery("id,name:doc->>name", "abc");
+    assert.match(first, /order=id\.asc/);
+    assert.doesNotMatch(first, /offset=/);
+    assert.match(next, /id=gt\.abc/);
+    assert.doesNotMatch(next, /offset=/);
+  });
+
+  it("marks Northridge and existing=yes, and leaves a status Lincoln already set", () => {
+    const north: DirectoryChurch = {
+      id: NORTHRIDGE_MILLEDGEVILLE_ID,
+      name: "Northridge Christian",
+      churchName: "",
+      city: "Milledgeville",
+      state: "GA",
+      website: "",
+      domain: "",
+      inCrm: true,
+      crmStatus: "",
+      contacts: []
+    };
+    const kept: DirectoryChurch = { ...north, id: "kept", name: "Kept Church", city: "Macon", crmStatus: "interested" };
+    const plan = planTechDirectorImport(
+      [
+        row({ church: "Northridge Christian", church_id: north.id, city: "Milledgeville", state: "GA", name: "Pat", lead_class: "staff_only" }),
+        row({ church: "Kept Church", church_id: "kept", city: "Macon", state: "GA", name: "Sam", existing: "yes", lead_class: "staff_only" })
+      ],
+      [north, kept]
+    );
+    const northProfile = plan.profiles.find((profile) => profile.churchId === north.id);
+    const keptProfile = plan.profiles.find((profile) => profile.churchId === "kept");
+    assert.equal(northProfile?.crmStatus, EXISTING_AVL_TALKS_STATUS);
+    assert.equal(northProfile?.existingTalks, true);
+    assert.equal(keptProfile?.crmStatus, undefined);
+    assert.equal(keptProfile?.existingTalks, true);
+  });
+
+  it("puts lead fields on the patch and leaves them off when they are not being set", () => {
+    const merged = nextChurchDoc(
+      { name: "Grace", pastor_name: "Pat", staff_contacts: [], crm_signals: [] },
+      [],
+      [],
+      [],
+      "2026-08-01T00:00:00.000Z",
+      { leadClass: "campaign_planning", jevAvlFit: 3.5, jevProjectStage: "planning-campaign" }
+    );
+    const patch = churchDocPatch(merged.doc, merged.patchKeys);
+    assert.equal(patch.lead_class, "campaign_planning");
+    assert.equal(patch.jev_avl_fit, 3.5);
+    assert.equal(patch.pastor_name, undefined);
+    const plain = churchDocPatch({ staff_contacts: [], crm_signals: [], updated_at: "2026-08-01" });
+    assert.deepEqual(Object.keys(plain).sort(), ["crm_signals", "staff_contacts", "updated_at"]);
+  });
+
+  it("keeps two churches that share a website in different states", () => {
+    const node = (id: string, state: string): CrmNode => ({
+      id,
+      app: "churchconnect",
+      kind: "org",
+      name: "The Fountain Church",
+      town: state,
+      state,
+      emails: [],
+      domains: ["https://thefountainchurch.org"],
+      phones: [],
+      links: [],
+      touches: []
+    });
+    const separate = buildCards(
+      [node("cc:church:ga", "GA"), node("cc:church:fl", "FL")],
+      { emails: new Set(), domains: new Set(), phones: new Set() },
+      new Date("2026-10-24T12:00:00Z")
+    );
+    assert.equal(separate.length, 2);
+    const same = buildCards(
+      [node("cc:church:ga", "GA"), node("cc:church:ga2", "GA")],
+      { emails: new Set(), domains: new Set(), phones: new Set() },
+      new Date("2026-10-24T12:00:00Z")
+    );
+    assert.equal(same.length, 1);
+  });
+
+  it("leaves existing talks off the new-outreach follow-up list", () => {
+    const card = {
+      key: "north",
+      name: "Northridge Christian",
+      town: "Milledgeville, GA",
+      apps: ["churchconnect"],
+      touches: [],
+      lastOutreach: null,
+      repeat: { level: null, text: "" },
+      stops: [],
+      tokens: [],
+      events: [],
+      nextActionDate: "2026-01-01",
+      nextAction: "Call",
+      nextStep: "",
+      followUpReasons: [],
+      existingAvlTalks: true
+    } as CrmCard;
+    assert.equal(buildFollowUps([card], new Date("2026-10-24T12:00:00Z")).length, 0);
   });
 });

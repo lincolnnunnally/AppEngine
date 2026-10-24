@@ -251,3 +251,73 @@ export function technicalDirectorsFromStaff(staff: unknown): TechDirectorPerson[
   }
   return out;
 }
+
+export const LEAD_CLASSES = ["campaign_planning", "under_construction", "staff_only", "other_services"] as const;
+export type LeadClass = (typeof LEAD_CLASSES)[number];
+
+export const AVL_TIERS = ["top", "second", "other_services", "staff_only"] as const;
+export type AvlTier = (typeof AVL_TIERS)[number];
+
+/** Owner desk labels. These do not name a vendor and are not church-facing copy. */
+export const AVL_TIER_LABEL: Record<AvlTier, string> = {
+  top: "Top AVL tier",
+  second: "AVL second tier, lower confidence",
+  other_services: "Other services",
+  staff_only: "Staff only"
+};
+
+/** Other services may be offered these. Never Operate, and not church sound, video, and lighting. */
+export const OTHER_SERVICES_OFFERS = ["churchconnect", "easypeazy", "laser"] as const;
+
+export const JEV_PROJECT_STAGES = ["planning-campaign", "under-construction", "recently-completed", "unclear", "none"] as const;
+export type JevProjectStage = (typeof JEV_PROJECT_STAGES)[number];
+
+const LEAD_RANK: Record<LeadClass, number> = {
+  campaign_planning: 4,
+  under_construction: 3,
+  staff_only: 2,
+  other_services: 1
+};
+
+export function parseLeadClass(value: unknown): { ok: true; leadClass: LeadClass | "" } | { ok: false; message: string } {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!text) return { ok: true, leadClass: "" };
+  if ((LEAD_CLASSES as readonly string[]).includes(text)) return { ok: true, leadClass: text as LeadClass };
+  return { ok: false, message: "lead_class must be campaign_planning, under_construction, staff_only, or other_services." };
+}
+
+/** campaign_planning is the top AVL tier. under_construction is second, with lower confidence. other_services is not an AVL lead. staff_only is the normal list. */
+export function avlTierForLeadClass(leadClass: unknown): AvlTier | "" {
+  const parsed = parseLeadClass(leadClass);
+  if (!parsed.ok || !parsed.leadClass) return "";
+  if (parsed.leadClass === "campaign_planning") return "top";
+  if (parsed.leadClass === "under_construction") return "second";
+  if (parsed.leadClass === "other_services") return "other_services";
+  return "staff_only";
+}
+
+export function leadClassRank(leadClass: LeadClass | ""): number {
+  return leadClass ? LEAD_RANK[leadClass] : 0;
+}
+
+/** Fractional fit from 0 through 4. Blank is absent. Anything else is invalid. */
+export function parseJevAvlFit(value: unknown): { ok: true; fit: number | null } | { ok: false; message: string } {
+  const raw = String(value ?? "").trim();
+  if (!raw) return { ok: true, fit: null };
+  if (!/^\d+(\.\d+)?$/.test(raw)) return { ok: false, message: "jev_avl_fit must be a number from 0 to 4." };
+  const fit = Number(raw);
+  if (!Number.isFinite(fit) || fit < 0 || fit > 4) return { ok: false, message: "jev_avl_fit must be a number from 0 to 4." };
+  return { ok: true, fit };
+}
+
+export function parseJevProjectStage(value: unknown): { ok: true; stage: JevProjectStage | "" } | { ok: false; message: string } {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return { ok: true, stage: "" };
+  if ((JEV_PROJECT_STAGES as readonly string[]).includes(text)) return { ok: true, stage: text as JevProjectStage };
+  return { ok: false, message: "jev_project_stage must be planning-campaign, under-construction, recently-completed, unclear, or none." };
+}
+
+export function existingColumnYes(value: unknown): boolean {
+  const text = String(value ?? "").trim().toLowerCase();
+  return text === "yes" || text === "y" || text === "true";
+}

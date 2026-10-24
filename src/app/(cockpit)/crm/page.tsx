@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
-import { canAccessEngineAdmin, canAccessEngineOwner } from "@/lib/auth/access";
+import { canAccessEngineOwner } from "@/lib/auth/access";
+import { directoryPreviewRows, directoryQueryFromParams } from "@/lib/engine/crm-directory-core";
+import { loadDirectoryPage } from "@/lib/engine/crm-directory";
+import { CrmDirectoryList } from "@/components/engine/crm-directory-list";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, withOutreachLog, type CrmCard } from "@/lib/engine/lpl-crm-core";
 import { SIGNAL_BUILDING, SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG } from "@/lib/engine/tech-director-core";
@@ -140,20 +143,28 @@ function techPreviewCards(): CrmCard[] {
   return [palm, grace, river, queue].map(withOutreachLog);
 }
 
-// CRM — owner and admins can view. One card per org or person across
-// ChurchConnect, Laser, and Presence, read from the tables those apps already
-// keep. Only the owner can save (church visits and contacts, through
-// ChurchConnect); admins see names and titles, never emails or phones.
+// CRM — owner only. The church list is the ChurchConnect directory, one
+// keyset page at a time. Follow-ups still come from the apps' own logs.
 // Nothing on this page sends anything to anyone.
-export default async function CrmPage({ searchParams }: { searchParams: Promise<{ preview?: string; q?: string }> }) {
-  if (!(await canAccessEngineAdmin())) redirect("/");
+export default async function CrmPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (!(await canAccessEngineOwner())) redirect("/");
   const params = await searchParams;
   const isOwner = await canAccessEngineOwner();
-  const searchQuery = isOwner ? String(params.q ?? "").trim().slice(0, 80) : "";
+  const previewParam = Array.isArray(params.preview) ? params.preview[0] : params.preview;
+  const searchQuery = isOwner ? String((Array.isArray(params.q) ? params.q[0] : params.q) ?? "").trim().slice(0, 80) : "";
   // Dev preview only, and only for the owner. The non-production guard keeps the fixture out of the production bundle.
-  const previewTop = process.env.NODE_ENV !== "production" && isOwner && params.preview === "top";
-  const previewAv = process.env.NODE_ENV !== "production" && isOwner && params.preview === "av";
-  const previewTech = process.env.NODE_ENV !== "production" && isOwner && params.preview === "tech";
+  const previewTop = process.env.NODE_ENV !== "production" && isOwner && previewParam === "top";
+  const previewAv = process.env.NODE_ENV !== "production" && isOwner && previewParam === "av";
+  const previewTech = process.env.NODE_ENV !== "production" && isOwner && previewParam === "tech";
+  const previewDirectory = process.env.NODE_ENV !== "production" && previewParam === "directory";
+  const directoryQuery = directoryQueryFromParams(params);
+  const directory = previewDirectory
+    ? { configured: true, ok: true, rows: directoryPreviewRows(), nextCursor: "" }
+    : await loadDirectoryPage(directoryQuery);
   let topInitial: TopProspectState = null;
   let avInitial: AvProspectState = null;
   if (previewTop) {
@@ -257,7 +268,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
           Who we have <em>reached</em>, and who is next.
         </h1>
         <p className="dx-lede">
-          One card for each church, business lead, place, or person across ChurchConnect, Laser, Presence, and business leads. If any app reached out in the
+          Every church in the directory is listed below, one page at a time. Follow-ups are the churches, places, and people an app has already touched. If any app reached out in the
           last {DONT_REPEAT_DAYS} days ({DROP_OFF_REST_DAYS} after a drop-off), the card says to let it rest.
           {canSave
             ? " You can add a church or business, pick its apps, log a visit or drop-off, and save a contact here; for anything else, open the app that owns the record."
@@ -318,6 +329,8 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
         </p>
       </section>
 
+      <CrmDirectoryList query={directoryQuery} page={directory} preview={previewDirectory ? "directory" : ""} />
+
       {snapshot.configured || previewTop || previewAv || previewTech ? (
         <CrmDesk
           cards={viewCards}
@@ -330,7 +343,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
           avInitial={avInitial}
           techFirst={previewTech}
           searchQuery={searchQuery}
-          preview={params.preview ?? ""}
+          preview={previewParam ?? ""}
         />
       ) : (
         <section className="panel">

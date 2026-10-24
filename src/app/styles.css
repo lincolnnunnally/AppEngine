@@ -7214,6 +7214,17 @@ button.compose-arch:hover {
 
 /* Cards */
 .crm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 14px; margin-top: 8px; align-items: start; }
+.crm-dir-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 8px 0; }
+.crm-dir-filters label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.crm-dir-filters input, .crm-dir-filters select { min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink); font: inherit; }
+.crm-dir-check { display: flex; align-items: center; gap: 8px; min-height: 40px; }
+.crm-dir-scroll { overflow-x: auto; }
+.crm-dir-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.crm-dir-table th, .crm-dir-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.crm-dir-table th { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.crm-dir-pager { display: flex; gap: 8px; margin-top: 12px; }
+.crm-detail { margin-top: 8px; }
+.crm-status-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 8px 0 16px; }
 .crm-card { border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 14px; background: var(--panel); display: flex; flex-direction: column; gap: 10px; min-width: 0; scroll-margin-top: 80px; }
 .crm-card.has-stop { border-color: color-mix(in srgb, var(--pink) 45%, var(--line)); }
 .crm-card.is-resting { border-color: color-mix(in srgb, var(--purple) 40%, var(--line)); }

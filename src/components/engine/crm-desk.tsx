@@ -7,7 +7,7 @@ import type { AvProspectState, TopProspectState } from "@/app/(cockpit)/crm/acti
 import { ChurchSignals, PeopleTools, SignalQueueActions, TechDirectorPeople } from "@/components/engine/crm-church-tools";
 import { AddOrg, OrgTools, offerLabel } from "@/components/engine/crm-org-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
-import { SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode } from "@/lib/engine/tech-director-core";
+import { AVL_TIER_LABEL, SIGNAL_BUILDING, SIGNAL_STAFF, churchHasTechnicalDirector, churchSignalScore, stateCode, type AvlTier } from "@/lib/engine/tech-director-core";
 import {
   CRM_APP_LABEL,
   FOLLOW_UP_LABEL,
@@ -119,7 +119,7 @@ function fmtTime(at: string | null | undefined): string {
 
 /** Same test the card uses for "Last reached out: Not yet". */
 function isQuiet(card: CrmCard): boolean {
-  return !card.lastOutreach;
+  return !card.lastOutreach && !card.existingAvlTalks;
 }
 
 function matches(card: CrmCard, filter: CardFilter): boolean {
@@ -215,6 +215,12 @@ function CardView({
           <p className="crm-card-sub">
             {card.town || "Town not recorded"} · {matchText}
           </p>
+          {isOwner && card.avlTier && AVL_TIER_LABEL[card.avlTier as AvlTier] ? (
+            <p className="crm-dim" data-testid="crm-avl-tier">
+              {AVL_TIER_LABEL[card.avlTier as AvlTier]}
+              {typeof card.jevAvlFit === "number" ? ` · fit ${card.jevAvlFit}` : ""}
+            </p>
+          ) : null}
         </div>
         <div className="crm-pills">
           {card.apps.map((app) => (

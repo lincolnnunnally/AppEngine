@@ -42,7 +42,21 @@ export const SUGGEST_NONE = "No suggestion for this one right now. Use your own 
 /** Minimal card fields the rules read (so tests can build one by hand). */
 export type SuggestCard = Pick<
   CrmCard,
-  "key" | "name" | "town" | "apps" | "touches" | "repeat" | "stops" | "followUpReasons" | "nextStep" | "nextActionDate" | "churchId" | "leadId" | "org"
+  | "key"
+  | "name"
+  | "town"
+  | "apps"
+  | "touches"
+  | "repeat"
+  | "stops"
+  | "followUpReasons"
+  | "nextStep"
+  | "nextActionDate"
+  | "churchId"
+  | "leadId"
+  | "org"
+  | "avlTier"
+  | "existingAvlTalks"
 >;
 
 export type SuggestKind = "church" | "business";
@@ -83,6 +97,9 @@ export function suggestGate(card: SuggestCard, outreachHidden: boolean): Suggest
   if (outreachHidden) return { kind: "blocked", message: "The do-not-contact list couldn't be read, so nothing is suggested right now." };
   if (card.stops.some((stop) => stop.reason === "suppressed" || stop.reason === "declined")) {
     return { kind: "stopped", message: "Do not contact. Nothing is suggested." };
+  }
+  if (card.existingAvlTalks) {
+    return { kind: "blocked", message: "Already in existing talks. New outreach is not suggested. You can still change the status." };
   }
   const resting = card.repeat.level === "hold" || card.followUpReasons.includes("wait");
   if (resting) {
@@ -224,7 +241,11 @@ export function alreadyBuys(card: SuggestCard): Set<string> {
 /** Offers the model may pick for this org: the church rule, or live business apps, minus what they already buy. */
 export function allowedOffers(kind: SuggestKind, card: SuggestCard): Array<{ id: string; label: string }> {
   const bought = alreadyBuys(card);
-  if (kind === "church") return CHURCH_OFFER_IDS.filter((id) => !bought.has(id)).map((id) => ({ id, label: CHURCH_ALLOWED_OFFERS[id] }));
+  if (kind === "church") {
+    // Other services is not an AVL lead: ChurchConnect, the church website, and Laser church gifts.
+    const ids = CHURCH_OFFER_IDS.filter((id) => !bought.has(id) && (card.avlTier !== "other_services" || id !== "messenger_avl"));
+    return ids.map((id) => ({ id, label: CHURCH_ALLOWED_OFFERS[id] }));
+  }
   return BUSINESS_OFFER_IDS.filter((id) => !bought.has(id)).map((id) => ({ id, label: BUSINESS_OFFERS[id] }));
 }
 
