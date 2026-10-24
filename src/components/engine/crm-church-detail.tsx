@@ -2,11 +2,11 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { setChurchStatusAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
+import { setChurchOwnerFieldsAction, setChurchStatusAction, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { ChurchSignals, PeopleTools, Status } from "@/components/engine/crm-church-tools";
 import { SuggestNextStep } from "@/components/engine/crm-suggest";
-import { directoryStatusLabel, type DirectoryRow } from "@/lib/engine/crm-directory-core";
-import { CRM_CHURCH_STATUSES, type CrmCard } from "@/lib/engine/lpl-crm-core";
+import { avlProjectStatusLabel, buildingStageLabel, directoryStatusLabel, type DirectoryRow } from "@/lib/engine/crm-directory-core";
+import { AVL_PROJECT_STATUSES, BUILDING_STAGES, BUILDING_STAGE_LABEL, AVL_PROJECT_STATUS_LABEL, CRM_CHURCH_STATUSES, type CrmCard } from "@/lib/engine/lpl-crm-core";
 
 type HistoryItem = { id: string; at: string; kind: string; what: string };
 
@@ -75,6 +75,25 @@ export function CrmChurchDetail({
           <dt>Last contact</dt>
           <dd>{row.lastContact ? when(row.lastContact) : "Not contacted"}</dd>
         </div>
+        <div>
+          <dt>Existing AVL relationship</dt>
+          <dd>{row.avlExistingRelationship ? "Yes" : "No"}</dd>
+        </div>
+        <div>
+          <dt>Relationship note</dt>
+          <dd>{row.avlExistingRelationshipNote || "—"}</dd>
+        </div>
+        <div>
+          <dt>Current project</dt>
+          <dd>{avlProjectStatusLabel(row.avlProjectStatus)}</dd>
+        </div>
+        <div>
+          <dt>Building stage</dt>
+          <dd>
+            {buildingStageLabel(row.buildingStage)}
+            {row.buildingStageRecordedAt ? ` · recorded ${when(row.buildingStageRecordedAt)}` : ""}
+          </dd>
+        </div>
         {website ? (
           <div>
             <dt>Website</dt>
@@ -103,6 +122,7 @@ export function CrmChurchDetail({
         ) : null}
       </dl>
       {canSave ? <StatusForm churchId={row.id} status={row.crmStatus} /> : null}
+      {canSave ? <OwnerFieldsForm row={row} /> : null}
       <ChurchSignals signals={card.signals ?? []} />
       <PeopleTools card={card} canSave={canSave} />
       <SuggestNextStep card={card} isOwner canSave={canSave} outreachHidden={false} />
@@ -146,6 +166,52 @@ function StatusForm({ churchId, status }: { churchId: string; status: string }) 
       </label>
       <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>
         {pending ? "Saving…" : "Save status"}
+      </button>
+      <Status state={state} />
+    </form>
+  );
+}
+
+function OwnerFieldsForm({ row }: { row: DirectoryRow }) {
+  const [state, action, pending] = useActionState<CrmFormState, FormData>(setChurchOwnerFieldsAction, null);
+  return (
+    <form action={action} className="crm-form crm-status-form" data-testid="crm-owner-fields">
+      <input type="hidden" name="church_id" value={row.id} />
+      <p className="crm-dim">These stay separate from contact status.</p>
+      <label className="crm-dir-check">
+        <input type="checkbox" name="avl_existing_relationship" value="1" defaultChecked={row.avlExistingRelationship} />
+        Existing AVL relationship
+      </label>
+      <label className="crm-field">
+        <span>Relationship note</span>
+        <input name="avl_existing_relationship_note" defaultValue={row.avlExistingRelationshipNote} maxLength={500} aria-label="Existing AVL relationship note" />
+      </label>
+      <label className="crm-field">
+        <span>Current project</span>
+        <select name="avl_project_status" defaultValue={row.avlProjectStatus || "none"} aria-label="Current project AVL status">
+          {AVL_PROJECT_STATUSES.map((item) => (
+            <option value={item} key={item}>
+              {AVL_PROJECT_STATUS_LABEL[item]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="crm-field">
+        <span>Building stage</span>
+        <select name="building_stage" defaultValue={row.buildingStage || "none"} aria-label="Building-planning stage">
+          {BUILDING_STAGES.map((item) => (
+            <option value={item} key={item}>
+              {BUILDING_STAGE_LABEL[item]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="crm-field">
+        <span>Stage recorded</span>
+        <input name="building_stage_recorded_at" type="date" defaultValue={row.buildingStageRecordedAt} aria-label="Building stage recorded date" />
+      </label>
+      <button type="submit" className="dx-btn dx-btn--primary" disabled={pending}>
+        {pending ? "Saving…" : "Save AVL notes"}
       </button>
       <Status state={state} />
     </form>

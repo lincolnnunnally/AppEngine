@@ -2,7 +2,17 @@
 // The desk reads cc_churches itself. It does not copy churches into another table.
 // One page is a keyset (id, or a sort key plus id). There is no offset.
 
-import { CRM_CHURCH_STATUSES, EXISTING_AVL_TALKS_STATUS, isExistingAvlTalksStatus } from "./lpl-crm-core.ts";
+import {
+  AVL_PROJECT_STATUS_LABEL,
+  BUILDING_STAGE_LABEL,
+  CRM_CHURCH_STATUSES,
+  churchHoldsAvlWork,
+  cleanAvlProjectStatus,
+  cleanBuildingStage,
+  truthyFlag,
+  type AvlProjectStatus,
+  type BuildingStage
+} from "./lpl-crm-core.ts";
 import { AVL_TIER_LABEL, avlTierForLeadClass, stateCode, type AvlTier } from "./tech-director-core.ts";
 
 export const DIRECTORY_PAGE_SIZE = 40;
@@ -20,60 +30,6 @@ const TIER_LEAD_CLASS: Record<Exclude<TierWalk, "unset">, string> = {
   other_services: "other_services"
 };
 
-const STATE_NAME: Record<string, string> = {
-  AL: "Alabama",
-  AK: "Alaska",
-  AZ: "Arizona",
-  AR: "Arkansas",
-  CA: "California",
-  CO: "Colorado",
-  CT: "Connecticut",
-  DE: "Delaware",
-  DC: "District of Columbia",
-  FL: "Florida",
-  GA: "Georgia",
-  HI: "Hawaii",
-  ID: "Idaho",
-  IL: "Illinois",
-  IN: "Indiana",
-  IA: "Iowa",
-  KS: "Kansas",
-  KY: "Kentucky",
-  LA: "Louisiana",
-  ME: "Maine",
-  MD: "Maryland",
-  MA: "Massachusetts",
-  MI: "Michigan",
-  MN: "Minnesota",
-  MS: "Mississippi",
-  MO: "Missouri",
-  MT: "Montana",
-  NE: "Nebraska",
-  NV: "Nevada",
-  NH: "New Hampshire",
-  NJ: "New Jersey",
-  NM: "New Mexico",
-  NY: "New York",
-  NC: "North Carolina",
-  ND: "North Dakota",
-  OH: "Ohio",
-  OK: "Oklahoma",
-  OR: "Oregon",
-  PA: "Pennsylvania",
-  RI: "Rhode Island",
-  SC: "South Carolina",
-  SD: "South Dakota",
-  TN: "Tennessee",
-  TX: "Texas",
-  UT: "Utah",
-  VT: "Vermont",
-  VA: "Virginia",
-  WA: "Washington",
-  WV: "West Virginia",
-  WI: "Wisconsin",
-  WY: "Wyoming"
-};
-
 export const CRM_STATUS_LABEL: Record<string, string> = {
   "": "Not contacted",
   new: "New",
@@ -83,8 +39,7 @@ export const CRM_STATUS_LABEL: Record<string, string> = {
   proposal_sent: "Proposal sent",
   negotiating: "Negotiating",
   won: "Won",
-  lost: "Lost",
-  [EXISTING_AVL_TALKS_STATUS]: EXISTING_AVL_TALKS_STATUS
+  lost: "Lost"
 };
 
 export type DirectoryQuery = {
@@ -97,6 +52,7 @@ export type DirectoryQuery = {
   fitMin: number | null;
   contacted: "" | "never" | "since" | "before";
   contactedOn: string;
+  stage: BuildingStage | "";
   sort: DirectorySort;
   dir: "asc" | "desc";
   cursor: string;
@@ -126,7 +82,32 @@ export type DirectoryRow = {
   jevProjectStage: string;
   lastContact: string;
   hasStaff: boolean;
+  /** Worked with them on a past project. Owner only. Not a pipeline status. */
+  avlExistingRelationship: boolean;
+  avlExistingRelationshipNote: string;
+  avlProjectStatus: AvlProjectStatus | "";
+  buildingStage: BuildingStage | "";
+  buildingStageRecordedAt: string;
+  /** Existing relationship or AVL already engaged. Kept off new-outreach views. */
   existingAvlTalks: boolean;
+};
+
+export type DirectoryRpcArgs = {
+  p_q: string;
+  p_state: string;
+  p_county: string;
+  p_status: string;
+  p_lead_class: string;
+  p_staff: boolean;
+  p_fit_min: number | null;
+  p_contacted: string;
+  p_contacted_on: string;
+  p_building_stage: string;
+  p_sort: string;
+  p_dir: "asc" | "desc";
+  p_cursor_id: string;
+  p_cursor_value: string;
+  p_limit: number;
 };
 
 const text = (value: unknown) => (value === null || value === undefined ? "" : String(value).trim());
@@ -135,6 +116,16 @@ export function directoryStatusLabel(crmStatus: unknown): string {
   const raw = text(crmStatus);
   if (!raw) return "Not contacted";
   return CRM_STATUS_LABEL[raw] || CRM_STATUS_LABEL[raw.toLowerCase()] || raw;
+}
+
+export function buildingStageLabel(stage: unknown): string {
+  const clean = cleanBuildingStage(stage);
+  return clean ? BUILDING_STAGE_LABEL[clean] : "None";
+}
+
+export function avlProjectStatusLabel(status: unknown): string {
+  const clean = cleanAvlProjectStatus(status);
+  return clean ? AVL_PROJECT_STATUS_LABEL[clean] : "None";
 }
 
 export function emptyDirectoryQuery(): DirectoryQuery {
@@ -148,6 +139,7 @@ export function emptyDirectoryQuery(): DirectoryQuery {
     fitMin: null,
     contacted: "",
     contactedOn: "",
+    stage: "",
     sort: "id",
     dir: "asc",
     cursor: ""
@@ -177,6 +169,7 @@ export function directoryQueryFromParams(params: Record<string, string | string[
     fitMin: fitNum !== null && Number.isFinite(fitNum) && fitNum >= 0 && fitNum <= 4 ? fitNum : null,
     contacted: contacted === "never" || contacted === "since" || contacted === "before" ? contacted : "",
     contactedOn: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "",
+    stage: cleanBuildingStage(one("stage")),
     sort: (DIRECTORY_SORTS as readonly string[]).includes(sort) ? (sort as DirectorySort) : "id",
     dir: dir === "desc" ? "desc" : "asc",
     cursor: one("cursor").slice(0, 500)
@@ -212,118 +205,49 @@ export function decodeDirectoryCursor(raw: string): DirectoryCursor | null {
   }
 }
 
-/** Quote a PostgREST value that contains a dot, comma, or parenthesis. */
-function filterValue(value: string): string {
-  if (value === "" || /[.,():"]/.test(value)) return `"${value.replace(/"/g, "")}"`;
-  return encodeURIComponent(value);
+function leadClassFor(query: DirectoryQuery, tierWalk: TierWalk | ""): string {
+  if (tierWalk === "unset") return "unset";
+  if (tierWalk) return TIER_LEAD_CLASS[tierWalk];
+  if (query.tier) return TIER_LEAD_CLASS[query.tier];
+  return "";
 }
-
-function likeValue(value: string): string {
-  const cleaned = value.replace(/[*,().]/g, " ").replace(/\s+/g, " ").trim();
-  return `*${encodeURIComponent(cleaned)}*`;
-}
-
-const LIST_FIELDS = [
-  "name",
-  "church_name",
-  "city",
-  "state",
-  "zip_code",
-  "county",
-  "region",
-  "crm_status",
-  "lead_class",
-  "jev_avl_fit",
-  "jev_project_stage",
-  "last_invited_at",
-  "last_contact_at",
-  "pastor_name",
-  "contact_name",
-  "secretary_name"
-];
-
-export const DIRECTORY_SELECT = `select=id,${LIST_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},merged_into:doc->>merged_into,deleted_at:doc->>deleted_at,staff_contacts:doc->staff_contacts`;
 
 /**
- * One PostgREST page. `tierWalk` is set while sorting by tier, one bucket at a time.
- * `nulls` continues a name, fit, or last-contact sort into the blank values.
- * The default (sort id, no cursor) is `order=id.asc` and uses the primary key.
+ * Arguments for crm_directory_page. State is a two-letter code. The SQL
+ * function matches "Georgia" and "GA" on that code. Sort and cursor use one
+ * expression each (name, numeric fit, or last contact). There is no offset
+ * and no or() keyset.
  */
-export function directoryRestQuery(
+export function directoryRpcArgs(
   query: DirectoryQuery,
   cursor: DirectoryCursor | null,
   limit: number,
   tierWalk: TierWalk | "" = ""
-): string {
-  const orGroups: string[] = [];
-  const parts: string[] = [DIRECTORY_SELECT];
-
-  const q = query.q.trim();
-  if (q) {
-    const zip = q.replace(/\D/g, "");
-    const zipExact = zip.length === 5 || zip.length === 9 ? `doc->>zip_code.eq.${zip}` : "";
-    orGroups.push(`or(doc->>name.ilike.${likeValue(q)},doc->>church_name.ilike.${likeValue(q)},doc->>city.ilike.${likeValue(q)}${zipExact ? `,${zipExact}` : ""})`);
-  }
-  if (query.state && /^[A-Z]{2}$/.test(query.state)) {
-    const name = STATE_NAME[query.state];
-    orGroups.push(name ? `or(doc->>state.eq.${query.state},doc->>state.ilike.${encodeURIComponent(name)})` : `or(doc->>state.eq.${query.state})`);
-  }
-  if (query.county) {
-    const county = filterValue(query.county);
-    orGroups.push(`or(doc->>county.ilike.${county},doc->>region.ilike.${county})`);
-  }
-  if (query.status === "not_contacted") orGroups.push("or(doc->>crm_status.is.null,doc->>crm_status.eq.)");
-  else if (query.status && (CRM_CHURCH_STATUSES as readonly string[]).some((status) => status.toLowerCase() === query.status.toLowerCase())) {
-    parts.push(`doc->>crm_status=eq.${filterValue(query.status)}`);
-  }
-  if (tierWalk === "unset") orGroups.push("or(doc->>lead_class.is.null,doc->>lead_class.eq.)");
-  else if (tierWalk) parts.push(`doc->>lead_class=eq.${TIER_LEAD_CLASS[tierWalk]}`);
-  else if (query.tier) parts.push(`doc->>lead_class=eq.${TIER_LEAD_CLASS[query.tier]}`);
-  if (query.staff) {
-    orGroups.push(
-      "or(and(doc->staff_contacts.not.is.null,doc->staff_contacts.neq.[]),doc->>pastor_name.not.eq.,doc->>contact_name.not.eq.,doc->>secretary_name.not.eq.)"
-    );
-  }
-  if (query.fitMin !== null) parts.push(`doc->>jev_avl_fit=gte.${query.fitMin}`);
-  if (query.contacted === "never") {
-    orGroups.push("or(doc->>last_invited_at.is.null,doc->>last_invited_at.eq.)");
-    orGroups.push("or(doc->>last_contact_at.is.null,doc->>last_contact_at.eq.)");
-  } else if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
-    const op = query.contacted === "since" ? "gte" : "lt";
-    orGroups.push(`or(doc->>last_invited_at.${op}.${query.contactedOn},doc->>last_contact_at.${op}.${query.contactedOn})`);
-  }
-
+): DirectoryRpcArgs {
   const sort = query.sort;
   const dir = query.dir === "desc" ? "desc" : "asc";
   const edge = cursor && cursor.sort === sort && cursor.dir === dir ? cursor : null;
-  if (sort === "id") {
-    const cmp = dir === "asc" ? "gt" : "lt";
-    if (edge?.id) parts.push(`id=${cmp}.${encodeURIComponent(edge.id)}`);
-    parts.push(`order=id.${dir}`);
-  } else if (sort === "tier") {
-    if (edge?.id) parts.push(`id=gt.${encodeURIComponent(edge.id)}`);
-    parts.push("order=id.asc");
-  } else if (edge?.nulls) {
-    const column = sort === "name" ? "name" : sort === "fit" ? "jev_avl_fit" : "last_invited_at";
-    orGroups.push(`or(doc->>${column}.is.null,doc->>${column}.eq.)`);
-    parts.push(`id=gt.${encodeURIComponent(edge.id)}`);
-    parts.push("order=id.asc");
-  } else {
-    const column = sort === "name" ? "name" : sort === "fit" ? "jev_avl_fit" : "last_invited_at";
-    const nulls = "nullslast";
-    parts.push(`order=doc->>${column}.${dir}.${nulls},id.asc`);
-    if (edge) {
-      const cmp = dir === "asc" ? "gt" : "lt";
-      orGroups.push(
-        `or(doc->>${column}.${cmp}.${filterValue(edge.value)},and(doc->>${column}.eq.${filterValue(edge.value)},id.gt.${encodeURIComponent(edge.id)}))`
-      );
-    }
-  }
-
-  if (orGroups.length === 1) parts.push(`or=(${orGroups[0].slice(3, -1)})`);
-  else if (orGroups.length > 1) parts.push(`and=(${orGroups.join(",")})`);
-  parts.push(`limit=${Math.min(Math.max(limit, 1), 100)}`);
-  return parts.join("&");
+  const statusOk =
+    query.status === "not_contacted" ||
+    (CRM_CHURCH_STATUSES as readonly string[]).some((status) => status.toLowerCase() === query.status.toLowerCase());
+  const stage = cleanBuildingStage(query.stage);
+  return {
+    p_q: query.q.trim().slice(0, 80),
+    p_state: /^[A-Z]{2}$/.test(query.state) ? query.state : "",
+    p_county: query.county.trim().slice(0, 80),
+    p_status: query.status && statusOk ? query.status : "",
+    p_lead_class: leadClassFor(query, tierWalk),
+    p_staff: query.staff,
+    p_fit_min: query.fitMin,
+    p_contacted: query.contacted,
+    p_contacted_on: query.contactedOn,
+    p_building_stage: stage,
+    p_sort: sort === "tier" ? "id" : sort,
+    p_dir: sort === "tier" ? "asc" : dir,
+    p_cursor_id: edge?.id ?? "",
+    p_cursor_value: edge?.value ?? "",
+    p_limit: Math.min(Math.max(limit, 1), 100)
+  };
 }
 
 export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryRow | null {
@@ -340,6 +264,10 @@ export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryR
   const contacted = text(row.last_contact_at);
   const lastContact = [invited, contacted].filter(Boolean).sort().at(-1) || "";
   const crmStatus = text(row.crm_status);
+  const relationship = truthyFlag(row.avl_existing_relationship);
+  const project = cleanAvlProjectStatus(row.avl_project_status);
+  const stage = cleanBuildingStage(row.building_stage);
+  const hasStaffFromRpc = row.has_staff === true || row.has_staff === "true";
   return {
     id,
     name: text(row.name) || text(row.church_name) || "Church",
@@ -354,14 +282,62 @@ export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryR
     jevAvlFit: fit,
     jevProjectStage: text(row.jev_project_stage),
     lastContact,
-    hasStaff,
-    existingAvlTalks: isExistingAvlTalksStatus(crmStatus)
+    hasStaff: hasStaffFromRpc || hasStaff,
+    avlExistingRelationship: relationship,
+    avlExistingRelationshipNote: text(row.avl_existing_relationship_note).slice(0, 500),
+    avlProjectStatus: project,
+    buildingStage: stage,
+    buildingStageRecordedAt: /^\d{4}-\d{2}-\d{2}/.test(text(row.building_stage_recorded_at)) ? text(row.building_stage_recorded_at).slice(0, 10) : "",
+    existingAvlTalks: churchHoldsAvlWork({ avl_existing_relationship: relationship, avl_project_status: project })
   };
 }
 
-/** Cursor for the next page from the last row returned, before the extra lookahead row is dropped. */
+export function directorySortName(row: Record<string, unknown>): string {
+  if (row.sort_name !== undefined && row.sort_name !== null) return text(row.sort_name);
+  return text(row.name) || text(row.church_name);
+}
+
+export function directorySortFit(row: Record<string, unknown>): number {
+  if (row.sort_fit !== undefined && row.sort_fit !== null && row.sort_fit !== "") {
+    const fit = Number(row.sort_fit);
+    if (Number.isFinite(fit)) return fit;
+  }
+  const raw = text(row.jev_avl_fit);
+  const fit = raw === "" ? null : Number(raw);
+  return fit !== null && Number.isFinite(fit) && fit >= 0 && fit <= 4 ? fit : -1;
+}
+
+export function directorySortContact(row: Record<string, unknown>): string {
+  if (row.sort_contact !== undefined && row.sort_contact !== null) return text(row.sort_contact);
+  return [text(row.last_invited_at), text(row.last_contact_at)].filter(Boolean).sort().at(-1) || "";
+}
+
+export function tierWalkFromLeadClass(leadClass: string): TierWalk {
+  if (leadClass === "campaign_planning") return "top";
+  if (leadClass === "under_construction") return "second";
+  if (leadClass === "staff_only") return "staff_only";
+  if (leadClass === "other_services") return "other_services";
+  return "unset";
+}
+
+/** First 40 raw rows are this page. The cursor is the last raw id, even when that row is merged or deleted. */
+export function pageDirectoryRaw(raw: Record<string, unknown>[], query: DirectoryQuery): { rows: DirectoryRow[]; next: DirectoryCursor | null } {
+  const window = raw.slice(0, DIRECTORY_PAGE_SIZE);
+  const more = raw.length > DIRECTORY_PAGE_SIZE;
+  const rows = window.map((item) => directoryRowFromRecord(item)).filter((row): row is DirectoryRow => Boolean(row));
+  const last = window[window.length - 1];
+  if (!more || !last || !text(last.id)) return { rows, next: null };
+  return { rows, next: cursorFromRaw(query, last, query.sort === "tier" ? tierWalkFromLeadClass(text(last.lead_class)) : "") };
+}
+
+export function cursorFromRaw(query: DirectoryQuery, raw: Record<string, unknown>, tier: TierWalk | ""): DirectoryCursor {
+  const value = query.sort === "name" ? directorySortName(raw) : query.sort === "fit" ? String(directorySortFit(raw)) : query.sort === "contact" ? directorySortContact(raw) : "";
+  return { sort: query.sort, dir: query.dir, id: text(raw.id), value, tier, nulls: false };
+}
+
+/** Cursor for the next page. Prefer cursorFromRaw so merged rows still advance the keyset. */
 export function nextDirectoryCursor(query: DirectoryQuery, last: DirectoryRow, tierWalk: TierWalk | ""): DirectoryCursor {
-  const value = query.sort === "name" ? last.name : query.sort === "fit" ? (last.jevAvlFit === null ? "" : String(last.jevAvlFit)) : query.sort === "contact" ? last.lastContact : "";
+  const value = query.sort === "name" ? last.name : query.sort === "fit" ? (last.jevAvlFit === null ? "-1" : String(last.jevAvlFit)) : query.sort === "contact" ? last.lastContact : "";
   return {
     sort: query.sort,
     dir: query.dir,
@@ -384,6 +360,7 @@ export function directoryHref(query: DirectoryQuery, cursor = "", preview = ""):
   if (query.fitMin !== null) params.set("fit", String(query.fitMin));
   if (query.contacted) params.set("contacted", query.contacted);
   if (query.contactedOn) params.set("on", query.contactedOn);
+  if (query.stage) params.set("stage", query.stage);
   if (query.sort !== "id") params.set("sort", query.sort);
   if (query.dir !== "asc") params.set("dir", query.dir);
   if (cursor) params.set("cursor", cursor);
@@ -410,6 +387,8 @@ export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery)
     if (query.staff && !row.hasStaff) return false;
     if (query.fitMin !== null && (row.jevAvlFit === null || row.jevAvlFit < query.fitMin)) return false;
     if (query.contacted === "never" && row.lastContact) return false;
+    if (query.stage === "none" && row.buildingStage && row.buildingStage !== "none") return false;
+    if (query.stage && query.stage !== "none" && row.buildingStage !== query.stage) return false;
     if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
       const day = row.lastContact.slice(0, 10);
       if (!day) return false;
@@ -444,14 +423,19 @@ export function directoryPreviewRows(): DirectoryRow[] {
       state: "GA",
       zip: "31061",
       county: "Baldwin",
-      statusLabel: EXISTING_AVL_TALKS_STATUS,
-      crmStatus: EXISTING_AVL_TALKS_STATUS,
+      statusLabel: "Not contacted",
+      crmStatus: "",
       tier: "staff_only",
       tierLabel: AVL_TIER_LABEL.staff_only,
       jevAvlFit: 1,
       jevProjectStage: "none",
       lastContact: "2026-09-12",
       hasStaff: true,
+      avlExistingRelationship: true,
+      avlExistingRelationshipNote: "Worked with them on a past project.",
+      avlProjectStatus: "avl_already_engaged",
+      buildingStage: "",
+      buildingStageRecordedAt: "",
       existingAvlTalks: true
     },
     {
@@ -469,6 +453,11 @@ export function directoryPreviewRows(): DirectoryRow[] {
       jevProjectStage: "planning-campaign",
       lastContact: "",
       hasStaff: true,
+      avlExistingRelationship: false,
+      avlExistingRelationshipNote: "",
+      avlProjectStatus: "none",
+      buildingStage: "exploring",
+      buildingStageRecordedAt: "2026-03-01",
       existingAvlTalks: false
     },
     {
@@ -486,6 +475,11 @@ export function directoryPreviewRows(): DirectoryRow[] {
       jevProjectStage: "under-construction",
       lastContact: "",
       hasStaff: true,
+      avlExistingRelationship: false,
+      avlExistingRelationshipNote: "",
+      avlProjectStatus: "none",
+      buildingStage: "under_construction",
+      buildingStageRecordedAt: "2026-02-01",
       existingAvlTalks: false
     },
     {
@@ -503,6 +497,11 @@ export function directoryPreviewRows(): DirectoryRow[] {
       jevProjectStage: "recently-completed",
       lastContact: "",
       hasStaff: false,
+      avlExistingRelationship: false,
+      avlExistingRelationshipNote: "",
+      avlProjectStatus: "none",
+      buildingStage: "recently_completed",
+      buildingStageRecordedAt: "2025-11-01",
       existingAvlTalks: false
     },
     {
@@ -520,6 +519,11 @@ export function directoryPreviewRows(): DirectoryRow[] {
       jevProjectStage: "under-construction",
       lastContact: "",
       hasStaff: true,
+      avlExistingRelationship: false,
+      avlExistingRelationshipNote: "",
+      avlProjectStatus: "none",
+      buildingStage: "design",
+      buildingStageRecordedAt: "2026-01-15",
       existingAvlTalks: false
     },
     {
@@ -537,6 +541,11 @@ export function directoryPreviewRows(): DirectoryRow[] {
       jevProjectStage: "planning-campaign",
       lastContact: "",
       hasStaff: true,
+      avlExistingRelationship: false,
+      avlExistingRelationshipNote: "",
+      avlProjectStatus: "none",
+      buildingStage: "campaign_planning",
+      buildingStageRecordedAt: "2026-04-01",
       existingAvlTalks: false
     }
   ];

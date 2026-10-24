@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { directoryHref, directoryStatusLabel, type DirectoryQuery } from "@/lib/engine/crm-directory-core";
+import { buildingStageLabel, directoryHref, directoryStatusLabel, type DirectoryQuery } from "@/lib/engine/crm-directory-core";
 import type { DirectoryPage } from "@/lib/engine/crm-directory";
-import { CRM_CHURCH_STATUSES } from "@/lib/engine/lpl-crm-core";
+import { BUILDING_STAGES, BUILDING_STAGE_LABEL, CRM_CHURCH_STATUSES } from "@/lib/engine/lpl-crm-core";
 import { AVL_TIER_LABEL, type AvlTier } from "@/lib/engine/tech-director-core";
 
 const TIERS: AvlTier[] = ["top", "second", "other_services", "staff_only"];
@@ -56,6 +56,17 @@ export function CrmDirectoryList({
             {CRM_CHURCH_STATUSES.map((status) => (
               <option value={status} key={status}>
                 {directoryStatusLabel(status)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Building stage</span>
+          <select name="stage" defaultValue={query.stage} aria-label="Building-planning stage">
+            <option value="">Any stage</option>
+            {BUILDING_STAGES.map((stage) => (
+              <option value={stage} key={stage}>
+                {BUILDING_STAGE_LABEL[stage]}
               </option>
             ))}
           </select>
@@ -133,6 +144,7 @@ export function CrmDirectoryList({
                 <th>Status</th>
                 <th>Tier</th>
                 <th>Fit</th>
+                <th>Building stage</th>
                 <th>Last contact</th>
               </tr>
             </thead>
@@ -151,6 +163,7 @@ export function CrmDirectoryList({
                   <td>{row.statusLabel}</td>
                   <td>{row.tierLabel || "—"}</td>
                   <td>{row.jevAvlFit === null ? "—" : row.jevAvlFit}</td>
+                  <td>{row.buildingStage ? buildingStageLabel(row.buildingStage) : "—"}</td>
                   <td>{day(row.lastContact)}</td>
                 </tr>
               ))}

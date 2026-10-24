@@ -7225,7 +7225,8 @@ button.compose-arch:hover {
 .crm-dir-table th { font-size: 0.875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .crm-page .crm-dir-table a, .crm-page .crm-facts a { display: inline-flex; align-items: center; min-height: 44px; }
 .crm-page .crm-dir-filters .dx-btn, .crm-page .crm-status-form .dx-btn, .crm-page .crm-detail .crm-card-head .dx-btn { min-height: 44px; font-size: 0.875rem; padding: 8px 14px; }
-.crm-page .crm-status-form select { min-height: 44px; font-size: 1rem; }
+.crm-page .crm-status-form select, .crm-page .crm-status-form input:not([type="checkbox"]) { min-height: 44px; font-size: 1rem; }
+.crm-page .crm-status-form > .crm-dim { flex-basis: 100%; margin: 0; font-size: 0.875rem; }
 .crm-dir-pager { display: flex; gap: 8px; margin-top: 12px; }
 .crm-detail { margin-top: 8px; }
 .crm-status-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 8px 0 16px; }

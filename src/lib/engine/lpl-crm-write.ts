@@ -9,14 +9,16 @@
 // one method and exact path. The only direct writes here are the shared
 // do-not-contact list (a visit that ends with "asked not to be contacted") and
 // business leads (op_leads, its contacts, and its visit log op_lead_activities),
-// which no app owns yet. Attaching a lead-queue row calls crm_patch_church_doc.
-// This file never PATCHes cc_churches.
+// which no app owns yet. Attaching a lead-queue row, saving pipeline status,
+// and saving the owner AVL fields call crm_patch_church_doc. Pipeline status
+// does not go through the ChurchConnect leads PATCH. This file never PATCHes
+// cc_churches.
 // Nothing here logs a body, a contact detail, or the pass. Nothing is sent to
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, isAllowedChurchStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanAvlProjectStatus, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, isAllowedChurchStatus, truthyFlag, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
 import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
@@ -1390,14 +1392,125 @@ export async function dismissLeadFromQueue(ownerEmail: string, leadId: string, c
   return { ok: true, message: "Dismissed. It left the lead queue." };
 }
 
-/** Owner sets the church pipeline status through ChurchConnect. Blank clears it (Not contacted). Does not lock the stage. */
+async function readChurchRow(config: LplConfig, churchId: string): Promise<{ doc: Record<string, unknown> } | null | "error"> {
+  try {
+    const response = await fetch(`${config.url}/rest/v1/cc_churches?id=eq.${encodeURIComponent(churchId)}&select=id,doc&limit=1`, {
+      method: "GET",
+      headers: lplHeaders(config),
+      cache: "no-store"
+    });
+    if (!response.ok) return "error";
+    const rows = (await response.json()) as Array<{ doc?: Record<string, unknown> | null }>;
+    if (!Array.isArray(rows) || !rows[0]) return null;
+    const doc = rows[0].doc;
+    return { doc: doc && typeof doc === "object" ? doc : {} };
+  } catch {
+    return "error";
+  }
+}
+
+/** Compare-and-swap through crm_patch_church_doc, then re-read so a dropped key is not reported as saved. */
+async function patchChurchDoc(
+  config: LplConfig,
+  churchId: string,
+  patch: Record<string, unknown>,
+  landed: (doc: Record<string, unknown>) => boolean,
+  okMessage: string
+): Promise<SaveResult> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const current = await readChurchRow(config, churchId);
+    if (current === "error") return { ok: false, message: "The church couldn't be read. Nothing was changed." };
+    if (!current) return { ok: false, message: "That church isn't there. Nothing was changed." };
+    const expected = typeof current.doc.updated_at === "string" ? current.doc.updated_at : null;
+    const nextPatch = { ...patch, updated_at: new Date().toISOString() };
+    try {
+      const rpc = await fetch(`${config.url}/rest/v1/rpc/crm_patch_church_doc`, {
+        method: "POST",
+        headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=representation" },
+        cache: "no-store",
+        body: JSON.stringify({ p_id: churchId, p_patch: nextPatch, p_expected: expected })
+      });
+      if (!rpc.ok) {
+        const detail = await rpc.text().catch(() => "");
+        if (crmPatchRpcMissing(rpc.status, detail)) {
+          return { ok: false, message: "Saving needs the church patch on the server. Nothing was changed." };
+        }
+        return { ok: false, message: "The church couldn't be updated. Nothing was changed." };
+      }
+      const rows = (await rpc.json()) as unknown;
+      if (!Array.isArray(rows) || rows.length !== 1) continue;
+    } catch {
+      return { ok: false, message: "The database didn't answer. Nothing was changed." };
+    }
+    const after = await readChurchRow(config, churchId);
+    if (after === "error" || !after) return { ok: false, message: "The church was saved, but it couldn't be re-read. Reload the page." };
+    if (landed(after.doc)) return { ok: true, message: okMessage };
+    return { ok: false, message: "That change did not stick. Apply the church patch that allows these fields. Nothing else was changed." };
+  }
+  return { ok: false, message: "That church changed while this was saving. Nothing else was changed. Try again." };
+}
+
+/** Owner sets the church pipeline status through crm_patch_church_doc. Blank clears it (Not contacted). Does not lock the stage. */
 export async function setChurchPipelineStatus(ownerEmail: string, churchId: string, status: string): Promise<SaveResult> {
-  const cc = await ccConfig();
-  if (!cc) return { ok: false, message: savingOffMessage() };
-  if (!UUID_RE.test(churchId)) return { ok: false, message: "Status can only be saved on a ChurchConnect church." };
+  void ownerEmail;
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "That church can't be updated. Reload the page and try again." };
   const trimmed = status.trim();
   if (trimmed && !isAllowedChurchStatus(trimmed)) return { ok: false, message: "That status isn't on the list." };
-  const result = await callChurchConnect(cc, "PATCH", `/api/church-crm/leads/${churchId}`, ownerEmail, { crm_status: trimmed || null });
-  if (!result.ok) return { ok: false, message: failure(result.status, result.json) };
-  return { ok: true, message: trimmed ? "Status saved." : "Status cleared. This church shows as not contacted." };
+  return patchChurchDoc(
+    config,
+    churchId,
+    { crm_status: trimmed || null },
+    (doc) => {
+      const stored = String(doc.crm_status ?? "").trim();
+      return trimmed ? stored.toLowerCase() === trimmed.toLowerCase() : stored === "";
+    },
+    trimmed ? "Status saved." : "Status cleared. This church shows as not contacted."
+  );
+}
+
+export type ChurchOwnerFields = {
+  avlExistingRelationship: boolean;
+  avlExistingRelationshipNote: string;
+  avlProjectStatus: string;
+  buildingStage: string;
+  buildingStageRecordedAt: string;
+};
+
+/** Owner-only AVL relationship, current project, and building-planning stage. Separate from contact status. */
+export async function setChurchOwnerFields(ownerEmail: string, churchId: string, fields: ChurchOwnerFields): Promise<SaveResult> {
+  void ownerEmail;
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "That church can't be updated. Reload the page and try again." };
+  const project = cleanAvlProjectStatus(fields.avlProjectStatus);
+  const stage = cleanBuildingStage(fields.buildingStage);
+  if (!project || !stage) return { ok: false, message: "Pick a project status and a building stage." };
+  const note = fields.avlExistingRelationshipNote.replace(/\s+/g, " ").trim().slice(0, 500);
+  const recorded = fields.buildingStageRecordedAt.trim();
+  const day = DAY_RE.test(recorded) ? recorded : new Date().toISOString().slice(0, 10);
+  const relationship = fields.avlExistingRelationship === true;
+  return patchChurchDoc(
+    config,
+    churchId,
+    {
+      avl_existing_relationship: relationship,
+      avl_existing_relationship_note: note,
+      avl_project_status: project,
+      building_stage: stage,
+      building_stage_recorded_at: day
+    },
+    (doc) => {
+      const storedRelationship = relationship ? truthyFlag(doc.avl_existing_relationship) : doc.avl_existing_relationship === false || String(doc.avl_existing_relationship ?? "").trim().toLowerCase() === "false";
+      return (
+        storedRelationship &&
+        String(doc.avl_existing_relationship_note ?? "").trim() === note &&
+        cleanAvlProjectStatus(doc.avl_project_status) === project &&
+        cleanBuildingStage(doc.building_stage) === stage &&
+        String(doc.building_stage_recorded_at ?? "").slice(0, 10) === day
+      );
+    },
+    "Saved."
+  );
 }

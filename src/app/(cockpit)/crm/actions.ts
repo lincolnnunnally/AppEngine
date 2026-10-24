@@ -25,6 +25,7 @@ import {
   undoBusinessDoNotContact,
   undoChurchDoNotContact,
   setChurchPipelineStatus,
+  setChurchOwnerFields,
   type OrgInput,
   type OrgMatch,
   type OutcomeCode,
@@ -305,6 +306,23 @@ export async function setChurchStatusAction(_prev: CrmFormState, formData: FormD
   if (!(await canAccessEngineOwner())) return refused();
   const churchId = field(formData, "church_id");
   const result = await setChurchPipelineStatus(await ownerEmail(), churchId, field(formData, "crm_status"));
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath(`/crm/church/${churchId}`);
+  }
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function setChurchOwnerFieldsAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const churchId = field(formData, "church_id");
+  const result = await setChurchOwnerFields(await ownerEmail(), churchId, {
+    avlExistingRelationship: field(formData, "avl_existing_relationship") === "1",
+    avlExistingRelationshipNote: field(formData, "avl_existing_relationship_note"),
+    avlProjectStatus: field(formData, "avl_project_status"),
+    buildingStage: field(formData, "building_stage"),
+    buildingStageRecordedAt: field(formData, "building_stage_recorded_at")
+  });
   if (result.ok) {
     revalidatePath("/crm");
     revalidatePath(`/crm/church/${churchId}`);

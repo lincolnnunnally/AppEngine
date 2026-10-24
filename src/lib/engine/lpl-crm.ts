@@ -23,6 +23,8 @@ import {
   scrubContact,
   shortPersonName,
   cleanContactStatus,
+  cleanAvlProjectStatus,
+  truthyFlag,
   churchLeadInQueue,
   type CrmApp,
   type CrmCard,
@@ -140,7 +142,8 @@ const CHURCH_FIELDS = [
   "website_offer_status", "is_customer", "signed_up", "converted_at", "merged_into", "duplicate_of", "deleted_at",
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
   "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim",
-  "lead_class", "jev_avl_fit", "jev_project_stage", "last_contact_at"
+  "lead_class", "jev_avl_fit", "jev_project_stage", "last_contact_at",
+  "avl_existing_relationship", "avl_project_status"
 ];
 const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals`;
 const CHURCH_TOUCHED = [
@@ -268,7 +271,9 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     leadClass: s(row.lead_class),
     avlTier: avlTierForLeadClass(row.lead_class),
     jevAvlFit: jevFit(row.jev_avl_fit),
-    jevProjectStage: s(row.jev_project_stage)
+    jevProjectStage: s(row.jev_project_stage),
+    avlExistingRelationship: truthyFlag(row.avl_existing_relationship),
+    avlProjectStatus: cleanAvlProjectStatus(row.avl_project_status)
   };
 }
 
@@ -1281,7 +1286,7 @@ const AV_FIELDS = [
   "city", "state", "lat", "lng", "latitude", "longitude", "website", "facebook_url", "live_stream_url",
   "livestream_url", "youtube_url", "subsplash_url", "website_live", "website_http_status", "website_trouble",
   "avg_attendance", "pastor_name", "contact_name", "ministry_assist_name", "secretary_name", "do_not_contact",
-  "do_not_contact_desk_claim", "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
+  "do_not_contact_desk_claim", "crm_status", "avl_existing_relationship", "avl_project_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
   "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at", "zip_code"
 ];
 const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals`;
@@ -1350,7 +1355,7 @@ const TOP_FIELDS = [
   "name", "church_name", "common_name", "crawl_title", "website_title", "page_title", "site_name",
   "city", "state", "lat", "lng", "latitude", "longitude", "zip_code", "website", "facebook_url",
   "live_stream_url", "livestream_url", "youtube_url", "subsplash_url", "do_not_contact", "do_not_contact_desk_claim",
-  "crm_status", "crm_status_changed_at", "crm_next_action", "crm_next_action_date", "merged_into", "deleted_at",
+  "crm_status", "crm_status_changed_at", "avl_existing_relationship", "avl_project_status", "crm_next_action", "crm_next_action_date", "merged_into", "deleted_at",
   "duplicate_of", "religion_guess", "prospect_kind", "source", "email", "phone", "active", "is_public", "hidden",
   "invite_status", "last_invited_at", "is_customer", "signed_up", "converted_at", "updated_at", "subscription_tier",
   "claimed", "verified", "is_verified", "claim_status", "churchconnect_fit",

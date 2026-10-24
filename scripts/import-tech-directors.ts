@@ -16,21 +16,22 @@
 // reported. The desk reads the directory, so a church does not need a status
 // to appear. --add-to-crm is accepted and ignored. Matched churches get
 // staff_contacts, crm_signals, lead_class, and the JEV fields on the existing
-// row. Status is written only for existing talks (Northridge Christian in
-// Milledgeville, and existing=yes) when the current status is blank or new.
-// It never creates a cc_churches row. Churches that share a website
-// across states stay separate and match by church_id. Writes only with
-// --apply, and refuses production.
+// row. Northridge Christian in Milledgeville, and existing=yes, set
+// avl_existing_relationship and avl_project_status when those fields are still
+// blank. Contact status is not changed for that. It never creates a
+// cc_churches row. Churches that share a website across states stay separate
+// and match by church_id. Writes only with --apply, and refuses production.
 //
-// The write re-reads the church doc and merges staff_contacts, crm_signals,
-// and updated_at through crm_patch_church_doc when doc.updated_at still matches
-// the value just read (the id is text). When the row carries them, the same
-// patch may also set crm_status, lead_class, jev_avl_fit, jev_project_stage,
-// and crm_offers. A stale read returns no row and the import re-reads. Until
-// that function is applied, and only when PostgREST returns PGRST202, the
-// import falls back to a compare-and-swap on doc.updated_at. If an older
-// function accepts the call but drops the new keys, the import uses that same
-// fallback once. Any other database error stops the import.
+// The write re-reads the church doc and merges through crm_patch_church_doc
+// when doc.updated_at still matches the value just read (the id is text).
+// When the row carries them, the same patch may also set crm_status,
+// lead_class, jev_avl_fit, jev_project_stage, crm_offers,
+// avl_existing_relationship, and avl_project_status. A blank lead or JEV field
+// is omitted so it cannot clear a value already stored. A stale read returns
+// no row and the import re-reads. If the function is missing, or an older
+// copy accepts the call but drops the new keys, the import stops. It does
+// not patch the whole document. Apply 011 first. Any other database error
+// stops the import.
 // Re-running is safe after a partial failure.
 //
 // Unmatched rows are saved as church-lead rows (op_leads.kind church-lead),
@@ -46,7 +47,7 @@
 // jev_avl_fit, and jev_project_stage.
 // signal_types is staff, campaign, renovation, or several joined with |
 // lead_class is campaign_planning, under_construction, staff_only, or other_services.
-// existing=yes, and Northridge Christian in Milledgeville GA, are existing talks.
+// existing=yes, and Northridge Christian in Milledgeville GA, record an existing AVL relationship. Contact status stays as it is.
 // Optional --jev file columns: church_id, jev_avl_fit, jev_project_stage.
 // jev_staff_real is ignored.
 //
@@ -344,7 +345,9 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
     "signed_up:doc->>signed_up",
     "staff_contacts:doc->staff_contacts",
     "crm_offers:doc->crm_offers",
-    "crm_signals:doc->crm_signals"
+    "crm_signals:doc->crm_signals",
+    "avl_existing_relationship:doc->>avl_existing_relationship",
+    "avl_project_status:doc->>avl_project_status"
   ].join(",");
   const churches: DirectoryChurch[] = [];
   let lastId = "";
@@ -371,6 +374,10 @@ async function readChurches(config: { url: string; key: string }): Promise<Direc
         website: String(row.website ?? ""),
         domain: String(row.domain ?? ""),
         crmStatus: String(row.crm_status ?? ""),
+        avlExistingRelationship: ["true", "false", "yes", "no", "y", "n"].includes(String(row.avl_existing_relationship ?? "").trim().toLowerCase())
+          ? ["true", "yes", "y"].includes(String(row.avl_existing_relationship ?? "").trim().toLowerCase())
+          : undefined,
+        avlProjectStatus: String(row.avl_project_status ?? ""),
         offers,
         inCrm: churchIsInCrm({
           crmStatus: row.crm_status,
@@ -415,11 +422,13 @@ async function readDoc(config: { url: string; key: string }, churchId: string): 
 function profileOf(profile: ChurchProfileWrite | undefined): ChurchDocProfile | null {
   if (!profile) return null;
   return {
-    crmStatus: profile.crmStatus,
-    leadClass: profile.leadClass,
-    jevAvlFit: profile.jevAvlFit,
-    jevProjectStage: profile.jevProjectStage,
-    crmOffers: profile.crmOffers
+    ...(profile.crmStatus ? { crmStatus: profile.crmStatus } : {}),
+    ...(profile.leadClass ? { leadClass: profile.leadClass } : {}),
+    ...(typeof profile.jevAvlFit === "number" ? { jevAvlFit: profile.jevAvlFit } : {}),
+    ...(profile.jevProjectStage ? { jevProjectStage: profile.jevProjectStage } : {}),
+    ...(profile.crmOffers?.length ? { crmOffers: profile.crmOffers } : {}),
+    ...(profile.avlExistingRelationship ? { avlExistingRelationship: true as const } : {}),
+    ...(profile.avlProjectStatus ? { avlProjectStatus: profile.avlProjectStatus } : {})
   };
 }
 
@@ -437,14 +446,13 @@ async function writeChurchDoc(
     const merged = nextChurchDoc(current, contacts, signals, updates, new Date().toISOString(), profileOf(profile));
     if (!merged.changed) return { ok: true, changed: false, addedContacts: 0, addedSignals: 0, updatedSignals: 0 };
     const patch = churchDocPatch(merged.doc, merged.patchKeys);
-    const written = await writeDoc(config, churchId, patch, merged.doc, String(current.updated_at ?? ""));
+    const written = await writeDoc(config, churchId, patch, String(current.updated_at ?? ""));
     if (written === "ok") {
       if (merged.patchKeys.length) {
         const after = await readDoc(config, churchId);
         if (!profilePatchLanded(after, patch)) {
-          const expected = String(after?.updated_at ?? "");
-          const fallback = await writeFullDoc(config, churchId, merged.doc, expected);
-          if (fallback !== "ok") continue;
+          console.error(`Church ${churchId} was not updated. crm_patch_church_doc ignored profile keys. Apply db/migrations/011_crm_patch_church_doc_lead_fields.sql.`);
+          return { ok: false };
         }
       }
       return {
@@ -460,30 +468,10 @@ async function writeChurchDoc(
   return { ok: false };
 }
 
-async function writeFullDoc(
-  config: { url: string; key: string },
-  churchId: string,
-  fullDoc: Record<string, unknown>,
-  previousUpdatedAt: string
-): Promise<"ok" | "conflict" | "error"> {
-  const guard = previousUpdatedAt
-    ? `&doc->>updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
-    : "&or=(doc->>updated_at.is.null,doc->>updated_at.eq.)";
-  const response = await rest(config, `cc_churches?id=eq.${encodeURIComponent(churchId)}${guard}&select=id`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-    body: JSON.stringify({ doc: fullDoc })
-  });
-  if (!response.ok) return "error";
-  const rows = (await response.json()) as unknown[];
-  return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
-}
-
 async function writeDoc(
   config: { url: string; key: string },
   churchId: string,
   patch: Record<string, unknown>,
-  fullDoc: Record<string, unknown>,
   previousUpdatedAt: string
 ): Promise<"ok" | "conflict" | "error"> {
   const rpc = await rest(config, "rpc/crm_patch_church_doc", {
@@ -496,21 +484,12 @@ async function writeDoc(
     return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
   }
   const detail = await rpc.text().catch(() => "");
-  if (!crmPatchRpcMissing(rpc.status, detail)) {
-    console.error(`Church ${churchId} was not updated. crm_patch_church_doc failed (${rpc.status}): ${detail.slice(0, 400)}`);
+  if (crmPatchRpcMissing(rpc.status, detail)) {
+    console.error("crm_patch_church_doc is not on the server. Apply db/migrations/011_crm_patch_church_doc_lead_fields.sql. Nothing was written.");
     return "error";
   }
-  const guard = previousUpdatedAt
-    ? `&doc->>updated_at=eq.${encodeURIComponent(previousUpdatedAt)}`
-    : "&or=(doc->>updated_at.is.null,doc->>updated_at.eq.)";
-  const response = await rest(config, `cc_churches?id=eq.${encodeURIComponent(churchId)}${guard}&select=id`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
-    body: JSON.stringify({ doc: fullDoc })
-  });
-  if (!response.ok) return "error";
-  const rows = (await response.json()) as unknown[];
-  return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
+  console.error(`Church ${churchId} was not updated. crm_patch_church_doc failed (${rpc.status}).`);
+  return "error";
 }
 
 async function writeChurchSignalLead(config: { url: string; key: string }, body: Record<string, unknown>): Promise<"ok" | "merged" | "exists" | "error"> {

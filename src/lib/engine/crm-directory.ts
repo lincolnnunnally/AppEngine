@@ -6,10 +6,10 @@ import {
   DIRECTORY_PAGE_SIZE,
   TIER_WALK,
   decodeDirectoryCursor,
-  directoryRestQuery,
-  directoryRowFromRecord,
+  directoryRpcArgs,
   encodeDirectoryCursor,
-  nextDirectoryCursor,
+  directoryRowFromRecord,
+  pageDirectoryRaw,
   type DirectoryCursor,
   type DirectoryQuery,
   type DirectoryRow,
@@ -81,62 +81,57 @@ export async function loadDirectoryPage(query: DirectoryQuery): Promise<Director
   if (!cfg) return { configured: false, ok: false, rows: [], nextCursor: "" };
   const cursor = decodeDirectoryCursor(query.cursor);
   const want = DIRECTORY_PAGE_SIZE + 1;
-  const collected: DirectoryRow[] = [];
+  const raw: Record<string, unknown>[] = [];
 
   if (query.sort !== "tier") {
-    const rows = await readOne(cfg, query, cursor, want, "");
+    const rows = await readRaw(cfg, query, cursor, want, "");
     if (!rows) return { configured: true, ok: false, rows: [], nextCursor: "" };
-    collected.push(...rows);
-    // A keyset comparison (name/fit/contact) leaves blank values out. Pull those once the valued rows run out.
-    if (query.sort !== "id" && cursor && !cursor.nulls && rows.length < want) {
-      const blanks = await readOne(cfg, query, { sort: query.sort, dir: query.dir, id: "", value: "", tier: "", nulls: true }, want - rows.length, "");
-      if (blanks) collected.push(...blanks);
-    }
+    raw.push(...rows);
   } else {
     let remaining = want;
     let started = false;
     for (const tier of tiersToWalk(query, cursor)) {
       const edge = !started && cursor?.tier === tier ? cursor : null;
       started = true;
-      const batch = await readOne(cfg, query, edge, remaining, tier);
-      if (!batch) return { configured: true, ok: false, rows: collected, nextCursor: "" };
-      collected.push(...batch);
-      remaining = want - collected.length;
+      const batch = await readRaw(cfg, query, edge, remaining, tier);
+      if (!batch) return { configured: true, ok: false, rows: [], nextCursor: "" };
+      raw.push(...batch);
+      remaining = want - raw.length;
       if (remaining <= 0) break;
     }
   }
 
-  const page = collected.slice(0, DIRECTORY_PAGE_SIZE);
-  const more = collected.length > DIRECTORY_PAGE_SIZE;
-  const last = page[page.length - 1];
-  const tier = query.sort === "tier" ? (last ? (decodeTier(last) as TierWalk) : "") : "";
-  const next = more && last ? encodeNext(query, last, tier) : "";
-  return { configured: true, ok: true, rows: page, nextCursor: next };
+  const page = pageDirectoryRaw(raw, query);
+  return { configured: true, ok: true, rows: page.rows, nextCursor: page.next ? encodeDirectoryCursor(page.next) : "" };
 }
 
-function encodeNext(query: DirectoryQuery, last: DirectoryRow, tier: TierWalk | ""): string {
-  const cursor = nextDirectoryCursor(query, last, tier);
-  if (query.sort === "name" && !last.name) cursor.nulls = true;
-  if (query.sort === "fit" && last.jevAvlFit === null) cursor.nulls = true;
-  if (query.sort === "contact" && !last.lastContact) cursor.nulls = true;
-  return encodeDirectoryCursor(cursor);
-}
-
-function decodeTier(row: DirectoryRow): TierWalk {
-  if (row.tier === "top" || row.tier === "second" || row.tier === "staff_only" || row.tier === "other_services") return row.tier;
-  return "unset";
-}
-
-async function readOne(cfg: Config, query: DirectoryQuery, cursor: DirectoryCursor | null, limit: number, tier: TierWalk | ""): Promise<DirectoryRow[] | null> {
-  const path = `cc_churches?${directoryRestQuery(query, cursor, limit, tier)}`;
-  const data = await rest(cfg, path);
-  if (!data) return null;
-  return data.map((row) => directoryRowFromRecord(row as Record<string, unknown>)).filter((row): row is DirectoryRow => Boolean(row));
+async function readRaw(cfg: Config, query: DirectoryQuery, cursor: DirectoryCursor | null, limit: number, tier: TierWalk | ""): Promise<Record<string, unknown>[] | null> {
+  try {
+    const response = await fetch(`${cfg.url}/rest/v1/rpc/crm_directory_page`, {
+      method: "POST",
+      headers: {
+        apikey: cfg.key,
+        Authorization: `Bearer ${cfg.key}`,
+        "Content-Type": "application/json",
+        "accept-profile": "public",
+        "content-profile": "public"
+      },
+      cache: "no-store",
+      body: JSON.stringify(directoryRpcArgs(query, cursor, limit, tier)),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as unknown;
+    return Array.isArray(data) ? (data as Record<string, unknown>[]) : null;
+  } catch {
+    return null;
+  }
 }
 
 const DETAIL_FIELDS = [
   "name", "church_name", "city", "state", "zip_code", "county", "region", "website", "phone", "email",
   "crm_status", "lead_class", "jev_avl_fit", "jev_project_stage", "last_invited_at", "last_contact_at",
+  "avl_existing_relationship", "avl_existing_relationship_note", "avl_project_status", "building_stage", "building_stage_recorded_at",
   "pastor_name", "pastor_email", "pastor_phone", "secretary_name", "secretary_title", "contact_name", "contact_role",
   "crm_next_action", "crm_next_action_date", "do_not_contact", "do_not_contact_desk_claim"
 ];
@@ -274,6 +269,11 @@ function cardFrom(raw: Record<string, unknown>, row: DirectoryRow): CrmCard {
     avlTier: row.tier,
     jevAvlFit: row.jevAvlFit,
     jevProjectStage: row.jevProjectStage,
+    avlExistingRelationship: row.avlExistingRelationship,
+    avlExistingRelationshipNote: row.avlExistingRelationshipNote,
+    avlProjectStatus: row.avlProjectStatus,
+    buildingStage: row.buildingStage,
+    buildingStageRecordedAt: row.buildingStageRecordedAt,
     existingAvlTalks: row.existingAvlTalks
   };
 }

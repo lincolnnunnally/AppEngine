@@ -1,4 +1,4 @@
-import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, friendlyDate, friendlyDay, isExistingAvlTalksStatus, repeatRule, suppressionDomain, type Touch } from "@/lib/engine/lpl-crm-core";
+import { DROP_OFF_REST_DAYS, VISIT_REST_DAYS, churchHoldsAvlWork, friendlyDate, friendlyDay, repeatRule, suppressionDomain, type Touch } from "@/lib/engine/lpl-crm-core";
 import { topHasChurchWord, topNameExcluded } from "@/lib/engine/top-prospects-name";
 
 // AV prospects, and Top prospects as a second mode of the same rules (Oct 17 2026).
@@ -477,7 +477,7 @@ function religionOtherExcluded(row: AvRow): boolean {
 
 /** Never on the list: stopped, lost, inactive, not a church, or already the partner's own work. */
 export function avExcluded(row: AvRow, suppressed: (row: AvRow) => boolean, now = new Date()): boolean {
-  if (isExistingAvlTalksStatus(row.crm_status)) return true;
+  if (churchHoldsAvlWork(row)) return true;
   if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
   if (avDeskBlocked(row, now)) return true;
   if (s(row.merged_into) || s(row.deleted_at) || s(row.duplicate_of)) return true;
@@ -1201,7 +1201,7 @@ function withTwinSignals(rows: AvRow[]): AvRow[] {
 }
 
 function topBlocksGroup(row: AvRow, suppressed: (row: AvRow) => boolean): boolean {
-  if (isExistingAvlTalksStatus(row.crm_status)) return true;
+  if (churchHoldsAvlWork(row)) return true;
   if (yes(row.do_not_contact) || yes(row.do_not_contact_desk_claim)) return true;
   if (suppressed(row)) return true;
   if (religionOtherExcluded(row)) return true;

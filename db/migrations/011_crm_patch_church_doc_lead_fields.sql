@@ -8,8 +8,11 @@
 -- Keys copied when present in p_patch:
 --   staff_contacts, crm_signals, updated_at (already in 009)
 --   crm_status, lead_class, jev_avl_fit, jev_project_stage, crm_offers
+--   avl_existing_relationship, avl_existing_relationship_note, avl_project_status
+--   building_stage, building_stage_recorded_at
 -- Omitting a key leaves it. Any other key is ignored. A stale doc.updated_at
 -- returns no row. cc_churches.id stays text.
+-- These owner fields are not the pipeline status. Contact status stays crm_status.
 
 create or replace function public.crm_patch_church_doc(p_id text, p_patch jsonb, p_expected text)
 returns table (id text)
@@ -43,6 +46,21 @@ begin
   end if;
   if p_patch ? 'crm_offers' then
     allowed := allowed || jsonb_build_object('crm_offers', p_patch -> 'crm_offers');
+  end if;
+  if p_patch ? 'avl_existing_relationship' then
+    allowed := allowed || jsonb_build_object('avl_existing_relationship', p_patch -> 'avl_existing_relationship');
+  end if;
+  if p_patch ? 'avl_existing_relationship_note' then
+    allowed := allowed || jsonb_build_object('avl_existing_relationship_note', p_patch -> 'avl_existing_relationship_note');
+  end if;
+  if p_patch ? 'avl_project_status' then
+    allowed := allowed || jsonb_build_object('avl_project_status', p_patch -> 'avl_project_status');
+  end if;
+  if p_patch ? 'building_stage' then
+    allowed := allowed || jsonb_build_object('building_stage', p_patch -> 'building_stage');
+  end if;
+  if p_patch ? 'building_stage_recorded_at' then
+    allowed := allowed || jsonb_build_object('building_stage_recorded_at', p_patch -> 'building_stage_recorded_at');
   end if;
   return query
   update public.cc_churches

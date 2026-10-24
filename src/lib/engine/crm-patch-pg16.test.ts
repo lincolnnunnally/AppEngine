@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 
 const BIN = "/usr/lib/postgresql/16/bin";
 const MIGRATION = new URL("../../../db/migrations/009_crm_patch_church_doc.sql", import.meta.url);
+const NORTHRIDGE = new URL("../../../db/migrations/013_northridge_avl_relationship.sql", import.meta.url);
 
 /**
  * PostgreSQL 16, text primary key. The old uuid argument fails here with
@@ -177,6 +178,45 @@ describe("crm_patch_church_doc lead fields on PostgreSQL 16", () => {
         if (select count(*) from public.crm_patch_church_doc('text-church-1', '{"lead_class":"staff_only","updated_at":"1999-01-01"}'::jsonb, '1999-01-01')) <> 0 then
           raise exception 'stale write';
         end if;
+      end $$;
+      select id from public.crm_patch_church_doc(
+        'text-church-1',
+        '{"avl_existing_relationship":true,"avl_existing_relationship_note":"Past sanctuary","avl_project_status":"avl_already_engaged","building_stage":"design","building_stage_recorded_at":"2026-08-01","updated_at":"2026-08-02","pastor_name":"nope"}'::jsonb,
+        '2026-05-01'
+      );
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'text-church-1';
+        if doc->>'pastor_name' is distinct from 'Pat' then raise exception 'pastor changed %', doc; end if;
+        if doc->>'lead_class' is distinct from 'campaign_planning' then raise exception 'lead cleared %', doc; end if;
+        if doc->>'avl_existing_relationship' is distinct from 'true' then raise exception 'relationship %', doc; end if;
+        if doc->>'avl_existing_relationship_note' is distinct from 'Past sanctuary' then raise exception 'note %', doc; end if;
+        if doc->>'avl_project_status' is distinct from 'avl_already_engaged' then raise exception 'project %', doc; end if;
+        if doc->>'building_stage' is distinct from 'design' then raise exception 'stage %', doc; end if;
+        if doc->>'building_stage_recorded_at' is distinct from '2026-08-01' then raise exception 'recorded %', doc; end if;
+        if doc ? 'pastor_name' and doc->>'pastor_name' = 'nope' then raise exception 'extra landed %', doc; end if;
+      end $$;
+      insert into public.cc_churches (id, doc) values ('fb3d153f-dac5-49fc-ad9f-2f594d4dcc24', null);
+      ${readFileSync(NORTHRIDGE, "utf8")}
+      do $$
+      declare doc jsonb;
+      begin
+        select cc_churches.doc into doc from public.cc_churches where id = 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
+        if doc->>'avl_existing_relationship' is distinct from 'true' then raise exception 'northridge relationship %', doc; end if;
+        if doc->>'avl_project_status' is distinct from 'avl_already_engaged' then raise exception 'northridge project %', doc; end if;
+        if doc ? 'crm_status' and nullif(btrim(doc->>'crm_status'), '') is not null then raise exception 'northridge status %', doc; end if;
+      end $$;
+      create temporary table northridge_stamp as
+        select doc->>'updated_at' as updated_at from public.cc_churches where id = 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
+      ${readFileSync(NORTHRIDGE, "utf8")}
+      do $$
+      declare doc jsonb; stamp text;
+      begin
+        select updated_at into stamp from northridge_stamp;
+        select cc_churches.doc into doc from public.cc_churches where id = 'fb3d153f-dac5-49fc-ad9f-2f594d4dcc24';
+        if doc->>'avl_existing_relationship' is distinct from 'true' then raise exception 'second relationship %', doc; end if;
+        if doc->>'updated_at' is distinct from stamp then raise exception 'second run moved updated_at from % to %', stamp, doc->>'updated_at'; end if;
       end $$;
       `
     );

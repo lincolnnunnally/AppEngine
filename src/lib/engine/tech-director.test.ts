@@ -17,6 +17,7 @@ import {
   matchDirectoryChurch,
   mergeChurchSignalContacts,
   nextChurchDoc,
+  profilePatchKeys,
   parseImportSkipFile,
   parseTechDirectorCsv,
   planTechDirectorImport,
@@ -25,7 +26,7 @@ import {
   type DirectoryChurch,
   type TechDirectorCsvRow
 } from "./tech-director.ts";
-import { buildCards, buildFollowUps, cardMatchesCrmSearch, churchLeadInQueue, cleanContactOutreach, EXISTING_AVL_TALKS_STATUS, mergeOutreachLog, type CrmCard, type CrmNode, type Touch } from "./lpl-crm-core.ts";
+import { buildCards, buildFollowUps, cardMatchesCrmSearch, churchLeadInQueue, cleanContactOutreach, mergeOutreachLog, type CrmCard, type CrmNode, type Touch } from "./lpl-crm-core.ts";
 
 const churches: DirectoryChurch[] = [
   { id: "g1", name: "Grace Chapel", churchName: "", city: "Vidalia", state: "GA", website: "https://gracechapel.example", domain: "", inCrm: true, contacts: [] },
@@ -924,7 +925,7 @@ describe("southeast directory import", () => {
     assert.doesNotMatch(next, /offset=/);
   });
 
-  it("marks Northridge and existing=yes, and leaves a status Lincoln already set", () => {
+  it("marks Northridge and existing=yes on the owner fields, and leaves a status Lincoln already set", () => {
     const north: DirectoryChurch = {
       id: NORTHRIDGE_MILLEDGEVILLE_ID,
       name: "Northridge Christian",
@@ -938,19 +939,28 @@ describe("southeast directory import", () => {
       contacts: []
     };
     const kept: DirectoryChurch = { ...north, id: "kept", name: "Kept Church", city: "Macon", crmStatus: "interested" };
+    const already: DirectoryChurch = { ...north, id: "set", name: "Set Church", city: "Macon", avlExistingRelationship: false, avlProjectStatus: "none" };
     const plan = planTechDirectorImport(
       [
         row({ church: "Northridge Christian", church_id: north.id, city: "Milledgeville", state: "GA", name: "Pat", lead_class: "staff_only" }),
-        row({ church: "Kept Church", church_id: "kept", city: "Macon", state: "GA", name: "Sam", existing: "yes", lead_class: "staff_only" })
+        row({ church: "Kept Church", church_id: "kept", city: "Macon", state: "GA", name: "Sam", existing: "yes", lead_class: "staff_only" }),
+        row({ church: "Set Church", church_id: "set", city: "Macon", state: "GA", name: "Ann", existing: "yes" })
       ],
-      [north, kept]
+      [north, kept, already]
     );
     const northProfile = plan.profiles.find((profile) => profile.churchId === north.id);
     const keptProfile = plan.profiles.find((profile) => profile.churchId === "kept");
-    assert.equal(northProfile?.crmStatus, EXISTING_AVL_TALKS_STATUS);
+    const setProfile = plan.profiles.find((profile) => profile.churchId === "set");
+    assert.equal(northProfile?.crmStatus, undefined);
+    assert.equal(northProfile?.avlExistingRelationship, true);
+    assert.equal(northProfile?.avlProjectStatus, "avl_already_engaged");
     assert.equal(northProfile?.existingTalks, true);
     assert.equal(keptProfile?.crmStatus, undefined);
+    assert.equal(keptProfile?.avlExistingRelationship, true);
     assert.equal(keptProfile?.existingTalks, true);
+    assert.equal(setProfile?.avlExistingRelationship, undefined);
+    assert.equal(setProfile?.avlProjectStatus, undefined);
+    assert.equal(setProfile?.crmStatus, undefined);
   });
 
   it("puts lead fields on the patch and leaves them off when they are not being set", () => {
@@ -968,6 +978,12 @@ describe("southeast directory import", () => {
     assert.equal(patch.pastor_name, undefined);
     const plain = churchDocPatch({ staff_contacts: [], crm_signals: [], updated_at: "2026-08-01" });
     assert.deepEqual(Object.keys(plain).sort(), ["crm_signals", "staff_contacts", "updated_at"]);
+    assert.deepEqual(profilePatchKeys({ avlExistingRelationship: true, avlProjectStatus: "avl_already_engaged" }).sort(), [
+      "avl_existing_relationship",
+      "avl_project_status"
+    ]);
+    assert.deepEqual(profilePatchKeys({ jevProjectStage: "", crmOffers: [] }), []);
+    assert.deepEqual(profilePatchKeys({ jevAvlFit: 0 }), ["jev_avl_fit"]);
   });
 
   it("keeps two churches that share a website in different states", () => {
@@ -998,7 +1014,7 @@ describe("southeast directory import", () => {
     assert.equal(same.length, 1);
   });
 
-  it("leaves existing talks off the new-outreach follow-up list", () => {
+  it("leaves an existing AVL relationship off the new-outreach follow-up list", () => {
     const card = {
       key: "north",
       name: "Northridge Christian",

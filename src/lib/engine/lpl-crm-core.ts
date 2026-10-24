@@ -160,13 +160,10 @@ export type CrmContactStatus = (typeof CRM_CONTACT_STATUSES)[number];
  */
 export const CRM_INITIAL_LEAD_STATUS = "new";
 
-/** Already in conversation. Not a new-outreach lead. Lincoln can still change it. */
-export const EXISTING_AVL_TALKS_STATUS = "In progress - existing AVL talks";
-
 /**
- * ChurchConnect pipeline stages, plus existing talks. A status Lincoln already
- * set that is not on this list is left as he set it. This list does not lock
- * the stage.
+ * ChurchConnect pipeline stages. A status Lincoln already set that is not on
+ * this list is left as he set it. This list does not lock the stage.
+ * An existing AVL relationship is not a status. It is stored beside this list.
  */
 export const CRM_CHURCH_STATUSES = [
   "new",
@@ -176,8 +173,7 @@ export const CRM_CHURCH_STATUSES = [
   "proposal_sent",
   "negotiating",
   "won",
-  "lost",
-  EXISTING_AVL_TALKS_STATUS
+  "lost"
 ] as const;
 
 export function isAllowedChurchStatus(value: unknown): boolean {
@@ -185,8 +181,69 @@ export function isAllowedChurchStatus(value: unknown): boolean {
   return (CRM_CHURCH_STATUSES as readonly string[]).some((status) => status.toLowerCase() === text);
 }
 
-export function isExistingAvlTalksStatus(value: unknown): boolean {
-  return String(value ?? "").trim().toLowerCase() === EXISTING_AVL_TALKS_STATUS.toLowerCase();
+/** Current project AVL status. Separate from the contact pipeline. */
+export const AVL_PROJECT_STATUSES = ["none", "avl_already_engaged"] as const;
+export type AvlProjectStatus = (typeof AVL_PROJECT_STATUSES)[number];
+
+export const AVL_PROJECT_STATUS_LABEL: Record<AvlProjectStatus, string> = {
+  none: "None",
+  avl_already_engaged: "AVL already engaged"
+};
+
+/**
+ * Where the church is in its own building plans, and the day that was written
+ * down. Used later to see at which stage churches engage AVL.
+ */
+export const BUILDING_STAGES = ["none", "exploring", "campaign_planning", "design", "under_construction", "recently_completed"] as const;
+export type BuildingStage = (typeof BUILDING_STAGES)[number];
+
+export const BUILDING_STAGE_LABEL: Record<BuildingStage, string> = {
+  none: "None",
+  exploring: "Exploring",
+  campaign_planning: "Campaign/fund planning",
+  design: "Design",
+  under_construction: "Under construction",
+  recently_completed: "Recently completed"
+};
+
+export function cleanAvlProjectStatus(value: unknown): AvlProjectStatus | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (text === "avl_already_engaged") return "avl_already_engaged";
+  if (text === "none") return "none";
+  return "";
+}
+
+export function cleanBuildingStage(value: unknown): BuildingStage | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
+  if (text === "campaign_fund_planning") return "campaign_planning";
+  return (BUILDING_STAGES as readonly string[]).includes(text) ? (text as BuildingStage) : "";
+}
+
+export function truthyFlag(value: unknown): boolean {
+  if (value === true) return true;
+  const text = String(value ?? "").trim().toLowerCase();
+  return text === "true" || text === "yes" || text === "y" || text === "1";
+}
+
+/** True when the key is already yes or no, so an import must not replace it. */
+export function avlRelationshipIsSet(value: unknown): boolean {
+  if (value === true || value === false) return true;
+  const text = String(value ?? "").trim().toLowerCase();
+  return text === "true" || text === "false" || text === "yes" || text === "no" || text === "y" || text === "n";
+}
+
+/**
+ * Existing AVL relationship, or AVL already on the current project.
+ * This is not a pipeline status. New outreach stays off while it is true.
+ */
+export function churchHoldsAvlWork(row: {
+  avl_existing_relationship?: unknown;
+  avlExistingRelationship?: unknown;
+  avl_project_status?: unknown;
+  avlProjectStatus?: unknown;
+}): boolean {
+  if (truthyFlag(row.avl_existing_relationship) || truthyFlag(row.avlExistingRelationship)) return true;
+  return cleanAvlProjectStatus(row.avl_project_status ?? row.avlProjectStatus) === "avl_already_engaged";
 }
 
 export type CrmContactNote = { at: string; note: string };
@@ -308,6 +365,9 @@ export type CrmNode = {
   /** Fractional fit from 0 to 4. Null when the file had none. */
   jevAvlFit?: number | null;
   jevProjectStage?: string;
+  /** Worked with them on a past project. Separate from crmStatus. */
+  avlExistingRelationship?: boolean;
+  avlProjectStatus?: string;
 };
 
 export type CrmChurchSignal = {
@@ -384,7 +444,15 @@ export type CrmCard = {
   avlTier?: string;
   jevAvlFit?: number | null;
   jevProjectStage?: string;
-  /** Status is existing talks: leave this card out of new-outreach views. */
+  /** Worked with them on a past project. Owner only. Separate from crmStatus. */
+  avlExistingRelationship?: boolean;
+  avlExistingRelationshipNote?: string;
+  /** none, or AVL already engaged. Owner only. Separate from crmStatus. */
+  avlProjectStatus?: string;
+  /** Building-planning stage. Owner only. */
+  buildingStage?: string;
+  buildingStageRecordedAt?: string;
+  /** Existing relationship or AVL already engaged: leave this card out of new-outreach views. */
   existingAvlTalks?: boolean;
 };
 
@@ -1056,7 +1124,9 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       avlTier: members.map((member) => member.avlTier).find((value) => value) || "",
       jevAvlFit: members.map((member) => member.jevAvlFit).find((value) => typeof value === "number") ?? null,
       jevProjectStage: members.map((member) => member.jevProjectStage).find((value) => value) || "",
-      existingAvlTalks: members.some((member) => isExistingAvlTalksStatus(member.crmStatus))
+      avlExistingRelationship: members.some((member) => truthyFlag(member.avlExistingRelationship)),
+      avlProjectStatus: members.map((member) => cleanAvlProjectStatus(member.avlProjectStatus)).find((value) => value) || "",
+      existingAvlTalks: members.some((member) => churchHoldsAvlWork(member))
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));
@@ -1267,7 +1337,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
     const recentOutreach = card.lastOutreach ? daysBetween(card.lastOutreach.at, now) : Number.POSITIVE_INFINITY;
     const resting = card.repeat.level === "hold";
     const restingUntil = resting && card.repeat.until ? card.repeat.until : null;
-    // Existing talks stay on the card. They are not a new-outreach follow-up.
+    // An existing AVL relationship, or AVL already on the current project, stays on the card. It is not a new-outreach follow-up.
     const newOutreach = !card.existingAvlTalks;
 
     // Due — the app's own next-action date (already moved past any rest).

@@ -99,7 +99,7 @@ export function suggestGate(card: SuggestCard, outreachHidden: boolean): Suggest
     return { kind: "stopped", message: "Do not contact. Nothing is suggested." };
   }
   if (card.existingAvlTalks) {
-    return { kind: "blocked", message: "Already in existing talks. New outreach is not suggested. You can still change the status." };
+    return { kind: "blocked", message: "This church already has an AVL relationship, or AVL is already engaged on the current project. New outreach is not suggested." };
   }
   const resting = card.repeat.level === "hold" || card.followUpReasons.includes("wait");
   if (resting) {

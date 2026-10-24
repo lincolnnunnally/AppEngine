@@ -1,7 +1,7 @@
 // Match a technical-director CSV to churches already on file, and merge the
 // contact into that church's staff_contacts. No new churches. No sends.
 import { createHash } from "node:crypto";
-import { CRM_INITIAL_LEAD_STATUS, EXISTING_AVL_TALKS_STATUS, isAllowedChurchStatus, isExistingAvlTalksStatus, normName, suppressionDomain } from "./lpl-crm-core.ts";
+import { avlRelationshipIsSet, cleanAvlProjectStatus, isAllowedChurchStatus, normName, suppressionDomain } from "./lpl-crm-core.ts";
 import {
   OTHER_SERVICES_OFFERS,
   SIGNAL_STAFF,
@@ -26,14 +26,22 @@ import {
   type SignalType
 } from "./tech-director-core.ts";
 
-/** Northridge Christian, Milledgeville GA. Existing talks even when the CSV existing column is blank. */
+/** Northridge Christian, Milledgeville GA. Existing AVL relationship even when the CSV existing column is blank. */
 export const NORTHRIDGE_MILLEDGEVILLE_ID = "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24";
 
 /** Prod cc_churches is about 151k. Keyset pages of 1000 need more than 151 pages. Offset page 81 times out. */
 export const CHURCH_READ_PAGE = 1000;
 export const CHURCH_READ_MAX_PAGES = 220;
 
-export const CHURCH_PROFILE_PATCH_KEYS = ["crm_status", "lead_class", "jev_avl_fit", "jev_project_stage", "crm_offers"] as const;
+export const CHURCH_PROFILE_PATCH_KEYS = [
+  "crm_status",
+  "lead_class",
+  "jev_avl_fit",
+  "jev_project_stage",
+  "crm_offers",
+  "avl_existing_relationship",
+  "avl_project_status"
+] as const;
 
 /** PostgREST page by id, not offset. lastId blank is the first page. */
 export function churchPageQuery(select: string, lastId: string, limit = CHURCH_READ_PAGE): string {
@@ -106,6 +114,10 @@ export type DirectoryChurch = {
   inCrm: boolean;
   /** Pipeline status already stored. Blank when the church is directory-only. */
   crmStatus?: string;
+  /** Set when the owner field is already yes or no. An import does not replace it. */
+  avlExistingRelationship?: boolean;
+  /** none or avl_already_engaged when already stored. Blank means unset. */
+  avlProjectStatus?: string;
   /** Apps already picked. Empty means Other services may set the church list. */
   offers?: string[];
   contacts: Array<{ name: string }>;
@@ -191,13 +203,16 @@ export type TierImportCounts = {
 
 export type ChurchProfileWrite = {
   churchId: string;
-  /** Set only when this import should change the pipeline status. */
+  /** Set only when this import should change the pipeline status. Existing AVL work does not. */
   crmStatus?: string;
   leadClass?: LeadClass;
   jevAvlFit?: number | null;
   jevProjectStage?: JevProjectStage | "";
   /** Set only for Other services when the church has no offers yet. */
   crmOffers?: string[];
+  /** Set only when the church does not already have this field. */
+  avlExistingRelationship?: true;
+  avlProjectStatus?: "avl_already_engaged";
   tier: AvlTier | "";
   existingTalks: boolean;
 };
@@ -814,13 +829,12 @@ function tierCounts(tracked: Map<string, TrackedChurch>): Record<string, TierImp
   return out;
 }
 
-function statusToWrite(church: DirectoryChurch, existing: boolean): string | undefined {
-  if (!existing) return undefined;
-  const current = String(church.crmStatus ?? "").trim();
-  if (isExistingAvlTalksStatus(current)) return undefined;
-  const untouched = current === "" || current.toLowerCase() === CRM_INITIAL_LEAD_STATUS;
-  if (untouched) return EXISTING_AVL_TALKS_STATUS;
-  return undefined;
+function ownerFieldsToWrite(church: DirectoryChurch, existing: boolean): { avlExistingRelationship?: true; avlProjectStatus?: "avl_already_engaged" } {
+  if (!existing) return {};
+  const next: { avlExistingRelationship?: true; avlProjectStatus?: "avl_already_engaged" } = {};
+  if (!avlRelationshipIsSet(church.avlExistingRelationship)) next.avlExistingRelationship = true;
+  if (!cleanAvlProjectStatus(church.avlProjectStatus)) next.avlProjectStatus = "avl_already_engaged";
+  return next;
 }
 
 function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Map<string, DirectoryChurch>): ChurchProfileWrite[] {
@@ -829,17 +843,20 @@ function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Ma
     const church = churchById.get(churchId);
     if (!church) continue;
     const tier = avlTierForLeadClass(item.leadClass);
-    const crmStatus = statusToWrite(church, item.existing);
+    const owner = ownerFieldsToWrite(church, item.existing);
     const offers = tier === "other_services" && !(church.offers ?? []).length ? [...OTHER_SERVICES_OFFERS] : undefined;
-    const hasProfile = Boolean(crmStatus || item.leadClass || typeof item.fit === "number" || item.stage || offers);
+    const leadClass = item.leadClass || undefined;
+    const jevAvlFit = typeof item.fit === "number" ? item.fit : undefined;
+    const jevProjectStage = item.stage || undefined;
+    const hasProfile = Boolean(leadClass || jevAvlFit !== undefined || jevProjectStage || offers || owner.avlExistingRelationship || owner.avlProjectStatus);
     if (!hasProfile) continue;
     profiles.push({
       churchId,
-      ...(crmStatus ? { crmStatus } : {}),
-      ...(item.leadClass ? { leadClass: item.leadClass } : {}),
-      ...(typeof item.fit === "number" ? { jevAvlFit: item.fit } : {}),
-      ...(item.stage ? { jevProjectStage: item.stage } : {}),
+      ...(leadClass ? { leadClass } : {}),
+      ...(jevAvlFit !== undefined ? { jevAvlFit } : {}),
+      ...(jevProjectStage ? { jevProjectStage } : {}),
       ...(offers ? { crmOffers: offers } : {}),
+      ...owner,
       tier,
       existingTalks: item.existing
     });
@@ -875,7 +892,7 @@ export function formatImportCounts(plan: ImportPlan): string {
   for (const state of states) {
     const row = tiers[state];
     lines.push(
-      `  ${state}: churches ${row.churches}, top ${row.top}, second ${row.second}, other services ${row.otherServices}, staff only ${row.staffOnly}, existing talks ${row.existingTalks}`
+      `  ${state}: churches ${row.churches}, top ${row.top}, second ${row.second}, other services ${row.otherServices}, staff only ${row.staffOnly}, existing relationship ${row.existingTalks}`
     );
   }
   return lines.join("\n");
@@ -978,6 +995,8 @@ export type ChurchDocProfile = {
   jevAvlFit?: number | null;
   jevProjectStage?: string;
   crmOffers?: string[];
+  avlExistingRelationship?: boolean;
+  avlProjectStatus?: string;
 };
 
 /** Keys this profile will put on the patch. Blank fields are left alone. */
@@ -988,7 +1007,9 @@ export function profilePatchKeys(profile: ChurchDocProfile | null | undefined): 
   if (profile.leadClass) keys.push("lead_class");
   if (typeof profile.jevAvlFit === "number") keys.push("jev_avl_fit");
   if (profile.jevProjectStage) keys.push("jev_project_stage");
-  if (profile.crmOffers) keys.push("crm_offers");
+  if (profile.crmOffers && profile.crmOffers.length) keys.push("crm_offers");
+  if (profile.avlExistingRelationship === true) keys.push("avl_existing_relationship");
+  if (profile.avlProjectStatus) keys.push("avl_project_status");
   return keys;
 }
 
@@ -1005,7 +1026,9 @@ function applyChurchProfile(doc: Record<string, unknown>, profile: ChurchDocProf
   if (profile.leadClass) set("lead_class", profile.leadClass);
   if (typeof profile.jevAvlFit === "number") set("jev_avl_fit", profile.jevAvlFit);
   if (profile.jevProjectStage) set("jev_project_stage", profile.jevProjectStage);
-  if (profile.crmOffers) set("crm_offers", profile.crmOffers);
+  if (profile.crmOffers && profile.crmOffers.length) set("crm_offers", profile.crmOffers);
+  if (profile.avlExistingRelationship === true) set("avl_existing_relationship", true);
+  if (profile.avlProjectStatus) set("avl_project_status", profile.avlProjectStatus);
   return { doc: next, changed };
 }
 
