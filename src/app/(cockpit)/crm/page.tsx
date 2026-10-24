@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineOwner } from "@/lib/auth/access";
-import { directoryPreviewRows, directoryQueryFromParams } from "@/lib/engine/crm-directory-core";
+import { directoryPreviewRows, directoryQueryFromParams, filterDirectoryRows } from "@/lib/engine/crm-directory-core";
 import { loadDirectoryPage } from "@/lib/engine/crm-directory";
 import { CrmDirectoryList } from "@/components/engine/crm-directory-list";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
@@ -163,7 +163,7 @@ export default async function CrmPage({
   const previewDirectory = process.env.NODE_ENV !== "production" && previewParam === "directory";
   const directoryQuery = directoryQueryFromParams(params);
   const directory = previewDirectory
-    ? { configured: true, ok: true, rows: directoryPreviewRows(), nextCursor: "" }
+    ? { configured: true, ok: true, rows: filterDirectoryRows(directoryPreviewRows(), directoryQuery), nextCursor: "" }
     : await loadDirectoryPage(directoryQuery);
   let topInitial: TopProspectState = null;
   let avInitial: AvProspectState = null;

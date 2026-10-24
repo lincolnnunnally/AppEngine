@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  directoryPreviewRows,
   directoryQueryFromParams,
   directoryRestQuery,
   directoryRowFromRecord,
   directoryStatusLabel,
   emptyDirectoryQuery,
+  filterDirectoryRows,
   encodeDirectoryCursor,
   decodeDirectoryCursor
 } from "./crm-directory-core.ts";
@@ -53,5 +55,13 @@ describe("church directory pages", () => {
     assert.match(rest, /jev_avl_fit=gte\.2/);
     assert.match(rest, /order=doc->>jev_avl_fit\.desc/);
     assert.doesNotMatch(rest, /offset=/);
+  });
+
+  it("filters the preview fixture the same way the form does", () => {
+    const georgia = filterDirectoryRows(directoryPreviewRows(), { ...emptyDirectoryQuery(), state: "GA" });
+    assert.ok(georgia.every((row) => row.state === "GA"));
+    assert.equal(georgia.some((row) => row.state === "FL"), false);
+    const zip = filterDirectoryRows(directoryPreviewRows(), { ...emptyDirectoryQuery(), q: "31061" });
+    assert.deepEqual(zip.map((row) => row.name), ["Northridge Christian"]);
   });
 });

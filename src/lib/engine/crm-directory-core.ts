@@ -391,6 +391,50 @@ export function directoryHref(query: DirectoryQuery, cursor = "", preview = ""):
   return text ? `/crm?${text}` : "/crm";
 }
 
+/** Same filters as the live list, for the dev preview fixture. The live list uses SQL. */
+export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery): DirectoryRow[] {
+  const q = query.q.trim().toLowerCase();
+  const digits = q.replace(/\D/g, "");
+  const zipExact = digits.length === 5 || digits.length === 9 ? digits : "";
+  const next = rows.filter((row) => {
+    if (q) {
+      const hay = `${row.name} ${row.city}`.toLowerCase();
+      const zipHit = zipExact !== "" && row.zip.replace(/\D/g, "") === zipExact;
+      if (!hay.includes(q) && !zipHit) return false;
+    }
+    if (query.state && row.state.toUpperCase() !== query.state) return false;
+    if (query.county && row.county.toLowerCase() !== query.county.toLowerCase()) return false;
+    if (query.status === "not_contacted" && row.crmStatus) return false;
+    if (query.status && query.status !== "not_contacted" && row.crmStatus.toLowerCase() !== query.status.toLowerCase()) return false;
+    if (query.tier && row.tier !== query.tier) return false;
+    if (query.staff && !row.hasStaff) return false;
+    if (query.fitMin !== null && (row.jevAvlFit === null || row.jevAvlFit < query.fitMin)) return false;
+    if (query.contacted === "never" && row.lastContact) return false;
+    if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
+      const day = row.lastContact.slice(0, 10);
+      if (!day) return false;
+      if (query.contacted === "since" && day < query.contactedOn) return false;
+      if (query.contacted === "before" && day >= query.contactedOn) return false;
+    }
+    return true;
+  });
+  if (query.sort === "id") return next;
+  const dir = query.dir === "desc" ? -1 : 1;
+  const tierRank = (tier: string) => {
+    const at = (TIER_WALK as readonly string[]).indexOf(tier);
+    return at < 0 ? TIER_WALK.length : at;
+  };
+  return [...next].sort((a, b) => {
+    let cmp = 0;
+    if (query.sort === "name") cmp = a.name.localeCompare(b.name);
+    else if (query.sort === "tier") cmp = tierRank(a.tier) - tierRank(b.tier);
+    else if (query.sort === "fit") cmp = (a.jevAvlFit ?? -1) - (b.jevAvlFit ?? -1);
+    else cmp = a.lastContact.localeCompare(b.lastContact);
+    if (cmp === 0) cmp = a.id.localeCompare(b.id);
+    return cmp * dir;
+  });
+}
+
 export function directoryPreviewRows(): DirectoryRow[] {
   return [
     {
