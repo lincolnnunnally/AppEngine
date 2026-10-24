@@ -408,7 +408,7 @@ await runStep("times: real clock times shown, plain dates stay dates; current ye
 
 await runStep("card chips: 'Not reached out yet' uses the card's own test; no duplicate of Everyone", () => {
   const desk = read("src/components/engine/crm-desk.tsx");
-  assertIncludes(desk, "return !card.lastOutreach;", "quiet = no reach-out, same as 'Not yet'");
+  assertIncludes(desk, "return !card.lastOutreach && !card.existingAvlTalks;", "quiet = no reach-out, and not already in existing talks");
   assert(!desk.includes("Reached or active"), "redundant chip removed");
   assertIncludes(desk, 'today: "On today\'s list"', "today chip");
   assertIncludes(read("src/app/(cockpit)/crm/page.tsx"), "of {snapshot.presence.tokens} token", "'1 of 5 tokens printed' caption");
@@ -455,8 +455,10 @@ await runStep("reader is read-only, server-only, and never logs rows", () => {
 
 await runStep("page is owner-only and lives in the existing desk", () => {
   const page = read("src/app/(cockpit)/crm/page.tsx");
-  assertIncludes(page, "canAccessEngineAdmin", "desk auth gate");
+  assertIncludes(page, "canAccessEngineOwner", "desk auth gate");
+  assert(!page.includes("canAccessEngineAdmin"), "admins do not open the church list");
   assertIncludes(page, 'redirect("/")', "non-owners leave");
+  assertIncludes(read("src/app/(cockpit)/crm/church/[id]/page.tsx"), "canAccessEngineOwner", "church detail auth gate");
   assertIncludes(read("src/app/(cockpit)/layout.tsx"), "canAccessEngineAdmin", "cockpit layout gate");
   assertIncludes(read("src/components/engine/app-shell.tsx"), '{ label: "People & places", href: "/crm" }', "rail link");
   assertIncludes(read("src/components/engine/owner-command-deck.tsx"), 'href="/crm"', "owner deck link");
@@ -614,7 +616,7 @@ await runStep("pass secret: env var first, else the shared database row; cached;
   assert((await mod.resolveCrmSecret({ APPENGINE_CC_CRM_SECRET: "tooshort" }, fetcher, 0)) === "", "a short env value is refused");
   const writer = read("src/lib/engine/lpl-crm-write.ts");
   assertIncludes(writer, 'return env.VERCEL_ENV === "production" ? "Saving isn\'t switched on yet." : "Saving isn\'t available on this preview.";', "clear fail-closed wording");
-  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 13 && writer.includes("if (!config || !lpl) return { ok: false, message: savingOffMessage() };"), "every save (church and business: visit, contact, outreach log, remove, undo; business lead; lead queue attach, dismiss, and church search) fails closed");
+  assert((writer.match(/if \(!config\) return \{ ok: false, message: savingOffMessage\(\) \};/g) || []).length === 16 && writer.includes("if (!config || !lpl) return { ok: false, message: savingOffMessage() };"), "every save (church and business: visit, contact, outreach log, remove, undo; business lead; lead queue attach, dismiss, and church search; pipeline status, owner AVL fields, and service opportunities) fails closed");
   // Nothing that runs in the browser may import the secret module.
   for (const rel of ["src/components/engine/crm-church-tools.tsx", "src/components/engine/crm-desk.tsx", "src/components/engine/crm-org-tools.tsx"]) {
     const text = read(rel);

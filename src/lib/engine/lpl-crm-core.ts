@@ -154,6 +154,370 @@ export type CrmContact = {
 export const CRM_CONTACT_STATUSES = ["new", "contacted", "follow-up", "meeting", "won", "lost"] as const;
 export type CrmContactStatus = (typeof CRM_CONTACT_STATUSES)[number];
 
+/**
+ * ChurchConnect starts a church at "new" (the pipeline's New Lead). The desk
+ * treats that untouched church as not reached out yet.
+ */
+export const CRM_INITIAL_LEAD_STATUS = "new";
+
+/**
+ * ChurchConnect pipeline stages. A status Lincoln already set that is not on
+ * this list is left as he set it. This list does not lock the stage.
+ * An existing AVL relationship is not a status. It is stored beside this list.
+ */
+export const CRM_CHURCH_STATUSES = [
+  "new",
+  "contacted",
+  "interested",
+  "demo_scheduled",
+  "proposal_sent",
+  "negotiating",
+  "won",
+  "lost"
+] as const;
+
+export function isAllowedChurchStatus(value: unknown): boolean {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (CRM_CHURCH_STATUSES as readonly string[]).some((status) => status.toLowerCase() === text);
+}
+
+/** Current project AVL status. Separate from the contact pipeline. */
+export const AVL_PROJECT_STATUSES = ["none", "avl_already_engaged"] as const;
+export type AvlProjectStatus = (typeof AVL_PROJECT_STATUSES)[number];
+
+export const AVL_PROJECT_STATUS_LABEL: Record<AvlProjectStatus, string> = {
+  none: "None",
+  avl_already_engaged: "AVL already engaged"
+};
+
+/**
+ * Where the church is in its own building plans, and the day that was written
+ * down. Used later to see at which stage churches engage AVL.
+ */
+export const BUILDING_STAGES = ["none", "exploring", "campaign_planning", "design", "under_construction", "recently_completed"] as const;
+export type BuildingStage = (typeof BUILDING_STAGES)[number];
+
+export const BUILDING_STAGE_LABEL: Record<BuildingStage, string> = {
+  none: "None",
+  exploring: "Exploring",
+  campaign_planning: "Campaign / fund planning",
+  design: "Design",
+  under_construction: "Under construction",
+  recently_completed: "Recently completed"
+};
+
+export function cleanAvlProjectStatus(value: unknown): AvlProjectStatus | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (text === "avl_already_engaged") return "avl_already_engaged";
+  if (text === "none") return "none";
+  return "";
+}
+
+export function cleanBuildingStage(value: unknown): BuildingStage | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
+  if (text === "campaign_fund_planning") return "campaign_planning";
+  return (BUILDING_STAGES as readonly string[]).includes(text) ? (text as BuildingStage) : "";
+}
+
+export function truthyFlag(value: unknown): boolean {
+  if (value === true) return true;
+  const text = String(value ?? "").trim().toLowerCase();
+  return text === "true" || text === "yes" || text === "y" || text === "1";
+}
+
+/** True when the key is already yes or no, so an import must not replace it. */
+export function avlRelationshipIsSet(value: unknown): boolean {
+  if (value === true || value === false) return true;
+  const text = String(value ?? "").trim().toLowerCase();
+  return text === "true" || text === "false" || text === "yes" || text === "no" || text === "y" || text === "n";
+}
+
+/**
+ * Existing AVL relationship, or AVL already on the current project.
+ * This is not a pipeline status. New outreach stays off while it is true.
+ */
+export function churchHoldsAvlWork(row: {
+  avl_existing_relationship?: unknown;
+  avlExistingRelationship?: unknown;
+  avl_project_status?: unknown;
+  avlProjectStatus?: unknown;
+  service_providers?: unknown;
+  serviceProviders?: unknown;
+  avHeld?: boolean;
+}): boolean {
+  if (row.avHeld === true) return true;
+  if (truthyFlag(row.avl_existing_relationship) || truthyFlag(row.avlExistingRelationship)) return true;
+  if (cleanAvlProjectStatus(row.avl_project_status ?? row.avlProjectStatus) === "avl_already_engaged") return true;
+  const av = storedServiceProvider(row.service_providers ?? row.serviceProviders, "av");
+  return av?.providerType === "us" || av?.providerType === "vendor" || av?.providerType === "other";
+}
+
+/**
+ * Owner-only service opportunities, kept beside AV and separate from contact status.
+ * Operate is not one of these.
+ */
+export const SERVICE_OPPORTUNITY_IDS = ["website", "toner", "laser", "churchconnect", "local_mission"] as const;
+export type ServiceOpportunityId = (typeof SERVICE_OPPORTUNITY_IDS)[number];
+
+export const SERVICE_OPPORTUNITY_LABEL: Record<ServiceOpportunityId, string> = {
+  website: "Website needs",
+  toner: "Toner",
+  laser: "Laser engraved gifts/outreach material",
+  churchconnect: "ChurchConnect",
+  local_mission: "Local mission (Live on Mission)"
+};
+
+/** Short names for the directory filter, as in "Website: possible". */
+export const SERVICE_OPPORTUNITY_FILTER_LABEL: Record<ServiceOpportunityId, string> = {
+  website: "Website",
+  toner: "Toner",
+  laser: "Laser",
+  churchconnect: "ChurchConnect",
+  local_mission: "Local mission"
+};
+
+export const SERVICE_OPPORTUNITY_STATUSES = ["unknown", "possible", "interested", "active_customer", "not_a_fit"] as const;
+export type ServiceOpportunityStatus = (typeof SERVICE_OPPORTUNITY_STATUSES)[number];
+
+export const SERVICE_OPPORTUNITY_STATUS_LABEL: Record<ServiceOpportunityStatus, string> = {
+  unknown: "Unknown",
+  possible: "Possible",
+  interested: "Interested",
+  active_customer: "Active customer",
+  not_a_fit: "Not a fit"
+};
+
+export type ServiceOpportunity = {
+  status: ServiceOpportunityStatus;
+  note: string;
+  updatedAt: string;
+};
+
+export type ServiceOpportunities = Record<ServiceOpportunityId, ServiceOpportunity>;
+
+export function churchIsOnChurchConnect(row: {
+  is_customer?: unknown;
+  isCustomer?: unknown;
+  signed_up?: unknown;
+  signedUp?: unknown;
+  invite_status?: unknown;
+  inviteStatus?: unknown;
+}): boolean {
+  if (truthyFlag(row.is_customer ?? row.isCustomer) || truthyFlag(row.signed_up ?? row.signedUp)) return true;
+  return String(row.invite_status ?? row.inviteStatus ?? "").trim().toLowerCase() === "accepted";
+}
+
+export function cleanServiceOpportunityStatus(value: unknown): ServiceOpportunityStatus | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (text === "active" || text === "customer") return "active_customer";
+  if (text === "not_fit") return "not_a_fit";
+  return (SERVICE_OPPORTUNITY_STATUSES as readonly string[]).includes(text) ? (text as ServiceOpportunityStatus) : "";
+}
+
+export function emptyServiceOpportunities(): ServiceOpportunities {
+  const blank = (): ServiceOpportunity => ({ status: "unknown", note: "", updatedAt: "" });
+  return {
+    website: blank(),
+    toner: blank(),
+    laser: blank(),
+    churchconnect: blank(),
+    local_mission: blank()
+  };
+}
+
+/** Filled only when that opportunity has not been written yet. */
+export function derivedServiceOpportunityStatus(
+  service: ServiceOpportunityId,
+  input: { leadClass?: unknown; onChurchConnect?: boolean }
+): ServiceOpportunityStatus {
+  if (service === "churchconnect" && input.onChurchConnect) return "active_customer";
+  const lead = String(input.leadClass ?? "").trim().toLowerCase();
+  if (lead === "other_services" && (service === "churchconnect" || service === "website" || service === "laser")) return "possible";
+  return "unknown";
+}
+
+function opportunityRecord(raw: unknown): Record<string, unknown> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as Record<string, unknown>;
+}
+
+/** A status Lincoln already saved, including unknown. Blank means it was never written. */
+export function storedServiceOpportunity(raw: unknown, service: ServiceOpportunityId): ServiceOpportunity | null {
+  const item = opportunityRecord(opportunityRecord(raw)[service]);
+  const status = cleanServiceOpportunityStatus(item.status);
+  if (!status) return null;
+  const note = String(item.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const day = String(item.updated_at ?? item.updatedAt ?? "").trim().slice(0, 10);
+  return { status, note, updatedAt: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "" };
+}
+
+/**
+ * Stored status wins. A missing opportunity is pre-filled: other_services means
+ * ChurchConnect, Website, and Laser are possible; a church already on
+ * ChurchConnect is an active ChurchConnect customer.
+ */
+export function serviceOpportunitiesFromDoc(
+  raw: unknown,
+  input: { leadClass?: unknown; onChurchConnect?: boolean }
+): ServiceOpportunities {
+  const out = emptyServiceOpportunities();
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    const stored = storedServiceOpportunity(raw, service);
+    out[service] = stored ?? { status: derivedServiceOpportunityStatus(service, input), note: "", updatedAt: "" };
+  }
+  return out;
+}
+
+export function parseServiceOpportunityFilter(value: unknown): { service: ServiceOpportunityId; status: ServiceOpportunityStatus } | null {
+  const text = String(value ?? "").trim().toLowerCase();
+  const split = text.indexOf(":");
+  if (split < 1) return null;
+  const service = text.slice(0, split);
+  const status = cleanServiceOpportunityStatus(text.slice(split + 1));
+  if (!(SERVICE_OPPORTUNITY_IDS as readonly string[]).includes(service) || !status) return null;
+  return { service: service as ServiceOpportunityId, status };
+}
+
+export function serviceOpportunitiesToDoc(opportunities: ServiceOpportunities): Record<string, { status: ServiceOpportunityStatus; note: string; updated_at: string }> {
+  const out: Record<string, { status: ServiceOpportunityStatus; note: string; updated_at: string }> = {};
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    const item = opportunities[service];
+    out[service] = {
+      status: item.status,
+      note: item.note.replace(/\s+/g, " ").trim().slice(0, 500),
+      updated_at: /^\d{4}-\d{2}-\d{2}$/.test(item.updatedAt) ? item.updatedAt : ""
+    };
+  }
+  return out;
+}
+
+/** AV plus the five service opportunities. Owner desk only. */
+export const SERVICE_PROVIDER_IDS = ["av", ...SERVICE_OPPORTUNITY_IDS] as const;
+export type ServiceProviderId = (typeof SERVICE_PROVIDER_IDS)[number];
+
+export const SERVICE_PROVIDER_LABEL: Record<ServiceProviderId, string> = {
+  av: "AV",
+  website: "Website needs",
+  toner: "Toner",
+  laser: "Laser engraved gifts/outreach material",
+  churchconnect: "ChurchConnect",
+  local_mission: "Local mission (Live on Mission)"
+};
+
+export const PROVIDER_TYPES = ["unknown", "us", "vendor", "other"] as const;
+export type ProviderType = (typeof PROVIDER_TYPES)[number];
+
+export const PROVIDER_TYPE_LABEL: Record<ProviderType, string> = {
+  unknown: "Unknown",
+  us: "Us",
+  vendor: "Vendor",
+  other: "Someone else"
+};
+
+export type ServiceProvider = {
+  providerType: ProviderType;
+  vendorName: string;
+  otherName: string;
+  note: string;
+  learnedFrom: string;
+  learnedAt: string;
+};
+
+export type ServiceProviders = Record<ServiceProviderId, ServiceProvider>;
+
+export function cleanProviderType(value: unknown): ProviderType | "" {
+  const text = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (text === "someone_else") return "other";
+  return (PROVIDER_TYPES as readonly string[]).includes(text) ? (text as ProviderType) : "";
+}
+
+export function emptyServiceProvider(): ServiceProvider {
+  return { providerType: "unknown", vendorName: "", otherName: "", note: "", learnedFrom: "", learnedAt: "" };
+}
+
+export function emptyServiceProviders(): ServiceProviders {
+  const out = {} as ServiceProviders;
+  for (const service of SERVICE_PROVIDER_IDS) out[service] = emptyServiceProvider();
+  return out;
+}
+
+// TODO(2026-10-24): Remove the legacy AVL reads (avl_existing_relationship,
+// avl_existing_relationship_note, avl_project_status) once service_providers is the only source.
+
+/** A calendar day, or blank. 2026-02-31 is not a day. */
+export function realIsoDay(value: unknown): string {
+  const day = String(value ?? "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  const date = new Date(`${day}T12:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === day ? day : "";
+}
+
+/** A provider_type Lincoln already saved, including unknown. Blank means it was never written. */
+export function storedServiceProvider(raw: unknown, service: ServiceProviderId): ServiceProvider | null {
+  const item = opportunityRecord(opportunityRecord(raw)[service]);
+  const providerType = cleanProviderType(item.provider_type ?? item.providerType);
+  if (!providerType) return null;
+  const vendorName = providerType === "vendor" ? String(item.vendor_name ?? item.vendorName ?? "").replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  const otherName = providerType === "other" ? String(item.other_name ?? item.otherName ?? "").replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  const note = String(item.note ?? item.weak_point ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const learnedFrom = String(item.learned_from ?? item.learnedFrom ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  return {
+    providerType,
+    vendorName,
+    otherName,
+    note,
+    learnedFrom,
+    learnedAt: realIsoDay(item.learned_at ?? item.learnedAt)
+  };
+}
+
+export function serviceProvidersFromDoc(raw: unknown): ServiceProviders {
+  const out = emptyServiceProviders();
+  for (const service of SERVICE_PROVIDER_IDS) {
+    out[service] = storedServiceProvider(raw, service) ?? emptyServiceProvider();
+  }
+  return out;
+}
+
+export function serviceProvidersToDoc(providers: ServiceProviders): Record<string, { provider_type: ProviderType; vendor_name: string; other_name: string; note: string; learned_from: string; learned_at: string }> {
+  const out: Record<string, { provider_type: ProviderType; vendor_name: string; other_name: string; note: string; learned_from: string; learned_at: string }> = {};
+  for (const service of SERVICE_PROVIDER_IDS) {
+    const item = providers[service];
+    const providerType = cleanProviderType(item.providerType) || "unknown";
+    out[service] = {
+      provider_type: providerType,
+      vendor_name: providerType === "vendor" ? item.vendorName.replace(/\s+/g, " ").trim().slice(0, 200) : "",
+      other_name: providerType === "other" ? item.otherName.replace(/\s+/g, " ").trim().slice(0, 200) : "",
+      note: item.note.replace(/\s+/g, " ").trim().slice(0, 500),
+      learned_from: item.learnedFrom.replace(/\s+/g, " ").trim().slice(0, 200),
+      learned_at: /^\d{4}-\d{2}-\d{2}$/.test(item.learnedAt) ? item.learnedAt : ""
+    };
+  }
+  return out;
+}
+
+/** "av:vendor" and the other owner provider-type filters. */
+export function parseProviderTypeFilter(value: unknown): { service: ServiceProviderId; providerType: ProviderType } | null {
+  const text = String(value ?? "").trim().toLowerCase();
+  const split = text.indexOf(":");
+  if (split < 1) return null;
+  const service = text.slice(0, split);
+  const providerType = cleanProviderType(text.slice(split + 1));
+  if (!(SERVICE_PROVIDER_IDS as readonly string[]).includes(service) || !providerType) return null;
+  return { service: service as ServiceProviderId, providerType };
+}
+
+export function parseProviderService(value: unknown): ServiceProviderId | "" {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (SERVICE_PROVIDER_IDS as readonly string[]).includes(text) ? (text as ServiceProviderId) : "";
+}
+
+/** Opening filter is an opportunity service whose status is possible or interested. */
+export function parseOpeningService(value: unknown): ServiceOpportunityId | "" {
+  const text = String(value ?? "").trim().toLowerCase();
+  return (SERVICE_OPPORTUNITY_IDS as readonly string[]).includes(text) ? (text as ServiceOpportunityId) : "";
+}
+
 export type CrmContactNote = { at: string; note: string };
 
 const CONTACT_STATUS_LABEL: Record<CrmContactStatus, string> = {
@@ -264,6 +628,20 @@ export type CrmNode = {
   signals?: CrmChurchSignal[];
   /** Unmatched church-signal row stored as an op_leads lead. */
   leadQueue?: boolean;
+  /** ChurchConnect pipeline status, when the row has one. */
+  crmStatus?: string;
+  /** Lincoln's lead class from the tech-director file. */
+  leadClass?: string;
+  /** Top AVL, second tier, other services, or staff only. Blank when unset. */
+  avlTier?: string;
+  /** Fractional fit from 0 to 4. Null when the file had none. */
+  jevAvlFit?: number | null;
+  jevProjectStage?: string;
+  /** Worked with them on a past project. Separate from crmStatus. */
+  avlExistingRelationship?: boolean;
+  avlProjectStatus?: string;
+  /** AV is already served. Does not carry a vendor name. */
+  avHeld?: boolean;
 };
 
 export type CrmChurchSignal = {
@@ -332,6 +710,26 @@ export type CrmCard = {
   signals?: CrmChurchSignal[];
   /** This card is an unmatched church-signal lead (op_leads). */
   leadQueue?: boolean;
+  /** ChurchConnect pipeline status. */
+  crmStatus?: string;
+  /** campaign_planning, under_construction, staff_only, or other_services. */
+  leadClass?: string;
+  /** top, second, other_services, or staff_only. */
+  avlTier?: string;
+  jevAvlFit?: number | null;
+  jevProjectStage?: string;
+  /** Worked with them on a past project. Owner only. Separate from crmStatus. */
+  avlExistingRelationship?: boolean;
+  /** AV already has us, a vendor, or someone else. Owner desk. Does not carry the vendor name. */
+  avHeld?: boolean;
+  avlExistingRelationshipNote?: string;
+  /** none, or AVL already engaged. Owner only. Separate from crmStatus. */
+  avlProjectStatus?: string;
+  /** Building-planning stage. Owner only. */
+  buildingStage?: string;
+  buildingStageRecordedAt?: string;
+  /** Existing relationship or AVL already engaged: leave this card out of new-outreach views. */
+  existingAvlTalks?: boolean;
 };
 
 // "wait" = an outreach step for a resting card. It is held until the rest
@@ -686,6 +1084,16 @@ class Union {
 const KIND_RANK: Record<CrmNode["kind"], number> = { org: 0, place: 1, batch: 2, event: 3, person: 4 };
 const APP_RANK: Record<CrmApp, number> = { churchconnect: 0, presence: 1, laser: 2, business: 3 };
 
+/** Two ChurchConnect churches in different states are not the same church, even on one website. */
+function churchStatesStaySeparate(a: CrmNode | undefined, b: CrmNode | undefined): boolean {
+  if (!a || !b) return false;
+  if (a.app !== "churchconnect" || b.app !== "churchconnect") return false;
+  if (a.kind !== "org" || b.kind !== "org") return false;
+  const left = a.state?.trim().toLowerCase().replace(/\./g, "") ?? "";
+  const right = b.state?.trim().toLowerCase().replace(/\./g, "") ?? "";
+  return Boolean(left && right && left !== right);
+}
+
 function nodeKeys(node: CrmNode): { email: string[]; domain: string[]; phone: string[] } {
   const emails = [...new Set(node.emails.map(normEmail).filter(Boolean))];
   const domains = new Set(node.domains.map(normDomain).filter(Boolean));
@@ -880,8 +1288,13 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       // Count distinct already-merged groups so one org's many rows don't look generic.
       const groups = new Set(unique.map((id) => union.find(id)));
       if (groups.size > AMBIGUOUS_KEY_LIMIT) continue;
+      const anchor = unique[0];
       for (const id of unique.slice(1)) {
-        if (union.join(unique[0], id)) edges.push({ a: unique[0], b: id, kind });
+        // Two churches that share a website but sit in different states stay
+        // separate. church_id is the match. thefountainchurch.org in GA and FL
+        // is two churches.
+        if (kind === "domain" && churchStatesStaySeparate(byId.get(anchor), byId.get(id))) continue;
+        if (union.join(anchor, id)) edges.push({ a: anchor, b: id, kind });
       }
     }
   }
@@ -981,7 +1394,15 @@ export function buildCards(nodes: CrmNode[], suppressions: Suppressions, now: Da
       org: orgOf(members),
       state: members.map((member) => member.state).find(Boolean) || "",
       signals: signalsOf(members),
-      leadQueue: members.some((member) => member.leadQueue)
+      leadQueue: members.some((member) => member.leadQueue),
+      crmStatus: members.map((member) => member.crmStatus).find((status) => status) || "",
+      leadClass: members.map((member) => member.leadClass).find((value) => value) || "",
+      avlTier: members.map((member) => member.avlTier).find((value) => value) || "",
+      jevAvlFit: members.map((member) => member.jevAvlFit).find((value) => typeof value === "number") ?? null,
+      jevProjectStage: members.map((member) => member.jevProjectStage).find((value) => value) || "",
+      avlExistingRelationship: members.some((member) => truthyFlag(member.avlExistingRelationship)),
+      avlProjectStatus: members.map((member) => cleanAvlProjectStatus(member.avlProjectStatus)).find((value) => value) || "",
+      existingAvlTalks: members.some((member) => churchHoldsAvlWork(member))
     };
     applyRestRule(card, now);
     const nameKeys = new Set(members.map((member) => nameTownKey(member.name, member.town)).filter(Boolean));
@@ -1192,9 +1613,11 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
     const recentOutreach = card.lastOutreach ? daysBetween(card.lastOutreach.at, now) : Number.POSITIVE_INFINITY;
     const resting = card.repeat.level === "hold";
     const restingUntil = resting && card.repeat.until ? card.repeat.until : null;
+    // An existing AVL relationship, or AVL already on the current project, stays on the card. It is not a new-outreach follow-up.
+    const newOutreach = !card.existingAvlTalks;
 
     // Due — the app's own next-action date (already moved past any rest).
-    if (card.nextActionDate && !options.outreachHidden) {
+    if (newOutreach && card.nextActionDate && !options.outreachHidden) {
       const due = dayOf(card.nextActionDate);
       if (due <= today) {
         add("due", due < today ? `Next step was due ${friendlyDay(due)}.` : "Next step is due today.", card.nextAction || "Do the next step on file.", card.nextActionDate);
@@ -1203,7 +1626,7 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
 
     // Warm — they did something in the last 7 days and nobody followed up.
     const signal = card.touches.find((touch) => touch.signal && !touch.outreach);
-    if (signal && !options.outreachHidden && daysBetween(signal.at, now) <= WARM_DAYS) {
+    if (newOutreach && signal && !options.outreachHidden && daysBetween(signal.at, now) <= WARM_DAYS) {
       const followed = card.touches.some((touch) => touch.outreach && ms(touch.at) > ms(signal.at));
       if (!followed && recentOutreach >= WAITING_MIN_DAYS) {
         add("warm", `${CRM_APP_LABEL[signal.app]}: ${signal.what}.`, card.lastOutreach ? `Follow up while it is fresh. ${followThroughStep(card)}` : "Follow up while it is fresh.", signal.at);
@@ -1212,13 +1635,13 @@ export function buildFollowUps(cards: CrmCard[], now: Date, options: FollowUpOpt
 
     // Not paid yet.
     for (const touch of card.touches) {
-      if (touch.unpaid && !options.outreachHidden && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
+      if (newOutreach && touch.unpaid && !options.outreachHidden && daysBetween(touch.at, now) >= UNPAID_AFTER_DAYS) {
         add("unpaid", `${CRM_APP_LABEL[touch.app]}: ${touch.what}${touch.purchase ? ` (${touch.purchase})` : ""}, placed ${friendlyDate(touch.at)}.`, "Confirm the order and how they will pay.", touch.at);
       }
     }
 
     // Resting: every outreach item is held — one "wait" line instead.
-    if (resting && restingUntil && !options.outreachHidden) {
+    if (newOutreach && resting && restingUntil && !options.outreachHidden) {
       const held = items.filter((item) => OUTREACH_REASONS.includes(item.reason));
       for (const item of held) items.splice(items.indexOf(item), 1);
       const last = card.lastOutreach!;

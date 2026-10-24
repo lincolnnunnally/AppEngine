@@ -9,14 +9,16 @@
 // one method and exact path. The only direct writes here are the shared
 // do-not-contact list (a visit that ends with "asked not to be contacted") and
 // business leads (op_leads, its contacts, and its visit log op_lead_activities),
-// which no app owns yet. Attaching a lead-queue row calls crm_patch_church_doc.
-// This file never PATCHes cc_churches.
+// which no app owns yet. Attaching a lead-queue row, saving pipeline status,
+// saving the owner AVL fields, and saving service opportunities call
+// crm_patch_church_doc. Pipeline status does not go through the ChurchConnect
+// leads PATCH. This file never PATCHes cc_churches.
 // Nothing here logs a body, a contact detail, or the pass. Nothing is sent to
 // anyone.
 import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
-import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanContactOutreach, cleanContactStatus, resolveOrgKind, type CrmContactStatus, type OrgKind } from "@/lib/engine/lpl-crm-core";
+import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, cleanProviderType, cleanServiceOpportunityStatus, isAllowedChurchStatus, realIsoDay, serviceOpportunitiesToDoc, serviceProvidersToDoc, storedServiceOpportunity, storedServiceProvider, resolveOrgKind, SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type CrmContactStatus, type OrgKind, type ServiceOpportunities, type ServiceOpportunityId, type ServiceProvider, type ServiceProviders, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
 import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
@@ -1388,4 +1390,274 @@ export async function dismissLeadFromQueue(ownerEmail: string, leadId: string, c
   signals.queue = "dismissed";
   if (!(await patchLeadIfUnchanged(config, lead, { signals }))) return { ok: false, message: "The lead couldn't be updated. Try again." };
   return { ok: true, message: "Dismissed. It left the lead queue." };
+}
+
+async function readChurchRow(config: LplConfig, churchId: string): Promise<{ doc: Record<string, unknown> } | null | "error"> {
+  try {
+    const response = await fetch(`${config.url}/rest/v1/cc_churches?id=eq.${encodeURIComponent(churchId)}&select=id,doc&limit=1`, {
+      method: "GET",
+      headers: lplHeaders(config),
+      cache: "no-store"
+    });
+    if (!response.ok) return "error";
+    const rows = (await response.json()) as Array<{ doc?: Record<string, unknown> | null }>;
+    if (!Array.isArray(rows) || !rows[0]) return null;
+    const doc = rows[0].doc;
+    return { doc: doc && typeof doc === "object" ? doc : {} };
+  } catch {
+    return "error";
+  }
+}
+
+type PatchPost = "ok" | "conflict" | "missing" | "error" | "down";
+
+/** One compare-and-swap. expected is the updated_at from the read that built the patch. */
+async function postChurchPatch(config: LplConfig, churchId: string, patch: Record<string, unknown>, expected: string | null): Promise<PatchPost> {
+  try {
+    const rpc = await fetch(`${config.url}/rest/v1/rpc/crm_patch_church_doc`, {
+      method: "POST",
+      headers: { ...lplHeaders(config), "Content-Type": "application/json", Prefer: "return=representation" },
+      cache: "no-store",
+      body: JSON.stringify({ p_id: churchId, p_patch: { ...patch, updated_at: new Date().toISOString() }, p_expected: expected })
+    });
+    if (!rpc.ok) {
+      const detail = await rpc.text().catch(() => "");
+      if (crmPatchRpcMissing(rpc.status, detail)) return "missing";
+      return "error";
+    }
+    const rows = (await rpc.json()) as unknown;
+    return Array.isArray(rows) && rows.length === 1 ? "ok" : "conflict";
+  } catch {
+    return "down";
+  }
+}
+
+function patchFailure(result: PatchPost): SaveResult | null {
+  if (result === "missing") return { ok: false, message: "Saving needs the church patch on the server. Nothing was changed." };
+  if (result === "error") return { ok: false, message: "The church couldn't be updated. Nothing was changed." };
+  if (result === "down") return { ok: false, message: "The database didn't answer. Nothing was changed." };
+  return null;
+}
+
+/** Compare-and-swap through crm_patch_church_doc, then re-read so a dropped key is not reported as saved. */
+async function patchChurchDoc(
+  config: LplConfig,
+  churchId: string,
+  patch: Record<string, unknown>,
+  landed: (doc: Record<string, unknown>) => boolean,
+  okMessage: string
+): Promise<SaveResult> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const current = await readChurchRow(config, churchId);
+    if (current === "error") return { ok: false, message: "The church couldn't be read. Nothing was changed." };
+    if (!current) return { ok: false, message: "That church isn't there. Nothing was changed." };
+    const expected = typeof current.doc.updated_at === "string" ? current.doc.updated_at : null;
+    const posted = await postChurchPatch(config, churchId, patch, expected);
+    const failed = patchFailure(posted);
+    if (failed) return failed;
+    if (posted === "conflict") {
+      const again = await readChurchRow(config, churchId);
+      if (again && again !== "error") {
+        const stamp = typeof again.doc.updated_at === "string" ? again.doc.updated_at : null;
+        if (stamp === expected) {
+          if (landed(again.doc)) return { ok: true, message: okMessage };
+          return { ok: false, message: "That change did not stick. Apply the church patch that allows these fields. Nothing else was changed." };
+        }
+      }
+      continue;
+    }
+    const after = await readChurchRow(config, churchId);
+    if (after === "error" || !after) return { ok: false, message: "The church was saved, but it couldn't be re-read. Reload the page." };
+    if (landed(after.doc)) return { ok: true, message: okMessage };
+    return { ok: false, message: "That change did not stick. Apply the church patch that allows these fields. Nothing else was changed." };
+  }
+  return { ok: false, message: "That church changed while this was saving. Nothing else was changed. Try again." };
+}
+
+/** Owner sets the church pipeline status through crm_patch_church_doc. Blank clears it (Not contacted). Does not lock the stage. */
+export async function setChurchPipelineStatus(ownerEmail: string, churchId: string, status: string): Promise<SaveResult> {
+  void ownerEmail;
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "That church can't be updated. Reload the page and try again." };
+  const trimmed = status.trim();
+  if (trimmed && !isAllowedChurchStatus(trimmed)) return { ok: false, message: "That status isn't on the list." };
+  return patchChurchDoc(
+    config,
+    churchId,
+    { crm_status: trimmed || null },
+    (doc) => {
+      const stored = String(doc.crm_status ?? "").trim();
+      return trimmed ? stored.toLowerCase() === trimmed.toLowerCase() : stored === "";
+    },
+    trimmed ? "Status saved." : "Status cleared. This church shows as not contacted."
+  );
+}
+
+export type ChurchOwnerFields = {
+  buildingStage: string;
+  buildingStageRecordedAt: string;
+};
+
+/** Owner-only building-planning stage. Separate from contact status and from who serves each service. */
+export async function setChurchOwnerFields(ownerEmail: string, churchId: string, fields: ChurchOwnerFields): Promise<SaveResult> {
+  void ownerEmail;
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "That church can't be updated. Reload the page and try again." };
+  const stage = cleanBuildingStage(fields.buildingStage);
+  if (!stage) return { ok: false, message: "Pick a building stage." };
+  const recorded = fields.buildingStageRecordedAt.trim();
+  const day = DAY_RE.test(recorded) ? recorded : new Date().toISOString().slice(0, 10);
+  return patchChurchDoc(
+    config,
+    churchId,
+    {
+      building_stage: stage,
+      building_stage_recorded_at: day
+    },
+    (doc) => cleanBuildingStage(doc.building_stage) === stage && String(doc.building_stage_recorded_at ?? "").slice(0, 10) === day,
+    "Saved."
+  );
+}
+
+export type ServiceOpportunityInput = Record<ServiceOpportunityId, { status: string; note: string; updatedAt: string }>;
+export type ServiceProviderInput = Record<ServiceProviderId, { providerType: string; vendorName: string; otherName: string; note: string; learnedFrom: string; learnedAt: string }>;
+
+function cleanProviderInput(input: ServiceProviderInput[ServiceProviderId] | undefined): ServiceProvider | { error: string } {
+  const providerType = cleanProviderType(input?.providerType);
+  if (!providerType) return { error: "Pick who serves each service." };
+  const vendorName = String(input?.vendorName ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  const otherName = String(input?.otherName ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  return {
+    providerType,
+    vendorName: providerType === "vendor" ? vendorName : "",
+    otherName: providerType === "other" ? otherName : "",
+    note: String(input?.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500),
+    learnedFrom: String(input?.learnedFrom ?? "").replace(/\s+/g, " ").trim().slice(0, 200),
+    learnedAt: realIsoDay(input?.learnedAt)
+  };
+}
+
+function mergeServiceProviders(doc: Record<string, unknown>, input: ServiceProviderInput): { next: ServiceProviders; changed: boolean } | { error: string } {
+  const next = {} as ServiceProviders;
+  let changed = false;
+  for (const service of SERVICE_PROVIDER_IDS) {
+    const item = cleanProviderInput(input[service]);
+    if ("error" in item) return item;
+    const stored = storedServiceProvider(doc.service_providers, service);
+    if (
+      stored &&
+      stored.providerType === item.providerType &&
+      stored.vendorName === item.vendorName &&
+      stored.otherName === item.otherName &&
+      stored.note === item.note &&
+      stored.learnedFrom === item.learnedFrom &&
+      stored.learnedAt === item.learnedAt
+    ) {
+      next[service] = stored;
+    } else {
+      next[service] = item;
+      changed = true;
+    }
+  }
+  return { next, changed };
+}
+
+function serviceProvidersLanded(doc: Record<string, unknown>, next: ServiceProviders): boolean {
+  return SERVICE_PROVIDER_IDS.every((service) => {
+    const stored = storedServiceProvider(doc.service_providers, service);
+    const item = next[service];
+    return Boolean(
+      stored &&
+        stored.providerType === item.providerType &&
+        stored.vendorName === item.vendorName &&
+        stored.otherName === item.otherName &&
+        stored.note === item.note &&
+        stored.learnedFrom === item.learnedFrom &&
+        stored.learnedAt === item.learnedAt
+    );
+  });
+}
+
+function mergeServiceOpportunities(doc: Record<string, unknown>, input: ServiceOpportunityInput, today: string): { next: ServiceOpportunities; changed: boolean } | { error: string } {
+  const next: ServiceOpportunities = {
+    website: { status: "unknown", note: "", updatedAt: "" },
+    toner: { status: "unknown", note: "", updatedAt: "" },
+    laser: { status: "unknown", note: "", updatedAt: "" },
+    churchconnect: { status: "unknown", note: "", updatedAt: "" },
+    local_mission: { status: "unknown", note: "", updatedAt: "" }
+  };
+  let changed = false;
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    const status = cleanServiceOpportunityStatus(input[service]?.status);
+    if (!status) return { error: "Pick a status for each opportunity." };
+    const note = String(input[service]?.note ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+    const posted = String(input[service]?.updatedAt ?? "").trim().slice(0, 10);
+    const item = { status, note, updatedAt: DAY_RE.test(posted) ? posted : "" };
+    const stored = storedServiceOpportunity(doc.service_opportunities, service);
+    if (stored && stored.status === item.status && stored.note === item.note) {
+      if (item.updatedAt && item.updatedAt !== stored.updatedAt) {
+        next[service] = item;
+        changed = true;
+      } else {
+        next[service] = { ...item, updatedAt: stored.updatedAt };
+      }
+    } else {
+      next[service] = { ...item, updatedAt: today };
+      changed = true;
+    }
+  }
+  return { next, changed };
+}
+
+function serviceOpportunitiesLanded(doc: Record<string, unknown>, next: ServiceOpportunities): boolean {
+  const saved = doc.service_opportunities;
+  return SERVICE_OPPORTUNITY_IDS.every((service) => {
+    const stored = storedServiceOpportunity(saved, service);
+    const item = next[service];
+    return Boolean(stored && stored.status === item.status && stored.note === item.note && stored.updatedAt === item.updatedAt);
+  });
+}
+
+/** Owner-only service opportunities and who serves each service. Both keys come from the same read as the compare-and-swap version. */
+export async function setChurchServiceOpportunities(
+  ownerEmail: string,
+  churchId: string,
+  input: ServiceOpportunityInput,
+  providers: ServiceProviderInput
+): Promise<SaveResult> {
+  void ownerEmail;
+  const config = lplConfig();
+  if (!config) return { ok: false, message: savingOffMessage() };
+  if (!CHURCH_ID_RE.test(churchId)) return { ok: false, message: "That church can't be updated. Reload the page and try again." };
+  const today = new Date().toISOString().slice(0, 10);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const current = await readChurchRow(config, churchId);
+    if (current === "error") return { ok: false, message: "The church couldn't be read. Nothing was changed." };
+    if (!current) return { ok: false, message: "That church isn't there. Nothing was changed." };
+    const merged = mergeServiceOpportunities(current.doc, input, today);
+    if ("error" in merged) return { ok: false, message: merged.error };
+    const mergedProviders = mergeServiceProviders(current.doc, providers);
+    if ("error" in mergedProviders) return { ok: false, message: mergedProviders.error };
+    if (!merged.changed && !mergedProviders.changed) return { ok: true, message: "Saved." };
+    const expected = typeof current.doc.updated_at === "string" ? current.doc.updated_at : null;
+    const posted = await postChurchPatch(
+      config,
+      churchId,
+      {
+        service_opportunities: serviceOpportunitiesToDoc(merged.next),
+        service_providers: serviceProvidersToDoc(mergedProviders.next)
+      },
+      expected
+    );
+    const failed = patchFailure(posted);
+    if (failed) return failed;
+    if (posted === "conflict") continue;
+    const after = await readChurchRow(config, churchId);
+    if (after === "error" || !after) return { ok: false, message: "The church was saved, but it couldn't be re-read. Reload the page." };
+    if (serviceOpportunitiesLanded(after.doc, merged.next) && serviceProvidersLanded(after.doc, mergedProviders.next)) return { ok: true, message: "Saved." };
+    return { ok: false, message: "That change did not stick. Apply the church patch that allows these fields. Nothing else was changed." };
+  }
+  return { ok: false, message: "That church changed while this was saving. Nothing else was changed. Try again." };
 }

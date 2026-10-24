@@ -1,20 +1,52 @@
 // Match a technical-director CSV to churches already on file, and merge the
 // contact into that church's staff_contacts. No new churches. No sends.
 import { createHash } from "node:crypto";
-import { normName, suppressionDomain } from "./lpl-crm-core.ts";
+import { avlRelationshipIsSet, cleanAvlProjectStatus, isAllowedChurchStatus, normName, serviceProvidersFromDoc, serviceProvidersToDoc, storedServiceProvider, suppressionDomain, SERVICE_PROVIDER_IDS, type ServiceProvider, type ServiceProviderId } from "./lpl-crm-core.ts";
 import {
+  OTHER_SERVICES_OFFERS,
   SIGNAL_STAFF,
   TECHNICAL_DIRECTOR_TAG,
+  avlTierForLeadClass,
   churchSignalKey,
   cleanRoleTags,
+  existingColumnYes,
   httpUrl,
+  leadClassRank,
+  parseJevAvlFit,
+  parseJevProjectStage,
+  parseLeadClass,
   parsePublishedContact,
   parseSignalScore,
   parseSignalTypes,
   signalTagsForTypes,
   stateCode,
+  type AvlTier,
+  type JevProjectStage,
+  type LeadClass,
   type SignalType
 } from "./tech-director-core.ts";
+
+/** Northridge Christian, Milledgeville GA. Existing AVL relationship even when the CSV existing column is blank. */
+export const NORTHRIDGE_MILLEDGEVILLE_ID = "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24";
+
+/** Prod cc_churches is about 151k. Keyset pages of 1000 need more than 151 pages. Offset page 81 times out. */
+export const CHURCH_READ_PAGE = 1000;
+export const CHURCH_READ_MAX_PAGES = 220;
+
+export const CHURCH_PROFILE_PATCH_KEYS = [
+  "crm_status",
+  "lead_class",
+  "jev_avl_fit",
+  "jev_project_stage",
+  "crm_offers",
+  "service_providers"
+] as const;
+
+/** PostgREST page by id, not offset. lastId blank is the first page. */
+export function churchPageQuery(select: string, lastId: string, limit = CHURCH_READ_PAGE): string {
+  const after = lastId ? `&id=gt.${encodeURIComponent(lastId)}` : "";
+  return `cc_churches?select=${select}&order=id.asc&limit=${limit}${after}`;
+}
 
 export const TECH_DIRECTOR_CSV_COLUMNS = [
   "church",
@@ -62,6 +94,10 @@ export type TechDirectorCsvRow = {
   source_url: string;
   signal_date: string;
   score: string;
+  lead_class: string;
+  existing: string;
+  jev_avl_fit: string;
+  jev_project_stage: string;
   line: number;
 };
 
@@ -73,8 +109,24 @@ export type DirectoryChurch = {
   state: string;
   website: string;
   domain: string;
-  /** Already on the CRM desk (pipeline). A directory-only church is not written. */
+  /** Already on the CRM desk (pipeline). A directory-only church is not written unless --add-to-crm. */
   inCrm: boolean;
+  /** Pipeline status already stored. Blank when the church is directory-only. */
+  crmStatus?: string;
+  /** Set when the owner field is already yes or no. An import does not replace it. */
+  avlExistingRelationship?: boolean;
+  /** none or avl_already_engaged when already stored. Blank means unset. */
+  avlProjectStatus?: string;
+  /** True when service_providers.av.provider_type is already stored, including unknown. */
+  avProviderSet?: boolean;
+  /** Stored lead class. Blank means an import may set it. A re-run does not replace a value. */
+  leadClass?: string;
+  /** Stored fit as text, including "0". Blank means an import may set it. */
+  jevAvlFitText?: string;
+  /** Stored project stage. Blank means an import may set it. */
+  jevProjectStage?: string;
+  /** Apps already picked. Empty means Other services may set the church list. */
+  offers?: string[];
   contacts: Array<{ name: string }>;
   signals?: Array<{
     tag: string;
@@ -139,6 +191,48 @@ export type ImportPlan = {
   signalAdditions: Array<{ churchId: string; signal: ChurchSignalWrite }>;
   /** Same tag, quote, and source already stored, with a later signal date. */
   signalUpdates: Array<{ churchId: string; signal: ChurchSignalWrite }>;
+  /** Churches whose doc should gain a status, lead class, fit, or offers. */
+  profiles: ChurchProfileWrite[];
+  /** Directory churches whose fields this plan will store. The desk already lists them. */
+  addedToCrm: number;
+  /** Unique matched churches by state and tier. */
+  byStateTier: Record<string, TierImportCounts>;
+};
+
+export type TierImportCounts = {
+  churches: number;
+  top: number;
+  second: number;
+  otherServices: number;
+  staffOnly: number;
+  existingTalks: number;
+};
+
+export type ChurchProfileWrite = {
+  churchId: string;
+  /** Set only when this import should change the pipeline status. Existing AVL work does not. */
+  crmStatus?: string;
+  leadClass?: LeadClass;
+  jevAvlFit?: number | null;
+  jevProjectStage?: JevProjectStage | "";
+  /** Set only for Other services when the church has no offers yet. */
+  crmOffers?: string[];
+  /** Set only when AV does not already have a provider, and the old relationship fields are still blank. */
+  serviceProviders?: Partial<Record<ServiceProviderId, ServiceProvider>>;
+  tier: AvlTier | "";
+  existingTalks: boolean;
+};
+
+export type JevFitRow = {
+  churchId: string;
+  jevAvlFit: number | null;
+  jevProjectStage: JevProjectStage | "";
+};
+
+export type ImportPlanOptions = {
+  /** Accepted so older commands still parse. The directory is the CRM, so this no longer gates a write. */
+  addToCrm?: boolean;
+  jevByChurchId?: ReadonlyMap<string, JevFitRow>;
 };
 
 /** Pipeline fields that already put a ChurchConnect church on the CRM desk. */
@@ -226,6 +320,10 @@ export function parseTechDirectorCsv(text: string): { ok: true; rows: TechDirect
       source_url: cell(record, "source_url"),
       signal_date: cell(record, "signal_date"),
       score: cell(record, "score"),
+      lead_class: cell(record, "lead_class"),
+      existing: cell(record, "existing"),
+      jev_avl_fit: cell(record, "jev_avl_fit"),
+      jev_project_stage: cell(record, "jev_project_stage"),
       line: i + 1
     });
   }
@@ -483,7 +581,12 @@ export function importFlagReason(row: TechDirectorCsvRow, flags: readonly Import
   return "";
 }
 
-export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: DirectoryChurch[], extraFlags: readonly ImportFlag[] = []): ImportPlan {
+export function planTechDirectorImport(
+  rows: TechDirectorCsvRow[],
+  churches: DirectoryChurch[],
+  extraFlags: readonly ImportFlag[] = [],
+  options: ImportPlanOptions = {}
+): ImportPlan {
   const namesByChurch = new Map<string, Set<string>>();
   const signalDates = new Map<string, Map<string, string>>();
   for (const church of churches) {
@@ -513,8 +616,15 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     byState: {},
     additions: [],
     signalAdditions: [],
-    signalUpdates: []
+    signalUpdates: [],
+    profiles: [],
+    addedToCrm: 0,
+    byStateTier: {}
   };
+  void options.addToCrm;
+  const churchById = new Map(churches.map((church) => [church.id, church]));
+  const tracked = new Map<string, TrackedChurch>();
+  const addedIds = new Set<string>();
   const flags = [...DEFAULT_IMPORT_FLAGS, ...extraFlags];
   for (const row of rows) {
     const flagged = importFlagReason(row, flags);
@@ -533,6 +643,24 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     if (score === null) {
       plan.unmatched.push({ row, reason: "The score is not a number." });
       stateBucket(plan, row.state).unmatched += 1;
+      continue;
+    }
+    const lead = parseLeadClass(row.lead_class);
+    if (!lead.ok) {
+      plan.flagged.push({ row, reason: lead.message });
+      stateBucket(plan, row.state).flagged += 1;
+      continue;
+    }
+    const fit = parseJevAvlFit(row.jev_avl_fit);
+    if (!fit.ok) {
+      plan.flagged.push({ row, reason: fit.message });
+      stateBucket(plan, row.state).flagged += 1;
+      continue;
+    }
+    const stage = parseJevProjectStage(row.jev_project_stage);
+    if (!stage.ok) {
+      plan.flagged.push({ row, reason: stage.message });
+      stateBucket(plan, row.state).flagged += 1;
       continue;
     }
     const match = matchDirectoryChurch(row, churches);
@@ -556,14 +684,25 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
     const bucket = stateBucket(plan, church.state);
     plan.matched += 1;
     bucket.matched += 1;
+    noteTrackedChurch(tracked, church, {
+      leadClass: lead.leadClass,
+      fit: fit.fit,
+      stage: stage.stage,
+      existing: existingColumnYes(row.existing) || church.id === NORTHRIDGE_MILLEDGEVILLE_ID || row.church_id === NORTHRIDGE_MILLEDGEVILLE_ID
+    });
     if (!church.inCrm) {
       plan.directoryOnly += 1;
       bucket.directoryOnly += 1;
-      plan.directoryOnlyRows.push({ row, reason: "In the ChurchConnect directory, not on the CRM." });
-      continue;
+      // The desk reads the directory. These churches already exist. Store the
+      // fields on the church. Do not set a status just so the row appears.
+      if (!addedIds.has(church.id)) {
+        addedIds.add(church.id);
+        plan.addedToCrm += 1;
+      }
+    } else {
+      plan.inCrm += 1;
+      bucket.inCrm += 1;
     }
-    plan.inCrm += 1;
-    bucket.inCrm += 1;
     if (types.types.includes("staff") && normPersonName(row.name)) {
       const names = namesByChurch.get(church.id) ?? new Set<string>();
       namesByChurch.set(church.id, names);
@@ -633,7 +772,109 @@ export function planTechDirectorImport(rows: TechDirectorCsvRow[], churches: Dir
       bucket.newSignals += 1;
     }
   }
+  applyJevFile(tracked, options.jevByChurchId);
+  plan.byStateTier = tierCounts(tracked);
+  plan.profiles = profilesFromTracked(tracked, churchById);
   return plan;
+}
+
+type TrackedChurch = {
+  state: string;
+  leadClass: LeadClass | "";
+  fit: number | null;
+  stage: JevProjectStage | "";
+  existing: boolean;
+};
+
+function noteTrackedChurch(
+  tracked: Map<string, TrackedChurch>,
+  church: DirectoryChurch,
+  row: { leadClass: LeadClass | ""; fit: number | null; stage: JevProjectStage | ""; existing: boolean }
+) {
+  const current = tracked.get(church.id) ?? {
+    state: stateCode(church.state) || "(none)",
+    leadClass: "" as LeadClass | "",
+    fit: null,
+    stage: "" as JevProjectStage | "",
+    existing: false
+  };
+  if (leadClassRank(row.leadClass) > leadClassRank(current.leadClass)) current.leadClass = row.leadClass;
+  if (typeof row.fit === "number" && (current.fit === null || row.fit > current.fit)) current.fit = row.fit;
+  if (row.stage && !current.stage) current.stage = row.stage;
+  if (row.existing) current.existing = true;
+  tracked.set(church.id, current);
+}
+
+function applyJevFile(tracked: Map<string, TrackedChurch>, jevByChurchId: ReadonlyMap<string, JevFitRow> | undefined) {
+  if (!jevByChurchId) return;
+  for (const [churchId, jev] of jevByChurchId) {
+    const current = tracked.get(churchId);
+    if (!current) continue;
+    if (typeof jev.jevAvlFit === "number") current.fit = jev.jevAvlFit;
+    if (jev.jevProjectStage) current.stage = jev.jevProjectStage;
+  }
+}
+
+function emptyTierCounts(): TierImportCounts {
+  return { churches: 0, top: 0, second: 0, otherServices: 0, staffOnly: 0, existingTalks: 0 };
+}
+
+function tierCounts(tracked: Map<string, TrackedChurch>): Record<string, TierImportCounts> {
+  const out: Record<string, TierImportCounts> = {};
+  for (const item of tracked.values()) {
+    const bucket = out[item.state] ?? emptyTierCounts();
+    bucket.churches += 1;
+    const tier = avlTierForLeadClass(item.leadClass);
+    if (tier === "top") bucket.top += 1;
+    else if (tier === "second") bucket.second += 1;
+    else if (tier === "other_services") bucket.otherServices += 1;
+    else if (tier === "staff_only") bucket.staffOnly += 1;
+    if (item.existing) bucket.existingTalks += 1;
+    out[item.state] = bucket;
+  }
+  return out;
+}
+
+function ownerFieldsToWrite(church: DirectoryChurch, existing: boolean): { serviceProviders?: ChurchProfileWrite["serviceProviders"] } {
+  if (!existing) return {};
+  if (church.avProviderSet || avlRelationshipIsSet(church.avlExistingRelationship) || cleanAvlProjectStatus(church.avlProjectStatus)) return {};
+  const note = "AVL is already engaged on the current project";
+  const av: ServiceProvider =
+    church.id === NORTHRIDGE_MILLEDGEVILLE_ID
+      ? { providerType: "vendor", vendorName: "Messenger AVL", otherName: "", note, learnedFrom: "", learnedAt: "" }
+      : { providerType: "us", vendorName: "", otherName: "", note, learnedFrom: "", learnedAt: "" };
+  return { serviceProviders: { av } };
+}
+
+function textAlreadySet(value: string | undefined): boolean {
+  return Boolean(value && value.trim());
+}
+
+function profilesFromTracked(tracked: Map<string, TrackedChurch>, churchById: Map<string, DirectoryChurch>): ChurchProfileWrite[] {
+  const profiles: ChurchProfileWrite[] = [];
+  for (const [churchId, item] of tracked) {
+    const church = churchById.get(churchId);
+    if (!church) continue;
+    const tier = avlTierForLeadClass(item.leadClass);
+    const owner = ownerFieldsToWrite(church, item.existing);
+    const offers = tier === "other_services" && !(church.offers ?? []).length ? [...OTHER_SERVICES_OFFERS] : undefined;
+    const leadClass = item.leadClass && !textAlreadySet(church.leadClass) ? item.leadClass : undefined;
+    const jevAvlFit = typeof item.fit === "number" && !textAlreadySet(church.jevAvlFitText) ? item.fit : undefined;
+    const jevProjectStage = item.stage && !textAlreadySet(church.jevProjectStage) ? item.stage : undefined;
+    const hasProfile = Boolean(leadClass || jevAvlFit !== undefined || jevProjectStage || offers || owner.serviceProviders);
+    if (!hasProfile) continue;
+    profiles.push({
+      churchId,
+      ...(leadClass ? { leadClass } : {}),
+      ...(jevAvlFit !== undefined ? { jevAvlFit } : {}),
+      ...(jevProjectStage ? { jevProjectStage } : {}),
+      ...(offers ? { crmOffers: offers } : {}),
+      ...owner,
+      tier,
+      existingTalks: item.existing
+    });
+  }
+  return profiles;
 }
 
 export function formatImportCounts(plan: ImportPlan): string {
@@ -648,12 +889,23 @@ export function formatImportCounts(plan: ImportPlan): string {
     `signals updated: ${plan.signalsUpdated}`,
     `flagged: ${plan.flagged.length}`,
     `unmatched: ${plan.unmatched.length}`,
+    `directory churches included: ${plan.addedToCrm}`,
     "by state:"
   ];
   for (const state of Object.keys(plan.byState).sort()) {
     const row = plan.byState[state];
     lines.push(
       `  ${state}: matched ${row.matched}, in CRM ${row.inCrm}, directory only ${row.directoryOnly}, new contacts ${row.newContacts}, duplicates skipped ${row.duplicatesSkipped}, new signals ${row.newSignals}, signal duplicates skipped ${row.signalDuplicatesSkipped}, signals updated ${row.signalsUpdated}, flagged ${row.flagged}, unmatched ${row.unmatched}`
+    );
+  }
+  lines.push("by state and tier:");
+  const tiers = plan.byStateTier ?? {};
+  const states = Object.keys(tiers).sort();
+  if (!states.length) lines.push("  none");
+  for (const state of states) {
+    const row = tiers[state];
+    lines.push(
+      `  ${state}: churches ${row.churches}, top ${row.top}, second ${row.second}, other services ${row.otherServices}, staff only ${row.staffOnly}, existing relationship ${row.existingTalks}`
     );
   }
   return lines.join("\n");
@@ -728,12 +980,85 @@ export function addChurchSignals(
 }
 
 /** The keys a server-side doc merge may replace. Other keys stay as they are at update time. */
-export function churchDocPatch(doc: Record<string, unknown>): { staff_contacts: unknown; crm_signals: unknown; updated_at: unknown } {
-  return {
+export function churchDocPatch(doc: Record<string, unknown>, extraKeys: readonly string[] = []): Record<string, unknown> {
+  const patch: Record<string, unknown> = {
     staff_contacts: doc.staff_contacts,
     crm_signals: doc.crm_signals,
     updated_at: doc.updated_at
   };
+  for (const key of extraKeys) {
+    if ((CHURCH_PROFILE_PATCH_KEYS as readonly string[]).includes(key) && Object.prototype.hasOwnProperty.call(doc, key)) patch[key] = doc[key];
+  }
+  return patch;
+}
+
+/** True when every profile key in the patch is already on the church doc. */
+export function profilePatchLanded(doc: Record<string, unknown> | null, patch: Record<string, unknown>): boolean {
+  if (!doc) return false;
+  for (const key of CHURCH_PROFILE_PATCH_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+    if (JSON.stringify(doc[key]) !== JSON.stringify(patch[key])) return false;
+  }
+  return true;
+}
+
+export type ChurchDocProfile = {
+  crmStatus?: string;
+  leadClass?: string;
+  jevAvlFit?: number | null;
+  jevProjectStage?: string;
+  crmOffers?: string[];
+  serviceProviders?: Partial<Record<ServiceProviderId, ServiceProvider>>;
+};
+
+/** Keys this profile will put on the patch. Blank fields are left alone. */
+export function profilePatchKeys(profile: ChurchDocProfile | null | undefined): string[] {
+  if (!profile) return [];
+  const keys: string[] = [];
+  if (profile.crmStatus) keys.push("crm_status");
+  if (profile.leadClass) keys.push("lead_class");
+  if (typeof profile.jevAvlFit === "number") keys.push("jev_avl_fit");
+  if (profile.jevProjectStage) keys.push("jev_project_stage");
+  if (profile.crmOffers && profile.crmOffers.length) keys.push("crm_offers");
+  if (profile.serviceProviders && Object.keys(profile.serviceProviders).length) keys.push("service_providers");
+  return keys;
+}
+
+/** Blank, null, and missing are unset. 0 and "0" are set. */
+function storedFieldBlank(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string" && value.trim() === "") return true;
+  return false;
+}
+
+function applyChurchProfile(doc: Record<string, unknown>, profile: ChurchDocProfile | null | undefined): { doc: Record<string, unknown>; changed: boolean; keys: string[] } {
+  if (!profile) return { doc, changed: false, keys: [] };
+  const next = { ...doc };
+  let changed = false;
+  const keys: string[] = [];
+  const set = (key: string, value: unknown) => {
+    if (JSON.stringify(doc[key]) === JSON.stringify(value)) return;
+    next[key] = value;
+    changed = true;
+    keys.push(key);
+  };
+  if (profile.crmStatus && isAllowedChurchStatus(profile.crmStatus)) set("crm_status", profile.crmStatus);
+  if (profile.leadClass && storedFieldBlank(doc.lead_class)) set("lead_class", profile.leadClass);
+  if (typeof profile.jevAvlFit === "number" && storedFieldBlank(doc.jev_avl_fit)) set("jev_avl_fit", profile.jevAvlFit);
+  if (profile.jevProjectStage && storedFieldBlank(doc.jev_project_stage)) set("jev_project_stage", profile.jevProjectStage);
+  if (profile.crmOffers && profile.crmOffers.length) set("crm_offers", profile.crmOffers);
+  if (profile.serviceProviders && Object.keys(profile.serviceProviders).length) {
+    const current = serviceProvidersFromDoc(doc.service_providers);
+    let wrote = false;
+    for (const service of SERVICE_PROVIDER_IDS) {
+      const incoming = profile.serviceProviders[service];
+      if (!incoming || storedServiceProvider(doc.service_providers, service)) continue;
+      current[service] = incoming;
+      wrote = true;
+    }
+    if (wrote) set("service_providers", serviceProvidersToDoc(current));
+  }
+  return { doc: next, changed, keys };
 }
 
 /** Copy of the church doc with only staff_contacts, crm_signals, and updated_at changed. */
@@ -742,19 +1067,29 @@ export function nextChurchDoc(
   contacts: StaffContactWrite[],
   signals: ChurchSignalWrite[],
   updates: ChurchSignalWrite[],
-  now: string
-): { doc: Record<string, unknown>; addedContacts: number; addedSignals: number; updatedSignals: number; changed: boolean } {
+  now: string,
+  profile: ChurchDocProfile | null = null
+): { doc: Record<string, unknown>; addedContacts: number; addedSignals: number; updatedSignals: number; changed: boolean; patchKeys: string[] } {
   const mergedContacts = addStaffContacts(doc.staff_contacts, contacts);
   const mergedSignals = addChurchSignals(doc.crm_signals, signals, updates);
   const addedContacts = mergedContacts.added;
   const addedSignals = mergedSignals.added;
   const updatedSignals = mergedSignals.updated;
-  if (!addedContacts && !addedSignals && !updatedSignals) {
-    return { doc, addedContacts: 0, addedSignals: 0, updatedSignals: 0, changed: false };
+  const profiled = applyChurchProfile(
+    {
+      ...doc,
+      staff_contacts: mergedContacts.staff,
+      crm_signals: mergedSignals.signals
+    },
+    profile
+  );
+  const patchKeys = profiled.keys;
+  if (!addedContacts && !addedSignals && !updatedSignals && !profiled.changed) {
+    return { doc, addedContacts: 0, addedSignals: 0, updatedSignals: 0, changed: false, patchKeys: [] };
   }
   return {
     doc: {
-      ...doc,
+      ...profiled.doc,
       staff_contacts: mergedContacts.staff,
       crm_signals: mergedSignals.signals,
       updated_at: now
@@ -762,7 +1097,8 @@ export function nextChurchDoc(
     addedContacts,
     addedSignals,
     updatedSignals,
-    changed: true
+    changed: true,
+    patchKeys
   };
 }
 
@@ -921,4 +1257,39 @@ export function directoryOnlyReportCsv(rows: UnmatchedTechDirector[]): string {
 function csvCell(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;
+}
+
+/**
+ * Optional JEV file, joined by church_id. jev_staff_real is ignored.
+ * A bad fit or stage on a row is skipped and counted. It does not stop the file.
+ */
+export function parseJevCsv(text: string): { ok: true; byChurchId: Map<string, JevFitRow>; skipped: number } | { ok: false; message: string } {
+  const table = parseCsv(text);
+  if (!table.length) return { ok: false, message: "The JEV CSV needs a header row with church_id." };
+  const header = table[0].map((cell) => cell.trim().toLowerCase());
+  if (!header.includes("church_id")) return { ok: false, message: "The JEV CSV needs a church_id column." };
+  const index = new Map(header.map((name, at) => [name, at]));
+  const cell = (record: string[], name: string) => {
+    const at = index.get(name);
+    return at === undefined ? "" : String(record[at] ?? "").trim();
+  };
+  const byChurchId = new Map<string, JevFitRow>();
+  let skipped = 0;
+  for (let i = 1; i < table.length; i += 1) {
+    const record = table[i];
+    if (record.every((value) => !String(value ?? "").trim())) continue;
+    const churchId = cell(record, "church_id");
+    if (!churchId) {
+      skipped += 1;
+      continue;
+    }
+    const fit = parseJevAvlFit(cell(record, "jev_avl_fit"));
+    const stage = parseJevProjectStage(cell(record, "jev_project_stage"));
+    if (!fit.ok || !stage.ok) {
+      skipped += 1;
+      continue;
+    }
+    byChurchId.set(churchId, { churchId, jevAvlFit: fit.fit, jevProjectStage: stage.stage });
+  }
+  return { ok: true, byChurchId, skipped };
 }

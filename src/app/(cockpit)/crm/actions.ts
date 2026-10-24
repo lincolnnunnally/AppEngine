@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { canAccessEngineOwner } from "@/lib/auth/access";
 import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
+import { SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type ServiceOpportunityId, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 import { loadAvProspects, loadCrmSnapshot, loadTechDirectorChurches, loadTopProspects } from "@/lib/engine/lpl-crm";
 import type { TechDirectorRow } from "@/lib/engine/tech-director-core";
 import { resolveTopProspectTier, type AvProspect, type AvTierIndex, type TopProspect, type TopProspectCounts } from "@/lib/engine/av-prospects-core";
@@ -24,6 +25,9 @@ import {
   attachLeadToChurch,
   undoBusinessDoNotContact,
   undoChurchDoNotContact,
+  setChurchPipelineStatus,
+  setChurchOwnerFields,
+  setChurchServiceOpportunities,
   type OrgInput,
   type OrgMatch,
   type OutcomeCode,
@@ -298,4 +302,59 @@ export async function loadTopProspectsAction(_prev: TopProspectState, formData: 
   if (!list) return { ok: false, message: "Churches couldn't be read just now. Try again in a minute.", at: Date.now(), tier };
   if (!list.ok) return { ok: false, message: list.message, at: Date.now(), tier };
   return { ok: true, message: "", at: Date.now(), tier, open: list.open, won: list.won, counts: list.counts };
+}
+
+export async function setChurchStatusAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const churchId = field(formData, "church_id");
+  const result = await setChurchPipelineStatus(await ownerEmail(), churchId, field(formData, "crm_status"));
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath(`/crm/church/${churchId}`);
+  }
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function setChurchOwnerFieldsAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const churchId = field(formData, "church_id");
+  const result = await setChurchOwnerFields(await ownerEmail(), churchId, {
+    buildingStage: field(formData, "building_stage"),
+    buildingStageRecordedAt: field(formData, "building_stage_recorded_at")
+  });
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath(`/crm/church/${churchId}`);
+  }
+  return { ok: result.ok, message: result.message, at: Date.now() };
+}
+
+export async function setChurchServiceOpportunitiesAction(_prev: CrmFormState, formData: FormData): Promise<CrmFormState> {
+  if (!(await canAccessEngineOwner())) return refused();
+  const churchId = field(formData, "church_id");
+  const input = {} as Record<ServiceOpportunityId, { status: string; note: string; updatedAt: string }>;
+  for (const service of SERVICE_OPPORTUNITY_IDS) {
+    input[service] = {
+      status: field(formData, `opp_${service}_status`),
+      note: field(formData, `opp_${service}_note`),
+      updatedAt: field(formData, `opp_${service}_updated`)
+    };
+  }
+  const providers = {} as Record<ServiceProviderId, { providerType: string; vendorName: string; otherName: string; note: string; learnedFrom: string; learnedAt: string }>;
+  for (const service of SERVICE_PROVIDER_IDS) {
+    providers[service] = {
+      providerType: field(formData, `prov_${service}_type`),
+      vendorName: field(formData, `prov_${service}_vendor`),
+      otherName: field(formData, `prov_${service}_other`),
+      note: field(formData, `prov_${service}_note`),
+      learnedFrom: field(formData, `prov_${service}_from`),
+      learnedAt: field(formData, `prov_${service}_at`)
+    };
+  }
+  const result = await setChurchServiceOpportunities(await ownerEmail(), churchId, input, providers);
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath(`/crm/church/${churchId}`);
+  }
+  return { ok: result.ok, message: result.message, at: Date.now() };
 }

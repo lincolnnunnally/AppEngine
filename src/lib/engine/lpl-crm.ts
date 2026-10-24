@@ -23,6 +23,9 @@ import {
   scrubContact,
   shortPersonName,
   cleanContactStatus,
+  cleanAvlProjectStatus,
+  churchHoldsAvlWork,
+  truthyFlag,
   churchLeadInQueue,
   type CrmApp,
   type CrmCard,
@@ -53,7 +56,7 @@ import {
 } from "@/lib/engine/av-prospects-core";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { resolveAdminDoor } from "@/lib/engine/app-ops-catalog";
-import { httpUrl, readChurchSignals, readRoleTags, technicalDirectorsFromStaff, type TechDirectorRow } from "@/lib/engine/tech-director-core";
+import { avlTierForLeadClass, httpUrl, readChurchSignals, readRoleTags, technicalDirectorsFromStaff, type TechDirectorRow } from "@/lib/engine/tech-director-core";
 
 type LplConfig = { url: string; serviceKey: string };
 
@@ -139,9 +142,11 @@ const CHURCH_FIELDS = [
   "crm_status", "crm_next_action", "crm_next_action_date", "invite_status", "last_invited_at", "invite_campaign",
   "website_offer_status", "is_customer", "signed_up", "converted_at", "merged_into", "duplicate_of", "deleted_at",
   "active", "updated_at", "pastor_name", "pastor_phone", "secretary_name", "secretary_title", "secretary_phone",
-  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim"
+  "contact_name", "contact_role", "do_not_contact", "do_not_contact_source", "do_not_contact_desk_claim",
+  "lead_class", "jev_avl_fit", "jev_project_stage", "last_contact_at",
+  "avl_existing_relationship", "avl_project_status"
 ];
-const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals`;
+const CHURCH_SELECT = `select=id,${CHURCH_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},staff_contacts:doc->staff_contacts,crm_offers:doc->crm_offers,crm_signals:doc->crm_signals,service_providers:doc->service_providers`;
 const CHURCH_TOUCHED = [
   "doc->>crm_status.not.is.null",
   "doc->>crm_next_action_date.not.is.null",
@@ -262,8 +267,28 @@ function churchNode(row: Row, contextOnly: boolean): CrmNode | null {
     deskDoNotContact: UUID_RE.test(id) && (truthy(row.do_not_contact_desk_claim) || (truthy(row.do_not_contact) && s(row.do_not_contact_source) === "crm_visit")),
     org: UUID_RE.test(id) ? churchOrg(row, id) : undefined,
     state: s(row.state),
-    signals: readChurchSignals(row.crm_signals)
+    signals: readChurchSignals(row.crm_signals),
+    crmStatus: s(row.crm_status),
+    leadClass: s(row.lead_class),
+    avlTier: avlTierForLeadClass(row.lead_class),
+    jevAvlFit: jevFit(row.jev_avl_fit),
+    jevProjectStage: s(row.jev_project_stage),
+    avlExistingRelationship: truthyFlag(row.avl_existing_relationship),
+    avlProjectStatus: cleanAvlProjectStatus(row.avl_project_status),
+    avHeld: churchHoldsAvlWork({
+      avl_existing_relationship: row.avl_existing_relationship,
+      avl_project_status: row.avl_project_status,
+      service_providers: row.service_providers
+    })
   };
+}
+
+function jevFit(value: unknown): number | null {
+  const raw = s(value);
+  if (!raw) return null;
+  const fit = Number(raw);
+  if (!Number.isFinite(fit) || fit < 0 || fit > 4) return null;
+  return fit;
 }
 
 function churchOrg(row: Row, id: string): CrmOrg {
@@ -681,6 +706,11 @@ export async function loadCrmSnapshot(now = new Date()): Promise<CrmSnapshot> {
     existing.recordPath = existing.recordPath || node.recordPath;
     if (!existing.town && node.town) existing.town = node.town;
     if (!existing.state && node.state) existing.state = node.state;
+    if (!existing.crmStatus && node.crmStatus) existing.crmStatus = node.crmStatus;
+    if (!existing.leadClass && node.leadClass) existing.leadClass = node.leadClass;
+    if (!existing.avlTier && node.avlTier) existing.avlTier = node.avlTier;
+    if (existing.jevAvlFit == null && node.jevAvlFit != null) existing.jevAvlFit = node.jevAvlFit;
+    if (!existing.jevProjectStage && node.jevProjectStage) existing.jevProjectStage = node.jevProjectStage;
     if (node.signals?.length) {
       const seen = new Set((existing.signals ?? []).map((signal) => `${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`));
       const extra = node.signals.filter((signal) => !seen.has(`${signal.tag}|${signal.evidenceQuote}|${signal.sourceUrl}`));
@@ -1262,10 +1292,10 @@ const AV_FIELDS = [
   "city", "state", "lat", "lng", "latitude", "longitude", "website", "facebook_url", "live_stream_url",
   "livestream_url", "youtube_url", "subsplash_url", "website_live", "website_http_status", "website_trouble",
   "avg_attendance", "pastor_name", "contact_name", "ministry_assist_name", "secretary_name", "do_not_contact",
-  "do_not_contact_desk_claim", "crm_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
+  "do_not_contact_desk_claim", "crm_status", "avl_existing_relationship", "avl_project_status", "merged_into", "deleted_at", "duplicate_of", "religion_guess", "prospect_kind",
   "source", "email", "phone", "active", "is_public", "invite_status", "last_invited_at", "zip_code"
 ];
-const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals`;
+const AV_SELECT = `select=id,${AV_FIELDS.map((field) => `${field}:doc->>${field}`).join(",")},possible_same_as:doc->possible_same_as,alias_names:doc->alias_names,av_signals:doc->av_signals,service_providers:doc->service_providers`;
 const AV_PAGE = 1000;
 const AV_MAX_PAGES = 15;
 const DNC_PAGE = 1000;
@@ -1299,7 +1329,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         "Churches for AV prospects"
       );
       if (!ring) return { ok: false, prospects: [], read, message: "Churches couldn't be read just now. Try again in a minute." };
-      tierRows = ring;
+      tierRows = ring.filter((row) => !churchHoldsAvlWork(row));
       let pool = [...kept, ...tierRows];
       if (!(await readProspectRests(config, pool, sources, fetchedMate))) {
         return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
@@ -1312,7 +1342,7 @@ export async function loadAvProspects(): Promise<AvProspectList> {
         if (!(await readProspectRests(config, mates, sources, fetchedMate))) {
           return { ok: false, prospects: [], read, message: "Recent visits and drop-offs couldn't be read, so no prospects are listed right now." };
         }
-        pool = [...pool, ...mates];
+        pool = [...pool, ...mates.filter((row) => !churchHoldsAvlWork(row))];
         prospects = rankAvProspects(pool, suppressed, { blockedIds: nameLookupBlocked });
         if (mates.length === 0) break;
       }
@@ -1331,7 +1361,7 @@ const TOP_FIELDS = [
   "name", "church_name", "common_name", "crawl_title", "website_title", "page_title", "site_name",
   "city", "state", "lat", "lng", "latitude", "longitude", "zip_code", "website", "facebook_url",
   "live_stream_url", "livestream_url", "youtube_url", "subsplash_url", "do_not_contact", "do_not_contact_desk_claim",
-  "crm_status", "crm_status_changed_at", "crm_next_action", "crm_next_action_date", "merged_into", "deleted_at",
+  "crm_status", "crm_status_changed_at", "avl_existing_relationship", "avl_project_status", "crm_next_action", "crm_next_action_date", "merged_into", "deleted_at",
   "duplicate_of", "religion_guess", "prospect_kind", "source", "email", "phone", "active", "is_public", "hidden",
   "invite_status", "last_invited_at", "is_customer", "signed_up", "converted_at", "updated_at", "subscription_tier",
   "claimed", "verified", "is_verified", "claim_status", "churchconnect_fit",
