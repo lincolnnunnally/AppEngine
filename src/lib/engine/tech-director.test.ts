@@ -17,10 +17,16 @@ import {
   matchDirectoryChurch,
   mergeChurchSignalContacts,
   nextChurchDoc,
+  decideProductionWrite,
+  excludeFlaggedTechDirectorRows,
+  mergeFlaggedTechDirectorRows,
+  parseFlaggedTechDirectorReport,
   profilePatchKeys,
   parseImportSkipFile,
   parseTechDirectorCsv,
   planTechDirectorImport,
+  PRODUCTION_PROJECT_REF,
+  productionWriteBanner,
   stampStaffContact,
   techDirectorContactId,
   type DirectoryChurch,
@@ -1094,5 +1100,188 @@ describe("southeast directory import", () => {
       existingAvlTalks: true
     } as CrmCard;
     assert.equal(buildFollowUps([card], new Date("2026-10-24T12:00:00Z")).length, 0);
+  });
+});
+
+describe("production import guard", () => {
+  const prodUrl = `https://${PRODUCTION_PROJECT_REF}.supabase.co`;
+  const secret = "super-secret-service-role-key";
+
+  it("covers all four combinations of --allow-production and IMPORT_ALLOW_PROD", () => {
+    const cases = [
+      { allowProduction: false, importAllowProd: "", allow: false },
+      { allowProduction: true, importAllowProd: "", allow: false },
+      { allowProduction: false, importAllowProd: PRODUCTION_PROJECT_REF, allow: false },
+      { allowProduction: true, importAllowProd: PRODUCTION_PROJECT_REF, allow: true }
+    ];
+    assert.equal(cases.length, 4);
+    for (const item of cases) {
+      const decision = decideProductionWrite({
+        url: `${prodUrl}/rest/v1/?apikey=${secret}`,
+        allowProduction: item.allowProduction,
+        importAllowProd: item.importAllowProd
+      });
+      assert.equal(decision.allow, item.allow, JSON.stringify(item));
+      assert.equal(JSON.stringify(decision).includes(secret), false);
+      if (decision.allow) {
+        assert.equal(decision.production, true);
+        assert.equal(decision.projectRef, PRODUCTION_PROJECT_REF);
+        const banner = productionWriteBanner(decision.projectRef, "matched: 3\nnew contacts: 2\nnew signals: 1");
+        assert.match(banner, new RegExp(`target project ref: ${PRODUCTION_PROJECT_REF}`));
+        assert.match(banner, /matched: 3/);
+        assert.match(banner, /new contacts: 2/);
+        assert.match(banner, /new signals: 1/);
+        assert.equal(banner.includes(secret), false);
+        assert.equal(banner.includes("apikey"), false);
+      } else {
+        assert.match(decision.message, /Refusing to write: this is the production database/);
+        assert.match(decision.message, /Nothing was written/);
+        assert.equal(decision.message.includes(secret), false);
+      }
+    }
+  });
+
+  it("refuses production when IMPORT_ALLOW_PROD is not the project ref", () => {
+    const wrong = decideProductionWrite({
+      url: prodUrl,
+      vercelEnv: "production",
+      allowProduction: true,
+      importAllowProd: "not-the-project-ref"
+    });
+    assert.equal(wrong.allow, false);
+    const padded = decideProductionWrite({
+      url: prodUrl,
+      allowProduction: true,
+      importAllowProd: `  ${PRODUCTION_PROJECT_REF}  `
+    });
+    assert.equal(padded.allow, true);
+    if (padded.allow) assert.equal(padded.projectRef, PRODUCTION_PROJECT_REF);
+  });
+
+  it("allows localhost and a known non-production supabase host without either opt-in", () => {
+    const local = decideProductionWrite({ url: "http://localhost:54321", allowProduction: false, importAllowProd: "" });
+    assert.equal(local.allow, true);
+    if (local.allow) assert.equal(local.production, false);
+    const loopback = decideProductionWrite({ url: "http://127.0.0.1:54321", allowProduction: false, importAllowProd: "" });
+    assert.equal(loopback.allow, true);
+    const decision = decideProductionWrite({
+      url: "https://abcdefghijklmnopqrst.supabase.co",
+      vercelEnv: "preview",
+      allowProduction: false,
+      importAllowProd: ""
+    });
+    assert.equal(decision.allow, true);
+    if (!decision.allow) return;
+    assert.equal(decision.production, false);
+    assert.equal(decision.projectRef, "abcdefghijklmnopqrst");
+  });
+
+  it("stops when crm_patch_church_doc is missing and does not patch the whole document", () => {
+    const source = readFileSync(new URL("../../../scripts/import-tech-directors.ts", import.meta.url), "utf8");
+    const start = source.indexOf("async function writeDoc");
+    const end = source.indexOf("async function writeChurchSignalLead");
+    const body = source.slice(start, end);
+    assert.ok(start >= 0 && end > start);
+    assert.equal(body.includes("PATCH"), false);
+    assert.equal(body.includes("fullDoc"), false);
+    assert.match(body, /crm_patch_church_doc is not on the server/);
+  });
+
+  it("refuses a custom domain even when both production opt-ins are set", () => {
+    const custom = decideProductionWrite({
+      url: `https://db.example.com/rest/v1/?apikey=${secret}`,
+      vercelEnv: "production",
+      allowProduction: true,
+      importAllowProd: PRODUCTION_PROJECT_REF
+    });
+    assert.equal(custom.allow, false);
+    if (!custom.allow) assert.match(custom.message, /not localhost or a known Supabase project/);
+    assert.equal(JSON.stringify(custom).includes(secret), false);
+    const buried = decideProductionWrite({
+      url: `https://db.example.com/?project=${PRODUCTION_PROJECT_REF}`,
+      allowProduction: true,
+      importAllowProd: PRODUCTION_PROJECT_REF
+    });
+    assert.equal(buried.allow, false);
+    const pooler = decideProductionWrite({
+      url: "https://aws-0-us-east-1.pooler.supabase.com",
+      allowProduction: true,
+      importAllowProd: PRODUCTION_PROJECT_REF
+    });
+    assert.equal(pooler.allow, false);
+  });
+
+  it("refuses VERCEL_ENV=production unless the host is the production project and both opt-ins are set", () => {
+    const otherProject = decideProductionWrite({
+      url: "https://abcdefghijklmnopqrst.supabase.co",
+      vercelEnv: "production",
+      allowProduction: true,
+      importAllowProd: PRODUCTION_PROJECT_REF
+    });
+    assert.equal(otherProject.allow, false);
+    if (!otherProject.allow) assert.equal(otherProject.projectRef, "abcdefghijklmnopqrst");
+    const local = decideProductionWrite({
+      url: "http://localhost:54321",
+      vercelEnv: "production",
+      allowProduction: true,
+      importAllowProd: PRODUCTION_PROJECT_REF
+    });
+    assert.equal(local.allow, false);
+    const allowed = decideProductionWrite({
+      url: prodUrl,
+      vercelEnv: "production",
+      allowProduction: true,
+      importAllowProd: PRODUCTION_PROJECT_REF
+    });
+    assert.equal(allowed.allow, true);
+    if (allowed.allow) assert.equal(allowed.projectRef, PRODUCTION_PROJECT_REF);
+  });
+
+  it("skips rows listed in the flagged file and keeps that list on a later run", () => {
+    const keep = row({
+      church: "Grace Chapel",
+      city: "Vidalia",
+      state: "GA",
+      name: "Ada",
+      evidence_quote: "Leads media.",
+      source_url: "https://grace.example/staff",
+      score: "5"
+    });
+    const drop = row({
+      church: "First Baptist Church",
+      city: "Macon",
+      state: "GA",
+      name: "Sam",
+      evidence_quote: "Runs sound.",
+      source_url: "https://fbc.example/staff",
+      score: "4"
+    });
+    const report = [
+      "church,church_id,city,state,website,staff_page_url,name,title,contact,signal_types,evidence_quote,source_url,signal_date,score,reason",
+      [drop.church, drop.church_id, drop.city, drop.state, drop.website, drop.staff_page_url, drop.name, drop.title, drop.contact, drop.signal_types, drop.evidence_quote, drop.source_url, drop.signal_date, drop.score, "Reviewed out"].join(",")
+    ].join("\n");
+    const parsed = parseFlaggedTechDirectorReport(report);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    const excluded = excludeFlaggedTechDirectorRows([keep, drop], parsed.entries.map((entry) => entry.row));
+    assert.deepEqual(excluded.rows.map((item) => item.name), ["Ada"]);
+    assert.deepEqual(excluded.skipped.map((item) => item.name), ["Sam"]);
+    const merged = mergeFlaggedTechDirectorRows(parsed.entries, [{ row: keep, reason: "New flag" }]);
+    assert.deepEqual(merged.map((item) => item.reason), ["Reviewed out", "New flag"]);
+    const again = excludeFlaggedTechDirectorRows([keep, drop], merged.map((entry) => entry.row));
+    assert.equal(again.rows.length, 0);
+    const samePerson = row({
+      church: drop.church,
+      city: "Savannah",
+      state: "SC",
+      name: drop.name,
+      evidence_quote: drop.evidence_quote,
+      source_url: drop.source_url,
+      score: "99",
+      title: "Other title"
+    });
+    const partial = excludeFlaggedTechDirectorRows([keep, samePerson], parsed.entries.map((entry) => entry.row));
+    assert.deepEqual(partial.skipped.map((item) => item.score), ["99"]);
+    assert.deepEqual(partial.rows.map((item) => item.name), ["Ada"]);
   });
 });

@@ -21,7 +21,14 @@
 // Northridge is the vendor Messenger AVL. Other existing talks are us.
 // Contact status is not changed for that. It never creates a
 // cc_churches row. Churches that share a website across states stay separate
-// and match by church_id. Writes only with --apply, and refuses production.
+// and match by church_id. Writes only with --apply. A host is refused unless
+// it is localhost, a known non-production <ref>.supabase.co project, or the
+// production project uqhqulrqcygsmmzdzemx with both --allow-production and
+// IMPORT_ALLOW_PROD set to that ref. The script then prints the project ref
+// and the row counts and waits for --yes, or for yes typed at the prompt.
+// Rows in the flagged file (the sibling <file>-flagged.csv, such as
+// tech_directors-flagged.csv, or --flagged-file) are skipped unless
+// --include-flagged is passed. A missing flagged file is logged.
 //
 // The write re-reads the church doc and merges through crm_patch_church_doc
 // when doc.updated_at still matches the value just read (the id is text).
@@ -58,12 +65,16 @@
 // Apply (not against production):
 //   node --experimental-strip-types scripts/import-tech-directors.ts --apply path/to/file.csv
 //
+// Apply on production, only with both opt-ins and --yes. The banner prints the project ref, never the key:
+//   IMPORT_ALLOW_PROD=uqhqulrqcygsmmzdzemx node --experimental-strip-types scripts/import-tech-directors.ts --apply --allow-production --yes path/to/tech_directors.csv
+//
 // Uses SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY),
 // including values in .env.local. Reads and writes cc_churches.doc.staff_contacts
 // and cc_churches.doc.crm_signals.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 import {
   CHURCH_READ_MAX_PAGES,
   CHURCH_READ_PAGE,
@@ -73,27 +84,33 @@ import {
   churchSignalActivity,
   churchSignalLeadBody,
   crmPatchRpcMissing,
+  decideProductionWrite,
   directoryOnlyReportCsv,
+  excludeFlaggedTechDirectorRows,
   formatImportCounts,
   mergeChurchSignalContacts,
+  mergeFlaggedTechDirectorRows,
   nextChurchDoc,
+  parseFlaggedTechDirectorReport,
   parseImportSkipFile,
   parseJevCsv,
   parseTechDirectorCsv,
   planTechDirectorImport,
+  productionWriteBanner,
   profilePatchLanded,
   type ChurchDocProfile,
   type ChurchProfileWrite,
+  type ProductionWriteDecision,
   type ImportFlag,
   TECH_DIRECTOR_CSV_COLUMNS,
   unmatchedReportCsv,
   type ChurchSignalWrite,
   type DirectoryChurch,
-  type StaffContactWrite
+  type StaffContactWrite,
+  type UnmatchedTechDirector
 } from "../src/lib/engine/tech-director.ts";
 import { readChurchSignals } from "../src/lib/engine/tech-director-core.ts";
 
-const PROD_REFS = ["uqhqulrqcygsmmzdzemx"];
 const PAGE = CHURCH_READ_PAGE;
 const MAX_PAGES = CHURCH_READ_MAX_PAGES;
 
@@ -104,16 +121,21 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const apply = args.includes("--apply");
 const addToCrm = args.includes("--add-to-crm");
+const allowProduction = args.includes("--allow-production");
+const includeFlagged = args.includes("--include-flagged");
+const confirmYes = args.includes("--yes");
 const reportFlag = args.indexOf("--report");
 const reportPath = reportFlag >= 0 ? args[reportFlag + 1] : "";
 const skipFlag = args.indexOf("--skip-file");
 const skipPath = skipFlag >= 0 ? args[skipFlag + 1] : "";
 const jevFlag = args.indexOf("--jev");
 const jevPath = jevFlag >= 0 ? args[jevFlag + 1] : "";
-const valueFlags = new Set(["--report", "--skip-file", "--jev"]);
+const flaggedFlag = args.indexOf("--flagged-file");
+const flaggedFileArg = flaggedFlag >= 0 ? args[flaggedFlag + 1] : "";
+const valueFlags = new Set(["--report", "--skip-file", "--jev", "--flagged-file"]);
 const file = args.filter((arg, index) => !arg.startsWith("--") && !valueFlags.has(args[index - 1] ?? ""))[0];
 
-if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath) || (skipFlag >= 0 && !skipPath) || (jevFlag >= 0 && !jevPath)) {
+if (dryRun === apply || !file || (reportFlag >= 0 && !reportPath) || (skipFlag >= 0 && !skipPath) || (jevFlag >= 0 && !jevPath) || (flaggedFlag >= 0 && !flaggedFileArg)) {
   console.error(`Usage:
   node --experimental-strip-types scripts/import-tech-directors.ts --dry-run <file.csv>
   node --experimental-strip-types scripts/import-tech-directors.ts --apply <file.csv>
@@ -131,7 +153,10 @@ The Archdiocese of Atlanta office and a Cristo Para Todas Las Naciones row on sh
 A church id whose church has a different name or state is flagged and not written.
 A city and a bare website match only when the state is present on the row and the church, and they agree.
 Unmatched rows are saved as church-lead rows (not shops) so the desk can search them. The same church, city, and state merges contacts on a later import and logs an activity.
-Optional: --report <unmatched.csv>   --skip-file <church ids or names>   --add-to-crm   --jev <file.csv>`);
+--apply writes only to localhost, a known non-production <ref>.supabase.co host, or the production project when both --allow-production and IMPORT_ALLOW_PROD are that project ref. Any other host is refused.
+A production write prints the project ref and the row counts, then requires --yes or yes typed at the prompt.
+Rows in <file>-flagged.csv (tech_directors.csv uses tech_directors-flagged.csv) are skipped unless --include-flagged is passed. A missing file is logged.
+Optional: --report <unmatched.csv>   --skip-file <church ids or names>   --add-to-crm   --jev <file.csv>   --flagged-file <flagged.csv>   --allow-production   --include-flagged   --yes`);
   process.exit(1);
 }
 
@@ -145,8 +170,16 @@ if (!churchesJson && !config) {
   console.error("No shared database is configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   process.exit(1);
 }
-if (apply && config && isProduction(config.url)) {
-  console.error("Refusing to write: this is the production database. Nothing was written.");
+const productionGuard: ProductionWriteDecision = config
+  ? decideProductionWrite({
+      url: config.url,
+      vercelEnv: process.env.VERCEL_ENV,
+      allowProduction,
+      importAllowProd: process.env.IMPORT_ALLOW_PROD
+    })
+  : { allow: true, production: false, projectRef: "" };
+if (apply && !productionGuard.allow) {
+  console.error(productionGuard.message);
   process.exit(1);
 }
 if (addToCrm) console.log("The directory is the CRM. --add-to-crm is not required.");
@@ -163,6 +196,34 @@ const parsed = parseTechDirectorCsv(csvText);
 if (!parsed.ok) {
   console.error(parsed.message);
   process.exit(1);
+}
+
+const flaggedListPath = resolve(flaggedFileArg || csvPath.replace(/\.csv$/i, "") + "-flagged.csv");
+let importRows = parsed.rows;
+let reviewedFlagged: UnmatchedTechDirector[] = [];
+if (existsSync(flaggedListPath)) {
+  let flaggedText = "";
+  try {
+    flaggedText = readFileSync(flaggedListPath, "utf8");
+  } catch {
+    console.error(`Could not read ${flaggedListPath}.`);
+    process.exit(1);
+  }
+  const flagged = parseFlaggedTechDirectorReport(flaggedText);
+  if (!flagged.ok) {
+    console.error(flagged.message);
+    process.exit(1);
+  }
+  reviewedFlagged = flagged.entries;
+  if (includeFlagged) {
+    console.log(`include flagged: rows in ${flaggedListPath} are included`);
+  } else {
+    const excluded = excludeFlaggedTechDirectorRows(importRows, reviewedFlagged.map((entry) => entry.row));
+    importRows = excluded.rows;
+    console.log(`skipped from flagged file: ${excluded.skipped.length} (${flaggedListPath})`);
+  }
+} else {
+  console.log(`flagged file: none (${flaggedListPath})`);
 }
 
 const churches = churchesJson ? readMockChurches(churchesJson) : await readChurches(config as { url: string; key: string });
@@ -199,7 +260,7 @@ if (jevPath) {
   jevByChurchId = jev.byChurchId;
   if (jev.skipped) console.log(`jev rows skipped: ${jev.skipped}`);
 }
-const plan = planTechDirectorImport(parsed.rows, churches, extraFlags, { addToCrm, jevByChurchId });
+const plan = planTechDirectorImport(importRows, churches, extraFlags, { addToCrm, jevByChurchId });
 console.log(formatImportCounts(plan));
 const unmatchedPath = plan.unmatched.length ? resolve(reportPath || csvPath.replace(/\.csv$/i, "") + "-unmatched.csv") : "";
 if (unmatchedPath) {
@@ -215,10 +276,10 @@ if (directoryPath) {
 } else {
   console.log("directory only report: none");
 }
-const flaggedPath = plan.flagged.length ? resolve(csvPath.replace(/\.csv$/i, "") + "-flagged.csv") : "";
-if (flaggedPath) {
-  writeFileSync(flaggedPath, unmatchedReportCsv(plan.flagged));
-  console.log(`flagged report: ${flaggedPath}`);
+const flaggedOut = mergeFlaggedTechDirectorRows(reviewedFlagged, plan.flagged);
+if (flaggedOut.length) {
+  writeFileSync(flaggedListPath, unmatchedReportCsv(flaggedOut));
+  console.log(`flagged report: ${flaggedListPath}`);
 } else {
   console.log("flagged report: none");
 }
@@ -230,6 +291,13 @@ if (!apply) {
 if (!config) {
   console.error("No shared database is configured. Nothing was written.");
   process.exit(1);
+}
+
+if (productionGuard.allow && productionGuard.production) {
+  console.log(productionWriteBanner(productionGuard.projectRef, formatImportCounts(plan)));
+  const confirmed = await confirmProductionWrite(confirmYes);
+  if (!confirmed) process.exit(1);
+  console.log("Continuing with the production write.");
 }
 
 const contactsByChurch = new Map<string, StaffContactWrite[]>();
@@ -307,9 +375,21 @@ function databaseConfig(): { url: string; key: string } | null {
   return { url, key };
 }
 
-function isProduction(url: string): boolean {
-  if (process.env.VERCEL_ENV === "production") return true;
-  return PROD_REFS.some((ref) => url.includes(ref));
+async function confirmProductionWrite(yes: boolean): Promise<boolean> {
+  if (yes) return true;
+  if (!process.stdin.isTTY) {
+    console.error("Refusing to write: production needs --yes when there is no prompt. Nothing was written.");
+    return false;
+  }
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await prompt.question("Type yes to write to production: ")).trim().toLowerCase();
+    if (answer === "yes") return true;
+    console.error("Refusing to write: production was not confirmed. Nothing was written.");
+    return false;
+  } finally {
+    prompt.close();
+  }
 }
 
 function readMockChurches(filePath: string): DirectoryChurch[] {
