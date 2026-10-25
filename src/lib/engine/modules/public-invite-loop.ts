@@ -10,8 +10,8 @@
 // (invited_by_user_id). Generalized from "Kindred" to any app: no provider names
 // shown to users, runs on the app owner's own DB with graceful fallback, gated by
 // FEATURE_INVITES. Members see & send their invites; the public sees the landing
-// page; admins read share analytics. Keyed on the signed-in user's email (the
-// stable identifier CurrentUser exposes).
+// page; admins read share analytics. Keyed on the signed-in user's id
+// (CurrentUser.id — every table here references users(id), a uuid).
 
 import type { AppModule, GeneratedModuleFile } from "./types";
 
@@ -243,8 +243,10 @@ function invitesLibFile(): GeneratedModuleFile {
     "}",
     "",
     "// Public landing data for /invited-by/{code} — ported from public_invite_landing.",
-    "// Looks up the inviter by code (must be an onboarded, non-suspended user), then",
-    "// returns first name, archetype, a trimmed soul-read line, photo, and handle.",
+    "// Looks up the inviter by code. Every member who has a code is a valid inviter;",
+    "// an optional invite_inviter_profiles row adds archetype / soul line / photo /",
+    "// handle and can switch the link off (suspended, or onboarded = false). Without",
+    "// one, the first name comes from the account itself (never the email address).",
     "export async function getPublicInvite(rawCode: string): Promise<PublicInvite | null> {",
     '  const code = (rawCode || "").trim().toLowerCase();',
     "  if (!code || code.length > 32) return null;",
@@ -252,9 +254,12 @@ function invitesLibFile(): GeneratedModuleFile {
     "  try {",
     "    const sql = getDatabase();",
     "    const rows = (await sql`",
-    "      select p.first_name, p.archetype, p.soul_line, p.photo_url, p.handle, p.onboarded, p.suspended",
+    "      select coalesce(nullif(p.first_name, ''), nullif(u.name, ''), split_part(u.email, '@', 1)) as first_name,",
+    "        p.archetype, p.soul_line, p.photo_url, p.handle,",
+    "        coalesce(p.onboarded, true) as onboarded, coalesce(p.suspended, false) as suspended",
     "      from invite_codes c",
-    "      join invite_inviter_profiles p on p.user_id = c.user_id",
+    "      join users u on u.id = c.user_id",
+    "      left join invite_inviter_profiles p on p.user_id = c.user_id",
     "      where c.code = ${code}",
     "      limit 1",
     "    `) as SqlRow[];",
@@ -280,22 +285,33 @@ function invitesLibFile(): GeneratedModuleFile {
     "",
     "// Signup attribution — ported from the RegisterIn `invite` auto-link: when a new",
     "// user signs up via an invite code, credit the inviter. Idempotent per invitee.",
-    "export async function attributeSignup(newUserId: string, inviteCode: string): Promise<boolean> {",
+    "// The landing page sends the friend through /sign-in?next=/invited-by/{code}/join,",
+    "// and that page calls this once they are signed in. Only accounts created in the",
+    "// last day count as joining through the link (an existing member clicking a",
+    "// friend's link is not a new join).",
+    'export type AttributionResult = "credited" | "already" | "self" | "existing-member" | "invalid";',
+    "export async function attributeSignup(newUserId: string, inviteCode: string): Promise<AttributionResult> {",
     '  const code = (inviteCode || "").trim().toLowerCase();',
-    "  if (!code || !hasDatabase()) return false;",
+    '  if (!code || !newUserId || !hasDatabase()) return "invalid";',
     "  try {",
     "    const sql = getDatabase();",
     "    const owner = (await sql`select user_id from invite_codes where code = ${code} limit 1`) as SqlRow[];",
     "    const inviterId = owner[0]?.user_id ? String(owner[0].user_id) : null;",
-    "    if (!inviterId || inviterId === newUserId) return false;",
-    "    await sql`",
+    '    if (!inviterId) return "invalid";',
+    '    if (inviterId === newUserId) return "self";',
+    "    const prior = (await sql`select 1 from invite_attributions where user_id = ${newUserId} limit 1`) as SqlRow[];",
+    '    if (prior[0]) return "already";',
+    "    const fresh = (await sql`select 1 from users where id = ${newUserId} and created_at > now() - interval '1 day' limit 1`) as SqlRow[];",
+    '    if (!fresh[0]) return "existing-member";',
+    "    const inserted = (await sql`",
     "      insert into invite_attributions (user_id, invited_by_user_id, invite_code)",
     "      values (${newUserId}, ${inviterId}, ${code})",
     "      on conflict (user_id) do nothing",
-    "    `;",
-    "    return true;",
+    "      returning user_id",
+    "    `) as SqlRow[];",
+    '    return inserted[0] ? "credited" : "already";',
     "  } catch {",
-    "    return false;",
+    '    return "invalid";',
     "  }",
     "}",
     "",
@@ -319,12 +335,12 @@ function invitesApiFile(): GeneratedModuleFile {
     "",
     "// GET /api/invites — the signed-in member's own invite kit (code, share URL,",
     "// the 7 rendered messages, and how many friends have joined). Ported from",
-    "// GET /api/invites/me. Keyed on the user's email.",
+    "// GET /api/invites/me. Keyed on the user's id.",
     "export async function GET() {",
     '  if (!invitesEnabled()) return NextResponse.json({ ok: false, message: "Invitations are turned off for this app." }, { status: 404 });',
     "  const user = await getCurrentUser();",
     '  if (!user || !canAccessCustomerArea(user.role)) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
-    "  const invite = await getInviteMe(user.email);",
+    "  const invite = await getInviteMe(user.id);",
     "  return NextResponse.json({ ok: true, invite });",
     "}",
     "",
@@ -338,7 +354,7 @@ function invitesApiFile(): GeneratedModuleFile {
     '  const variantKey = typeof body.variantKey === "string" ? body.variantKey : "";',
     '  const method = typeof body.method === "string" ? body.method : "unknown";',
     '  if (!isValidVariantKey(variantKey)) return NextResponse.json({ ok: false, message: "Unknown message variant." }, { status: 400 });',
-    "  await trackShare(user.email, variantKey, method);",
+    "  await trackShare(user.id, variantKey, method);",
     "  return NextResponse.json({ ok: true });",
     "}"
   ]);
@@ -419,7 +435,7 @@ function invitePageFile(): GeneratedModuleFile {
     "  }",
     '  await requireCustomerAccess("/invite");',
     "  const user = await getCurrentUser();",
-    "  const invite = await getInviteMe(user?.email || \"\");",
+    "  const invite = await getInviteMe(user?.id || \"\");",
     "",
     "  return (",
     '    <main className="shell">',
@@ -635,7 +651,8 @@ function publicLandingPageFile(): GeneratedModuleFile {
     "    );",
     "  }",
     "",
-    "  const signupHref = `/sign-in?mode=register&invite=${encodeURIComponent(invite.code)}`;",
+    "  // Sign up (or in), then land on the join page, which credits the inviter.",
+    "  const signupHref = `/sign-in?next=${encodeURIComponent(`/invited-by/${invite.code}/join`)}`;",
     "",
     "  return (",
     '    <main className="shell">',
@@ -692,6 +709,60 @@ function publicLandingPageFile(): GeneratedModuleFile {
   ]);
 }
 
+// ---- src/app/invited-by/[code]/join/page.tsx (post-signup: credit the inviter) ----
+
+function joinPageFile(): GeneratedModuleFile {
+  return file("src/app/invited-by/[code]/join/page.tsx", [
+    'import Link from "next/link";',
+    'import { requireCustomerAccess } from "@/lib/auth/session";',
+    'import { attributeSignup, getPublicInvite, invitesEnabled } from "@/lib/db/invites";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "// Where the landing page's sign-up sends the friend (/sign-in?next=here). Once",
+    "// they are signed in, credit the inviter — the port of the RegisterIn invite",
+    "// auto-link — and tell them honestly what happened.",
+    "export default async function InviteJoinPage({ params }: { params: Promise<{ code: string }> }) {",
+    "  const { code } = await params;",
+    "  if (!invitesEnabled()) {",
+    '    return (<main className="shell"><h1>Invitation</h1><p>Invitations are turned off for this app.</p></main>);',
+    "  }",
+    "  const user = await requireCustomerAccess(`/invited-by/${encodeURIComponent(code)}/join`);",
+    "  const invite = await getPublicInvite(code);",
+    '  const result = invite ? await attributeSignup(user.id, invite.code) : "invalid";',
+    '  const name = invite?.firstName || "your friend";',
+    "",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Welcome</p>',
+    '      {result === "credited" || result === "already" ? (',
+    "        <>",
+    "          <h1>You&apos;re in.</h1>",
+    "          <p>{name} invited you, and we&apos;ve let them know you joined.</p>",
+    "        </>",
+    '      ) : result === "self" ? (',
+    "        <>",
+    "          <h1>This is your own invite link.</h1>",
+    "          <p>Send it to a friend — when they sign up through it, you&apos;ll see it on your invite page.</p>",
+    "        </>",
+    '      ) : result === "existing-member" ? (',
+    "        <>",
+    "          <h1>You&apos;re already a member.</h1>",
+    "          <p>Invites count new sign-ups, so this one wasn&apos;t credited to {name}.</p>",
+    "        </>",
+    "      ) : (",
+    "        <>",
+    "          <h1>This invite link isn&apos;t active.</h1>",
+    "          <p>You&apos;re signed in, but the invite couldn&apos;t be credited. Ask your friend for a fresh link.</p>",
+    "        </>",
+    "      )}",
+    '      <p><Link className="button primary" href="/app">Get started</Link></p>',
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
 export const publicInviteModule: AppModule = {
   slug: "public-invite-loop",
   name: "Trusted-Peer Invitations",
@@ -704,7 +775,8 @@ export const publicInviteModule: AppModule = {
     invitesSharesApiFile(),
     invitePageFile(),
     inviteComposerFile(),
-    publicLandingPageFile()
+    publicLandingPageFile(),
+    joinPageFile()
   ],
   schemaSql: () =>
     [

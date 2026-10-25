@@ -686,11 +686,11 @@ function templatesPageFile(): GeneratedModuleFile {
     "      ) : (",
     '        <section className="panel-list">',
     "          {designs.map((design) => (",
-    '            <article className="wide-card" key={design.id}>',
+    '            <Link className="wide-card" key={design.id} href={`/branding/designs/${design.id}`}>',
     "              <span>{design.category}</span>",
     "              <strong>{design.title}</strong>",
-    '              <p className="note">{design.width} × {design.height}px</p>',
-    "            </article>",
+    '              <p className="note">{design.width} × {design.height}px · Open</p>',
+    "            </Link>",
     "          ))}",
     "        </section>",
     "      )}",
@@ -814,6 +814,76 @@ function templatePickerFile(): GeneratedModuleFile {
   ]);
 }
 
+// ---- src/app/branding/designs/[id]/page.tsx (open a saved design) -----------
+// A saved design opens as its template canvas rendered in the owner's CURRENT
+// brand — name, tagline, logo, colors, fonts, contact line — so "every template
+// you make picks these up" is something the customer can see, not just a claim.
+
+function designPageFile(): GeneratedModuleFile {
+  return file("src/app/branding/designs/[id]/page.tsx", [
+    'import Link from "next/link";',
+    'import { notFound } from "next/navigation";',
+    'import { requireCustomerAccess } from "@/lib/auth/session";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
+    'import { getDesign, getBranding, DESIGN_TEMPLATES, brandingEnabled } from "@/lib/db/branding-design";',
+    "",
+    'export const dynamic = "force-dynamic";',
+    "",
+    "export default async function DesignPage({ params }: { params: Promise<{ id: string }> }) {",
+    "  if (!brandingEnabled()) {",
+    '    return (<main className="shell"><h1>Design</h1><p>Branding is turned off for this app.</p></main>);',
+    "  }",
+    "  const { id } = await params;",
+    "  const user = await requireCustomerAccess(`/branding/designs/${id}`);",
+    "  const design = await getDesign(id);",
+    "  // Owners see their own designs; admins see any.",
+    "  if (!design || (design.ownerId !== String(user.id) && !canAccessAdmin(user.role))) notFound();",
+    "  const brand = await getBranding(design.ownerId || String(user.id));",
+    '  const template = DESIGN_TEMPLATES.find((t) => t.category === design.category && t.width === design.width && t.height === design.height);',
+    '  const background = template?.backgroundColor || "#ffffff";',
+    '  const contact = [brand.websiteUrl, brand.phone, brand.address].filter(Boolean).join(" · ");',
+    "",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Design · {design.category}</p>',
+    "      <h1>{design.title}</h1>",
+    '      <p className="note">{design.width} × {design.height}px{template ? ` · ${template.name}` : ""}</p>',
+    "      <div",
+    '        data-testid="design-canvas"',
+    "        style={{",
+    "          aspectRatio: `${design.width || 4} / ${design.height || 3}`,",
+    '          maxWidth: "640px",',
+    "          background,",
+    "          borderTop: `12px solid ${brand.primaryColor}`,",
+    "          borderBottom: `6px solid ${brand.accentColor}`,",
+    "          fontFamily: brand.fontBody,",
+    "          color: brand.secondaryColor,",
+    '          display: "flex",',
+    '          flexDirection: "column",',
+    '          alignItems: "center",',
+    '          justifyContent: "center",',
+    '          gap: "0.75rem",',
+    '          padding: "2rem",',
+    '          textAlign: "center",',
+    '          boxShadow: "0 1px 6px rgba(0,0,0,0.12)"',
+    "        }}",
+    "      >",
+    '        {brand.logoUrl ? <img src={brand.logoUrl} alt="" style={{ maxHeight: "72px" }} /> : null}',
+    '        <strong style={{ fontFamily: brand.fontHeading, color: brand.primaryColor, fontSize: "2rem" }}>{brand.brandName || "Your Brand"}</strong>',
+    "        {brand.tagline ? <span>{brand.tagline}</span> : null}",
+    '        <span style={{ fontFamily: brand.fontHeading, fontSize: "1.25rem" }}>{design.title}</span>',
+    '        {contact ? <small>{contact}</small> : null}',
+    "      </div>",
+    "      {!brand.brandName ? (",
+    '        <p className="note">Add your brand name, colors, and fonts on the <Link href="/branding">branding page</Link> — this design updates to match.</p>',
+    "      ) : null}",
+    '      <p><Link className="button" href="/branding/templates">Back to templates</Link></p>',
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
 export const brandingDesignModule: AppModule = {
   slug: "branding-design",
   name: "Branding & Design",
@@ -828,7 +898,8 @@ export const brandingDesignModule: AppModule = {
     brandingPageFile(),
     brandingFormFile(),
     templatesPageFile(),
-    templatePickerFile()
+    templatePickerFile(),
+    designPageFile()
   ],
   schemaSql: () =>
     [
