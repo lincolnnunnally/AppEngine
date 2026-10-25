@@ -10,10 +10,10 @@
 // registerHooks landed in Node 22.15. Node 22.14 (and earlier 22) only has
 // module.register, so we use whichever this process exports.
 import * as nodeModule from "node:module";
-import { resolve } from "./ts-esm-hooks.mjs";
+import { resolveSync } from "./ts-esm-hooks.mjs";
 
 if (typeof nodeModule.registerHooks === "function") {
-  nodeModule.registerHooks({ resolve });
+  nodeModule.registerHooks({ resolve: resolveSync });
 } else {
   nodeModule.register(new URL("./ts-esm-hooks.mjs", import.meta.url));
 }
