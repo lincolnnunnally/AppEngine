@@ -23,6 +23,7 @@ import {
   type AppFamilyId
 } from "@/lib/engine/app-ops-catalog";
 import { getInboxCounts } from "@/lib/engine/ecosystem-inbox";
+import { flatCheckoutEnabled, listOrdersNeedingRebuild, type BuildOrder } from "@/lib/engine/build-orders";
 
 export type DeckGrowth = "up" | "down" | "steady" | null;
 
@@ -219,6 +220,9 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
   const snapshot = await getOpsSnapshot().catch(() => null);
   const credentialItems = await getCredentialAttentionItems().catch(() => [] as CredentialAttentionItem[]);
   const inbox = await getInboxCounts().catch(() => ({ open: 0, inProgress: 0, resolved: 0, bySlug: {} as Record<string, number> }));
+  // Paid customer builds that failed every automatic attempt (C7): someone paid
+  // and is waiting — these lead the queue.
+  const failedPaidOrders = flatCheckoutEnabled() ? await listOrdersNeedingRebuild().catch(() => [] as BuildOrder[]) : [];
 
   const records = snapshot?.apps ?? [];
   const opsAttention = snapshot?.attention ?? [];
@@ -288,7 +292,16 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
       link: `/inbox?app=${encodeURIComponent(app.slug)}`
     }));
 
+  const paidBuildAttention: DeckAttention[] = failedPaidOrders.map((order) => ({
+    appName: order.name || order.idea.slice(0, 40),
+    severity: "act" as const,
+    finding: `A paid build failed ${order.attempts} ${order.attempts === 1 ? "time" : "times"} for ${order.userEmail}${order.lastError ? `: ${order.lastError.slice(0, 140)}` : ""}`,
+    action: "Open the order and rebuild it — they paid and are waiting. They won't be charged again.",
+    link: `/build/order/${order.id}`
+  }));
+
   const attention: DeckAttention[] = [
+    ...paidBuildAttention,
     ...inboxAttention,
     ...opsAttention.map((item: OpsAttentionItem) => ({
       appName: item.appName,

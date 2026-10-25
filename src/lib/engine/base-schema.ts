@@ -56,10 +56,14 @@ create table if not exists app_user_profiles (
   auth_user_id uuid not null references users(id) on delete cascade,
   role text not null default 'customer',
   password_hash text,
+  -- A suspended account can't sign in by any method, and an open session ends
+  -- at its next refresh (identity-auth checks this flag).
+  suspended boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(auth_user_id)
 );
+alter table app_user_profiles add column if not exists suspended boolean not null default false;
 
 create table if not exists organizations (
   id uuid primary key default gen_random_uuid(),

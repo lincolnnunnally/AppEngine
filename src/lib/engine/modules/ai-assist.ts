@@ -437,6 +437,7 @@ function aiAssistPageFile(): GeneratedModuleFile {
   return file("src/app/ai-assist/page.tsx", [
     'import Link from "next/link";',
     'import { requireCustomerAccess, getCurrentUser } from "@/lib/auth/session";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
     'import { listGenerations, aiConfigured, aiAssistEnabled } from "@/lib/db/ai-assist";',
     'import { AssistForm } from "./assist-form";',
     "",
@@ -458,6 +459,9 @@ function aiAssistPageFile(): GeneratedModuleFile {
     "      <p>Draft, summarize, brainstorm, or get title and tag suggestions. Everything you generate is saved to your history below.</p>",
     "      {!configured ? (",
     '        <p className="note" role="status">The app owner has not connected an AI key yet, so generation is paused. You can still browse your history.</p>',
+    "      ) : null}",
+    "      {!configured && canAccessAdmin(user?.role) ? (",
+    '        <p className="note">To turn it on, set AI_ASSIST_API_KEY in this app\'s environment and redeploy.</p>',
     "      ) : null}",
     "      <AssistForm configured={configured} />",
     "      <h2>Your history</h2>",
@@ -685,13 +689,8 @@ export const aiAssistModule: AppModule = {
       "create index if not exists ai_assist_generations_owner_idx on ai_assist_generations (owner_id, created_at desc);",
       "create index if not exists ai_assist_generations_feature_idx on ai_assist_generations (feature);"
     ].join("\n"),
-  seedSql: () =>
-    [
-      "",
-      "insert into ai_assist_generations (feature, prompt, context, output, tokens_estimated, cost_estimated) values",
-      "  ('draft', 'Draft a warm welcome message for new members.', '', 'Welcome! We are so glad you are here. Take your time settling in — reach out any time and someone will be glad to help you find your way.', 96, 0.0029)",
-      "on conflict do nothing;"
-    ].join("\n"),
+  // No seed: every ai_assist_generations row is a usage-ledger line (calls,
+  // tokens, cost). A sample row would show the owner AI spend that never happened.
   envLines: () => [
     "",
     "# AI Assist — set to false to switch AI content generation off.",

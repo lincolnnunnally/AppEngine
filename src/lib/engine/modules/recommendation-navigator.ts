@@ -19,5 +19,7 @@ export const recommendationNavigatorModule = simpleListModule({
     { key: "whoHelps", column: "who_helps", label: "Who can walk with them" }
   ],
   titleField: "nextStep",
-  bodyField: "whereTheyAre"
+  bodyField: "whereTheyAre",
+  // Where someone is in life is personal: a member sees their own; leaders see all.
+  scope: "own"
 });
