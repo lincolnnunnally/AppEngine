@@ -79,6 +79,11 @@ export function ComposeAndBuild({
   const [error, setError] = useState<string | null>(null);
   const [connectionLost, setConnectionLost] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  // Flat-rate checkout (C3): when on, the button pays the quoted price and the
+  // payment starts the build. Off: the build starts directly, as before.
+  const [checkout, setCheckout] = useState<{ enabled: boolean; ready: boolean; message: string | null } | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failStreak = useRef(0);
 
@@ -86,6 +91,12 @@ export function ComposeAndBuild({
     fetch("/api/auth/whoami", { cache: "no-store" })
       .then((res) => setSignedIn(res.ok))
       .catch(() => setSignedIn(false));
+    fetch("/api/build/checkout", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data: { enabled?: boolean; ready?: boolean; message?: string | null }) =>
+        setCheckout({ enabled: Boolean(data.enabled), ready: Boolean(data.ready), message: data.message ?? null })
+      )
+      .catch(() => setCheckout({ enabled: false, ready: false, message: null }));
   }, []);
 
   useEffect(() => {
@@ -208,10 +219,47 @@ export function ComposeAndBuild({
     });
   }
 
+  async function startCheckout() {
+    setCheckoutError(null);
+    setRedirecting(true);
+    try {
+      const response = await fetch("/api/build/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          idea,
+          themeId,
+          featureIds: featureIds || [],
+          brand: { accentColor: accentColor || undefined, logoUrl: logoUrl.trim() || undefined }
+        })
+      });
+      if (response.status === 401) {
+        persistDraft();
+        window.location.href = "/signin?next=/";
+        return;
+      }
+      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; url?: string; message?: string };
+      if (!data.ok || !data.url) {
+        setCheckoutError(data.message || "Couldn't start checkout. Try again.");
+        setRedirecting(false);
+        return;
+      }
+      persistDraft();
+      window.location.href = data.url;
+    } catch {
+      setCheckoutError("Network error — try again.");
+      setRedirecting(false);
+    }
+  }
+
   async function startBuild() {
     if (signedIn === false) {
       persistDraft();
       window.location.href = "/signin?next=/";
+      return;
+    }
+    if (checkout?.enabled) {
+      await startCheckout();
       return;
     }
     setError(null);
@@ -251,7 +299,8 @@ export function ComposeAndBuild({
     }
   }
 
-  const busy = phase === "building" || phase === "deploying";
+  const busy = phase === "building" || phase === "deploying" || redirecting;
+  const payFirst = Boolean(checkout?.enabled);
   const selected = new Set(featureIds || []);
   const addOns = (estimate?.recommendedAddOns || []).filter((item) => !selected.has(item.id));
 
@@ -382,20 +431,33 @@ export function ComposeAndBuild({
               className="convo-go"
               type="button"
               onClick={startBuild}
-              disabled={busy || idea.trim().length < 8 || signedIn === null}
+              disabled={busy || idea.trim().length < 8 || signedIn === null || checkout === null || (payFirst && !checkout?.ready)}
             >
-              {busy
-                ? "Building…"
-                : signedIn
-                  ? `Build this app — ${estimate.priceLabel}`
-                  : `Create an account to save this — ${estimate.priceLabel}`}
+              {redirecting
+                ? "Opening checkout…"
+                : busy
+                  ? "Building…"
+                  : !signedIn
+                    ? `Create an account to save this — ${estimate.priceLabel}`
+                    : payFirst
+                      ? `Pay ${estimate.priceLabel} and build`
+                      : `Build this app — ${estimate.priceLabel}`}
             </button>
           </div>
+          {checkoutError ? (
+            <p className="integration-notice integration-notice--error" role="alert">
+              {checkoutError}
+            </p>
+          ) : null}
           <p className="note">
             {noOrphan(
-              signedIn
-                ? "The first version is a live starter you can open — not the finished product. After it's up, we verify it, then improve it with you. You don't pay until that starter is actually up."
-                : "Create an account to save this pack, publish the live starter, and use it. You don't pay until that starter is actually up."
+              payFirst
+                ? checkout?.ready
+                  ? `You pay ${estimate.priceLabel} once, through Stripe — the price you see here. Your app starts building as soon as the payment goes through. The first version is a live starter you can open; after it's up, we verify it, then improve it with you.`
+                  : checkout?.message || "Checkout isn't available right now."
+                : signedIn
+                  ? "The first version is a live starter you can open — not the finished product. After it's up, we verify it, then improve it with you. You don't pay until that starter is actually up."
+                  : "Create an account to save this pack, publish the live starter, and use it. You don't pay until that starter is actually up."
             )}
           </p>
         </>

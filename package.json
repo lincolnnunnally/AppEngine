@@ -68,6 +68,7 @@
     "smoke:fulfillment-honesty": "node scripts/smoke-fulfillment-honesty.js",
     "smoke:generated-customer-copy": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-generated-customer-copy.js",
     "smoke:generated-app-database": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-generated-app-database.js",
+    "smoke:flat-checkout": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-flat-checkout.js",
     "smoke:autonomous-loop": "node scripts/smoke-autonomous-loop.js",
     "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
     "smoke:cloudflare-dns": "node scripts/smoke-cloudflare-dns.js",
