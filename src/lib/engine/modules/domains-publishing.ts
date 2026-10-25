@@ -1,23 +1,265 @@
 // domains-publishing — request and track a public web address for the app.
 // Mined from EasyPeazy DomainSearchModal + AppEngine domain attach.
+//
+// No registrar is called from here: asking for an address records a request
+// the app owner sets up by hand with their domain provider. The page says so,
+// a request always starts "requested", and only an admin can move it to
+// "live" — a member can never mark their own address live. Members see their
+// own requests; admins see every request and who asked.
 
-import { simpleListModule } from "./simple-list.ts";
+import type { AppModule, GeneratedModuleFile } from "./types";
 
-export const domainsPublishingModule = simpleListModule({
+function file(path: string, lines: string[]): GeneratedModuleFile {
+  return { path, content: lines.join("\n") + "\n" };
+}
+
+function libFile(): GeneratedModuleFile {
+  return file("src/lib/db/domains-publishing.ts", [
+    'import { getDatabase, hasDatabase } from "@/lib/db/client";',
+    "",
+    'export const DOMAIN_STATUSES = ["requested", "in_progress", "live", "rejected"] as const;',
+    "export type DomainStatus = (typeof DOMAIN_STATUSES)[number];",
+    "",
+    "export type DomainsRow = {",
+    "  id: string;",
+    "  hostname: string;",
+    "  notes: string;",
+    "  status: DomainStatus;",
+    "  requestedBy: string | null;",
+    "  requesterEmail: string;",
+    "  createdAt: string;",
+    "};",
+    "",
+    'export function domains_publishingEnabled() { return process.env.FEATURE_DOMAINS !== "false"; }',
+    "",
+    "export function statusLabel(status: string): string {",
+    "  switch (status) {",
+    '    case "live": return "Live";',
+    '    case "in_progress": return "Being set up";',
+    '    case "rejected": return "Not available";',
+    '    default: return "Requested";',
+    "  }",
+    "}",
+    "",
+    "// A bare hostname (example.com, www.example.org): letters, digits, hyphens,",
+    "// at least one dot, a letter TLD. Anything else is refused, not tracked.",
+    "export function normalizeHostname(value: string): string | null {",
+    '  const host = value.trim().toLowerCase().replace(/^https?:\\/\\//, "").replace(/\\/.*$/, "");',
+    "  if (host.length > 253) return null;",
+    "  return /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/.test(host) ? host : null;",
+    "}",
+    "",
+    "function row(r: Record<string, unknown>): DomainsRow {",
+    "  const status = String(r.status || \"requested\");",
+    "  return {",
+    "    id: String(r.id),",
+    '    hostname: String(r.hostname ?? ""),',
+    '    notes: String(r.notes ?? ""),',
+    "    status: ((DOMAIN_STATUSES as readonly string[]).includes(status) ? status : \"requested\") as DomainStatus,",
+    "    requestedBy: r.requested_by != null ? String(r.requested_by) : null,",
+    '    requesterEmail: String(r.requester_email ?? ""),',
+    '    createdAt: String(r.created_at || "")',
+    "  };",
+    "}",
+    "",
+    "// A member's own requests, or every request when requestedBy is null (admins).",
+    "export async function listDomainsRows(requestedBy: string | null): Promise<DomainsRow[]> {",
+    "  if (!hasDatabase()) return [];",
+    "  try {",
+    "    const sql = getDatabase();",
+    "    const rows = await sql`",
+    "      select d.id, d.hostname, d.notes, d.status, d.requested_by, coalesce(u.email, '') as requester_email, d.created_at",
+    "      from domain_requests d left join users u on u.id = d.requested_by",
+    "      where (${requestedBy}::uuid is null or d.requested_by = ${requestedBy})",
+    "      order by d.created_at desc limit 100`;",
+    "    return rows.map(row);",
+    "  } catch { return []; }",
+    "}",
+    "",
+    "// Every request starts 'requested' — whatever the caller sends.",
+    "export async function createDomainsRow(input: { hostname: string; notes: string; requestedBy: string }): Promise<boolean> {",
+    "  if (!hasDatabase()) return false;",
+    "  const sql = getDatabase();",
+    "  await sql`insert into domain_requests (hostname, notes, status, requested_by) values (${input.hostname}, ${input.notes}, 'requested', ${input.requestedBy})`;",
+    "  return true;",
+    "}",
+    "",
+    "export async function setDomainStatus(id: string, status: DomainStatus): Promise<boolean> {",
+    "  if (!hasDatabase()) return false;",
+    "  const sql = getDatabase();",
+    "  const rows = await sql`update domain_requests set status = ${status} where id = ${id} returning id`;",
+    "  return rows.length > 0;",
+    "}"
+  ]);
+}
+
+function apiFile(): GeneratedModuleFile {
+  return file("src/app/api/domains/route.ts", [
+    'import { NextResponse } from "next/server";',
+    'import { getCurrentUser } from "@/lib/auth/session";',
+    'import { canAccessAdmin, canAccessCustomerArea } from "@/lib/auth/roles";',
+    'import { listDomainsRows, createDomainsRow, setDomainStatus, normalizeHostname, domains_publishingEnabled, DOMAIN_STATUSES, type DomainStatus } from "@/lib/db/domains-publishing";',
+    'export const dynamic = "force-dynamic";',
+    "export async function GET() {",
+    '  if (!domains_publishingEnabled()) return NextResponse.json({ ok: false, message: "This feature is turned off." }, { status: 404 });',
+    "  const user = await getCurrentUser();",
+    '  if (!canAccessCustomerArea(user?.role) || !user?.id) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    "  const records = await listDomainsRows(canAccessAdmin(user.role) ? null : user.id);",
+    "  return NextResponse.json({ ok: true, records });",
+    "}",
+    "export async function POST(request: Request) {",
+    '  if (!domains_publishingEnabled()) return NextResponse.json({ ok: false, message: "This feature is turned off." }, { status: 404 });',
+    "  const user = await getCurrentUser();",
+    '  if (!canAccessCustomerArea(user?.role) || !user?.id) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    "  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;",
+    '  const hostname = normalizeHostname(typeof body.hostname === "string" ? body.hostname : "");',
+    '  const notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) : "";',
+    '  if (!hostname) return NextResponse.json({ ok: false, message: "Enter an address like example.com." }, { status: 400 });',
+    "  const ok = await createDomainsRow({ hostname, notes, requestedBy: user.id });",
+    '  if (!ok) return NextResponse.json({ ok: false, message: "Connect a database to save this." }, { status: 503 });',
+    '  return NextResponse.json({ ok: true, message: "Request saved. The app owner will set this address up and mark it live here." });',
+    "}",
+    "// Only an admin moves a request along (requested → being set up → live / not available).",
+    "export async function PATCH(request: Request) {",
+    "  const user = await getCurrentUser();",
+    '  if (!user || !canAccessAdmin(user.role)) return NextResponse.json({ ok: false, message: "Only the app owner can change an address status." }, { status: 403 });',
+    "  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;",
+    '  const id = typeof body.id === "string" ? body.id : "";',
+    '  const status = typeof body.status === "string" ? body.status : "";',
+    "  if (!id || !(DOMAIN_STATUSES as readonly string[]).includes(status)) {",
+    '    return NextResponse.json({ ok: false, message: "A request and a known status are required." }, { status: 400 });',
+    "  }",
+    "  const ok = await setDomainStatus(id, status as DomainStatus);",
+    '  if (!ok) return NextResponse.json({ ok: false, message: "That request was not found." }, { status: 404 });',
+    "  return NextResponse.json({ ok: true });",
+    "}"
+  ]);
+}
+
+function formFile(): GeneratedModuleFile {
+  return file("src/app/domains/domains-publishing-form.tsx", [
+    '"use client";',
+    'import { useState } from "react";',
+    'import { useRouter } from "next/navigation";',
+    "export function Form() {",
+    "  const router = useRouter();",
+    '  const [status, setStatus] = useState<"idle" | "saving" | "error" | "saved">("idle");',
+    '  const [message, setMessage] = useState("");',
+    "  async function submit(event: React.FormEvent<HTMLFormElement>) {",
+    "    event.preventDefault();",
+    "    const form = event.currentTarget;",
+    '    setStatus("saving");',
+    "    const data = new FormData(form);",
+    '    const response = await fetch("/api/domains", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hostname: data.get("hostname"), notes: data.get("notes") }) });',
+    "    const json = await response.json().catch(() => ({}));",
+    '    if (!response.ok || !json.ok) { setStatus("error"); setMessage(json.message || "Could not save."); return; }',
+    "    form.reset();",
+    '    setStatus("saved");',
+    '    setMessage(json.message || "Request saved.");',
+    "    router.refresh();",
+    "  }",
+    "  return (",
+    '    <form className="stack" onSubmit={submit}>',
+    '      <input className="input" name="hostname" required placeholder="Address (example.com)" aria-label="Address (example.com)" />',
+    '      <textarea className="input" name="notes" placeholder="Notes" aria-label="Notes" />',
+    '      {status === "error" || status === "saved" ? <p className="note" role={status === "error" ? "alert" : "status"}>{message}</p> : null}',
+    '      <button className="button primary" type="submit" disabled={status === "saving"}>{status === "saving" ? "Saving…" : "Request this address"}</button>',
+    "    </form>",
+    "  );",
+    "}"
+  ]);
+}
+
+function statusControlsFile(): GeneratedModuleFile {
+  return file("src/app/domains/status-controls.tsx", [
+    '"use client";',
+    'import { useState } from "react";',
+    'import { useRouter } from "next/navigation";',
+    'const OPTIONS = [["requested", "Requested"], ["in_progress", "Being set up"], ["live", "Live"], ["rejected", "Not available"]] as const;',
+    "export function StatusControls({ id, current }: { id: string; current: string }) {",
+    "  const router = useRouter();",
+    '  const [error, setError] = useState("");',
+    "  async function apply(status: string) {",
+    "    if (status === current) return;",
+    '    setError("");',
+    '    const response = await fetch("/api/domains", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, status }) });',
+    "    const json = await response.json().catch(() => ({}));",
+    '    if (!response.ok || !json.ok) { setError(json.message || "Could not update."); return; }',
+    "    router.refresh();",
+    "  }",
+    "  return (",
+    '    <div className="stack">',
+    "      {OPTIONS.map(([value, label]) => (",
+    '        <button key={value} type="button" className={value === current ? "button primary" : "button"} onClick={() => apply(value)}>{label}</button>',
+    "      ))}",
+    '      {error ? <p className="note" role="alert">{error}</p> : null}',
+    "    </div>",
+    "  );",
+    "}"
+  ]);
+}
+
+function pageFile(): GeneratedModuleFile {
+  return file("src/app/domains/page.tsx", [
+    'import { requireCustomerAccess } from "@/lib/auth/session";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
+    'import { listDomainsRows, domains_publishingEnabled, statusLabel } from "@/lib/db/domains-publishing";',
+    'import { Form } from "./domains-publishing-form";',
+    'import { StatusControls } from "./status-controls";',
+    'export const dynamic = "force-dynamic";',
+    "export default async function Page() {",
+    '  if (!domains_publishingEnabled()) return (<main className="shell"><h1>Your web address</h1><p>This feature is turned off for this app.</p></main>);',
+    '  const user = await requireCustomerAccess("/domains");',
+    "  const isAdmin = canAccessAdmin(user.role);",
+    "  const records = user.id ? await listDomainsRows(isAdmin ? null : user.id) : [];",
+    "  return (",
+    '    <main className="shell">',
+    '      <p className="eyebrow">Domains</p>',
+    "      <h1>Your web address</h1>",
+    "      <p>Ask for a public address people can type. We track the request until it is live.</p>",
+    '      <p className="note">Requesting an address here does not buy or connect it. The app owner sets it up with a domain provider and marks it live on this page.</p>',
+    "      <Form />",
+    '      {records.length === 0 ? <p className="note">No domain requests yet.</p> : (',
+    '        <section className="panel-list">',
+    "          {records.map((row) => (",
+    '            <article className="wide-card" key={row.id}>',
+    "              <span>{statusLabel(row.status)}</span>",
+    "              <strong>{row.hostname}</strong>",
+    "              {row.notes ? <p>{row.notes}</p> : null}",
+    '              {isAdmin ? <p className="note">Requested by {row.requesterEmail || "unknown"}</p> : null}',
+    "              {isAdmin ? <StatusControls id={row.id} current={row.status} /> : null}",
+    "            </article>",
+    "          ))}",
+    "        </section>",
+    "      )}",
+    "    </main>",
+    "  );",
+    "}"
+  ]);
+}
+
+export const domainsPublishingModule: AppModule = {
   slug: "domains-publishing",
   name: "Domains",
-  flag: "FEATURE_DOMAINS",
-  table: "domain_requests",
-  path: "/domains",
-  heading: "Your web address",
-  blurb: "Ask for a public address people can type. We track the request until it is live.",
-  empty: "No domain requests yet.",
-  button: "Request this address",
-  fields: [
-    { key: "hostname", column: "hostname", label: "Address (example.com)" },
-    { key: "notes", column: "notes", label: "Notes", kind: "textarea" },
-    { key: "status", column: "status", label: "Status (requested / live)" }
-  ],
-  titleField: "hostname",
-  bodyField: "status"
-});
+  tier: "optional",
+  featureFlagEnv: "FEATURE_DOMAINS",
+  files: () => [libFile(), apiFile(), formFile(), statusControlsFile(), pageFile()],
+  schemaSql: () =>
+    [
+      "",
+      "create table if not exists domain_requests (",
+      "  id uuid primary key default gen_random_uuid(),",
+      "  hostname text not null default '',",
+      "  notes text not null default '',",
+      "  status text not null default 'requested',",
+      "  requested_by uuid references users(id) on delete set null,",
+      "  created_at timestamptz not null default now()",
+      ");",
+      "-- Apps created before requests were tied to a person get the column too.",
+      "alter table domain_requests add column if not exists requested_by uuid references users(id) on delete set null;",
+      "create index if not exists domain_requests_requested_by_idx on domain_requests (requested_by, created_at desc);"
+    ].join("\n"),
+  envLines: () => ["", "# Domains — set to false to switch off.", "FEATURE_DOMAINS=true"],
+  homeLinks: () => ['        <a className="button" href="/domains">Domains</a>'],
+  navLinks: () => [{ href: "/domains", label: "Domains" }]
+};
