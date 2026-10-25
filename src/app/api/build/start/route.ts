@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { auth } from "@/auth";
-import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
+import { canAccessEngineAdmin, canAccessEngineConsumerSurface } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
 import { createBuildJob } from "@/lib/engine/build-jobs";
+import { flatCheckoutEnabled } from "@/lib/engine/build-orders";
 import { runCustomerBuildJob } from "@/lib/engine/customer-build";
 import { estimateBuild } from "@/lib/engine/pricing/estimate";
 
@@ -25,6 +26,13 @@ export async function POST(request: Request) {
   const userKey = normalizeUserKey(session?.user?.email);
   if (!userKey) {
     return json({ ok: false, message: "We couldn't find your account email." }, 400);
+  }
+
+  // With flat-rate checkout on (C3), a customer build is bought through
+  // /api/build/checkout and started by the payment webhook — never here for free.
+  // The platform owner can still build directly (testing, their own apps).
+  if (flatCheckoutEnabled() && !(await canAccessEngineAdmin())) {
+    return json({ ok: false, needsCheckout: true, message: "Pay for this build to start it." }, 402);
   }
 
   let body: {

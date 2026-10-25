@@ -89,10 +89,12 @@ function toIso(value: unknown): string | null {
   return String(value);
 }
 
-export async function createBuildJob(userEmail: string, idea: string): Promise<BuildJob> {
+// `id` lets a caller reserve the job id first (a paid order is claimed with it
+// before the job row exists, so a duplicate claim never leaves an orphan job).
+export async function createBuildJob(userEmail: string, idea: string, id: string = newJobId()): Promise<BuildJob> {
   const now = new Date().toISOString();
   const job: BuildJob = {
-    id: newJobId(),
+    id,
     projectId: null,
     userEmail,
     idea,

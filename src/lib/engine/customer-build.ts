@@ -18,7 +18,8 @@ import { join } from "node:path";
 import { generateProjectApp } from "@/lib/engine/app-generator";
 import { canAffordBuild, chargeForBuild, isBillingEnabled } from "@/lib/engine/billing";
 import type { BuildGateClearance } from "@/lib/engine/build-gate";
-import { updateBuildJob } from "@/lib/engine/build-jobs";
+import { createBuildJob, getBuildJob, newJobId, updateBuildJob } from "@/lib/engine/build-jobs";
+import { claimPaidOrderForBuild, getBuildOrder } from "@/lib/engine/build-orders";
 import { generatedAppDatabaseConfigured, provisionGeneratedAppDatabaseUrl, setupGeneratedAppDatabase } from "@/lib/engine/database-setup";
 import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
@@ -71,7 +72,8 @@ export async function startCustomerBuild(
   name?: string,
   themeId?: string,
   brand?: Brand,
-  moduleSlugs?: string[]
+  moduleSlugs?: string[],
+  options: { prepaid?: boolean } = {}
 ): Promise<BilledBuildResult & { projectId: string }> {
   const at = new Date().toISOString();
   const input = {
@@ -88,7 +90,8 @@ export async function startCustomerBuild(
     : await createPlannedProject(input, ownership);
 
   const projectId = String((created as { project: { id: string } }).project.id);
-  const result = await runBilledBuild(projectId, userKey, themeId, brand);
+  // A flat-rate order was paid up front (C3): never meter it a second time.
+  const result = await runBilledBuild(projectId, options.prepaid ? undefined : userKey, themeId, brand);
   return { projectId, ...result };
 }
 
@@ -128,10 +131,11 @@ export async function runCustomerBuildJob(
   name?: string,
   themeId?: string,
   brand?: Brand,
-  moduleSlugs?: string[]
+  moduleSlugs?: string[],
+  options: { prepaid?: boolean } = {}
 ): Promise<void> {
   try {
-    const built = await startCustomerBuild(userKey, idea, name, themeId, brand, moduleSlugs);
+    const built = await startCustomerBuild(userKey, idea, name, themeId, brand, moduleSlugs, options);
     await updateBuildJob(jobId, { projectId: built.projectId, status: "deploying" });
 
     const files = await readGeneratedBundle(built.projectId);
@@ -246,4 +250,33 @@ export async function runBilledBuild(projectId: string, customerKey?: string, th
   }
 
   return { run, generated, deployment, charge };
+}
+
+// Starts the build a paid flat-rate order bought (C3): exactly the order's
+// modules, theme and brand — priced and fixed when the order was created. One
+// order, one build: only the caller that claims it starts one; a retry gets the
+// existing job back. The caller runs `run` after responding (it outlives a request).
+export async function startPaidOrderBuild(
+  orderId: string
+): Promise<{ jobId: string; run?: () => Promise<void> } | null> {
+  let jobId = newJobId();
+  let order = await claimPaidOrderForBuild(orderId, jobId);
+  if (!order) {
+    const existing = await getBuildOrder(orderId);
+    if (!existing?.jobId) return null;
+    // Claimed earlier but the job row never got written (the instance died in
+    // between): the webhook's retry finishes what the first attempt started.
+    if (existing.status !== "building" || (await getBuildJob(existing.jobId))) return { jobId: existing.jobId };
+    order = existing;
+    jobId = existing.jobId;
+  }
+  await createBuildJob(order.userEmail, order.idea, jobId);
+  const paid = order;
+  return {
+    jobId,
+    run: () =>
+      runCustomerBuildJob(jobId, paid.userEmail, paid.idea, paid.name ?? undefined, paid.themeId ?? undefined, paid.brand, paid.moduleSlugs, {
+        prepaid: true
+      })
+  };
 }

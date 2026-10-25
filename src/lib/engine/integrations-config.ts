@@ -31,6 +31,7 @@ export const INTEGRATION_FIELDS: IntegrationField[] = [
   { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", group: "Payments", secret: true, placeholder: "sk_live_… (use sk_test_… first)" },
   { key: "STRIPE_WEBHOOK_SECRET", label: "Stripe Webhook Signing Secret", group: "Payments", secret: true, placeholder: "whsec_…" },
   { key: "APP_ENGINE_BILLING_ENABLED", label: "Billing enabled (true to charge for builds)", group: "Payments", secret: false, placeholder: "false" },
+  { key: "APP_ENGINE_FLAT_CHECKOUT_ENABLED", label: "Flat-rate checkout (true: customers pay the quoted pack price, then it builds)", group: "Payments", secret: false, placeholder: "false" },
   { key: "SPACESHIP_API_KEY", label: "Spaceship API Key (custom domains)", group: "Domains", secret: true },
   { key: "SPACESHIP_API_SECRET", label: "Spaceship API Secret", group: "Domains", secret: true },
   { key: "SPACESHIP_CONTACT_ID", label: "Spaceship Contact ID (registrant for purchases)", group: "Domains", secret: false },
