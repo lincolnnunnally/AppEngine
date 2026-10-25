@@ -67,3 +67,11 @@ jobs:
 
       - name: Flat-checkout smoke (server price, paid once, one build per order, money gate)
         run: npm run smoke:flat-checkout
+
+      - name: Prove module combinations (church pack + all modules together, real browser + Postgres)
+        run: |
+          PGDIR="$(mktemp -d)"
+          /usr/lib/postgresql/16/bin/initdb -D "$PGDIR/data" -A trust -U postgres > /dev/null
+          /usr/lib/postgresql/16/bin/pg_ctl -D "$PGDIR/data" -o "-p 5546 -k $PGDIR -c max_connections=200" -w -l "$PGDIR/log" start
+          npx playwright install --with-deps chromium > /dev/null
+          PROVE_PG_URL=postgresql://postgres@127.0.0.1:5546/postgres npm run prove:modules -- --only=pack-church-org,all --concurrency=2

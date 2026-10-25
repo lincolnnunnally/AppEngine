@@ -69,6 +69,7 @@
     "smoke:generated-customer-copy": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-generated-customer-copy.js",
     "smoke:generated-app-database": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-generated-app-database.js",
     "smoke:flat-checkout": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-flat-checkout.js",
+    "prove:modules": "node --import ./scripts/ts-esm-register.mjs scripts/prove-module-combinations.mjs",
     "smoke:autonomous-loop": "node scripts/smoke-autonomous-loop.js",
     "smoke:vercel-deploy": "node scripts/smoke-vercel-deploy.js",
     "smoke:cloudflare-dns": "node scripts/smoke-cloudflare-dns.js",
@@ -233,6 +234,8 @@
     "@types/node": "25.9.1",
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
+    "pg": "8.21.0",
+    "playwright": "1.63.0",
     "typescript": "6.0.3"
   },
   "overrides": {
