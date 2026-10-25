@@ -21,7 +21,7 @@ type GeneratedExportLocation = {
 type GeneratedDatabaseTarget = {
   databaseUrl: string;
   target: string;
-  source: "manual_project" | "manual_global" | "neon_branch";
+  source: "manual_project" | "manual_global" | "neon_branch" | "neon_project";
   metadata: Record<string, unknown>;
 };
 
@@ -142,7 +142,7 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
   const manualEnvKeys = buildGeneratedAppDatabaseEnvKeys(projectId, projectName);
   const commands = [
     "Generate App",
-    `Set ${manualEnvKeys[0]} for this generated app, or configure NEON_API_KEY and NEON_PROJECT_ID for automatic branches`,
+    `Set ${manualEnvKeys[0]} for this generated app, or configure NEON_API_KEY so each app gets its own Neon project`,
     "Setup DB",
     "Run QA Loop",
     "Prepare Deploy"
@@ -166,14 +166,14 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
       status: "database_blocked",
       target,
       details:
-        `Configure NEON_API_KEY and NEON_PROJECT_ID so the engine can create a Neon branch for each generated app, or set ${manualEnvKeys.join(" or ")} in .env.local for this generated app.`,
+        `Configure NEON_API_KEY so the engine can create a Neon project for each generated app, or set ${manualEnvKeys.join(" or ")} in .env.local for this generated app.`,
       appliedFiles: [],
       commands,
       metadata: {
         exportId: generatedExport.exportId,
         outputDir: generatedExport.outputDir,
         databaseEnvKeys: manualEnvKeys,
-        missing: ["NEON_API_KEY", "NEON_PROJECT_ID", ...manualEnvKeys]
+        missing: ["NEON_API_KEY", ...manualEnvKeys]
       }
     });
   }
@@ -197,9 +197,13 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
 
   const targetSql = neon(targetDatabaseUrl);
   const appliedFiles: string[] = [];
+  // A database that belongs to this app alone gets its tables in public — where
+  // the generated app queries them (it sets no search_path). Only a deliberately
+  // shared global URL needs a per-app schema to keep apps apart.
+  const dedicated = targetResult?.source !== "manual_global";
 
   try {
-    const generatedSchema = buildGeneratedSchemaName(projectId, projectName);
+    const generatedSchema = dedicated ? "public" : buildGeneratedSchemaName(projectId, projectName);
     const setupFileContents = await Promise.all(
       setupFiles.map(async (file) => ({
         file,
@@ -208,10 +212,14 @@ async function buildDatabaseSetupPayload(projectId: string, projectName?: string
     );
     const tableNames = extractGeneratedTableNames(setupFileContents.find((file) => file.file.endsWith("schema.sql"))?.contents || "");
 
-    await targetSql.query(`create schema if not exists ${quoteIdentifier(generatedSchema)}`);
+    if (!dedicated) {
+      await targetSql.query(`create schema if not exists ${quoteIdentifier(generatedSchema)}`);
+    }
 
     for (const { file, contents } of setupFileContents) {
-      const statements = splitSqlStatements(contents).map((statement) => qualifyGeneratedSqlStatement(statement, generatedSchema, tableNames));
+      const statements = splitSqlStatements(contents).map((statement) =>
+        dedicated ? statement : qualifyGeneratedSqlStatement(statement, generatedSchema, tableNames)
+      );
 
       for (const statement of statements) {
         await targetSql.query(statement);
@@ -259,17 +267,48 @@ async function readGeneratedSetupFile(outputDir: string, file: string) {
   return readFile(`${outputDir}/${file}`, "utf8");
 }
 
+// Splits a SQL file into statements on top-level semicolons. Comments are
+// skipped over whole: a ";" or an apostrophe inside "-- …" or "/* … */" (the base
+// schema's own comments have both) must neither end a statement nor open a
+// string — that split a comment mid-sentence and every real setup failed on it.
 function splitSqlStatements(contents: string) {
   const statements: string[] = [];
   let current = "";
   let inSingleQuote = false;
   let inDoubleQuote = false;
-  let previous = "";
+  let inLineComment = false;
+  let inBlockComment = false;
 
-  for (const character of contents) {
+  for (let index = 0; index < contents.length; index += 1) {
+    const character = contents[index];
+    const next = contents[index + 1];
     current += character;
 
-    if (character === "'" && !inDoubleQuote && previous !== "\\") {
+    if (inLineComment) {
+      if (character === "\n") inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (character === "*" && next === "/") {
+        current += next;
+        index += 1;
+        inBlockComment = false;
+      }
+      continue;
+    }
+    if (!inSingleQuote && !inDoubleQuote) {
+      if (character === "-" && next === "-") {
+        inLineComment = true;
+        continue;
+      }
+      if (character === "/" && next === "*") {
+        inBlockComment = true;
+        continue;
+      }
+    }
+
+    // A doubled '' inside a string toggles twice, so it stays a string.
+    if (character === "'" && !inDoubleQuote) {
       inSingleQuote = !inSingleQuote;
     } else if (character === '"' && !inSingleQuote) {
       inDoubleQuote = !inDoubleQuote;
@@ -282,17 +321,22 @@ function splitSqlStatements(contents: string) {
 
       current = "";
     }
-
-    previous = character;
   }
 
   const finalStatement = current.trim();
 
-  if (finalStatement) {
+  if (finalStatement && !isOnlyComments(finalStatement)) {
     statements.push(finalStatement);
   }
 
   return statements;
+}
+
+function isOnlyComments(sql: string) {
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .every((line) => !line.trim() || line.trim().startsWith("--"));
 }
 
 function extractGeneratedTableNames(schemaSql: string) {
@@ -391,7 +435,38 @@ function createSetupPayload(input: {
   };
 }
 
+// True when a customer app can be given its own database: a Neon API key (each
+// app gets its own Neon project) or a deliberately shared global URL.
+export function generatedAppDatabaseConfigured() {
+  const globalUrl = usableDatabaseUrl(process.env.GENERATED_APP_DATABASE_URL || process.env.APP_ENGINE_GENERATED_APP_DATABASE_URL);
+  return Boolean(process.env.NEON_API_KEY?.trim()) || Boolean(globalUrl && process.env.APP_ENGINE_ALLOW_GLOBAL_GENERATED_DATABASE_URL === "true");
+}
+
+// One build asks for its database twice — the deploy needs the URL, then setup
+// loads the schema — and nothing is recorded between the two. Without this the
+// second ask created a second Neon database: the schema went into one and the
+// app was wired to the other, empty one. Saved setup records cover later calls.
+const resolvedTargets = new Map<string, Promise<GeneratedDatabaseTarget | null>>();
+
 async function getGeneratedDatabaseTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget | null> {
+  const cached = resolvedTargets.get(projectId);
+  if (cached) return cached;
+
+  const pending = resolveGeneratedDatabaseTarget(projectId, projectName).then(
+    (target) => {
+      if (!target) resolvedTargets.delete(projectId);
+      return target;
+    },
+    (error) => {
+      resolvedTargets.delete(projectId);
+      throw error;
+    }
+  );
+  resolvedTargets.set(projectId, pending);
+  return pending;
+}
+
+async function resolveGeneratedDatabaseTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget | null> {
   const manualTarget = getProjectManualTargetDatabaseUrl(projectId, projectName);
 
   if (manualTarget) {
@@ -406,13 +481,16 @@ async function getGeneratedDatabaseTarget(projectId: string, projectName?: strin
     };
   }
 
-  if (!process.env.NEON_API_KEY || !process.env.NEON_PROJECT_ID) {
+  if (!process.env.NEON_API_KEY) {
     return null;
   }
 
-  const neonTarget = await getOrCreateNeonBranchTarget(projectId, projectName);
-
-  return neonTarget;
+  // NEON_PROJECT_ID set = the older shared-project mode (one branch per app;
+  // capped at 10 branches on Neon's free plan). Unset = one Neon project per app
+  // (100 on the free plan), the default for customer builds.
+  return process.env.NEON_PROJECT_ID
+    ? getOrCreateNeonBranchTarget(projectId, projectName)
+    : getOrCreateNeonProjectTarget(projectId, projectName);
 }
 
 // Provisions (or reuses) this app's own isolated Neon database and returns its
@@ -488,6 +566,57 @@ async function getOrCreateNeonBranchTarget(projectId: string, projectName?: stri
       targetSource: reusedTarget ? "existing_neon_branch" : "new_neon_branch",
       neon: provision
     }
+  };
+}
+
+async function getOrCreateNeonProjectTarget(projectId: string, projectName?: string): Promise<GeneratedDatabaseTarget> {
+  const reusedTarget = await getReusableNeonProvision(projectId);
+  const provision = reusedTarget || (await createGeneratedAppNeonProject(projectId, projectName));
+  const databaseUrl = await getNeonConnectionUri(provision);
+
+  return {
+    databaseUrl,
+    target: describeDatabaseUrl(databaseUrl),
+    source: "neon_project",
+    metadata: {
+      targetSource: reusedTarget ? "existing_neon_project" : "new_neon_project",
+      neon: provision
+    }
+  };
+}
+
+async function createGeneratedAppNeonProject(projectId: string, projectName?: string): Promise<NeonProvisionMetadata> {
+  const name = buildGeneratedBranchName(projectId, projectName);
+  const project: Record<string, unknown> = { name };
+  if (process.env.NEON_REGION_ID) project.region_id = process.env.NEON_REGION_ID;
+
+  const result = await neonApiRequest<{
+    project?: { id?: string };
+    branch?: { id?: string; name?: string };
+    endpoints?: Array<{ id?: string; type?: string }>;
+    databases?: Array<{ name?: string }>;
+    roles?: Array<{ name?: string }>;
+    operations?: NeonOperation[];
+  }>("/projects", {
+    method: "POST",
+    body: JSON.stringify({ project })
+  });
+  const neonProjectId = result.project?.id;
+  const branchId = result.branch?.id;
+
+  if (!neonProjectId || !branchId) {
+    throw new Error("Neon project creation did not return a project and branch id.");
+  }
+
+  await pollNeonOperations(neonProjectId, result.operations || []);
+
+  return {
+    projectId: neonProjectId,
+    branchId,
+    branchName: result.branch?.name || "main",
+    endpointId: result.endpoints?.find((endpoint) => endpoint.type === "read_write")?.id || result.endpoints?.[0]?.id,
+    databaseName: result.databases?.[0]?.name || process.env.NEON_DATABASE_NAME || "neondb",
+    roleName: result.roles?.[0]?.name || process.env.NEON_ROLE_NAME || "neondb_owner"
   };
 }
 

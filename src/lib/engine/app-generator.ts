@@ -562,7 +562,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/lib/db/seed.sql",
-      content: buildSeedSql(projectName, customer, problem, appData, selectedModuleSlugs)
+      content: buildSeedSql(projectName, tagline, appData, selectedModuleSlugs)
     },
     {
       path: "src/lib/templates/index.ts",
@@ -1029,8 +1029,7 @@ function buildSchemaSql(selected?: Set<string>) {
 
 function buildSeedSql(
   projectName: string,
-  customer: string,
-  problem: string,
+  goal: string,
   appData: ReturnType<typeof buildAppSeedData>,
   selected?: Set<string>
 ) {
@@ -1120,7 +1119,7 @@ with seed_org as (
   select id from organizations where slug = 'demo-organization'
 )
 insert into app_projects (organization_id, name, summary, customer_goal, status, readiness_score)
-select seed_org.id, project_data.name, project_data.summary, ${sqlString(`Target customer: ${customer}. Problem: ${problem}.`)}, project_data.status, project_data.readiness_score
+select seed_org.id, project_data.name, project_data.summary, ${sqlString(goal)}, project_data.status, project_data.readiness_score
 from seed_org
 cross join (
   values

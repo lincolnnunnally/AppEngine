@@ -61,3 +61,6 @@ jobs:
 
       - name: Generated-app smoke (customer apps list what was bought; no placeholder copy, invented numbers or accounts)
         run: npm run smoke:generated-customer-copy
+
+      - name: Generated-app database smoke (one Neon project per app, schema in public, applies to real Postgres)
+        run: npm run smoke:generated-app-database
