@@ -58,3 +58,6 @@ jobs:
 
       - name: CRM smoke (church rule labels, saves fail closed, no secret in the bundle)
         run: npm run smoke:lpl-crm
+
+      - name: Generated-app smoke (customer apps list what was bought; no placeholder copy, invented numbers or accounts)
+        run: npm run smoke:generated-customer-copy

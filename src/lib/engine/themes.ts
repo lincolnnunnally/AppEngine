@@ -254,6 +254,8 @@ p, small { color: var(--ink); line-height: 1.6; }
 .button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 16px; background: var(--panel); color: var(--ink); font-weight: 700; text-decoration: none; cursor: pointer; }
 .button.primary { border-color: var(--accent); color: var(--accent-ink); background: var(--accent); }
 .card .button { margin-top: 10px; }
+a.card { display: block; text-decoration: none; }
+a.card:hover, a.card:focus-visible { border-color: var(--accent); }
 .session-note { display: inline-flex; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--panel); color: var(--muted); font-size: .9rem; }
 .stack { display: grid; gap: 10px; margin-top: 14px; max-width: 560px; }
 .input { width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font: inherit; background: var(--panel); color: var(--ink); }
