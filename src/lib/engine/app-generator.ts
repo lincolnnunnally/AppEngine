@@ -13,8 +13,10 @@ import {
   composeModuleNavLinks,
   buildReadyModuleSlugs,
   composeModuleSchemaSql,
-  composeModuleSeedSql
+  composeModuleSeedSql,
+  getModule
 } from "./modules/registry";
+import { SELLABLE_FEATURES } from "./pricing/module-pricing";
 import { findModulesForNeed } from "./module-catalog";
 import { analyzeIdea } from "./planner";
 import {
@@ -271,6 +273,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
   // Which optional modules this app pulls in — matched from its own need, so not
   // every module goes into every app. Foundation modules are always composed.
   const selectedModuleSlugs = selectAppModuleSlugs(project, plan);
+  // What the customer actually bought, in their words — never the planner's
+  // template names or its fallback audience/problem phrases (C4).
+  const includedFeatures = buildIncludedFeatures(selectedModuleSlugs);
+  const toldUsWhoAndWhy = Boolean(project.target_customer?.trim() && project.problem_statement?.trim());
+  const tagline = customerTagline(project, plan, includedFeatures, toldUsWhoAndWhy);
   const apiRoutes = normalizeApiRoutes(handoff);
   const databaseModel = normalizeDatabaseModel(handoff);
   const qaChecks = normalizeQaChecks(handoff);
@@ -454,7 +461,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/lib/app-brand.ts",
-      content: `export const appBrand = ${JSON.stringify({ name: rawName, monogram, logoUrl, accent: theme.accent, accentInk: theme.accentInk, tagline: plan.valueProposition || plan.problem || "" }, null, 2)} as const;\n`
+      content: `export const appBrand = ${JSON.stringify({ name: rawName, monogram, logoUrl, accent: theme.accent, accentInk: theme.accentInk, tagline }, null, 2)} as const;\n`
     },
     {
       path: "src/components/app-shell.tsx",
@@ -495,11 +502,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/page.tsx",
-      content: `import { selectedModules } from "@/lib/app-data";\n\nexport default function HomePage() {\n  return (\n    <main className="shell hero">\n      <p className="eyebrow">${escapeText(plan.appType)}</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${escapeText(noOrphan(plan.valueProposition))}</p>\n      <p className="note">Built for ${escapeText(plan.customer)}. ${escapeText(plan.problem)}</p>\n      <div className="action-row">\n        <a className="button primary" href="/sign-in">Open the app</a>\n        <a className="button" href="/app">Go to workspace</a>\n      </div>\n      <section className="grid">\n        {selectedModules.map((item) => (\n          <article className="card" key={item.name}>\n            <span>Included</span>\n            <strong>{item.name}</strong>\n            <p>{item.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { includedFeatures } from "@/lib/app-data";\n\nexport default function HomePage() {\n  return (\n    <main className="shell hero">\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${escapeText(noOrphan(tagline))}</p>\n${toldUsWhoAndWhy ? `      <p className="note">Built for ${customer}. ${problem}</p>\n` : ""}      <div className="action-row">\n        <a className="button primary" href="/sign-in">Open the app</a>\n        <a className="button" href="/app">Go to workspace</a>\n      </div>\n      <section className="grid">\n        {includedFeatures.map((item) => (\n          <a className="card" key={item.slug} href={item.href}>\n            <span>Included</span>\n            <strong>{item.name}</strong>\n            {item.description ? <p>{item.description}</p> : null}\n          </a>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/app/page.tsx",
-      content: `import { customerMetrics, customerWorkflows, selectedModules } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${customer} can manage the workflow for ${problem}.</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="metric-grid">\n        {customerMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {selectedModules.map((template) => (\n          <article className="card" key={template.name}>\n            <span>Module</span>\n            <strong>{template.name}</strong>\n            <p>{template.description}</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { customerWorkflows, includedFeatures } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${escapeText(noOrphan(tagline))}</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="grid">\n        {includedFeatures.map((item) => (\n          <a className="card" key={item.slug} href={item.href}>\n            <span>Open</span>\n            <strong>{item.name}</strong>\n            {item.description ? <p>{item.description}</p> : null}\n          </a>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/account/page.tsx",
@@ -585,9 +592,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
       path: "src/lib/app-data.ts",
       content: `export const selectedModules = ${JSON.stringify(appData.selectedModules, null, 2)};
 
-export const customerMetrics = ${JSON.stringify(appData.customerMetrics, null, 2)};
+export const includedFeatures = ${JSON.stringify(includedFeatures, null, 2)};
 
-export const customerWorkflows = ${JSON.stringify(appData.customerWorkflows, null, 2)};
+export const customerMetrics: Array<{ label: string; value: string; detail: string }> = ${JSON.stringify(appData.customerMetrics, null, 2)};
+
+export const customerWorkflows: Array<{ title: string; status: string; nextAction: string }> = ${JSON.stringify(appData.customerWorkflows, null, 2)};
 
 export const accountSections = ${JSON.stringify(appData.accountSections, null, 2)};
 
@@ -595,15 +604,15 @@ export const onboardingSteps = ${JSON.stringify(appData.onboardingSteps, null, 2
 
 export const pricingPlans = ${JSON.stringify(appData.pricingPlans, null, 2)};
 
-export const customerRequests = ${JSON.stringify(appData.customerRequests, null, 2)};
+export const customerRequests: Array<{ title: string; status: string; priority: string; summary: string }> = ${JSON.stringify(appData.customerRequests, null, 2)};
 
 export const notifications = ${JSON.stringify(appData.notifications, null, 2)};
 
-export const adminMetrics = ${JSON.stringify(appData.adminMetrics, null, 2)};
+export const adminMetrics: Array<{ label: string; value: string; detail: string }> = ${JSON.stringify(appData.adminMetrics, null, 2)};
 
 export const adminQueues = ${JSON.stringify(appData.adminQueues, null, 2)};
 
-export const adminCustomers = ${JSON.stringify(appData.adminCustomers, null, 2)};
+export const adminCustomers: Array<{ name: string; health: string; plan: string; status: string; nextAction: string }> = ${JSON.stringify(appData.adminCustomers, null, 2)};
 
 export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
 `
@@ -655,12 +664,9 @@ type QaCheck = {
 function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
   return {
     selectedModules: buildSelectedModules(plan, handoff),
-    customerMetrics: [
-      { label: "Open work", value: "8", detail: "Active customer-facing items needing action." },
-      { label: "Time saved", value: "14h", detail: "Estimated monthly time recovered from automation." },
-      { label: "Plan usage", value: "62%", detail: "Current usage against plan limits." },
-      { label: "Health", value: "Good", detail: "Account has no critical blockers." }
-    ],
+    // Never seed numbers we did not measure — a church's workspace must not open
+    // on "Time saved 14h" or "Plan usage 62%" before anyone has used it.
+    customerMetrics: [] as { label: string; value: string; detail: string }[],
     customerWorkflows: buildCustomerWorkflows(plan, handoff),
     accountSections: [
       { title: "Profile", state: "ready", description: "Customer name, email, role, avatar, and preferences." },
@@ -670,24 +676,17 @@ function buildAppSeedData(plan: ReturnType<typeof analyzeIdea>, handoff: Generat
     ],
     onboardingSteps: buildOnboardingSteps(handoff),
     pricingPlans: buildPricingPlans(handoff),
-    customerRequests: buildCustomerRequests(plan, handoff),
+    // Requests are what people submit. On day one nobody has, so none are seeded.
+    customerRequests: [] as { title: string; status: string; priority: string; summary: string }[],
     notifications: [
       { title: "Workflow completed", channel: "in-app", body: "Notify the customer when their primary workflow reaches success." },
       { title: "Action required", channel: "email", body: "Escalate blocked work with a direct recovery action." },
       { title: "Upgrade opportunity", channel: "in-app", body: "Prompt upgrade when value and usage justify expansion." }
     ],
-    adminMetrics: [
-      { label: "Customers", value: "24", detail: "Accounts in the current workspace." },
-      { label: "At risk", value: "3", detail: "Customers needing support or onboarding help." },
-      { label: "MRR", value: "$8.2k", detail: "Monthly recurring revenue snapshot." },
-      { label: "Deployments", value: "6", detail: "Preview or production releases this month." }
-    ],
+    adminMetrics: [] as { label: string; value: string; detail: string }[],
     adminQueues: buildAdminQueues(handoff),
-    adminCustomers: [
-      { name: "Acme Services", health: "good", plan: "Growth", status: "active", nextAction: "Invite second admin user." },
-      { name: "Northstar Ops", health: "watch", plan: "Starter", status: "setup incomplete", nextAction: "Finish onboarding checklist." },
-      { name: "Atlas Field", health: "expansion", plan: "Growth", status: "near usage limit", nextAction: "Offer Scale upgrade." }
-    ],
+    // No invented accounts ("Acme Services"): with no database the list is empty.
+    adminCustomers: [] as { name: string; health: string; plan: string; status: string; nextAction: string }[],
     adminProjects: buildAdminProjects(plan, handoff)
   };
 }
@@ -707,6 +706,46 @@ function selectAppModuleSlugs(project: GeneratorProject, plan: ReturnType<typeof
     .filter(Boolean)
     .join(" ");
   return new Set(findModulesForNeed(need).map((match) => match.module.slug));
+}
+
+// The cards a customer's app shows: one per composed module, in the customer's
+// language. Copy comes from the sellable checklist the customer picked from
+// (SELLABLE_FEATURES), so the app describes exactly what was quoted; a module
+// with no checklist row shows its own name. Foundation plumbing (sign-in,
+// telemetry) is not a feature anyone bought, so it is not listed.
+const WEBSITE_FEATURE = { name: "Your website", description: "A public page you can edit and share." };
+
+function buildIncludedFeatures(selectedModuleSlugs: Set<string>) {
+  const items: { slug: string; name: string; description: string; href: string }[] = [];
+  for (const slug of selectedModuleSlugs) {
+    const module = getModule(slug);
+    if (!module || module.tier === "foundation") continue;
+    const feature = SELLABLE_FEATURES.find((row) => row.moduleSlugs[0] === slug) || SELLABLE_FEATURES.find((row) => row.moduleSlugs.includes(slug));
+    const copy = slug === "website-builder" ? WEBSITE_FEATURE : feature ? { name: feature.label, description: feature.description } : { name: module.name, description: "" };
+    const href = module.navLinks?.()[0]?.href || "/app";
+    items.push({ slug, ...copy, href });
+  }
+  // Website last: it is the shell every app gets, the paid features lead.
+  return items.sort((a, b) => Number(a.slug === "website-builder") - Number(b.slug === "website-builder"));
+}
+
+// One honest line about the app. When the customer named who it serves and the
+// problem, the planner's value proposition is built from their words; otherwise
+// the planner only has fallbacks ("the first focused customer segment"), so the
+// line is built from what the app actually does instead.
+function customerTagline(
+  project: GeneratorProject,
+  plan: ReturnType<typeof analyzeIdea>,
+  features: { slug: string; name: string }[],
+  toldUsWhoAndWhy: boolean
+) {
+  if (toldUsWhoAndWhy && plan.valueProposition) return plan.valueProposition;
+  const names = features.filter((item) => item.slug !== "website-builder").map((item) => item.name.toLowerCase());
+  const who = (project.name || plan.title || "").trim();
+  if (!names.length) return who ? `The ${who} app — sign in to get started.` : "Sign in to get started.";
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const sentence = `${list.charAt(0).toUpperCase()}${list.slice(1)}${who ? ` for ${who}` : ""}, in one place.`;
+  return sentence;
 }
 
 function buildSelectedModules(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
@@ -734,11 +773,7 @@ function buildCustomerWorkflows(plan: ReturnType<typeof analyzeIdea>, handoff: G
   const statuses = ["active", "ready", "watching", "queued"];
 
   if (!workflows.length) {
-    return [
-      { title: "First outcome workflow", status: "active", nextAction: `Move the customer through the ${plan.problem} workflow.` },
-      { title: "Recovery path", status: "ready", nextAction: "Show blocked items, support escalation, and next best action." },
-      { title: "Expansion signal", status: "watching", nextAction: "Track usage and trigger upgrade when limits are approached." }
-    ];
+    return [] as { title: string; status: string; nextAction: string }[];
   }
 
   return workflows.slice(0, 4).map((workflow, index) => ({
@@ -789,29 +824,6 @@ function buildPricingPlans(handoff: GeneratedAppHandoff) {
       includes: includes.length ? includes : ["core workflow", "account workspace", "support"]
     };
   });
-}
-
-function buildCustomerRequests(plan: ReturnType<typeof analyzeIdea>, handoff: GeneratedAppHandoff) {
-  const workflows = normalizeWorkflows(handoff);
-  const statuses = ["open", "in progress", "waiting"];
-  const priorities = ["high", "medium", "medium"];
-
-  if (!workflows.length) {
-    return [
-      { title: "Complete setup", status: "open", priority: "high", summary: "Customer needs onboarding steps finished before first value." },
-      { title: "Review workflow", status: "in progress", priority: "medium", summary: "Customer submitted a workflow for admin review." },
-      { title: "Upgrade limit", status: "waiting", priority: "medium", summary: "Usage is approaching the plan limit and needs a decision." }
-    ];
-  }
-
-  return workflows.slice(0, 3).map((workflow, index) => ({
-    title: workflow.name,
-    status: statuses[index] || "open",
-    priority: priorities[index] || "medium",
-    summary: workflow.steps.length
-      ? `${plan.customer} is at ${workflow.steps[0]} and needs the next guided action.`
-      : `${plan.customer} needs help with ${plan.problem}.`
-  }));
 }
 
 function buildAdminQueues(handoff: GeneratedAppHandoff) {
@@ -1075,7 +1087,7 @@ on conflict (name) do update set
   includes = excluded.includes,
   active = true;
 
-with seed_org as (
+${requestRows ? `with seed_org as (
   select id from organizations where slug = 'demo-organization'
 )
 insert into customer_requests (organization_id, title, summary, priority, status)
@@ -1089,7 +1101,7 @@ on conflict (organization_id, title) do update set
   summary = excluded.summary,
   priority = excluded.priority,
   status = excluded.status;
-
+` : ""}
 with seed_org as (
   select id from organizations where slug = 'demo-organization'
 )
