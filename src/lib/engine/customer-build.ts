@@ -19,7 +19,13 @@ import { generateProjectApp } from "@/lib/engine/app-generator";
 import { canAffordBuild, chargeForBuild, isBillingEnabled } from "@/lib/engine/billing";
 import type { BuildGateClearance } from "@/lib/engine/build-gate";
 import { createBuildJob, getBuildJob, newJobId, updateBuildJob } from "@/lib/engine/build-jobs";
-import { claimPaidOrderForBuild, getBuildOrder } from "@/lib/engine/build-orders";
+import {
+  claimOrderRebuild,
+  claimPaidOrderForBuild,
+  getBuildOrder,
+  markOrderBuildFailed,
+  MAX_AUTOMATIC_BUILD_ATTEMPTS
+} from "@/lib/engine/build-orders";
 import { generatedAppDatabaseConfigured, provisionGeneratedAppDatabaseUrl, setupGeneratedAppDatabase } from "@/lib/engine/database-setup";
 import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
@@ -276,6 +282,39 @@ export async function startPaidOrderBuild(
     jobId,
     run: () =>
       runCustomerBuildJob(jobId, paid.userEmail, paid.idea, paid.name ?? undefined, paid.themeId ?? undefined, paid.brand, paid.moduleSlugs, {
+        prepaid: true
+      })
+  };
+}
+
+// Redo a paid order whose build failed (owner policy: redo it, never charge
+// again). Automatic while attempts remain — triggered when the order is checked
+// and its job has failed — and always available to the owner. Out of automatic
+// attempts: the order is marked build_failed for the owner's attention queue.
+export async function rebuildPaidOrder(
+  orderId: string,
+  options: { byOwner?: boolean } = {}
+): Promise<{ jobId: string; run?: () => Promise<void> } | { exhausted: true } | null> {
+  const order = await getBuildOrder(orderId);
+  if (!order?.jobId || !["building", "build_failed"].includes(order.status)) return null;
+  const job = await getBuildJob(order.jobId);
+  if (job && job.status !== "failed") return { jobId: order.jobId };
+
+  const jobId = newJobId();
+  const maxAttempts = options.byOwner ? Number.MAX_SAFE_INTEGER : MAX_AUTOMATIC_BUILD_ATTEMPTS;
+  const claimed = await claimOrderRebuild(order.id, order.jobId, jobId, maxAttempts);
+  if (!claimed) {
+    const current = await getBuildOrder(orderId);
+    // Another poller already started the redo: follow its job.
+    if (current?.jobId && current.jobId !== order.jobId) return { jobId: current.jobId };
+    await markOrderBuildFailed(order.id, order.jobId, job?.error ?? "Build job missing.");
+    return { exhausted: true };
+  }
+  await createBuildJob(claimed.userEmail, claimed.idea, jobId);
+  return {
+    jobId,
+    run: () =>
+      runCustomerBuildJob(jobId, claimed.userEmail, claimed.idea, claimed.name ?? undefined, claimed.themeId ?? undefined, claimed.brand, claimed.moduleSlugs, {
         prepaid: true
       })
   };

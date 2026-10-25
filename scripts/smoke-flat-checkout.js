@@ -16,8 +16,9 @@ const {
   priceBuildPack,
   setBuildOrderSession
 } = await import("../src/lib/engine/build-orders.ts");
-const { startPaidOrderBuild } = await import("../src/lib/engine/customer-build.ts");
-const { getBuildJob } = await import("../src/lib/engine/build-jobs.ts");
+const { rebuildPaidOrder, startPaidOrderBuild } = await import("../src/lib/engine/customer-build.ts");
+const { getBuildJob, updateBuildJob } = await import("../src/lib/engine/build-jobs.ts");
+const { listOrdersNeedingRebuild, MAX_AUTOMATIC_BUILD_ATTEMPTS } = await import("../src/lib/engine/build-orders.ts");
 const { estimateBuild } = await import("../src/lib/engine/pricing/estimate.ts");
 
 let failures = 0;
@@ -81,6 +82,24 @@ const again = await startPaidOrderBuild(order.id);
 check(again?.jobId === first.jobId && !again.run, "a second start (webhook retry) returns the same job and builds nothing new");
 check((await getBuildOrder(order.id)).status === "building", "the order is now building");
 check((await claimPaidOrderForBuild(order.id, "job_other")) === null, "a building order can't be claimed again");
+
+// C7 — owner policy: a failed paid build is redone; the customer is never charged again.
+check((await rebuildPaidOrder(order.id))?.jobId === first.jobId, "a build that hasn't failed is not redone");
+await updateBuildJob(first.jobId, { status: "failed", error: "deploy hiccup" });
+const redo = await rebuildPaidOrder(order.id);
+check(Boolean(redo?.jobId && redo.jobId !== first.jobId && redo.run), "a failed paid build is redone automatically with a fresh job");
+check((await getBuildOrder(order.id)).attempts === 2 && (await getBuildOrder(order.id)).status === "building", `the order records attempt 2 of ${MAX_AUTOMATIC_BUILD_ATTEMPTS}`);
+const racer = await rebuildPaidOrder(order.id);
+check(racer?.jobId === redo.jobId && !racer.run, "a second poller follows the redo instead of starting another");
+await updateBuildJob(redo.jobId, { status: "failed", error: "same bug again" });
+const exhausted = await rebuildPaidOrder(order.id);
+check(exhausted && "exhausted" in exhausted, "after the automatic attempts, it stops redoing on its own");
+const waiting = await getBuildOrder(order.id);
+check(waiting.status === "build_failed" && waiting.lastError === "same bug again", "the order waits on the owner with the reason");
+check((await listOrdersNeedingRebuild()).some((o) => o.id === order.id), "the order is in the owner's attention list");
+const byOwner = await rebuildPaidOrder(order.id, { byOwner: true });
+check(Boolean(byOwner?.jobId && byOwner.run) && (await getBuildOrder(order.id)).status === "building", "the owner can always rebuild it");
+check((await getBuildOrder(order.id)).priceCents === pack.priceCents, "no redo changes what the customer paid");
 
 const unpaid = await createBuildOrder("buyer@example.com", { idea }, pack);
 check((await startPaidOrderBuild(unpaid.id)) === null, "an unpaid order never starts a build");

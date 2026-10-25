@@ -7,6 +7,9 @@
 //   pending  → order created, Checkout session open
 //   paid     → webhook confirmed the money (amount = price)
 //   building → a build job was started for it (job_id); the job tracks the rest
+//   build_failed → every automatic attempt failed; the owner is alerted and can
+//                  rebuild. Owner policy (2026-10-25): a failed paid build is
+//                  redone and the customer is never charged again for it.
 //
 // Off unless APP_ENGINE_FLAT_CHECKOUT_ENABLED=true AND Stripe AND the engine
 // database are configured. Separate from the prepaid-credits model (billing.ts):
@@ -18,7 +21,10 @@ import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { estimateBuild } from "@/lib/engine/pricing/estimate";
 import { stripeConfigured } from "@/lib/engine/stripe";
 
-export type BuildOrderStatus = "pending" | "paid" | "building";
+export type BuildOrderStatus = "pending" | "paid" | "building" | "build_failed";
+
+// Builds a paid order gets without the owner stepping in (first try + one redo).
+export const MAX_AUTOMATIC_BUILD_ATTEMPTS = 2;
 
 export type BuildOrder = {
   id: string;
@@ -35,6 +41,8 @@ export type BuildOrder = {
   status: BuildOrderStatus;
   stripeSessionId: string | null;
   jobId: string | null;
+  attempts: number;
+  lastError: string | null;
   createdAt: string | null;
   paidAt: string | null;
 };
@@ -102,6 +110,8 @@ async function ensureTable(sql: ReturnType<typeof getDatabase>): Promise<void> {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS app_build_orders_user_idx ON app_build_orders (user_email, created_at DESC)`;
+      await sql`ALTER TABLE app_build_orders ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE app_build_orders ADD COLUMN IF NOT EXISTS last_error text`;
     })().catch((error) => {
       tableReady = null;
       throw error;
@@ -137,6 +147,8 @@ function rowToOrder(row: Record<string, unknown>): BuildOrder {
     status: (row.status as BuildOrderStatus) ?? "pending",
     stripeSessionId: (row.stripe_session_id as string) ?? null,
     jobId: (row.job_id as string) ?? null,
+    attempts: Number(row.attempts ?? 0),
+    lastError: (row.last_error as string) ?? null,
     createdAt: toIso(row.created_at),
     paidAt: toIso(row.paid_at)
   };
@@ -162,6 +174,8 @@ export async function createBuildOrder(
     status: "pending",
     stripeSessionId: null,
     jobId: null,
+    attempts: 0,
+    lastError: null,
     createdAt: new Date().toISOString(),
     paidAt: null
   };
@@ -247,7 +261,7 @@ export async function claimPaidOrderForBuild(orderId: string, jobId: string): Pr
     const sql = getDatabase();
     await ensureTable(sql);
     const rows = (await sql`
-      update app_build_orders set status = 'building', job_id = ${jobId}, updated_at = now()
+      update app_build_orders set status = 'building', job_id = ${jobId}, attempts = 1, updated_at = now()
       where id = ${orderId} and status = 'paid'
       returning *
     `) as Array<Record<string, unknown>>;
@@ -255,7 +269,60 @@ export async function claimPaidOrderForBuild(orderId: string, jobId: string): Pr
   }
   const order = memory.get(orderId);
   if (!order || order.status !== "paid") return null;
-  const claimed: BuildOrder = { ...order, status: "building", jobId };
+  const claimed: BuildOrder = { ...order, status: "building", jobId, attempts: 1 };
   memory.set(orderId, claimed);
   return claimed;
+}
+
+// Swap a failed build for a fresh one — only if the order still points at that
+// failed job (two pollers can't both start a redo) and it has attempts left.
+export async function claimOrderRebuild(
+  orderId: string,
+  failedJobId: string,
+  newJobId: string,
+  maxAttempts: number
+): Promise<BuildOrder | null> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      update app_build_orders
+      set status = 'building', job_id = ${newJobId}, attempts = attempts + 1, last_error = null, updated_at = now()
+      where id = ${orderId} and job_id = ${failedJobId} and status in ('building', 'build_failed') and attempts < ${maxAttempts}
+      returning *
+    `) as Array<Record<string, unknown>>;
+    return rows.length ? rowToOrder(rows[0]) : null;
+  }
+  const order = memory.get(orderId);
+  if (!order || order.jobId !== failedJobId || !["building", "build_failed"].includes(order.status) || order.attempts >= maxAttempts) return null;
+  const claimed: BuildOrder = { ...order, status: "building", jobId: newJobId, attempts: order.attempts + 1, lastError: null };
+  memory.set(orderId, claimed);
+  return claimed;
+}
+
+export async function markOrderBuildFailed(orderId: string, failedJobId: string, error: string | null): Promise<void> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    await sql`
+      update app_build_orders set status = 'build_failed', last_error = ${error}, updated_at = now()
+      where id = ${orderId} and job_id = ${failedJobId} and status = 'building'
+    `;
+    return;
+  }
+  const order = memory.get(orderId);
+  if (order && order.jobId === failedJobId && order.status === "building") memory.set(orderId, { ...order, status: "build_failed", lastError: error });
+}
+
+// Paid orders whose builds all failed — the owner's attention queue.
+export async function listOrdersNeedingRebuild(limit = 50): Promise<BuildOrder[]> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      select * from app_build_orders where status = 'build_failed' order by updated_at desc limit ${limit}
+    `) as Array<Record<string, unknown>>;
+    return rows.map(rowToOrder);
+  }
+  return [...memory.values()].filter((order) => order.status === "build_failed").slice(0, limit);
 }
