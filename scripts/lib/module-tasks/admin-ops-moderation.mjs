@@ -46,6 +46,10 @@ export async function task({ page, base, newMember }) {
 
   const suspended = (await api(page, "GET", `${base}/api/admin-ops/users?status=suspended`)).users?.find((u) => u.id === targetRow.id);
   if (!suspended) throw new Error("the target is not listed as suspended");
+  // Their session that was already open ends too — not only new sign-ins.
+  const openSession = await target.request.get(`${base}/api/auth/session`);
+  const openUser = (await openSession.json().catch(() => null))?.user;
+  if (openUser?.email) throw new Error("a suspended member's open session still works");
   const blocked = await signInFresh(browser, base, target.email);
   await blocked.ctx.close();
   if (blocked.ok) throw new Error("a suspended member can still sign in");
@@ -56,8 +60,11 @@ export async function task({ page, base, newMember }) {
   await back.ctx.close();
   if (!back.ok) throw new Error("an unsuspended member still cannot sign in");
 
-  // Granting admin really makes the reporter an admin (on their next sign-in).
+  // Granting admin really makes the reporter an admin — in their open session
+  // (refreshed within a minute in production) and on any new sign-in.
   await api(page, "POST", `${base}/api/admin-ops/users`, { targetId: reporterRow.id, action: "grant_admin" });
+  const live = await reporter.request.get(`${base}/api/admin-ops/users`);
+  if (live.status() !== 200) throw new Error(`a member granted admin gets ${live.status()} in their open session`);
   const promoted = await signInFresh(browser, base, reporter.email);
   try {
     if (!promoted.ok) throw new Error("the promoted member could not sign in");

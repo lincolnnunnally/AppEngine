@@ -190,6 +190,7 @@ async function prove(comp) {
         AUTH_TRUST_HOST: "true",
         AUTH_URL: `http://localhost:${port}`,
         APP_ENGINE_OWNER_EMAIL: "owner@example.com",
+        APP_SESSION_REFRESH_MS: "0", // re-check role/suspension on every request, so scenarios see changes at once
         LOCAL_NEON_PORT: String(neon.port),
         NODE_OPTIONS: `--require ${redirectPreload}`
       },
