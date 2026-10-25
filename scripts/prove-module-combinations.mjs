@@ -190,6 +190,7 @@ async function prove(comp) {
         AUTH_TRUST_HOST: "true",
         AUTH_URL: `http://localhost:${port}`,
         APP_ENGINE_OWNER_EMAIL: "owner@example.com",
+        STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "whsec_prove_only_signing_secret_0123456789", // signed test webhooks only
         APP_SESSION_REFRESH_MS: "0", // re-check role/suspension on every request, so scenarios see changes at once
         LOCAL_NEON_PORT: String(neon.port),
         NODE_OPTIONS: `--require ${redirectPreload}`
