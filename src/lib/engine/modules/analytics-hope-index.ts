@@ -536,7 +536,7 @@ function trackApiFile(): GeneratedModuleFile {
     '  if (!activityType) return NextResponse.json({ ok: false, message: "An activity type is required." }, { status: 400 });',
     '  const appSlug = typeof body.appSlug === "string" && body.appSlug.trim() ? body.appSlug.trim() : "app";',
     '  const details = body.details && typeof body.details === "object" ? (body.details as Record<string, unknown>) : {};',
-    '  const saved = await logActivity(String(user?.email || ""), appSlug, activityType, details);',
+    '  const saved = await logActivity(String(user?.id || ""), appSlug, activityType, details);',
     '  if (!saved) return NextResponse.json({ ok: false, message: "Connect a database to record activity." }, { status: 503 });',
     "  return NextResponse.json({ ok: true });",
     "}"
