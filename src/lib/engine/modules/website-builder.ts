@@ -1303,17 +1303,10 @@ export const websiteBuilderModule: AppModule = {
       "create index if not exists website_builder_landing_pages_owner_idx on website_builder_landing_pages (owner_id);",
       "create index if not exists website_builder_landing_pages_website_idx on website_builder_landing_pages (website_id);"
     ].join("\n"),
-  seedSql: () =>
-    [
-      "",
-      "insert into website_builder_sites (site_name, site_url, domain_name, domain_choice, admin_email, status, storage_used_mb, bandwidth_used_gb, monthly_visitors, divi_enabled, ai_designer_used, domain_cost, auto_renew, registration_date, expiration_date, deployment_date) values",
-      "  ('Bright Studio', 'https://brightstudio.example.com', 'brightstudio.com', 'custom', 'hello@brightstudio.com', 'active', 512, 3.2, 1840, true, true, 10.93, true, now(), now() + interval '1 year', now())",
-      "on conflict do nothing;",
-      "",
-      "insert into website_builder_landing_pages (slug, brand_name, headline, subheadline, cta_label, price_line, features, published) values",
-      "  ('bright-studio', 'Bright Studio', 'Design that moves people', 'Everything you need to launch and grow your brand online — fast.', 'Get Started Today', '$5/month + domain costs', '[\"Everything you need to launch\",\"Professional email included\",\"Premium themes & builder\",\"AI-powered designer\",\"Fast, reliable hosting\",\"Domain registration at cost\",\"SSL certificates included\",\"Daily backups\",\"Expert support\",\"No setup fees\"]'::jsonb, true)",
-      "on conflict do nothing;"
-    ].join("\n"),
+  // No seed: a sample "Bright Studio" site used to ship PUBLISHED at
+  // /s/bright-studio inside every customer's app, selling "$5/month". A new app
+  // starts with no sites until its owner makes one (DC-1).
+  seedSql: () => "",
   envLines: () => [
     "",
     "# Website Builder — set to false to switch the site wizard + landing builder off.",

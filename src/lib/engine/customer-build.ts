@@ -19,7 +19,7 @@ import { generateProjectApp } from "@/lib/engine/app-generator";
 import { canAffordBuild, chargeForBuild, isBillingEnabled } from "@/lib/engine/billing";
 import type { BuildGateClearance } from "@/lib/engine/build-gate";
 import { updateBuildJob } from "@/lib/engine/build-jobs";
-import { provisionGeneratedAppDatabaseUrl, setupGeneratedAppDatabase } from "@/lib/engine/database-setup";
+import { generatedAppDatabaseConfigured, provisionGeneratedAppDatabaseUrl, setupGeneratedAppDatabase } from "@/lib/engine/database-setup";
 import { createLocalPlannedProject } from "@/lib/engine/development-store";
 import { prepareProjectDeployment, runProjectAgents } from "@/lib/engine/execution";
 import type { Brand } from "@/lib/engine/themes";
@@ -143,15 +143,23 @@ export async function runCustomerBuildJob(
     // Each customer app gets its OWN isolated Neon database (free tier). Provision
     // it, apply the generated schema, and pass it to the deploy as env so the live
     // app is wired to its own DB. If Neon isn't configured, deploy without one.
+    // When a database service IS configured, an app without its database is not
+    // a deliverable — sign-in and every member page need it — so a provisioning
+    // or schema failure fails the build with the reason instead of publishing a
+    // home page with locked doors (C5). Unconfigured: deploy without one.
     let appEnv: Record<string, string> | undefined;
-    try {
+    if (generatedAppDatabaseConfigured()) {
       const dbUrl = await provisionGeneratedAppDatabaseUrl(built.projectId, name);
-      if (dbUrl) {
-        await setupGeneratedAppDatabase(built.projectId).catch(() => {});
-        appEnv = { DATABASE_URL: dbUrl, AUTH_SECRET: crypto.randomBytes(32).toString("hex") };
+      if (!dbUrl) {
+        await updateBuildJob(jobId, { status: "failed", error: "Couldn't create this app's database." });
+        return;
       }
-    } catch {
-      // Provisioning is best-effort; a build still deploys (DB features need it though).
+      const { setup } = await setupGeneratedAppDatabase(built.projectId);
+      if (setup.status !== "database_ready") {
+        await updateBuildJob(jobId, { status: "failed", error: `This app's database isn't ready: ${setup.details}` });
+        return;
+      }
+      appEnv = { DATABASE_URL: dbUrl, AUTH_SECRET: crypto.randomBytes(32).toString("hex") };
     }
 
     // Merge the user's key vault (shared values + this app's overrides) into the

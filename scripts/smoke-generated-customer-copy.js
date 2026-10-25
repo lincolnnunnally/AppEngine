@@ -19,7 +19,7 @@ const PLANNER_FALLBACKS = [
   "SaaS customer portal",
   "you and people with the same goal"
 ];
-const INVENTED = ["Acme Services", "Northstar Ops", "Atlas Field", "$8.2k", "Time saved", "Plan usage"];
+const INVENTED = ["Acme Services", "Northstar Ops", "Atlas Field", "$8.2k", "Time saved", "Plan usage", "Bright Studio"];
 
 let failures = 0;
 function check(ok, message) {
@@ -59,7 +59,8 @@ for (const item of cases) {
   const workspace = app.read("src/app/app/page.tsx");
   const brand = app.read("src/lib/app-brand.ts");
   const data = app.read("src/lib/app-data.ts");
-  const surfaces = { home, workspace, brand, data };
+  const seed = app.read("src/lib/db/seed.sql");
+  const surfaces = { home, workspace, brand, data, seed };
 
   for (const [label, text] of Object.entries(surfaces)) {
     const leaked = PLANNER_FALLBACKS.filter((phrase) => text.includes(phrase));
