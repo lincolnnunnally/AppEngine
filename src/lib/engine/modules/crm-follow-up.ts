@@ -15,7 +15,7 @@
 //     model and per-lead activity timeline.
 // Generalized off the church framing into plain CRM copy so it drops into any
 // app. Runs on the app owner's own database with graceful sample-data fallback,
-// feature-flagged (FEATURE_CRM); customers browse the pipeline, admins mutate.
+// feature-flagged (FEATURE_CRM); the pipeline (guests' contact details) is admin-only.
 
 import type { AppModule, GeneratedModuleFile } from "./types";
 
@@ -375,7 +375,7 @@ function crmApiFile(): GeneratedModuleFile {
   return file("src/app/api/crm/route.ts", [
     'import { NextResponse } from "next/server";',
     'import { getCurrentUser } from "@/lib/auth/session";',
-    'import { canAccessAdmin, canAccessCustomerArea } from "@/lib/auth/roles";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
     'import { listLeads, createLead, crmEnabled, type Priority } from "@/lib/db/crm";',
     "",
     'export const runtime = "nodejs";',
@@ -384,7 +384,9 @@ function crmApiFile(): GeneratedModuleFile {
     "export async function GET(request: Request) {",
     '  if (!crmEnabled()) return NextResponse.json({ ok: false, message: "The CRM is turned off for this app." }, { status: 404 });',
     "  const user = await getCurrentUser();",
-    '  if (!canAccessCustomerArea(user?.role)) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    '  if (!user) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    "  // The pipeline holds guests' names, emails and phone numbers: admins only.",
+    '  if (!canAccessAdmin(user.role)) return NextResponse.json({ ok: false, message: "Admins only." }, { status: 403 });',
     "  const url = new URL(request.url);",
     "  const leads = await listLeads({",
     '    q: url.searchParams.get("q") || undefined,',
@@ -427,7 +429,7 @@ function crmDetailApiFile(): GeneratedModuleFile {
   return file("src/app/api/crm/[id]/route.ts", [
     'import { NextResponse } from "next/server";',
     'import { getCurrentUser } from "@/lib/auth/session";',
-    'import { canAccessAdmin, canAccessCustomerArea } from "@/lib/auth/roles";',
+    'import { canAccessAdmin } from "@/lib/auth/roles";',
     'import { getLead, getLeadActivities, updateLeadStage, logActivity, crmEnabled } from "@/lib/db/crm";',
     "",
     'export const runtime = "nodejs";',
@@ -436,7 +438,8 @@ function crmDetailApiFile(): GeneratedModuleFile {
     "export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {",
     '  if (!crmEnabled()) return NextResponse.json({ ok: false }, { status: 404 });',
     "  const user = await getCurrentUser();",
-    '  if (!canAccessCustomerArea(user?.role)) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    '  if (!user) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
+    '  if (!canAccessAdmin(user.role)) return NextResponse.json({ ok: false, message: "Admins only." }, { status: 403 });',
     "  const { id } = await params;",
     "  const lead = await getLead(id);",
     '  if (!lead) return NextResponse.json({ ok: false, message: "Not found." }, { status: 404 });',
@@ -482,7 +485,7 @@ function crmDetailApiFile(): GeneratedModuleFile {
 function crmPageFile(): GeneratedModuleFile {
   return file("src/app/crm/page.tsx", [
     'import Link from "next/link";',
-    'import { requireCustomerAccess } from "@/lib/auth/session";',
+    'import { requireAdminAccess } from "@/lib/auth/session";',
     'import { listLeads, getActionable, getAnalytics, PIPELINE_STAGES, stageName, crmEnabled } from "@/lib/db/crm";',
     "",
     'export const dynamic = "force-dynamic";',
@@ -495,7 +498,8 @@ function crmPageFile(): GeneratedModuleFile {
     "  if (!crmEnabled()) {",
     '    return (<main className="shell"><h1>Pipeline</h1><p>The CRM is turned off for this app.</p></main>);',
     "  }",
-    '  await requireCustomerAccess("/crm");',
+    "  // Guests' contact details: the pipeline is for the people who follow up (admins).",
+    '  await requireAdminAccess("/crm");',
     "  const params = searchParams ? await searchParams : undefined;",
     '  const q = (params?.q || "").trim();',
     '  const stage = (params?.stage || "").trim();',
@@ -570,8 +574,7 @@ function crmDetailPageFile(): GeneratedModuleFile {
   return file("src/app/crm/[id]/page.tsx", [
     'import Link from "next/link";',
     'import { notFound } from "next/navigation";',
-    'import { requireCustomerAccess, getCurrentUser } from "@/lib/auth/session";',
-    'import { canAccessAdmin } from "@/lib/auth/roles";',
+    'import { requireAdminAccess } from "@/lib/auth/session";',
     'import { getLead, getLeadActivities, PIPELINE_STAGES, stageName, crmEnabled } from "@/lib/db/crm";',
     'import { LeadActions } from "./lead-actions";',
     "",
@@ -581,11 +584,10 @@ function crmDetailPageFile(): GeneratedModuleFile {
     "  if (!crmEnabled()) {",
     '    return (<main className="shell"><h1>Pipeline</h1><p>The CRM is turned off for this app.</p></main>);',
     "  }",
-    '  await requireCustomerAccess("/crm");',
+    '  await requireAdminAccess("/crm");',
     "  const { id } = await params;",
-    "  const [lead, activities, user] = await Promise.all([getLead(id), getLeadActivities(id), getCurrentUser()]);",
+    "  const [lead, activities] = await Promise.all([getLead(id), getLeadActivities(id)]);",
     "  if (!lead) notFound();",
-    "  const isAdmin = canAccessAdmin(user?.role);",
     "",
     "  return (",
     '    <main className="shell">',
@@ -604,7 +606,7 @@ function crmDetailPageFile(): GeneratedModuleFile {
     "",
     "      {lead.notes ? <p>{lead.notes}</p> : null}",
     "",
-    "      {isAdmin ? <LeadActions leadId={lead.id} currentStage={lead.stage} stages={PIPELINE_STAGES} /> : null}",
+    "      <LeadActions leadId={lead.id} currentStage={lead.stage} stages={PIPELINE_STAGES} />",
     "",
     "      <h2>Activity</h2>",
     "      {activities.length === 0 ? (",
