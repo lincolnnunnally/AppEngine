@@ -19,5 +19,8 @@ export const waitlistInvitesModule = simpleListModule({
     { key: "status", column: "status", label: "Status (waiting / invited)" }
   ],
   titleField: "name",
-  bodyField: "place"
+  bodyField: "place",
+  // Names, places and needs of people waiting are private: a member sees their
+  // own; leaders see the whole list to invite from.
+  scope: "own"
 });

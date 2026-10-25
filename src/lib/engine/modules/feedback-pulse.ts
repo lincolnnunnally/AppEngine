@@ -19,5 +19,7 @@ export const feedbackPulseModule = simpleListModule({
     { key: "status", column: "status", label: "Status (open / heard)" }
   ],
   titleField: "title",
-  bodyField: "detail"
+  bodyField: "detail",
+  // Voice to leaders: a member sees what they shared; leaders see everyone's.
+  scope: "own"
 });

@@ -19,5 +19,7 @@ export const donorReceiptsModule = simpleListModule({
     { key: "dateGiven", column: "date_given", label: "Date" }
   ],
   titleField: "donor",
-  bodyField: "whatGiven"
+  bodyField: "whatGiven",
+  // Who gave what is private: a member sees their own receipts; leaders see all.
+  scope: "own"
 });

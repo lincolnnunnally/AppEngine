@@ -204,7 +204,9 @@ async function prove(comp) {
       result.pages = browserResult.pages;
       result.tasks = browserResult.tasks;
       for (const problem of browserResult.problems) result.problems.push({ step: "runtime", detail: problem });
-      const serverErrors = log.join("").split("\n").filter((line) => /⨯|Error:|TypeError|ReferenceError|relation .* does not exist|column .* does not exist/.test(line));
+      const serverErrors = log.join("").split("\n").filter((line) => /⨯|Error:|TypeError|ReferenceError|relation .* does not exist|column .* does not exist/.test(line))
+        // Auth.js logs every refused sign-in; scenarios refuse some on purpose (a suspended member).
+        .filter((line) => !/errors\.authjs\.dev#credentialssignin|CredentialsSignin/.test(line));
       if (serverErrors.length) {
         result.steps.runtime = "fail";
         result.problems.push({ step: "server-log", detail: serverErrors.slice(0, 20).join("\n") });

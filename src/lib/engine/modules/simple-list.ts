@@ -22,6 +22,9 @@ export type SimpleListSpec = {
   fields: SimpleField[];
   titleField: string;
   bodyField?: string;
+  // "shared" (default): every signed-in person sees every entry.
+  // "own": a member sees only what they saved; owner/admin see everything.
+  scope?: "shared" | "own";
 };
 
 export function simpleListModule(spec: SimpleListSpec): AppModule {
@@ -33,6 +36,7 @@ export function simpleListModule(spec: SimpleListSpec): AppModule {
   const apiPath = `/api/${spec.path.replace(/^\//, "")}`;
   const pagePath = spec.path;
   const flagEnv = spec.flag;
+  const own = spec.scope === "own";
 
   const typeFields = spec.fields.map((f) => `  ${f.key}: string;`).join("\n");
   const rowMap = spec.fields
@@ -62,19 +66,26 @@ export function simpleListModule(spec: SimpleListSpec): AppModule {
       "  };",
       "}",
       "",
-      `export async function ${listFn}(): Promise<${typeName}[]> {`,
+      own
+        ? `export async function ${listFn}(viewer: { userId: string; all: boolean }): Promise<${typeName}[]> {`
+        : `export async function ${listFn}(): Promise<${typeName}[]> {`,
       "  if (!hasDatabase()) return [];",
+      ...(own ? ["  if (!viewer.all && !viewer.userId) return [];"] : []),
       "  try {",
       "    const sql = getDatabase();",
-      `    const rows = await sql\`select ${selectCols} from ${spec.table} order by created_at desc limit 100\`;`,
+      own
+        ? `    const rows = viewer.all ? await sql\`select ${selectCols} from ${spec.table} order by created_at desc limit 100\` : await sql\`select ${selectCols} from ${spec.table} where created_by = \${viewer.userId} order by created_at desc limit 100\`;`
+        : `    const rows = await sql\`select ${selectCols} from ${spec.table} order by created_at desc limit 100\`;`,
       "    return rows.map(row);",
       "  } catch { return []; }",
       "}",
       "",
-      `export async function ${createFn}(input: { ${spec.fields.map((f) => `${f.key}: string`).join("; ")} }): Promise<boolean> {`,
+      `export async function ${createFn}(input: { ${spec.fields.map((f) => `${f.key}: string`).join("; ")}${own ? "; createdBy: string" : ""} }): Promise<boolean> {`,
       "  if (!hasDatabase()) return false;",
       "  const sql = getDatabase();",
-      `  await sql\`insert into ${spec.table} (${insertCols}) values (${insertVals})\`;`,
+      own
+        ? `  await sql\`insert into ${spec.table} (${insertCols}, created_by) values (${insertVals}, \${input.createdBy || null})\`;`
+        : `  await sql\`insert into ${spec.table} (${insertCols}) values (${insertVals})\`;`,
       "  return true;",
       "}"
     ]);
@@ -88,22 +99,26 @@ export function simpleListModule(spec: SimpleListSpec): AppModule {
     return file(`src/app/api${pagePath}/route.ts`, [
       'import { NextResponse } from "next/server";',
       'import { getCurrentUser } from "@/lib/auth/session";',
-      'import { canAccessCustomerArea } from "@/lib/auth/roles";',
+      own ? 'import { canAccessAdmin, canAccessCustomerArea } from "@/lib/auth/roles";' : 'import { canAccessCustomerArea } from "@/lib/auth/roles";',
       `import { ${listFn}, ${createFn}, ${enabledFn} } from "@/lib/db/${spec.slug}";`,
       'export const dynamic = "force-dynamic";',
       "export async function GET() {",
       `  if (!${enabledFn}()) return NextResponse.json({ ok: false, message: "This feature is turned off." }, { status: 404 });`,
       "  const user = await getCurrentUser();",
       '  if (!canAccessCustomerArea(user?.role)) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
-      `  return NextResponse.json({ ok: true, records: await ${listFn}() });`,
+      own
+        ? `  return NextResponse.json({ ok: true, records: await ${listFn}({ userId: user?.id || "", all: canAccessAdmin(user?.role) }) });`
+        : `  return NextResponse.json({ ok: true, records: await ${listFn}() });`,
       "}",
       "export async function POST(request: Request) {",
+      `  if (!${enabledFn}()) return NextResponse.json({ ok: false, message: "This feature is turned off." }, { status: 404 });`,
       "  const user = await getCurrentUser();",
       '  if (!canAccessCustomerArea(user?.role)) return NextResponse.json({ ok: false, message: "Please sign in." }, { status: 401 });',
       "  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;",
       ...reads,
       `  if (!${required}) return NextResponse.json({ ok: false, message: "A ${spec.fields[0].label.toLowerCase()} is required." }, { status: 400 });`,
-      `  const ok = await ${createFn}({ ${spec.fields.map((f) => f.key).join(", ")} });`,
+      ...(own ? ['  if (!user?.id) return NextResponse.json({ ok: false, message: "Please sign in again to save this." }, { status: 401 });'] : []),
+      `  const ok = await ${createFn}({ ${spec.fields.map((f) => f.key).join(", ")}${own ? ", createdBy: user.id" : ""} });`,
       '  if (!ok) return NextResponse.json({ ok: false, message: "Connect a database to save this." }, { status: 503 });',
       "  return NextResponse.json({ ok: true });",
       "}"
@@ -131,11 +146,12 @@ export function simpleListModule(spec: SimpleListSpec): AppModule {
       "  async function submit(event: React.FormEvent<HTMLFormElement>) {",
       "    event.preventDefault();",
       '    setStatus("saving");',
-      "    const data = new FormData(event.currentTarget);",
+      "    const form = event.currentTarget;",
+      "    const data = new FormData(form);",
       `    const response = await fetch("${apiPath}", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ${jsonBody} }) });`,
       "    const json = await response.json().catch(() => ({}));",
       "    if (!response.ok || !json.ok) { setStatus(\"error\"); setMessage(json.message || \"Could not save.\"); return; }",
-      "    event.currentTarget.reset();",
+      "    form.reset();",
       '    setStatus("idle");',
       "    router.refresh();",
       "  }",
@@ -155,13 +171,14 @@ export function simpleListModule(spec: SimpleListSpec): AppModule {
     const bodyExpr = spec.bodyField ? `{row.${spec.bodyField}}` : "";
     return file(`src/app${pagePath}/page.tsx`, [
       'import { requireCustomerAccess } from "@/lib/auth/session";',
+      ...(own ? ['import { canAccessAdmin } from "@/lib/auth/roles";'] : []),
       `import { ${listFn}, ${enabledFn} } from "@/lib/db/${spec.slug}";`,
       `import { Form } from "./${spec.slug}-form";`,
       'export const dynamic = "force-dynamic";',
       "export default async function Page() {",
       `  if (!${enabledFn}()) return (<main className="shell"><h1>${spec.heading}</h1><p>This feature is turned off for this app.</p></main>);`,
-      `  await requireCustomerAccess("${pagePath}");`,
-      `  const records = await ${listFn}();`,
+      own ? `  const user = await requireCustomerAccess("${pagePath}");` : `  await requireCustomerAccess("${pagePath}");`,
+      own ? `  const records = await ${listFn}({ userId: user.id, all: canAccessAdmin(user.role) });` : `  const records = await ${listFn}();`,
       "  return (",
       '    <main className="shell">',
       `      <p className="eyebrow">${spec.name}</p>`,
@@ -200,8 +217,10 @@ export function simpleListModule(spec: SimpleListSpec): AppModule {
         `create table if not exists ${spec.table} (`,
         "  id uuid primary key default gen_random_uuid(),",
         schemaCols,
+        ...(own ? ["  created_by uuid references users(id) on delete set null,"] : []),
         "  created_at timestamptz not null default now()",
-        ");"
+        ");",
+        ...(own ? [`alter table ${spec.table} add column if not exists created_by uuid references users(id) on delete set null;`] : [])
       ].join("\n"),
     envLines: () => ["", `# ${spec.name} — set to false to switch off.`, `${flagEnv}=true`],
     homeLinks: () => [`        <a className="button" href="${pagePath}">${spec.name}</a>`],
