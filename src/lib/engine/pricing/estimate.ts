@@ -108,12 +108,14 @@ export function estimateBuild(input: EstimateInput): BuildEstimate | EstimateErr
   if (!suggested && input.needText) {
     suggested = matchArchetype(input.needText);
   }
-  if (suggested && (!input.featureIds || input.featureIds.length === 0)) {
-    for (const f of featuresForArchetype(suggested)) {
+  if (!input.featureIds || input.featureIds.length === 0) {
+    for (const f of suggested ? featuresForArchetype(suggested) : []) {
       selectedFeatureIds.add(f.id);
     }
-    // Layer a few need-based add-ons on the starter pack so the first quote
-    // matches what they said the app must do — without dumping the whole catalog.
+    // Add what their own words ask for, on top of the starter pack — or on its
+    // own when no starter fits (a candle shop asked to sell online; it should not
+    // be quoted a bare website). Capped so a long description can't become the
+    // whole catalog.
     let extras = 0;
     for (const f of suggestFeaturesFromText(input.needText || "")) {
       if (selectedFeatureIds.has(f.id)) continue;
@@ -279,44 +281,45 @@ export function estimateBuild(input: EstimateInput): BuildEstimate | EstimateErr
 }
 
 /** Suggest features from free text (keyword overlap with feature labels/descriptions). */
+// What the customer's own words ask for. Each rule is a phrase someone uses
+// when they need that piece, matched as whole words: a word that merely appears
+// in a feature's description (\"your\", \"track\", \"need\") is not a request
+// for it — scoring on those padded nearly every quote with pieces nobody asked
+// for. Guarded by scripts/smoke-recommendations.js (real requests → packs).
+const FEATURE_SIGNALS: Array<{ id: string; weight: number; pattern: RegExp }> = [
+  { id: "payments", weight: 5, pattern: /\b(pay|payments?|paid|checkout|stripe|charge|tuition|dues|deposits?|donations?|donate|give online|giving|tithes?|sell|selling|buy online)\b/ },
+  { id: "finance", weight: 5, pattern: /\b(invoices?|invoicing|budgets?|expenses?|bookkeeping|books|profit|margins?|overhead|money in|cash flow)\b/ },
+  { id: "crm", weight: 5, pattern: /\b(leads?|crm|follow[- ]?ups?|pipeline|prospects?|quotes?|estimates?|customers?|clients?)\b/ },
+  { id: "scheduling", weight: 5, pattern: /\b(schedul\w*|book(ing)?s?|appointments?|calendar|rsvps?|events?|sessions?|shifts?|classes|games|practices|reservations?|sign up for)\b/ },
+  { id: "notify", weight: 4, pattern: /\b(notif\w*|announc\w*|newsletters?|remind\w*|text (me|them|people)|email (everyone|members|people)|updates to)\b/ },
+  { id: "directory", weight: 5, pattern: /\b(director(y|ies)|members?( list)?|rosters?|teams?|parents|families|residents|neighbors|congregation|people list)\b/ },
+  { id: "needs-match", weight: 5, pattern: /\b(in need|meals? (train|for)|bring meals|help each other|share tools|lend|borrow|helpers?|benevolence|match(es|ing)? (people|families|volunteers|helpers|neighbors))\b/ },
+  { id: "growth", weight: 5, pattern: /\b(goals?|habits?|streaks?|journal\w*|daily check[- ]?ins?)\b/ },
+  { id: "cases", weight: 5, pattern: /\b(job search|looking for (a )?(job|work)|resumes?|job applications?|applications|case (files?|work|tracking)|caseload|paperwork)\b/ },
+  { id: "orders", weight: 5, pattern: /\b(shop|store|orders?|products?|sell|selling|merch|online store|catalog)\b/ },
+  { id: "invites", weight: 4, pattern: /\b(invite (friends|people|others)|referrals?|bring a friend)\b/ },
+  { id: "public-page", weight: 4, pattern: /\b(public (page|profile)|profile page|share (my|our) (page|profile)|portfolio)\b/ },
+  { id: "admin", weight: 3, pattern: /\b(moderat\w*|admin console|staff console|approve (members|users))\b/ },
+  { id: "knowledge", weight: 4, pattern: /\b(knowledge base|how[- ]to guides?|faqs?|playbooks?|troubleshoot\w*)\b/ },
+  { id: "branding", weight: 3, pattern: /\b(brand(ing)?|logo|colors|look and feel)\b/ },
+  { id: "ai-helper", weight: 3, pattern: /\b(ai|assistant|chat ?bot|write (it|posts|copy) for me)\b/ },
+  { id: "intake", weight: 4, pattern: /\b(intake( forms?)?|questionnaires?|application forms?|sign[- ]?up forms?|fill out (a |an )?forms?)\b/ },
+  { id: "shelf", weight: 5, pattern: /\b(pantry|shelf|shelves|inventory|stock|food bank|use[- ]by|tool (library|shed))\b/ },
+  { id: "receipts", weight: 5, pattern: /\b(donors?|tax receipts?|receipts? for (gifts|donations)|in[- ]kind|write[- ]?offs?)\b/ },
+  { id: "waitlist", weight: 4, pattern: /\b(wait ?list|waiting list)\b/ },
+  { id: "pulse", weight: 5, pattern: /\b(feel unheard|issue board|community (feedback|concerns)|town hall)\b/ },
+  { id: "group-buy", weight: 5, pattern: /\b(group buy|buy (in bulk )?together|bulk order)\b/ },
+  { id: "proof", weight: 4, pattern: /\b(proofs?|sign[- ]?off|approve (designs?|drafts?|mockups?))\b/ },
+  { id: "navigator", weight: 3, pattern: /\b(next steps?|navigat\w*|where (they|people) are)\b/ }
+];
+
 export function suggestFeaturesFromText(text: string): SellableFeature[] {
   const t = text.toLowerCase();
-  const scored = SELLABLE_FEATURES.map((f) => {
-    let score = 0;
-    const bag = `${f.label} ${f.description} ${f.id} ${f.category}`.toLowerCase();
-    for (const word of bag.split(/\W+/).filter((w) => w.length > 3)) {
-      if (t.includes(word)) score += 1;
-    }
-    // strong signals
-    if (/public|share|profile|page anyone/.test(t) && f.id === "public-page") score += 4;
-    if (/pay|stripe|checkout|invoice|charge|give/.test(t) && (f.id === "payments" || f.id === "finance")) score += 5;
-    if (/lead|crm|follow.?up|pipeline|customer|client/.test(t) && f.id === "crm") score += 5;
-    if (/schedule|book|appoint|calendar|rsvp|event/.test(t) && f.id === "scheduling") score += 5;
-    if (/notif|email|sms|text me|remind/.test(t) && f.id === "notify") score += 4;
-    if (/directory|member list|roster|people list/.test(t) && f.id === "directory") score += 5;
-    if (/need|volunteer|helper|match|benevolen/.test(t) && f.id === "needs-match") score += 5;
-    if (/goal|habit|streak|journal|growth|check.?in/.test(t) && f.id === "growth") score += 5;
-    if (/job|resume|application|case|paperwork/.test(t) && f.id === "cases") score += 4;
-    if (/shop|store|order|product|sell/.test(t) && f.id === "orders") score += 5;
-    if (/invite|share loop|bring a friend/.test(t) && f.id === "invites") score += 4;
-    if (/admin|moderate|staff console/.test(t) && f.id === "admin") score += 3;
-    if (/knowledge|how.?to|playbook|faq|docs/.test(t) && f.id === "knowledge") score += 4;
-    if (/brand|logo|colors|look and feel/.test(t) && f.id === "branding") score += 3;
-    if (/\bai\b|assistant|helper bot/.test(t) && f.id === "ai-helper") score += 3;
-    if (/pantry|shelf|inventory|stock|use-by|food bank/.test(t) && f.id === "shelf") score += 5;
-    if (/donor|receipt|write-?off|in-kind/.test(t) && f.id === "receipts") score += 5;
-    if (/waitlist|waiting list|invite when/.test(t) && f.id === "waitlist") score += 4;
-    if (/pulse|unheard|issue board|leaders flying/.test(t) && f.id === "pulse") score += 5;
-    if (/group buy|buy together|lock order/.test(t) && f.id === "group-buy") score += 5;
-    if (/intake|capture the problem/.test(t) && f.id === "intake") score += 3;
-    if (/next step|navigator|where they are/.test(t) && f.id === "navigator") score += 3;
-    return { f, score };
-  })
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
-    .map((x) => x.f);
-  return scored;
+  return FEATURE_SIGNALS.filter((signal) => signal.pattern.test(t))
+    .sort((a, b) => b.weight - a.weight)
+    .map((signal) => featureById(signal.id))
+    .filter((feature): feature is SellableFeature => Boolean(feature))
+    .slice(0, 8);
 }
 
 export function listArchetypesForUi() {
