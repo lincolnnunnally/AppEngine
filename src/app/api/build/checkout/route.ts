@@ -10,6 +10,7 @@ import {
   setBuildOrderSession
 } from "@/lib/engine/build-orders";
 import { stripeRequest } from "@/lib/engine/stripe";
+import { parseArrival } from "@/lib/ui/arrival";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     return json({ ok: false, message: "We couldn't find your account email." }, 400);
   }
 
-  let body: { idea?: unknown; name?: unknown; themeId?: unknown; brand?: unknown; featureIds?: unknown };
+  let body: { idea?: unknown; name?: unknown; themeId?: unknown; brand?: unknown; featureIds?: unknown; arrival?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -69,7 +70,8 @@ export async function POST(request: Request) {
       idea: idea.slice(0, 2000),
       name: typeof body.name === "string" ? body.name.trim().slice(0, 80) || undefined : undefined,
       themeId: typeof body.themeId === "string" ? body.themeId.trim().slice(0, 40) || undefined : undefined,
-      brand
+      brand,
+      arrival: parseArrival(body.arrival as { from?: unknown; org?: unknown } | null)
     },
     pack
   );
@@ -79,7 +81,13 @@ export async function POST(request: Request) {
   const origin = forwardedHost
     ? `${forwardedProto}://${forwardedHost}`
     : process.env.APP_ENGINE_PUBLIC_ORIGIN?.replace(/\/$/, "") || "https://appengine.unitedundergod.org";
-  const metadata = { order_id: order.id, user_key: userKey, app_slug: "appengine", stream: "build-order" };
+  const metadata = {
+    order_id: order.id,
+    user_key: userKey,
+    app_slug: "appengine",
+    stream: "build-order",
+    source: order.source || "appengine"
+  };
 
   try {
     const checkout = await stripeRequest<{ id?: string; url?: string }>("/v1/checkout/sessions", {

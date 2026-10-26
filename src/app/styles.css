@@ -4664,6 +4664,29 @@ label {
   flex-wrap: wrap;
 }
 
+.factory-arrival {
+  max-width: 720px;
+  margin: 24px auto 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line, #e3e0d8);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+}
+
+.factory-arrival h2 {
+  margin: 4px 0 6px;
+}
+
+.factory-arrival p,
+.factory-arrival li {
+  color: var(--muted, #555);
+}
+
+.factory-arrival ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
 .factory-foot {
   display: flex;
   flex-wrap: wrap;

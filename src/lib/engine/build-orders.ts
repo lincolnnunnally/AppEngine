@@ -20,6 +20,7 @@ import { generatedAppDatabaseConfigured } from "@/lib/engine/database-setup";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { estimateBuild } from "@/lib/engine/pricing/estimate";
 import { stripeConfigured } from "@/lib/engine/stripe";
+import type { Arrival, ArrivalSource } from "@/lib/ui/arrival";
 
 export type BuildOrderStatus = "pending" | "paid" | "building" | "build_failed";
 
@@ -43,6 +44,8 @@ export type BuildOrder = {
   jobId: string | null;
   attempts: number;
   lastError: string | null;
+  source: ArrivalSource | null; // platform that sent the customer, null = came directly
+  organization: string | null; // their church or business, as that platform named it
   createdAt: string | null;
   paidAt: string | null;
 };
@@ -112,6 +115,9 @@ async function ensureTable(sql: ReturnType<typeof getDatabase>): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS app_build_orders_user_idx ON app_build_orders (user_email, created_at DESC)`;
       await sql`ALTER TABLE app_build_orders ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0`;
       await sql`ALTER TABLE app_build_orders ADD COLUMN IF NOT EXISTS last_error text`;
+      // Which platform sent the customer (ChurchConnect / Operate), and their church or business.
+      await sql`ALTER TABLE app_build_orders ADD COLUMN IF NOT EXISTS source text`;
+      await sql`ALTER TABLE app_build_orders ADD COLUMN IF NOT EXISTS organization text`;
     })().catch((error) => {
       tableReady = null;
       throw error;
@@ -149,6 +155,8 @@ function rowToOrder(row: Record<string, unknown>): BuildOrder {
     jobId: (row.job_id as string) ?? null,
     attempts: Number(row.attempts ?? 0),
     lastError: (row.last_error as string) ?? null,
+    source: (row.source as BuildOrder["source"]) ?? null,
+    organization: (row.organization as string) ?? null,
     createdAt: toIso(row.created_at),
     paidAt: toIso(row.paid_at)
   };
@@ -156,7 +164,7 @@ function rowToOrder(row: Record<string, unknown>): BuildOrder {
 
 export async function createBuildOrder(
   userEmail: string,
-  input: { idea: string; name?: string; themeId?: string; brand?: BuildOrder["brand"] },
+  input: { idea: string; name?: string; themeId?: string; brand?: BuildOrder["brand"]; arrival?: Arrival | null },
   pack: PricedPack
 ): Promise<BuildOrder> {
   const order: BuildOrder = {
@@ -176,6 +184,8 @@ export async function createBuildOrder(
     jobId: null,
     attempts: 0,
     lastError: null,
+    source: input.arrival?.from ?? null,
+    organization: input.arrival?.org ?? null,
     createdAt: new Date().toISOString(),
     paidAt: null
   };
@@ -184,10 +194,10 @@ export async function createBuildOrder(
     const sql = getDatabase();
     await ensureTable(sql);
     await sql`
-      insert into app_build_orders (id, user_email, idea, name, feature_ids, module_slugs, line_labels, theme_id, brand, price_cents)
+      insert into app_build_orders (id, user_email, idea, name, feature_ids, module_slugs, line_labels, theme_id, brand, price_cents, source, organization)
       values (${order.id}, ${userEmail}, ${order.idea}, ${order.name}, ${JSON.stringify(order.featureIds)}::jsonb,
         ${JSON.stringify(order.moduleSlugs)}::jsonb, ${JSON.stringify(order.lineLabels)}::jsonb, ${order.themeId},
-        ${JSON.stringify(order.brand)}::jsonb, ${order.priceCents})
+        ${JSON.stringify(order.brand)}::jsonb, ${order.priceCents}, ${order.source}, ${order.organization})
     `;
   } else {
     memory.set(order.id, order);

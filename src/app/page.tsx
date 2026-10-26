@@ -7,13 +7,14 @@ import { normalizeUserKey } from "@/lib/engine/billing";
 import { OwnerCommandDeck } from "@/components/engine/owner-command-deck";
 import AppShell from "@/components/engine/app-shell";
 import { PublicFactoryHome } from "@/components/intake/public-factory-home";
+import { parseArrival } from "@/lib/ui/arrival";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
   searchParams
 }: {
-  searchParams: Promise<{ apps?: string }>;
+  searchParams: Promise<{ apps?: string; from?: string; org?: string }>;
 }) {
   if (await isDashboardRequest()) {
     if (!(await canAccessEngineAdmin())) {
@@ -33,6 +34,7 @@ export default async function HomePage({
     <PublicFactoryHome
       signedInEmail={session?.user?.email || null}
       isOwner={canAccessOwner(session?.user?.role)}
+      arrival={parseArrival(await searchParams)}
     />
   );
 }

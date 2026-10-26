@@ -114,6 +114,19 @@ check(checkoutRoute.includes("flatCheckoutReadiness()"), "checkout applies the m
 const webhook = read("src/app/api/billing/webhook/route.ts");
 check(webhook.includes('metadata.stream === "build-order"') && webhook.includes("markBuildOrderPaid") && webhook.includes("startPaidOrderBuild"), "the signed webhook marks the order paid and starts its build");
 check(webhook.indexOf("verifyStripeSignature") < webhook.indexOf('"build-order"'), "the signature is checked before any order is touched");
+// Sent by ChurchConnect or Operate: same price, and the order remembers who sent it.
+const { parseArrival } = await import("../src/lib/ui/arrival.ts");
+const sent = parseArrival({ from: "ChurchConnect", org: "  Grace <b>Chapel</b>  " });
+check(sent?.from === "churchconnect" && sent.org === "Grace bChapel/b", "an arrival from ChurchConnect is recognised and its church name cleaned");
+check(parseArrival({ from: "elsewhere", org: "x" }) === null && parseArrival(null) === null, "an unknown source is ignored");
+const fromChurch = await createBuildOrder("pastor@example.org", { idea, arrival: sent }, pack);
+check(
+  fromChurch.source === "churchconnect" && fromChurch.organization === "Grace bChapel/b" && fromChurch.priceCents === pack.priceCents,
+  "an order from ChurchConnect records its source and church, at the same price"
+);
+check((await createBuildOrder("walkin@example.org", { idea }, pack)).source === null, "a direct order has no source");
+check(read("src/app/api/build/checkout/route.ts").includes("parseArrival(body.arrival"), "checkout re-validates the arrival on the server");
+
 const customerBuild = read("src/lib/engine/customer-build.ts");
 check(customerBuild.includes("options.prepaid ? undefined : userKey"), "a paid order's build is never metered a second time");
 
