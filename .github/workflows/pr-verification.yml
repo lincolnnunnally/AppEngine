@@ -68,6 +68,9 @@ jobs:
       - name: Recommendations smoke (real requests get the pack they need, no padding)
         run: npm run smoke:recommendations
 
+      - name: Build-progress smoke (unwatched builds finish, owner emailed once, failed paid builds redone)
+        run: npm run smoke:build-progress
+
       - name: Flat-checkout smoke (server price, paid once, one build per order, money gate)
         run: npm run smoke:flat-checkout
 

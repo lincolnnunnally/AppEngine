@@ -4664,6 +4664,22 @@ label {
   flex-wrap: wrap;
 }
 
+.factory-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.1rem;
+  justify-content: center;
+  align-items: center;
+  margin: 2.5rem auto 1.5rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.factory-foot a {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .factory-bar-mark {
   font-weight: 800;
   letter-spacing: 0.02em;

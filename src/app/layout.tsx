@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Describe a problem. Open a live starter.",
     description:
-      "Tell us what's stuck. We snap together pieces we already keep, show you the price, and publish a starter you can open — usually in days.",
+      "Tell us what's stuck. We snap together pieces we already keep, show you the price, and publish a starter you can open — usually within minutes.",
     icons: SEAL_ICONS,
   };
 }

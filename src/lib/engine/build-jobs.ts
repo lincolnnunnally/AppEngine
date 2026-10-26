@@ -180,3 +180,36 @@ export async function updateBuildJob(id: string, patch: Partial<BuildJob>): Prom
   const existing = memory.get(id);
   if (existing) memory.set(id, { ...existing, ...patch, updatedAt: new Date().toISOString() });
 }
+
+// Builds in a given state, oldest first — the background sweep advances these.
+export async function listBuildJobsByStatus(status: BuildJobStatus, limit = 50): Promise<BuildJob[]> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      select * from app_build_jobs where status = ${status} order by updated_at asc limit ${limit}
+    `) as Array<Record<string, unknown>>;
+    return rows.map(rowToJob);
+  }
+  return [...memory.values()].filter((job) => job.status === status).slice(0, limit);
+}
+
+// deploying → live exactly once. Returns true only for the caller that made the
+// change, so "your app is ready" goes out once even when a poll and the sweep
+// see the finished deploy at the same moment.
+export async function markBuildJobLive(id: string, url: string | null): Promise<boolean> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      update app_build_jobs set status = 'live', url = coalesce(${url}, url), error = null, updated_at = now()
+      where id = ${id} and status = 'deploying'
+      returning id
+    `) as Array<Record<string, unknown>>;
+    return rows.length > 0;
+  }
+  const job = memory.get(id);
+  if (!job || job.status !== "deploying") return false;
+  memory.set(id, { ...job, status: "live", url: url ?? job.url, error: null, updatedAt: new Date().toISOString() });
+  return true;
+}

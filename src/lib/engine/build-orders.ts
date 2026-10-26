@@ -326,3 +326,16 @@ export async function listOrdersNeedingRebuild(limit = 50): Promise<BuildOrder[]
   }
   return [...memory.values()].filter((order) => order.status === "build_failed").slice(0, limit);
 }
+
+// Paid orders whose build is underway — the sweep redoes any whose job failed.
+export async function listBuildingOrders(limit = 50): Promise<BuildOrder[]> {
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      select * from app_build_orders where status = 'building' order by updated_at asc limit ${limit}
+    `) as Array<Record<string, unknown>>;
+    return rows.map(rowToOrder);
+  }
+  return [...memory.values()].filter((order) => order.status === "building").slice(0, limit);
+}

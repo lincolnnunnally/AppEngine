@@ -86,7 +86,7 @@ export function FactoryWelcome() {
         </p>
         <p className="factory-how">
           {noOrphan(
-            "The first version is a live starter you can open — then we verify it and improve it with you. You do not pay until that starter is actually up."
+            "The price you see is the price you pay — once, no meter running. The first version is a live starter you can open, usually within minutes; then we verify it and improve it with you. If a build fails, we redo it at no charge."
           )}
         </p>
       </section>

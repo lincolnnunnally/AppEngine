@@ -47,6 +47,11 @@ export function PublicFactoryHome({
       <div id="describe">
         <ConversationalIntake embedded={selling} onJourney={setJourney} />
       </div>
+
+      <footer className="factory-foot">
+        <span>A real person reads every message.</span>
+        <Link href="/help">Get help</Link>
+      </footer>
     </div>
   );
 }
