@@ -7,6 +7,7 @@ import { DomainStep } from "@/components/build/domain-step";
 import { ThemePicker } from "@/components/build/theme-picker";
 import { noOrphan } from "@/lib/ui/no-orphan";
 import { clearComposeDraft, saveComposeDraft } from "@/lib/ui/compose-draft";
+import { readArrival } from "@/lib/ui/arrival";
 
 type FeatureRow = {
   id: string;
@@ -228,6 +229,7 @@ export function ComposeAndBuild({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           idea,
+          arrival: readArrival(),
           themeId,
           featureIds: featureIds || [],
           brand: { accentColor: accentColor || undefined, logoUrl: logoUrl.trim() || undefined }

@@ -5,21 +5,31 @@ import { useEffect, useState } from "react";
 import { ConversationalIntake } from "@/components/intake/conversational-intake";
 import { FactoryWelcome } from "@/components/intake/factory-welcome";
 import { readComposeDraft } from "@/lib/ui/compose-draft";
+import { ARRIVAL_COPY, readArrival, saveArrival, type Arrival } from "@/lib/ui/arrival";
 
 const DESK_ORIGIN = "https://dashboard.unitedundergod.org";
 
 export function PublicFactoryHome({
   signedInEmail,
-  isOwner
+  isOwner,
+  arrival: arrivedWith = null
 }: {
   signedInEmail: string | null;
   isOwner: boolean;
+  arrival?: Arrival | null;
 }) {
   const [journey, setJourney] = useState<"sell" | "talk" | "pack">("sell");
+  const [arrival, setArrival] = useState<Arrival | null>(arrivedWith);
 
   useEffect(() => {
     if (readComposeDraft()) setJourney("pack");
-  }, []);
+    // Sent here by ChurchConnect or Operate: remember it for this tab (it has to
+    // survive sign-in). Coming back after sign-in, the URL no longer carries it.
+    if (arrivedWith) saveArrival(arrivedWith);
+    else setArrival(readArrival());
+  }, [arrivedWith]);
+
+  const copy = arrival ? ARRIVAL_COPY[arrival.from] : null;
 
   const selling = journey === "sell";
 
@@ -33,6 +43,7 @@ export function PublicFactoryHome({
           ) : (
             <Link href="/">Start over</Link>
           )}
+          {copy ? <a href={copy.home}>Back to {copy.platform}</a> : null}
           {signedInEmail ? <Link href="/account">Your apps</Link> : <Link href="/signin">Sign in</Link>}
           {isOwner ? (
             <a href={DESK_ORIGIN} className="factory-bar-desk">
@@ -41,6 +52,22 @@ export function PublicFactoryHome({
           ) : null}
         </nav>
       </header>
+
+      {selling && copy ? (
+        <section className="factory-arrival" aria-label={`From ${copy.platform}`}>
+          <p className="convo-eyebrow">
+            From {copy.platform}
+            {arrival?.org ? ` · ${arrival.org}` : ""}
+          </p>
+          <h2>{copy.headline}</h2>
+          <p>Same prices as everyone — you see the price before you pay. People have asked for things like:</p>
+          <ul>
+            {copy.examples.map((example) => (
+              <li key={example}>{example}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {selling ? <FactoryWelcome /> : null}
 
