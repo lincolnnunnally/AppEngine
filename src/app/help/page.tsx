@@ -1,6 +1,9 @@
 import { HelpForm } from "@/components/help/help-form";
 import { listHelpApps } from "@/lib/engine/app-ops-catalog";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
+import { auth } from "@/auth";
+import { normalizeUserKey } from "@/lib/engine/billing";
+import { listBuildJobsForUser } from "@/lib/engine/build-jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +26,16 @@ export default async function HelpPage({
       name: names.get(entry.slug) || entry.slug
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const initial = apps.some((entry) => entry.slug === params.app) ? params.app || "other" : params.app || "other";
+  // A customer's own apps lead the list, so help about an app they bought here
+  // reaches the owner already labelled with which app it is.
+  const session = await auth().catch(() => null);
+  const userKey = normalizeUserKey(session?.user?.email);
+  const builds = userKey ? await listBuildJobsForUser(userKey).catch(() => []) : [];
+  const ownApps = builds
+    .filter((job) => job.vercelProject || job.url)
+    .map((job) => ({ slug: `customer-${job.vercelProject || job.id}`, name: `Your app: ${job.idea.slice(0, 60)}` }));
+  apps.unshift(...ownApps, { slug: "appengine-customer", name: "An app I built with App Engine" });
+  const initial = apps.some((entry) => entry.slug === params.app) ? params.app || "other" : ownApps[0]?.slug || params.app || "other";
 
   return (
     <main className="shell help-shell">

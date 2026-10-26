@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { canAccessEngineConsumerSurface } from "@/lib/auth/access";
 import { normalizeUserKey } from "@/lib/engine/billing";
-import { getBuildJob, updateBuildJob } from "@/lib/engine/build-jobs";
-import { getDeploymentState, verifyDeployedApp } from "@/lib/engine/vercel-deploy";
+import { getBuildJob } from "@/lib/engine/build-jobs";
+import { advanceBuildJob } from "@/lib/engine/build-progress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,21 +30,12 @@ export async function GET(request: Request) {
     return json({ ok: false, message: "That isn't your build." }, 403);
   }
 
-  // If the deploy is in flight, check the Vercel build state.
+  // If the deploy is in flight, check whether Vercel has finished (shared with
+  // the background sweep, which also emails the owner when it goes live).
   if (job.status === "deploying" && job.deploymentId) {
-    const state = await getDeploymentState(job.deploymentId);
-    if (state.state === "READY") {
-      const url = state.url || job.url;
-      // Completion gate (AIPOS): record whether the URL actually serves, so "live"
-      // is verified — not just "Vercel says READY". We don't block on it (avoids a
-      // hang if the app is slow to warm), but we report it honestly.
-      const verified = url ? await verifyDeployedApp(url) : false;
-      await updateBuildJob(jobId, { status: "live", url });
-      return json({ ok: true, status: "live", url, verified, project: job.vercelProject });
-    }
-    if (state.state === "ERROR" || state.state === "CANCELED") {
-      await updateBuildJob(jobId, { status: "failed", error: "The deployment failed while building." });
-      return json({ ok: true, status: "failed", error: "The deployment failed while building." });
+    const result = await advanceBuildJob(job);
+    if (result.status !== "deploying") {
+      return json({ ok: true, status: result.status, url: result.url, verified: result.verified, error: result.error, project: job.vercelProject });
     }
   }
 

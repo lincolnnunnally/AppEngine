@@ -28,7 +28,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Anyone who needs one private tool for one recurring mess",
     coreJob: "Hold the list, dates, or steps so nothing drops",
     defaultFeatureIds: [],
-    triggers: ["personal", "tracker", "todo", "bills", "habit", "remember", "private"],
+    triggers: ["personal", "my bills", "bills", "todo", "to-do", "keep track of my", "remember", "private", "single mom", "single dad", "my family"],
     family: "personal"
   },
   {
@@ -46,7 +46,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "People looking for work",
     coreJob: "Applications, follow-ups, and a weekly plan in one place",
     defaultFeatureIds: ["cases"],
-    triggers: ["job", "resume", "applications", "interview", "hire", "unemployed"],
+    triggers: ["job search", "looking for a job", "looking for work", "resume", "job applications", "my applications", "interviews", "unemployed"],
     family: "personal"
   },
   {
@@ -55,7 +55,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Mechanics, cleaners, lawn care, tutors, trades — sell work you do with your hands",
     coreJob: "Who needs me, what I promised, what I charged",
     defaultFeatureIds: ["crm"],
-    triggers: ["mechanic", "cleaner", "lawn", "plumber", "hvac", "tutor", "handyman", "salon", "barber", "service business"],
+    triggers: ["mechanic", "cleaner", "cleaning business", "lawn", "landscap", "plumber", "plumbing", "electrician", "roofer", "painter", "contractor", "hvac", "tutor", "handyman", "salon", "barber", "detailing", "pet groom", "photographer", "service business", "quotes"],
     family: "local_service"
   },
   {
@@ -64,7 +64,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Closers and salespeople who win deals but lose track of the middle",
     coreJob: "Leads → stages → next action so nothing goes cold",
     defaultFeatureIds: ["crm", "notify"],
-    triggers: ["sales", "closer", "pipeline", "leads", "prospect", "quota"],
+    triggers: ["sales rep", "salesperson", "sales team", "closer", "pipeline", "leads", "prospect", "quota"],
     family: "sales"
   },
   {
@@ -73,7 +73,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Consultants, coaches, counselors, freelancers with clients",
     coreJob: "Clients, sessions/cases, and follow-up",
     defaultFeatureIds: ["crm", "cases"],
-    triggers: ["consultant", "coach", "counselor", "freelancer", "practice", "clients"],
+    triggers: ["consultant", "life coach", "business coach", "counselor", "counseling", "therapist", "freelancer", "my practice", "clients"],
     family: "care"
   },
   {
@@ -82,7 +82,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Selling products or simple packages online",
     coreJob: "What I sell and who ordered",
     defaultFeatureIds: ["orders", "public-page"],
-    triggers: ["shop", "store", "products", "ecommerce", "orders", "sell online"],
+    triggers: ["shop", "store", "products", "ecommerce", "sell online", "sell my", "handmade", "etsy", "merch"],
     family: "product"
   },
   {
@@ -100,7 +100,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Congregations and nonprofits coordinating people",
     coreJob: "Directory, care/needs, and basic follow-up",
     defaultFeatureIds: ["directory", "needs-match", "crm"],
-    triggers: ["church", "nonprofit", "ministry", "congregation", "volunteers", "benevolence"],
+    triggers: ["church", "nonprofit", "non-profit", "ministry", "congregation", "volunteers", "benevolence", "parish"],
     family: "org"
   },
   {
@@ -109,7 +109,7 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     forWho: "Teachers, creators, specialists sharing work publicly",
     coreJob: "Public face + invites + simple content home",
     defaultFeatureIds: ["public-page", "invites"],
-    triggers: ["creator", "youtube", "podcast", "teacher", "brand", "audience"],
+    triggers: ["creator", "youtube", "podcast", "influencer", "my audience", "my followers"],
     family: "creator"
   },
   {
@@ -120,6 +120,24 @@ export const BUSINESS_ARCHETYPES: BusinessArchetype[] = [
     defaultFeatureIds: ["shelf", "receipts", "waitlist"],
     triggers: ["pantry", "food bank", "hungry", "shelf", "donor", "grocer", "waitlist"],
     family: "care"
+  },
+  {
+    id: "club-league",
+    name: "Club, team or league",
+    forWho: "Coaches, leagues, clubs and classes keeping members, schedules and families together",
+    coreJob: "Who's on the roster, when and where we meet, and getting word out",
+    defaultFeatureIds: ["scheduling", "directory", "notify"],
+    triggers: ["league", "team", "teams", "club", "coach a", "coaching a", "youth sports", "soccer", "baseball", "softball", "basketball", "football", "volleyball", "scouts", "troop", "choir", "band", "practice schedule"],
+    family: "org"
+  },
+  {
+    id: "association",
+    name: "Association / HOA",
+    forWho: "HOAs, associations and member organizations that announce, collect dues and keep a member list",
+    coreJob: "Members, announcements, and dues in one place",
+    defaultFeatureIds: ["directory", "notify", "payments"],
+    triggers: ["hoa", "homeowners", "association", "dues", "member organization", "membership organization", "residents", "condo"],
+    family: "org"
   },
   {
     id: "civic-pulse",
@@ -143,7 +161,11 @@ export function matchArchetype(text: string): BusinessArchetype | null {
   for (const arch of BUSINESS_ARCHETYPES) {
     let score = 0;
     for (const trigger of arch.triggers) {
-      if (t.includes(trigger.toLowerCase())) score += trigger.split(" ").length;
+      // Whole words from the start ("plumber" matches "plumbers", "landscap"
+      // matches "landscaping"), never mid-word: "job" inside "jobs to schedule"
+      // used to make a landscaper a job seeker.
+      const escaped = trigger.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (new RegExp(`\\b${escaped}`).test(t)) score += trigger.split(" ").length;
     }
     if (score > 0 && (!best || score > best.score)) best = { arch, score };
   }
