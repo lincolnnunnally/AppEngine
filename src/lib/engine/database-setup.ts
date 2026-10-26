@@ -849,3 +849,27 @@ function normalizeDateValue(value: unknown) {
 
   return typeof value === "string" ? value : new Date().toISOString();
 }
+
+// For the usage check (app-usage.ts): which Neon project holds a customer app's
+// database, and a connection to it. Null when the app has no Neon database.
+export async function getAppNeonDatabase(projectId: string): Promise<{ neonProjectId: string; databaseUrl: string } | null> {
+  const provision = await getReusableNeonProvision(projectId);
+  if (!provision) return null;
+  return { neonProjectId: provision.projectId, databaseUrl: await getNeonConnectionUri(provision) };
+}
+
+export async function getNeonProjectUsage(
+  neonProjectId: string
+): Promise<{ computeSeconds: number; transferBytes: number; periodStart: string | null } | null> {
+  if (!process.env.NEON_API_KEY) return null;
+  const result = await neonApiRequest<{
+    project?: { compute_time_seconds?: number; data_transfer_bytes?: number; consumption_period_start?: string };
+  }>(`/projects/${encodeURIComponent(neonProjectId)}`);
+  const project = result.project;
+  if (!project) return null;
+  return {
+    computeSeconds: Number(project.compute_time_seconds || 0),
+    transferBytes: Number(project.data_transfer_bytes || 0),
+    periodStart: project.consumption_period_start || null
+  };
+}

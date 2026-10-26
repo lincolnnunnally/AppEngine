@@ -71,6 +71,9 @@ jobs:
       - name: Build-progress smoke (unwatched builds finish, owner emailed once, failed paid builds redone)
         run: npm run smoke:build-progress
 
+      - name: App-usage smoke (busy apps told to upgrade once per level per month, owner queue)
+        run: npm run smoke:app-usage
+
       - name: Flat-checkout smoke (server price, paid once, one build per order, money gate)
         run: npm run smoke:flat-checkout
 

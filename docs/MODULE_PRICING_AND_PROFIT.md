@@ -129,3 +129,36 @@ Response includes:
 1. UI checklist on Solution Desk or AppEngine soft-launch using this API  
 2. Pay → compose with `module_slugs` from estimate  
 3. Log actual build cost after N jobs → tighten `BASE_SHELL_COST` / `PER_MODULE_COST` constants
+
+---
+
+## Decided — do not re-ask (owner, 2026-10-26)
+
+- **Build prices above are set.** $25 core, $10 per add-on ($20 heavier), custom +$25 with a $50 floor. Agents have re-asked this several times; it is settled.
+- **Where App Engine shows up:** it is **both** part of our platforms **and** offered on its own — one engine, one checkout:
+  - inside **ChurchConnect** as "Build a ministry app" (youth, elderly, outreach, app-building as an outreach activity),
+  - inside **Operate** as "Build a tool for your business",
+  - **standalone** at appengine.unitedundergod.org for individuals.
+  The platform entry points hand off by SSO with the church/business context prefilled. Do not fork a second builder.
+- **Busy apps are told to upgrade, never switched off.** See "Hosting & usage" below.
+
+## Hosting & usage (what keeping an app alive costs us)
+
+Each customer app = one Vercel project (team Pro plan) + one Neon project (its own database).
+
+| Cost | Per typical small app / month |
+|------|------:|
+| Neon database (free plan covers the first 100 projects; after that $0.106–$0.222 per compute-hour, compute sleeps after 5 min idle) | $0 → ~$0.30–$1.70 |
+| Vercel hosting (inside Pro's included usage + $20 credit; the $20 seat is already paid) | ~$0.01–$0.10 |
+| Email (Resend free 3,000/mo; Pro $20 for 50,000) | ~$0 unless the app sends mail |
+| An update/redeploy | ~$0.03 each |
+
+**Totals:** ~$0.05–$0.15 per app per month while we're under 100 apps; ~$0.60–$2 per app per month beyond that. A busy app costs more — that is what the usage safeguard catches.
+
+**Standard allowance per app per month** (`STANDARD_ALLOWANCE` in `src/lib/engine/app-usage.ts`): 500 MB storage, 50 compute-hours, 2 GB data served.
+
+**Safeguard:** `/api/cron/usage` runs daily. It measures every live app (Neon API + `pg_database_size`), emails the app's owner once at 80% ("heads-up") and once past 100% ("time for a bigger plan — nothing is switched off"), at most once per level per month, and puts the app in the owner deck's attention queue. Smoke: `npm run smoke:app-usage`.
+
+**Still the owner's call (money):**
+- the yearly hosting fee after the first month (recommended **$49/year** — annual because Stripe's 30¢ fee eats ~9% of a $5 monthly charge vs ~3.5% of $49/year);
+- the price of the bigger plan. Until it is set, upgrades are handled by reply email.
