@@ -11,6 +11,7 @@ import {
 } from "@/lib/engine/portfolio-url-status";
 import { getOpsSnapshot, type OpsStatsRecord } from "@/lib/engine/ops-stats";
 import type { OpsAttentionItem } from "@/lib/engine/ops-attention";
+import { listAppsNeedingUpgrade, type AppUsage } from "@/lib/engine/app-usage";
 import {
   getCredentialAttentionItems,
   type CredentialAttentionItem
@@ -224,6 +225,9 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
   // and is waiting — these lead the queue.
   const failedPaidOrders = flatCheckoutEnabled() ? await listOrdersNeedingRebuild().catch(() => [] as BuildOrder[]) : [];
 
+  // Customer apps at or past their monthly allowance — they need a bigger plan.
+  const busyApps = await listAppsNeedingUpgrade().catch(() => [] as AppUsage[]);
+
   const records = snapshot?.apps ?? [];
   const opsAttention = snapshot?.attention ?? [];
 
@@ -300,8 +304,20 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
     link: `/build/order/${order.id}`
   }));
 
+  const usageAttention: DeckAttention[] = busyApps.map((usage) => ({
+    appName: usage.app,
+    severity: usage.level === "over" ? ("act" as const) : ("watch" as const),
+    finding: `Customer app at ${usage.worst.percent}% of its monthly ${usage.worst.metric} allowance (${usage.ownerEmail})`,
+    action:
+      usage.level === "over"
+        ? "They've been emailed to upgrade. Follow up and move it to a bigger plan — it is still running."
+        : "They've had a heads-up. Nothing to do yet unless it keeps growing.",
+    link: null
+  }));
+
   const attention: DeckAttention[] = [
     ...paidBuildAttention,
+    ...usageAttention,
     ...inboxAttention,
     ...opsAttention.map((item: OpsAttentionItem) => ({
       appName: item.appName,
