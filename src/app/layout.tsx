@@ -9,8 +9,8 @@ const deskSans = Inter({ subsets: ["latin"], variable: "--font-desk-sans" });
 const deskDisplay = Outfit({ subsets: ["latin"], variable: "--font-desk-display" });
 
 const SEAL_ICONS: Metadata["icons"] = {
-  icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-  shortcut: "/favicon.svg",
+  icon: [{ url: "/favicon.svg?v=standard1", type: "image/svg+xml" }],
+  shortcut: "/favicon.svg?v=standard1",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
