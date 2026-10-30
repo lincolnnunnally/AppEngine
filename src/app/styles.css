@@ -7896,3 +7896,38 @@ button.compose-arch:hover {
   border-radius: 6px;
   padding: 4px 6px;
 }
+
+/* Campaign Builder: readable buttons and tabs. The shared .dx-chip is styled for links;
+   as a <button> it picked up the browser's light gray fill, so its light text vanished. */
+.cb-tabs .dx-chip {
+  appearance: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 8px 16px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.cb-tabs .dx-chip--active {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0e1512;
+}
+.cb-tabs .dx-chip:focus-visible,
+.cb-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.cb-btn {
+  font-size: 0.78rem;
+  padding: 9px 14px;
+  min-height: 40px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+.cb-btn.dx-btn--primary {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0e1512;
+  font-weight: 700;
+}
+.cb-btn:disabled { opacity: 0.6; cursor: wait; }

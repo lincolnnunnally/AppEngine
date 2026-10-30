@@ -99,7 +99,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
   const [done, setDone] = useState(false);
   return (
     <button
-      className="dx-btn"
+      className="dx-btn cb-btn"
       type="button"
       onClick={async () => {
         try {
@@ -207,10 +207,10 @@ export function CampaignBuilder({ initial, aiReady }: { initial: SavedCampaign[]
         <p className="dx-label">I have an idea</p>
         <h2 style={{ margin: "4px 0 12px", fontSize: "1.2rem" }}>Tell us the company, the product and who it is for.</h2>
         <div className="dx-app-actions" style={{ marginBottom: 14 }}>
-          <button className="dx-btn" type="button" onClick={() => setForm(briefToForm(LED_WALL_EXAMPLE))}>
+          <button className="dx-btn cb-btn" type="button" onClick={() => setForm(briefToForm(LED_WALL_EXAMPLE))}>
             Use the LED wall example
           </button>
-          <button className="dx-btn" type="button" onClick={() => setForm(EMPTY)}>
+          <button className="dx-btn cb-btn" type="button" onClick={() => setForm(EMPTY)}>
             Clear
           </button>
         </div>
@@ -270,7 +270,7 @@ export function CampaignBuilder({ initial, aiReady }: { initial: SavedCampaign[]
             </label>
           ) : null}
           <div className="dx-app-actions">
-            <button className="dx-btn dx-btn--primary" type="submit" disabled={busy}>
+            <button className="dx-btn dx-btn--primary cb-btn" type="submit" disabled={busy}>
               {busy ? "Building…" : "Build the campaign"}
             </button>
           </div>
@@ -290,7 +290,7 @@ export function CampaignBuilder({ initial, aiReady }: { initial: SavedCampaign[]
             <strong style={{ color: "var(--gold)" }}>Promise:</strong> {kit.positioning.promise}
           </p>
 
-          <div className="dx-chips" style={{ marginTop: 16 }} role="tablist">
+          <div className="dx-chips cb-tabs" style={{ marginTop: 16 }} role="tablist">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -514,7 +514,7 @@ export function CampaignBuilder({ initial, aiReady }: { initial: SavedCampaign[]
                     <td>{c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-US") : ""}</td>
                     <td>
                       <button
-                        className="dx-btn"
+                        className="dx-btn cb-btn"
                         type="button"
                         onClick={() => {
                           setCurrent(c);
