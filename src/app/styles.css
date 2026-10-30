@@ -7813,3 +7813,121 @@ button.compose-arch:hover {
 
 /* A 30-day bar strip that shares the row width instead of overflowing on phones. */
 .dx-bars--fill .dx-bar { flex: 1 1 0; width: auto; max-width: 12px; }
+
+/* Campaign Builder (/campaigns) */
+.cb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.cb-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--ink);
+  cursor: pointer;
+}
+.cb-check input { margin-top: 4px; accent-color: var(--teal); }
+.cb-stack { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.cb-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cb-ab { display: grid; gap: 6px; font-weight: 600; }
+.cb-ab-tag {
+  display: inline-block;
+  min-width: 22px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent);
+  color: var(--gold);
+  border-radius: 6px;
+  padding: 1px 6px;
+  margin-right: 6px;
+}
+.cb-ab-tag--b { border-color: color-mix(in srgb, var(--teal) 60%, transparent); color: var(--teal); }
+.cb-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 4px 0;
+}
+.cb-h1 { font-size: 1.35rem; margin: 10px 0 4px; color: var(--ink); }
+.cb-benefits {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.cb-benefit { border-left: 2px solid var(--teal); padding: 4px 10px; }
+.cb-list { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.cb-funnel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.cb-stage {
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--gold);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cb-checklist { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; }
+.cb-select {
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+/* Campaign Builder: readable buttons and tabs. The shared .dx-chip is styled for links;
+   as a <button> it picked up the browser's light gray fill, so its light text vanished. */
+.cb-tabs .dx-chip {
+  appearance: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 8px 16px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.cb-tabs .dx-chip--active {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0e1512;
+}
+.cb-tabs .dx-chip:focus-visible,
+.cb-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.cb-btn {
+  font-size: 0.78rem;
+  padding: 9px 14px;
+  min-height: 40px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+.cb-btn.dx-btn--primary {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0e1512;
+  font-weight: 700;
+}
+.cb-btn:disabled { opacity: 0.6; cursor: wait; }
