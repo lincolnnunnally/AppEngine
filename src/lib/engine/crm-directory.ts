@@ -116,7 +116,7 @@ export async function loadDirectoryPage(query: DirectoryQuery): Promise<Director
 const TAG_BATCH = 80;
 const TAG_BATCHES = 8;
 
-/** Contact-tag pages read cc_churches directly. crm_directory_page has no tag argument, and this adds none. */
+/** Contact-tag pages read cc_churches with jsonb containment so the doc GIN can answer each batch. crm_directory_page has no tag argument. */
 async function loadTaggedDirectoryPage(cfg: Config, query: DirectoryQuery): Promise<DirectoryPage> {
   const cursor = decodeDirectoryCursor(query.cursor);
   let after = cursor?.id ?? "";

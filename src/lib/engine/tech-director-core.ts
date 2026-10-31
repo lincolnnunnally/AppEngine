@@ -190,14 +190,24 @@ export function cleanStoredContactTags(value: unknown): string[] {
 }
 
 /**
- * Tags for one imported staff row. A contact_tags cell wins, so an office row
- * is not marked Technical director. A tech-director file with no contact_tags
- * still gets that role tag.
+ * Tags for one imported staff row. A contact_tags cell wins for the campaign tags.
+ * "Technical director" is kept when that cell includes it. An office row does not get it.
+ * A tech-director file with no contact_tags still gets that role tag.
  */
 export function staffTagsForImportRow(row: { contact_tags?: string }): string[] {
-  const extra = cleanImportContactTags(row.contact_tags ?? "");
-  if (extra.length) return extra;
-  return cleanRoleTags([TECHNICAL_DIRECTOR_TAG]);
+  const raw = String(row.contact_tags ?? "").trim();
+  if (!raw) return cleanRoleTags([TECHNICAL_DIRECTOR_TAG]);
+  return cleanStoredContactTags(raw);
+}
+
+/**
+ * Tags from the contact save form. The role control is only the Technical director
+ * tag, so a pipe in that field cannot add a campaign tag. kept_tags are regex-cleaned.
+ */
+export function contactSaveTags(roleField: unknown, keptField: unknown): string[] {
+  const roleRaw = String(roleField ?? "").trim();
+  const role = roleRaw.toLowerCase() === TECHNICAL_DIRECTOR_TAG.toLowerCase() ? [TECHNICAL_DIRECTOR_TAG] : [];
+  return cleanStoredContactTags([...role, ...cleanImportContactTags(keptField)]);
 }
 
 /** Tags already stored on a contact. A single string is accepted. */

@@ -653,42 +653,78 @@ const DIRECTORY_TAG_SELECT = [
   "service_providers:doc->service_providers"
 ].join(",");
 
-function ilikeTag(column: string, tag: string): string {
-  return `${column}.ilike.${encodeURIComponent(`*${tag}*`)}`;
+/** One containment per OR branch. Fit tags are on every branch, so they stay AND. */
+export function directoryTagContainments(filter: DirectoryContactTagFilter): string[][] {
+  const required = [...filter.fit, ...filter.other];
+  const sizes = filter.size.length ? filter.size : [""];
+  const verifies = filter.verify.length ? filter.verify : [""];
+  const sets: string[][] = [];
+  for (const size of sizes) {
+    for (const verify of verifies) {
+      const tags = [...required];
+      if (size) tags.push(size);
+      if (verify) tags.push(verify);
+      if (tags.length) sets.push(tags);
+    }
+  }
+  return sets;
 }
 
-function tagClauses(filter: DirectoryContactTagFilter, column: string): string[] {
-  const clauses = [...filter.fit, ...filter.other].map((tag) => ilikeTag(column, tag));
-  if (filter.size.length === 1) clauses.push(ilikeTag(column, filter.size[0]));
-  else if (filter.size.length > 1) clauses.push(`or(${filter.size.map((tag) => ilikeTag(column, tag)).join(",")})`);
-  if (filter.verify.length === 1) clauses.push(ilikeTag(column, filter.verify[0]));
-  else if (filter.verify.length > 1) clauses.push(`or(${filter.verify.map((tag) => ilikeTag(column, tag)).join(",")})`);
-  return clauses;
+function containmentJson(column: "doc" | "contacts", tags: readonly string[]): string {
+  const payload = column === "doc" ? { staff_contacts: [{ tags }] } : [{ tags }];
+  return JSON.stringify(payload);
+}
+
+/** PostgREST `or`/`and` split on commas. A JSON value has to be a quoted string. */
+function postgrestQuoted(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function containmentClause(column: "doc" | "contacts", tags: readonly string[], insideLogic: boolean): string {
+  const json = containmentJson(column, tags);
+  if (insideLogic) return `${column}.cs.${postgrestQuoted(json)}`;
+  return `${column}=cs.${encodeURIComponent(json)}`;
+}
+
+function joinPostgrestFilters(parts: string[]): string {
+  const logic = parts.filter((part) => part.startsWith("or=("));
+  const plain = parts.filter((part) => !part.startsWith("or=("));
+  if (logic.length <= 1) return [...plain, ...logic].join("&");
+  const groups = logic.map((part) => `or${part.slice("or=".length)}`);
+  const wrapped = `and=(${groups.join(",")})`;
+  return plain.length ? `${plain.join("&")}&${wrapped}` : wrapped;
+}
+
+function tagContainmentParam(column: "doc" | "contacts", filter: DirectoryContactTagFilter): string {
+  const sets = directoryTagContainments(filter);
+  if (sets.length === 1) return containmentClause(column, sets[0], false);
+  return `or=(${sets.map((tags) => containmentClause(column, tags, true)).join(",")})`;
 }
 
 /**
  * PostgREST read of cc_churches whose staff contact tags match.
- * Null when the page should keep using crm_directory_page. No new column.
+ * Uses jsonb containment (`doc @>`) so cc_churches_doc_gin (jsonb_path_ops) can answer it.
+ * A text ilike on doc->>staff_contacts cannot use that index. Null when the page should keep using crm_directory_page.
  */
 export function directoryTagChurchPath(query: DirectoryQuery, afterId: string, limit: number): string | null {
   const filter = directoryContactTagFilter(query);
   if (!directoryContactTagFilterActive(filter)) return null;
-  const clauses = tagClauses(filter, "doc->>staff_contacts");
+  const parts = [tagContainmentParam("doc", filter)];
   const forms = stateStoredForms(query.state);
-  if (forms.length) clauses.push(`or(${forms.map((form) => `doc->>state.ilike.${encodeURIComponent(form)}`).join(",")})`);
-  if (query.tier && TIER_LEAD_CLASS[query.tier]) clauses.push(`doc->>lead_class.eq.${TIER_LEAD_CLASS[query.tier]}`);
+  if (forms.length === 1) parts.push(`doc->>state=ilike.${encodeURIComponent(forms[0])}`);
+  else if (forms.length > 1) parts.push(`or=(${forms.map((form) => `doc->>state.ilike.${encodeURIComponent(form)}`).join(",")})`);
+  if (query.tier && TIER_LEAD_CLASS[query.tier]) parts.push(`doc->>lead_class=eq.${encodeURIComponent(TIER_LEAD_CLASS[query.tier])}`);
   const limitText = String(Math.min(Math.max(limit, 1), 100));
   const after = /^[A-Za-z0-9_-]{1,80}$/.test(afterId) ? `&id=gt.${afterId}` : "";
-  return `cc_churches?select=${DIRECTORY_TAG_SELECT}&and=(${clauses.join(",")})&order=id.asc&limit=${limitText}${after}`;
+  return `cc_churches?select=${DIRECTORY_TAG_SELECT}&${joinPostgrestFilters(parts)}&order=id.asc&limit=${limitText}${after}`;
 }
 
-/** Church-lead rows whose contacts carry the same tags. Empty when there is no tag filter. */
+/** Church-lead rows whose contacts contain the same tags. No text ilike. Empty when there is no tag filter. */
 export function churchLeadTagPath(query: DirectoryQuery, limit: number): string | null {
   const filter = directoryContactTagFilter(query);
   if (!directoryContactTagFilterActive(filter)) return null;
-  const clauses = tagClauses(filter, "contacts");
   const limitText = String(Math.min(Math.max(limit, 1), 40));
-  return `op_leads?select=id,business_name,city,state,phone,email,website_url,status,signals,services,contacts,created_at,updated_at&kind=eq.church-lead&and=(${clauses.join(",")})&order=updated_at.desc&limit=${limitText}`;
+  return `op_leads?select=id,business_name,city,state,phone,email,website_url,status,signals,services,contacts,created_at,updated_at&kind=eq.church-lead&${tagContainmentParam("contacts", filter)}&order=updated_at.desc&limit=${limitText}`;
 }
 
 export function directoryPreviewRows(): DirectoryRow[] {

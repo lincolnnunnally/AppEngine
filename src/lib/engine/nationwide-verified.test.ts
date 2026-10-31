@@ -37,6 +37,7 @@ describe("nationwide verified adapter", () => {
     assert.equal(circle.score, "5");
     assert.equal(circle.lead_class, "staff_only");
     assert.deepEqual(circle.contact_tags.split("|"), [
+      "Technical director",
       "verify:verified",
       "fit:avl_tech_media",
       "fit:uug_group_buy_avl",

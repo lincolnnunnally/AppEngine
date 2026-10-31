@@ -1,7 +1,7 @@
 // Verified nationwide church contacts → the tech-director importer columns.
 // Tags only. No new churches, no attendance field, no sends.
 
-import { parseLeadClass } from "./tech-director-core.ts";
+import { TECHNICAL_DIRECTOR_TAG, parseLeadClass } from "./tech-director-core.ts";
 import { parseCsv } from "./tech-director.ts";
 
 export const NATIONWIDE_SOURCE_TAG = "src:nationwide-20261031";
@@ -96,7 +96,12 @@ function leadClassCell(value: unknown): string {
   return parsed.ok ? parsed.leadClass : "";
 }
 
-/** verify:, fit:, size:, role:, and the nationwide source. No attendance. */
+/**
+ * verify:, fit:, size:, role:, and the nationwide source. No attendance.
+ * strict_av (and an email role of tech_director) also keeps the Technical director tag.
+ * risky, likely, emailable_result=not_run, and shared_email=yes are tags, not skips.
+ * A campaign list uses verify=verified (or verified,likely). Nothing here sends mail.
+ */
 export function importerContactTags(row: {
   verify_status?: unknown;
   campaign_fit?: unknown;
@@ -117,6 +122,7 @@ export function importerContactTags(row: {
   const role = slug(row.role_class) || slug(row.email_role);
   if (role) tags.push(`role:${role}`);
   tags.push(NATIONWIDE_SOURCE_TAG);
+  if (slug(row.role_class) === "strict_av" || slug(row.email_role) === "tech_director") tags.unshift(TECHNICAL_DIRECTOR_TAG);
   return tags;
 }
 

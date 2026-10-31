@@ -10,6 +10,7 @@ import {
   directoryRpcArgs,
   directoryRowFromRecord,
   directoryStatusLabel,
+  churchLeadTagPath,
   directoryTagChurchPath,
   emptyDirectoryQuery,
   filterDirectoryRows,
@@ -211,10 +212,27 @@ describe("church directory pages", () => {
     const path = directoryTagChurchPath({ ...emptyDirectoryQuery(), campaignFit: "avl_tech_media", state: "AL" }, "church-1", 41);
     assert.ok(path);
     assert.equal(path?.startsWith("cc_churches?"), true);
-    assert.equal(path?.includes("fit%3Aavl_tech_media"), true);
+    assert.equal(path?.includes("doc=cs."), true);
+    assert.equal(path?.includes("staff_contacts.ilike"), false);
+    assert.equal(path?.includes("->>staff_contacts"), false);
+    const contained = JSON.parse(decodeURIComponent(path?.split("doc=cs.")[1]?.split("&")[0] ?? "")) as { staff_contacts: Array<{ tags: string[] }> };
+    assert.deepEqual(contained.staff_contacts[0].tags, ["fit:avl_tech_media"]);
     assert.equal(path?.includes("id=gt.church-1"), true);
+    assert.equal(path?.includes("doc->>state.ilike.AL"), true);
     assert.equal(path?.includes("crm_directory_page"), false);
+    const eitherPath = directoryTagChurchPath({ ...emptyDirectoryQuery(), campaignFit: "avl_tech_media", verifyStatus: "verified,likely" }, "", 40);
+    assert.equal(eitherPath?.includes("contacts.ilike"), false);
+    assert.equal(eitherPath?.includes("staff_contacts.ilike"), false);
+    assert.equal(eitherPath?.includes('doc.cs."'), true);
+    assert.equal((eitherPath?.match(/doc\.cs\./g) ?? []).length, 2);
+    const leadPath = churchLeadTagPath({ ...emptyDirectoryQuery(), campaignFit: "avl_tech_media", sizeBand: "small,medium" }, 40);
+    assert.equal(leadPath?.includes("contacts=cs."), false);
+    assert.equal(leadPath?.includes("contacts.ilike"), false);
+    assert.equal(leadPath?.includes("->>contacts"), false);
+    assert.equal((leadPath?.match(/contacts\.cs\./g) ?? []).length, 2);
+    assert.equal(leadPath?.includes("kind=eq.church-lead"), true);
     assert.equal(directoryTagChurchPath(emptyDirectoryQuery(), "", 41), null);
+    assert.equal(churchLeadTagPath(emptyDirectoryQuery(), 40), null);
     assert.equal(JSON.stringify(directoryPreviewRows()).includes("Messenger AVL"), true);
     assert.equal(directoryPreviewRows().every((row) => row.contactTags.length === 0), true);
   });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { isTechnicalDirector, parsePublishedContact, readChurchSignals, signalsForContact, technicalDirectorsFromStaff } from "./tech-director-core.ts";
+import { contactSaveTags, isTechnicalDirector, parsePublishedContact, readChurchSignals, signalsForContact, technicalDirectorsFromStaff } from "./tech-director-core.ts";
 import {
   addChurchSignals,
   addStaffContacts,
@@ -838,6 +838,9 @@ describe("crm search and contact status", () => {
     assert.equal(cardMatchesCrmSearch(palm, "orlando"), true);
     assert.equal(cardMatchesCrmSearch(grace, ""), true);
     assert.equal(cardMatchesCrmSearch({ ...grace, contacts: [{ name: "Andrew Example", title: "Technical Director", tags: ["fit:avl_tech_media", "verify:verified", "size:large_800_plus"] }] }, "fit:avl_tech_media"), true);
+    assert.deepEqual(contactSaveTags("Technical director", "verify:verified|fit:avl_tech_media|<script>|drop table"), ["Technical director", "verify:verified", "fit:avl_tech_media"]);
+    assert.deepEqual(contactSaveTags("Technical director|fit:hack", "verify:verified"), ["verify:verified"]);
+    assert.deepEqual(contactSaveTags("fit:hack", ""), []);
   });
 
   it("accepts a note, a day, and a contact status, and rejects a send-shaped gap", () => {
