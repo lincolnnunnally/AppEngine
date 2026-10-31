@@ -42,6 +42,15 @@ export function stateCode(value: unknown): string {
   return STATE_BY_NAME[text] ?? "";
 }
 
+/** Forms a directory row may store for this state: the code and the full name. */
+export function stateStoredForms(value: unknown): string[] {
+  const code = stateCode(value);
+  if (!code) return [];
+  const name = Object.entries(STATE_BY_NAME).find(([, stored]) => stored === code)?.[0] ?? "";
+  const titled = name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  return [code, titled].filter((form, index, all) => Boolean(form) && all.indexOf(form) === index);
+}
+
 export function parseSignalTypes(value: unknown): { ok: true; types: SignalType[] } | { ok: false; message: string } {
   const parts = String(value ?? "")
     .split("|")
@@ -138,13 +147,67 @@ const text = (value: unknown, limit: number) => String(value ?? "").replace(/\s+
 
 /** Keep only the Technical director tag, in its display spelling. */
 export function cleanRoleTags(value: unknown): string[] {
-  const list = Array.isArray(value) ? value : value == null || value === "" ? [] : [value];
+  const list = tagList(value);
   const tags: string[] = [];
   for (const item of list) {
     if (text(item, 80).toLowerCase() !== TECHNICAL_DIRECTOR_TAG.toLowerCase()) continue;
     if (!tags.includes(TECHNICAL_DIRECTOR_TAG)) tags.push(TECHNICAL_DIRECTOR_TAG);
   }
   return tags;
+}
+
+const IMPORT_TAG = /^(verify|fit|size|role|src|prio):([a-z0-9_-]+)$/;
+
+function tagList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value == null || value === "") return [];
+  return String(value).split(/[|;]/);
+}
+
+/**
+ * Campaign tags stored on a staff contact. verify, fit, size, role, src, and prio.
+ * Anything else is dropped. The Technical director role tag is not one of these.
+ */
+export function cleanImportContactTags(value: unknown): string[] {
+  const tags: string[] = [];
+  for (const item of tagList(value)) {
+    const raw = text(item, 80).toLowerCase().replace(/\s+/g, "_");
+    const match = IMPORT_TAG.exec(raw);
+    if (!match) continue;
+    const tag = `${match[1]}:${match[2]}`;
+    if (!tags.includes(tag)) tags.push(tag);
+  }
+  return tags.slice(0, 12);
+}
+
+/** Technical director, plus campaign tags already stored on the contact. */
+export function cleanStoredContactTags(value: unknown): string[] {
+  const tags = [...cleanRoleTags(value)];
+  for (const tag of cleanImportContactTags(value)) {
+    if (!tags.some((item) => item.toLowerCase() === tag)) tags.push(tag);
+  }
+  return tags.slice(0, 12);
+}
+
+/**
+ * Tags for one imported staff row. A contact_tags cell wins for the campaign tags.
+ * "Technical director" is kept when that cell includes it. An office row does not get it.
+ * A tech-director file with no contact_tags still gets that role tag.
+ */
+export function staffTagsForImportRow(row: { contact_tags?: string }): string[] {
+  const raw = String(row.contact_tags ?? "").trim();
+  if (!raw) return cleanRoleTags([TECHNICAL_DIRECTOR_TAG]);
+  return cleanStoredContactTags(raw);
+}
+
+/**
+ * Tags from the contact save form. The role control is only the Technical director
+ * tag, so a pipe in that field cannot add a campaign tag. kept_tags are regex-cleaned.
+ */
+export function contactSaveTags(roleField: unknown, keptField: unknown): string[] {
+  const roleRaw = String(roleField ?? "").trim();
+  const role = roleRaw.toLowerCase() === TECHNICAL_DIRECTOR_TAG.toLowerCase() ? [TECHNICAL_DIRECTOR_TAG] : [];
+  return cleanStoredContactTags([...role, ...cleanImportContactTags(keptField)]);
 }
 
 /** Tags already stored on a contact. A single string is accepted. */

@@ -7,7 +7,7 @@ import type { Suggestion } from "@/lib/engine/crm-suggest-core";
 import { suggestNextStep } from "@/lib/engine/crm-suggest";
 import { SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type ServiceOpportunityId, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
 import { loadAvProspects, loadCrmSnapshot, loadTechDirectorChurches, loadTopProspects } from "@/lib/engine/lpl-crm";
-import type { TechDirectorRow } from "@/lib/engine/tech-director-core";
+import { contactSaveTags, type TechDirectorRow } from "@/lib/engine/tech-director-core";
 import { resolveTopProspectTier, type AvProspect, type AvTierIndex, type TopProspect, type TopProspectCounts } from "@/lib/engine/av-prospects-core";
 import {
   createOrg,
@@ -64,7 +64,7 @@ export async function saveChurchContactAction(_prev: CrmFormState, formData: For
     title: field(formData, "title"),
     email: field(formData, "email"),
     phone: field(formData, "phone"),
-    tags: field(formData, "role_tag") ? [field(formData, "role_tag")] : [],
+    tags: contactSaveTags(field(formData, "role_tag"), field(formData, "kept_tags")),
     sourceUrl: field(formData, "source_url")
   };
   const result = lead

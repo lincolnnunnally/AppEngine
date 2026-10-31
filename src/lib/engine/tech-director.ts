@@ -5,10 +5,9 @@ import { avlRelationshipIsSet, cleanAvlProjectStatus, isAllowedChurchStatus, nor
 import {
   OTHER_SERVICES_OFFERS,
   SIGNAL_STAFF,
-  TECHNICAL_DIRECTOR_TAG,
   avlTierForLeadClass,
   churchSignalKey,
-  cleanRoleTags,
+  cleanImportContactTags,
   existingColumnYes,
   httpUrl,
   leadClassRank,
@@ -19,6 +18,7 @@ import {
   parseSignalScore,
   parseSignalTypes,
   signalTagsForTypes,
+  staffTagsForImportRow,
   stateCode,
   type AvlTier,
   type JevProjectStage,
@@ -29,9 +29,9 @@ import {
 /** Northridge Christian, Milledgeville GA. Existing AVL relationship even when the CSV existing column is blank. */
 export const NORTHRIDGE_MILLEDGEVILLE_ID = "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24";
 
-/** Prod cc_churches is about 151k. Keyset pages of 1000 need more than 151 pages. Offset page 81 times out. */
+/** Prod cc_churches is about 344k and still growing. 220 pages of 1000 stopped at 220k, so the read allows 500. */
 export const CHURCH_READ_PAGE = 1000;
-export const CHURCH_READ_MAX_PAGES = 220;
+export const CHURCH_READ_MAX_PAGES = 500;
 
 export const CHURCH_PROFILE_PATCH_KEYS = [
   "crm_status",
@@ -62,7 +62,8 @@ export const TECH_DIRECTOR_CSV_COLUMNS = [
   "evidence_quote",
   "source_url",
   "signal_date",
-  "score"
+  "score",
+  "contact_tags"
 ] as const;
 export const TECH_DIRECTOR_CSV_REQUIRED = [
   "church",
@@ -98,6 +99,8 @@ export type TechDirectorCsvRow = {
   existing: string;
   jev_avl_fit: string;
   jev_project_stage: string;
+  /** Optional. verify:, fit:, size:, role:, src:, and prio: tags. Blank keeps the Technical director tag on a staff row. */
+  contact_tags: string;
   line: number;
 };
 
@@ -283,6 +286,19 @@ export function techDirectorContactId(churchId: string, name: string): string {
   return `td-${digest}`;
 }
 
+function staffContactFromRow(churchId: string, row: TechDirectorCsvRow): StaffContactWrite {
+  const published = parsePublishedContact(row.contact);
+  return {
+    id: techDirectorContactId(churchId, row.name),
+    name: clip(row.name, 120),
+    role: clip(row.title, 80),
+    email: published.email,
+    phone: published.phone,
+    tags: staffTagsForImportRow(row),
+    source_url: httpUrl(row.staff_page_url)
+  };
+}
+
 /**
  * Parse CSV text by header name, not column order. `state` and `church_id` may
  * be omitted. Other known columns are required. Unknown columns, including
@@ -324,6 +340,7 @@ export function parseTechDirectorCsv(text: string): { ok: true; rows: TechDirect
       existing: cell(record, "existing"),
       jev_avl_fit: cell(record, "jev_avl_fit"),
       jev_project_stage: cell(record, "jev_project_stage"),
+      contact_tags: cell(record, "contact_tags"),
       line: i + 1
     });
   }
@@ -707,24 +724,15 @@ export function planTechDirectorImport(
       const names = namesByChurch.get(church.id) ?? new Set<string>();
       namesByChurch.set(church.id, names);
       const key = normPersonName(row.name);
+      const contact = staffContactFromRow(church.id, row);
       if (names.has(key)) {
         plan.duplicatesSkipped += 1;
         bucket.duplicatesSkipped += 1;
+        // Same person again: keep the row so new campaign tags land on the contact already stored.
+        if (contact.tags.length && row.contact_tags.trim()) plan.additions.push({ churchId: church.id, contact });
       } else {
         names.add(key);
-        const published = parsePublishedContact(row.contact);
-        plan.additions.push({
-          churchId: church.id,
-          contact: {
-            id: techDirectorContactId(church.id, row.name),
-            name: clip(row.name, 120),
-            role: clip(row.title, 80),
-            email: published.email,
-            phone: published.phone,
-            tags: cleanRoleTags([TECHNICAL_DIRECTOR_TAG]),
-            source_url: httpUrl(row.staff_page_url)
-          }
-        });
+        plan.additions.push({ churchId: church.id, contact });
         plan.newContacts += 1;
         bucket.newContacts += 1;
       }
@@ -1083,23 +1091,43 @@ function staffList(staff: unknown): StaffItem[] {
   return staff.filter((item): item is StaffItem => Boolean(item) && typeof item === "object").map((item) => ({ ...item }));
 }
 
-/** Append contacts whose name is not already on the church. Existing objects keep their other keys. */
-export function addStaffContacts(staff: unknown, additions: StaffContactWrite[]): { staff: StaffItem[]; added: number; duplicates: number } {
+function unionTags(current: unknown, incoming: readonly string[]): { tags: string[]; changed: boolean } {
+  const have = Array.isArray(current) ? current.map((item) => String(item)) : [];
+  const tags = [...have];
+  let changed = false;
+  for (const tag of incoming) {
+    if (!tag || tags.some((item) => item.toLowerCase() === tag.toLowerCase())) continue;
+    tags.push(tag);
+    changed = true;
+  }
+  return { tags, changed };
+}
+
+/** Append contacts whose name is not already on the church. A repeat name keeps the person and adds any new tags. */
+export function addStaffContacts(staff: unknown, additions: StaffContactWrite[]): { staff: StaffItem[]; added: number; duplicates: number; tagsUpdated: number } {
   const next = staffList(staff);
   const names = new Set(next.map((item) => normPersonName(item.name)).filter(Boolean));
   let added = 0;
   let duplicates = 0;
+  let tagsUpdated = 0;
   for (const contact of additions) {
     const key = normPersonName(contact.name);
     if (!key || names.has(key)) {
       duplicates += 1;
+      if (!key) continue;
+      const index = next.findIndex((item) => normPersonName(item.name) === key);
+      if (index < 0) continue;
+      const merged = unionTags(next[index].tags, cleanImportContactTags(contact.tags));
+      if (!merged.changed) continue;
+      next[index] = { ...next[index], tags: merged.tags };
+      tagsUpdated += 1;
       continue;
     }
     names.add(key);
     next.push({ ...contact });
     added += 1;
   }
-  return { staff: next, added, duplicates };
+  return { staff: next, added, duplicates, tagsUpdated };
 }
 
 /**
@@ -1240,6 +1268,7 @@ export function nextChurchDoc(
   const addedContacts = mergedContacts.added;
   const addedSignals = mergedSignals.added;
   const updatedSignals = mergedSignals.updated;
+  const tagsUpdated = mergedContacts.tagsUpdated;
   const profiled = applyChurchProfile(
     {
       ...doc,
@@ -1249,7 +1278,7 @@ export function nextChurchDoc(
     profile
   );
   const patchKeys = profiled.keys;
-  if (!addedContacts && !addedSignals && !updatedSignals && !profiled.changed) {
+  if (!addedContacts && !addedSignals && !updatedSignals && !tagsUpdated && !profiled.changed) {
     return { doc, addedContacts: 0, addedSignals: 0, updatedSignals: 0, changed: false, patchKeys: [] };
   }
   return {
@@ -1297,19 +1326,29 @@ export function churchSignalLeadSlug(row: TechDirectorCsvRow): string {
   return `cs-${base}-${digest}`.slice(0, 80);
 }
 
-/** Add people who are not already on the lead, matched by normalized name. Existing rows stay as they are. */
-export function mergeChurchSignalContacts(existing: unknown, incoming: unknown): { contacts: StaffItem[]; added: number } {
+/** Add people who are not already on the lead, matched by normalized name. A repeat name gains any new tags. */
+export function mergeChurchSignalContacts(existing: unknown, incoming: unknown): { contacts: StaffItem[]; added: number; tagsUpdated: number } {
   const next = staffList(existing);
   const names = new Set(next.map((item) => normPersonName(item.name)).filter(Boolean));
   let added = 0;
+  let tagsUpdated = 0;
   for (const contact of staffList(incoming)) {
     const key = normPersonName(contact.name);
-    if (!key || names.has(key)) continue;
+    if (!key || names.has(key)) {
+      if (!key) continue;
+      const index = next.findIndex((item) => normPersonName(item.name) === key);
+      if (index < 0) continue;
+      const merged = unionTags(next[index].tags, cleanImportContactTags(contact.tags));
+      if (!merged.changed) continue;
+      next[index] = { ...next[index], tags: merged.tags };
+      tagsUpdated += 1;
+      continue;
+    }
     names.add(key);
     next.push(contact);
     added += 1;
   }
-  return { contacts: next, added };
+  return { contacts: next, added, tagsUpdated };
 }
 
 /**
@@ -1453,7 +1492,7 @@ export function churchSignalLeadBody(row: TechDirectorCsvRow, reason: string): R
         role: clip(row.title, 80),
         email: published.email,
         phone: published.phone,
-        ...(types.ok && types.types.includes("staff") ? { tags: cleanRoleTags([TECHNICAL_DIRECTOR_TAG]) } : {}),
+        ...(types.ok && types.types.includes("staff") ? { tags: staffTagsForImportRow(row) } : {}),
         ...(httpUrl(row.staff_page_url || row.source_url) ? { source_url: httpUrl(row.staff_page_url || row.source_url) } : {}),
         status: "new"
       }

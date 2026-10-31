@@ -24,7 +24,7 @@ import {
   type ServiceOpportunities,
   type ServiceProviders
 } from "./lpl-crm-core.ts";
-import { AVL_TIER_LABEL, avlTierForLeadClass, stateCode, type AvlTier } from "./tech-director-core.ts";
+import { AVL_TIER_LABEL, avlTierForLeadClass, stateCode, stateStoredForms, type AvlTier } from "./tech-director-core.ts";
 
 export const DIRECTORY_PAGE_SIZE = 40;
 
@@ -61,6 +61,12 @@ export type DirectoryQuery = {
   tier: AvlTier | "";
   staff: boolean;
   fitMin: number | null;
+  /** Contact tag fit:<slug>. Not jev_avl_fit. Comma means every listed fit tag. */
+  campaignFit: string;
+  /** Contact tag size:<slug>. Comma means any listed size band. */
+  sizeBand: string;
+  /** Contact tag verify:<slug>. Comma means any listed status. */
+  verifyStatus: string;
   contacted: "" | "never" | "since" | "before";
   contactedOn: string;
   stage: BuildingStage | "";
@@ -101,6 +107,8 @@ export type DirectoryRow = {
   tierLabel: string;
   jevAvlFit: number | null;
   jevProjectStage: string;
+  /** Tags on staff contacts, including verify:, fit:, size:, role:, and src:. */
+  contactTags: string[];
   lastContact: string;
   hasStaff: boolean;
   /** Worked with them on a past project. Owner only. Not a pipeline status. */
@@ -175,6 +183,9 @@ export function emptyDirectoryQuery(): DirectoryQuery {
     tier: "",
     staff: false,
     fitMin: null,
+    campaignFit: "",
+    sizeBand: "",
+    verifyStatus: "",
     contacted: "",
     contactedOn: "",
     stage: "",
@@ -210,6 +221,9 @@ export function directoryQueryFromParams(params: Record<string, string | string[
     tier: tier === "top" || tier === "second" || tier === "other_services" || tier === "staff_only" ? tier : "",
     staff: one("staff") === "1",
     fitMin: fitNum !== null && Number.isFinite(fitNum) && fitNum >= 0 && fitNum <= 4 ? fitNum : null,
+    campaignFit: one("campaign_fit"),
+    sizeBand: one("size"),
+    verifyStatus: one("verify"),
     contacted: contacted === "never" || contacted === "since" || contacted === "before" ? contacted : "",
     contactedOn: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "",
     stage: cleanBuildingStage(one("stage")),
@@ -318,6 +332,11 @@ export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryR
   const fitNum = fitRaw === "" ? null : Number(fitRaw);
   const fit = fitNum !== null && Number.isFinite(fitNum) && fitNum >= 0 && fitNum <= 4 ? fitNum : null;
   const staff = Array.isArray(row.staff_contacts) ? row.staff_contacts.filter((item) => item && typeof item === "object") : [];
+  const contactTags = staff.flatMap((item) => {
+    const tags = (item as { tags?: unknown }).tags;
+    if (!Array.isArray(tags)) return [];
+    return tags.map((tag) => text(tag)).filter(Boolean);
+  });
   const hasStaff = staff.length > 0 || Boolean(text(row.pastor_name) || text(row.contact_name) || text(row.secretary_name));
   const invited = text(row.last_invited_at);
   const contacted = text(row.last_contact_at);
@@ -340,6 +359,7 @@ export function directoryRowFromRecord(row: Record<string, unknown>): DirectoryR
     tierLabel: tier ? AVL_TIER_LABEL[tier] : "",
     jevAvlFit: fit,
     jevProjectStage: text(row.jev_project_stage),
+    contactTags,
     lastContact,
     hasStaff: hasStaffFromRpc || hasStaff,
     avlExistingRelationship: relationship,
@@ -435,6 +455,9 @@ export function directoryHref(query: DirectoryQuery, cursor = "", preview = ""):
   if (query.tier) params.set("tier", query.tier);
   if (query.staff) params.set("staff", "1");
   if (query.fitMin !== null) params.set("fit", String(query.fitMin));
+  if (query.campaignFit) params.set("campaign_fit", query.campaignFit);
+  if (query.sizeBand) params.set("size", query.sizeBand);
+  if (query.verifyStatus) params.set("verify", query.verifyStatus);
   if (query.contacted) params.set("contacted", query.contacted);
   if (query.contactedOn) params.set("on", query.contactedOn);
   if (query.stage) params.set("stage", query.stage);
@@ -450,54 +473,9 @@ export function directoryHref(query: DirectoryQuery, cursor = "", preview = ""):
   return text ? `/crm?${text}` : "/crm";
 }
 
-/** Same filters as the live list, for the dev preview fixture. The live list uses SQL. */
+/** Same filters as the live list, for the dev preview fixture. The live list uses SQL, except contact tags. */
 export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery): DirectoryRow[] {
-  const q = query.q.trim().toLowerCase();
-  const digits = q.replace(/\D/g, "");
-  const zipExact = digits.length === 5 || digits.length === 9 ? digits : "";
-  const next = rows.filter((row) => {
-    if (q) {
-      const hay = `${row.name} ${row.city}`.toLowerCase();
-      const zipHit = zipExact !== "" && row.zip.replace(/\D/g, "") === zipExact;
-      if (!hay.includes(q) && !zipHit) return false;
-    }
-    if (query.state && row.state.toUpperCase() !== query.state) return false;
-    if (query.county && row.county.toLowerCase() !== query.county.toLowerCase()) return false;
-    if (query.status === "not_contacted" && row.crmStatus) return false;
-    if (query.status && query.status !== "not_contacted" && row.crmStatus.toLowerCase() !== query.status.toLowerCase()) return false;
-    if (query.tier && row.tier !== query.tier) return false;
-    if (query.staff && !row.hasStaff) return false;
-    if (query.fitMin !== null && (row.jevAvlFit === null || row.jevAvlFit < query.fitMin)) return false;
-    if (query.contacted === "never" && row.lastContact) return false;
-    if (query.stage === "none" && row.buildingStage && row.buildingStage !== "none") return false;
-    if (query.stage && query.stage !== "none" && row.buildingStage !== query.stage) return false;
-    const opportunity = parseServiceOpportunityFilter(query.opportunity);
-    if (opportunity && row.opportunities[opportunity.service].status !== opportunity.status) return false;
-    const provider = parseProviderTypeFilter(query.provider);
-    if (provider && row.providers[provider.service].providerType !== provider.providerType) return false;
-    if (query.vendor) {
-      const needle = query.vendor.trim().toLowerCase();
-      const hit = SERVICE_PROVIDER_IDS.some((service) => row.providers[service].providerType === "vendor" && row.providers[service].vendorName.toLowerCase() === needle);
-      if (!hit) return false;
-    }
-    if (query.servedByOther) {
-      const service = parseProviderService(query.servedByOther);
-      const type = service ? row.providers[service].providerType : "";
-      if (type !== "vendor" && type !== "other") return false;
-    }
-    if (query.opening) {
-      const service = parseOpeningService(query.opening);
-      const status = service ? row.opportunities[service].status : "";
-      if (status !== "possible" && status !== "interested") return false;
-    }
-    if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
-      const day = row.lastContact.slice(0, 10);
-      if (!day) return false;
-      if (query.contacted === "since" && day < query.contactedOn) return false;
-      if (query.contacted === "before" && day >= query.contactedOn) return false;
-    }
-    return true;
-  });
+  const next = rows.filter((row) => directoryRowMatches(row, query));
   if (query.sort === "id") return next;
   const dir = query.dir === "desc" ? -1 : 1;
   const tierRank = (tier: string) => {
@@ -515,8 +493,242 @@ export function filterDirectoryRows(rows: DirectoryRow[], query: DirectoryQuery)
   });
 }
 
+export function directoryRowMatches(row: DirectoryRow, query: DirectoryQuery): boolean {
+  const q = directorySearchText(query.q).toLowerCase();
+  const digits = q.replace(/\D/g, "");
+  const zipExact = digits.length === 5 || digits.length === 9 ? digits : "";
+  if (q) {
+    const hay = `${row.name} ${row.city}`.toLowerCase();
+    const zipHit = zipExact !== "" && row.zip.replace(/\D/g, "") === zipExact;
+    if (!hay.includes(q) && !zipHit) return false;
+  }
+  if (!contactTagsMatch(row.contactTags, directoryContactTagFilter(query))) return false;
+  if (query.state) {
+    const want = stateCode(query.state) || query.state.toUpperCase();
+    const have = stateCode(row.state) || row.state.toUpperCase();
+    if (have !== want) return false;
+  }
+  if (query.county && row.county.toLowerCase() !== query.county.toLowerCase()) return false;
+  if (query.status === "not_contacted" && row.crmStatus) return false;
+  if (query.status && query.status !== "not_contacted" && row.crmStatus.toLowerCase() !== query.status.toLowerCase()) return false;
+  if (query.tier && row.tier !== query.tier) return false;
+  if (query.staff && !row.hasStaff) return false;
+  if (query.fitMin !== null && (row.jevAvlFit === null || row.jevAvlFit < query.fitMin)) return false;
+  if (query.contacted === "never" && row.lastContact) return false;
+  if (query.stage === "none" && row.buildingStage && row.buildingStage !== "none") return false;
+  if (query.stage && query.stage !== "none" && row.buildingStage !== query.stage) return false;
+  const opportunity = parseServiceOpportunityFilter(query.opportunity);
+  if (opportunity && row.opportunities[opportunity.service].status !== opportunity.status) return false;
+  const provider = parseProviderTypeFilter(query.provider);
+  if (provider && row.providers[provider.service].providerType !== provider.providerType) return false;
+  if (query.vendor) {
+    const needle = query.vendor.trim().toLowerCase();
+    const hit = SERVICE_PROVIDER_IDS.some((service) => row.providers[service].providerType === "vendor" && row.providers[service].vendorName.toLowerCase() === needle);
+    if (!hit) return false;
+  }
+  if (query.servedByOther) {
+    const service = parseProviderService(query.servedByOther);
+    const type = service ? row.providers[service].providerType : "";
+    if (type !== "vendor" && type !== "other") return false;
+  }
+  if (query.opening) {
+    const service = parseOpeningService(query.opening);
+    const status = service ? row.opportunities[service].status : "";
+    if (status !== "possible" && status !== "interested") return false;
+  }
+  if ((query.contacted === "since" || query.contacted === "before") && query.contactedOn) {
+    const day = row.lastContact.slice(0, 10);
+    if (!day) return false;
+    if (query.contacted === "since" && day < query.contactedOn) return false;
+    if (query.contacted === "before" && day >= query.contactedOn) return false;
+  }
+  return true;
+}
+
+const TAG_PREFIX = /^(fit|size|verify|role|src|prio):([a-z0-9_-]+)$/i;
+
+function tagSlug(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "").slice(0, 48);
+}
+
+function pushTag(list: string[], prefix: string, raw: string) {
+  for (const part of raw.split(/[,|;]/)) {
+    const slug = tagSlug(part);
+    if (!slug) continue;
+    const tag = `${prefix}:${slug}`;
+    if (!list.includes(tag)) list.push(tag);
+  }
+}
+
+export type DirectoryContactTagFilter = {
+  /** Every fit: tag must be on the church. */
+  fit: string[];
+  /** At least one size: tag, when this list is not empty. */
+  size: string[];
+  /** At least one verify: tag, when this list is not empty. */
+  verify: string[];
+  /** Every other contact tag (role, src, prio) must be present. */
+  other: string[];
+};
+
+export function directoryContactTagFilter(query: Pick<DirectoryQuery, "q" | "campaignFit" | "sizeBand" | "verifyStatus">): DirectoryContactTagFilter {
+  const filter: DirectoryContactTagFilter = { fit: [], size: [], verify: [], other: [] };
+  pushTag(filter.fit, "fit", query.campaignFit);
+  pushTag(filter.size, "size", query.sizeBand);
+  pushTag(filter.verify, "verify", query.verifyStatus);
+  for (const token of query.q.split(/\s+/)) {
+    const match = TAG_PREFIX.exec(token.trim());
+    if (!match) continue;
+    const prefix = match[1].toLowerCase();
+    if (prefix === "fit") pushTag(filter.fit, "fit", match[2]);
+    else if (prefix === "size") pushTag(filter.size, "size", match[2]);
+    else if (prefix === "verify") pushTag(filter.verify, "verify", match[2]);
+    else pushTag(filter.other, prefix, match[2]);
+  }
+  return filter;
+}
+
+export function directoryContactTagFilterActive(filter: DirectoryContactTagFilter): boolean {
+  return filter.fit.length + filter.size.length + filter.verify.length + filter.other.length > 0;
+}
+
+/** Words in q that are not contact-tag tokens. Tag tokens are a filter of their own. */
+export function directorySearchText(q: string): string {
+  return q
+    .split(/\s+/)
+    .filter((token) => !TAG_PREFIX.test(token.trim()))
+    .join(" ")
+    .trim();
+}
+
+export function contactTagsMatch(tags: readonly string[], filter: DirectoryContactTagFilter): boolean {
+  if (!directoryContactTagFilterActive(filter)) return true;
+  const have = new Set(tags.map((tag) => tag.toLowerCase()));
+  if (filter.fit.some((tag) => !have.has(tag))) return false;
+  if (filter.size.length && !filter.size.some((tag) => have.has(tag))) return false;
+  if (filter.verify.length && !filter.verify.some((tag) => have.has(tag))) return false;
+  if (filter.other.some((tag) => !have.has(tag))) return false;
+  return true;
+}
+
+export function cardMatchesContactTagFilter(
+  card: { contacts?: Array<{ tags?: readonly string[] | null }> },
+  filter: DirectoryContactTagFilter
+): boolean {
+  if (!directoryContactTagFilterActive(filter)) return true;
+  const tags = (card.contacts ?? []).flatMap((contact) => contact.tags ?? []);
+  return contactTagsMatch(tags, filter);
+}
+
+const DIRECTORY_TAG_SELECT = [
+  "id",
+  "name:doc->>name",
+  "church_name:doc->>church_name",
+  "city:doc->>city",
+  "state:doc->>state",
+  "zip_code:doc->>zip_code",
+  "county:doc->>county",
+  "region:doc->>region",
+  "crm_status:doc->>crm_status",
+  "lead_class:doc->>lead_class",
+  "jev_avl_fit:doc->>jev_avl_fit",
+  "jev_project_stage:doc->>jev_project_stage",
+  "last_invited_at:doc->>last_invited_at",
+  "last_contact_at:doc->>last_contact_at",
+  "pastor_name:doc->>pastor_name",
+  "contact_name:doc->>contact_name",
+  "secretary_name:doc->>secretary_name",
+  "merged_into:doc->>merged_into",
+  "deleted_at:doc->>deleted_at",
+  "avl_existing_relationship:doc->>avl_existing_relationship",
+  "avl_existing_relationship_note:doc->>avl_existing_relationship_note",
+  "avl_project_status:doc->>avl_project_status",
+  "building_stage:doc->>building_stage",
+  "building_stage_recorded_at:doc->>building_stage_recorded_at",
+  "is_customer:doc->>is_customer",
+  "signed_up:doc->>signed_up",
+  "invite_status:doc->>invite_status",
+  "staff_contacts:doc->staff_contacts",
+  "service_opportunities:doc->service_opportunities",
+  "service_providers:doc->service_providers"
+].join(",");
+
+/** One containment per OR branch. Fit tags are on every branch, so they stay AND. */
+export function directoryTagContainments(filter: DirectoryContactTagFilter): string[][] {
+  const required = [...filter.fit, ...filter.other];
+  const sizes = filter.size.length ? filter.size : [""];
+  const verifies = filter.verify.length ? filter.verify : [""];
+  const sets: string[][] = [];
+  for (const size of sizes) {
+    for (const verify of verifies) {
+      const tags = [...required];
+      if (size) tags.push(size);
+      if (verify) tags.push(verify);
+      if (tags.length) sets.push(tags);
+    }
+  }
+  return sets;
+}
+
+function containmentJson(column: "doc" | "contacts", tags: readonly string[]): string {
+  const payload = column === "doc" ? { staff_contacts: [{ tags }] } : [{ tags }];
+  return JSON.stringify(payload);
+}
+
+/** PostgREST `or`/`and` split on commas. A JSON value has to be a quoted string. */
+function postgrestQuoted(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function containmentClause(column: "doc" | "contacts", tags: readonly string[], insideLogic: boolean): string {
+  const json = containmentJson(column, tags);
+  if (insideLogic) return `${column}.cs.${postgrestQuoted(json)}`;
+  return `${column}=cs.${encodeURIComponent(json)}`;
+}
+
+function joinPostgrestFilters(parts: string[]): string {
+  const logic = parts.filter((part) => part.startsWith("or=("));
+  const plain = parts.filter((part) => !part.startsWith("or=("));
+  if (logic.length <= 1) return [...plain, ...logic].join("&");
+  const groups = logic.map((part) => `or${part.slice("or=".length)}`);
+  const wrapped = `and=(${groups.join(",")})`;
+  return plain.length ? `${plain.join("&")}&${wrapped}` : wrapped;
+}
+
+function tagContainmentParam(column: "doc" | "contacts", filter: DirectoryContactTagFilter): string {
+  const sets = directoryTagContainments(filter);
+  if (sets.length === 1) return containmentClause(column, sets[0], false);
+  return `or=(${sets.map((tags) => containmentClause(column, tags, true)).join(",")})`;
+}
+
+/**
+ * PostgREST read of cc_churches whose staff contact tags match.
+ * Uses jsonb containment (`doc @>`) so cc_churches_doc_gin (jsonb_path_ops) can answer it.
+ * A text ilike on doc->>staff_contacts cannot use that index. Null when the page should keep using crm_directory_page.
+ */
+export function directoryTagChurchPath(query: DirectoryQuery, afterId: string, limit: number): string | null {
+  const filter = directoryContactTagFilter(query);
+  if (!directoryContactTagFilterActive(filter)) return null;
+  const parts = [tagContainmentParam("doc", filter)];
+  const forms = stateStoredForms(query.state);
+  if (forms.length === 1) parts.push(`doc->>state=ilike.${encodeURIComponent(forms[0])}`);
+  else if (forms.length > 1) parts.push(`or=(${forms.map((form) => `doc->>state.ilike.${encodeURIComponent(form)}`).join(",")})`);
+  if (query.tier && TIER_LEAD_CLASS[query.tier]) parts.push(`doc->>lead_class=eq.${encodeURIComponent(TIER_LEAD_CLASS[query.tier])}`);
+  const limitText = String(Math.min(Math.max(limit, 1), 100));
+  const after = /^[A-Za-z0-9_-]{1,80}$/.test(afterId) ? `&id=gt.${afterId}` : "";
+  return `cc_churches?select=${DIRECTORY_TAG_SELECT}&${joinPostgrestFilters(parts)}&order=id.asc&limit=${limitText}${after}`;
+}
+
+/** Church-lead rows whose contacts contain the same tags. No text ilike. Empty when there is no tag filter. */
+export function churchLeadTagPath(query: DirectoryQuery, limit: number): string | null {
+  const filter = directoryContactTagFilter(query);
+  if (!directoryContactTagFilterActive(filter)) return null;
+  const limitText = String(Math.min(Math.max(limit, 1), 40));
+  return `op_leads?select=id,business_name,city,state,phone,email,website_url,status,signals,services,contacts,created_at,updated_at&kind=eq.church-lead&${tagContainmentParam("contacts", filter)}&order=updated_at.desc&limit=${limitText}`;
+}
+
 export function directoryPreviewRows(): DirectoryRow[] {
-  const rows: Array<Omit<DirectoryRow, "opportunities" | "providers">> = [
+  const rows: Array<Omit<DirectoryRow, "opportunities" | "providers" | "contactTags">> = [
     {
       id: "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24",
       name: "Northridge Christian",
@@ -654,6 +866,7 @@ export function directoryPreviewRows(): DirectoryRow[] {
     tier === "top" ? "campaign_planning" : tier === "second" ? "under_construction" : tier === "other_services" ? "other_services" : tier === "staff_only" ? "staff_only" : "";
   return rows.map((row) => ({
     ...row,
+    contactTags: [],
     opportunities: serviceOpportunitiesFromDoc(
       row.id === "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24"
         ? { website: { status: "interested", note: "No public site", updated_at: "2026-09-01" } }
