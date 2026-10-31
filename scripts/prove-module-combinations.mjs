@@ -21,7 +21,7 @@ import { createRequire } from "node:module";
 //
 //   PROVE_PG_URL=postgresql://postgres@127.0.0.1:5432/postgres \
 //     node --import ./scripts/ts-esm-register.mjs scripts/prove-module-combinations.mjs \
-//       [--only=singles|packs|all|slug,slug] [--concurrency=2] [--no-runtime] [--keep]
+//       [--only=singles|packs|all|slug,slug] [--concurrency=2] [--no-runtime] [--keep] [--shots]
 //
 // Writes .app-engine/prove/report.json; exits non-zero if any composition fails.
 
@@ -283,6 +283,13 @@ async function browserChecks(app, port, comp) {
         /Application error|Internal Server Error|Unhandled Runtime Error|This page couldn.t load/i.test(body) ||
         responses5xx.length > before;
       pages[route] = bad ? `fail ${status}` : `ok ${status}`;
+      // --shots: keep a picture of every page, to look at what a customer actually gets.
+      if (args.shots && !bad) {
+        await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+        const dir = path.join(root, ".app-engine/prove-shots", comp.id);
+        fs.mkdirSync(dir, { recursive: true });
+        await page.screenshot({ path: path.join(dir, `${route.replace(/\//g, "_") || "_"}.png`), fullPage: true }).catch(() => {});
+      }
       if (bad) problems.push(`${route} → ${status}${responses5xx.length > before ? ` (${responses5xx.slice(before).join(", ")})` : ""}`);
     }
 
