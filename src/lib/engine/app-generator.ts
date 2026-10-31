@@ -465,15 +465,15 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/components/app-shell.tsx",
-      content: `import { appBrand } from "@/lib/app-brand";\n\nconst NAV = ${JSON.stringify(
+      content: `import { appBrand } from "@/lib/app-brand";\nimport { getCurrentUser } from "@/lib/auth/session";\n\nconst NAV = ${JSON.stringify(
         [
           { href: "/app", label: "Open app" },
-          ...composeModuleNavLinks(selectedModuleSlugs).slice(0, 5),
+          ...composeModuleNavLinks(selectedModuleSlugs).filter((link) => link.href !== "/sign-in").slice(0, 5),
           { href: "/account", label: "Account" }
         ],
         null,
         2
-      )};\n\nexport function AppShell({ children }: { children: React.ReactNode }) {\n  return (\n    <>\n      <header className="app-header">\n        <div className="app-header-inner">\n          <a className="app-brand" href="/">\n            {appBrand.logoUrl ? (\n              <img className="app-logo" src={appBrand.logoUrl} alt={appBrand.name} />\n            ) : (\n              <span className="app-logo-mark">{appBrand.monogram}</span>\n            )}\n            <span>{appBrand.name}</span>\n          </a>\n          <nav className="app-nav">\n            {NAV.map((item) => (\n              <a key={item.href} href={item.href}>{item.label}</a>\n            ))}\n            <a className="app-nav-cta" href="/sign-in">Sign in</a>\n          </nav>\n        </div>\n      </header>\n      {children}\n    </>\n  );\n}\n`
+      )};\n\nexport async function AppShell({ children }: { children: React.ReactNode }) {\n  const user = await getCurrentUser().catch(() => null);\n  return (\n    <>\n      <header className="app-header">\n        <div className="app-header-inner">\n          <a className="app-brand" href="/">\n            {appBrand.logoUrl ? (\n              <img className="app-logo" src={appBrand.logoUrl} alt={appBrand.name} />\n            ) : (\n              <span className="app-logo-mark">{appBrand.monogram}</span>\n            )}\n            <span>{appBrand.name}</span>\n          </a>\n          <nav className="app-nav">\n            {NAV.map((item) => (\n              <a key={item.href} href={item.href}>{item.label}</a>\n            ))}\n            {user ? null : <a className="app-nav-cta" href="/sign-in">Sign in</a>}\n          </nav>\n        </div>\n      </header>\n      {children}\n    </>\n  );\n}\n`
     },
     {
       path: "public/favicon.svg",
@@ -506,11 +506,11 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/app/page.tsx",
-      content: `import { customerWorkflows, includedFeatures } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${escapeText(noOrphan(tagline))}</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="grid">\n        {includedFeatures.map((item) => (\n          <a className="card" key={item.slug} href={item.href}>\n            <span>Open</span>\n            <strong>{item.name}</strong>\n            {item.description ? <p>{item.description}</p> : null}\n          </a>\n        ))}\n      </section>\n      <section className="panel-list">\n        {customerWorkflows.map((workflow) => (\n          <article className="wide-card" key={workflow.title}>\n            <span>{workflow.status}</span>\n            <strong>{workflow.title}</strong>\n            <p>{workflow.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { includedFeatures } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function CustomerAppPage() {\n  const user = await requireCustomerAccess("/app");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Your workspace</p>\n      <h1 className="balanced-title">${balancedHeadingHtml(projectName)}</h1>\n      <p>${escapeText(noOrphan(tagline))}</p>\n      <p className="session-note">Signed in as {user.email} with {user.role} access.</p>\n      <div className="action-row">\n${composeModuleHomeLinks(selectedModuleSlugs) || '        <a className="button" href="/">Home</a>'}\n      </div>\n      <section className="grid">\n        {includedFeatures.map((item) => (\n          <a className="card" key={item.slug} href={item.href}>\n            <span>Open</span>\n            <strong>{item.name}</strong>\n            {item.description ? <p>{item.description}</p> : null}\n          </a>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/account/page.tsx",
-      content: `import { accountSections } from "@/lib/app-data";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AccountPage() {\n  const user = await requireCustomerAccess("/account");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Account</p>\n      <h1>Customer Account</h1>\n      <p>Profile, organization, plan, billing, notification, and service usage controls.</p>\n      <p className="session-note">Managing account for {user.email}.</p>\n      <section className="grid">\n        {accountSections.map((section) => (\n          <article className="card" key={section.title}>\n            <span>{section.state}</span>\n            <strong>{section.title}</strong>\n            <p>{section.description}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { includedFeatures } from "@/lib/app-data";\nimport { signOut } from "@/auth";\nimport { requireCustomerAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AccountPage() {\n  const user = await requireCustomerAccess("/account");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Account</p>\n      <h1>Your account</h1>\n      <p className="session-note">Signed in as {user.email}.</p>\n      <section className="grid">\n        {includedFeatures.map((item) => (\n          <a className="card" key={item.slug} href={item.href}>\n            <span>Open</span>\n            <strong>{item.name}</strong>\n            {item.description ? <p>{item.description}</p> : null}\n          </a>\n        ))}\n      </section>\n      <form\n        action={async () => {\n          "use server";\n          await signOut({ redirectTo: "/" });\n        }}\n      >\n        <button className="button" type="submit">Sign out</button>\n      </form>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/onboarding/page.tsx",
@@ -518,7 +518,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/billing/page.tsx",
-      content: `import { requireCustomerAccess } from "@/lib/auth/session";\nimport { listPricingPlans } from "@/lib/db/queries";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function BillingPage() {\n  await requireCustomerAccess("/billing");\n  const plans = await listPricingPlans();\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Billing</p>\n      <h1>Plans And Usage</h1>\n      <p>Subscription state, usage limits, invoices, and upgrade triggers.</p>\n      <section className="grid">\n        {plans.map((plan) => (\n          <article className="card" key={plan.name}>\n            <span>{plan.audience}</span>\n            <strong>{plan.name}</strong>\n            <p>{plan.price}</p>\n            <small>{plan.includes.join(" | ")}</small>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: `import { appBrand } from "@/lib/app-brand";\n\nexport const dynamic = "force-dynamic";\n\n// Checkout sends buyers here (?status=success). They may not have an account.\nexport default async function BillingPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {\n  const { status } = await searchParams;\n  const paid = status === "success";\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Payment</p>\n      <h1>{paid ? "Thank you \u2014 your payment went through" : "Payments"}</h1>\n      <p>{paid ? "A receipt is on its way to your email." : "There is nothing to pay here right now."}</p>\n      <div className="action-row">\n        <a className="button" href="/">Back to {appBrand.name}</a>\n      </div>\n    </main>\n  );\n}\n`
     },
     {
       path: "src/app/requests/page.tsx",
@@ -530,7 +530,7 @@ function buildGeneratedFiles(project: GeneratorProject, plan: ReturnType<typeof 
     },
     {
       path: "src/app/admin/page.tsx",
-      content: `import { adminMetrics, adminQueues } from "@/lib/app-data";\nimport { requireAdminAccess } from "@/lib/auth/session";\nimport { roles } from "@/lib/auth/roles";\n\nexport const dynamic = "force-dynamic";\n\nexport default async function AdminPage() {\n  const user = await requireAdminAccess("/admin");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Admin</p>\n      <h1>Admin Console</h1>\n      <p>Manage customers, projects, agent runs, QA reports, deployments, support, and audit logs.</p>\n      <p className="session-note">Admin access granted for {user.email}.</p>\n      <section className="metric-grid">\n        {adminMetrics.map((metric) => (\n          <article className="metric-card" key={metric.label}>\n            <span>{metric.label}</span>\n            <strong>{metric.value}</strong>\n            <p>{metric.detail}</p>\n          </article>\n        ))}\n      </section>\n      <section className="grid">\n        {roles.map((role) => (\n          <article className="card" key={role}>\n            <span>Role</span>\n            <strong>{role}</strong>\n            <p>Access policy should be enforced on matching routes and APIs.</p>\n          </article>\n        ))}\n      </section>\n      <section className="panel-list">\n        {adminQueues.map((queue) => (\n          <article className="wide-card" key={queue.title}>\n            <span>{queue.status}</span>\n            <strong>{queue.title}</strong>\n            <p>{queue.nextAction}</p>\n          </article>\n        ))}\n      </section>\n    </main>\n  );\n}\n`
+      content: ADMIN_HOME_PLACEHOLDER
     },
     {
       path: "src/app/admin/customers/page.tsx",
@@ -619,7 +619,7 @@ export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
     },
     {
       path: "tests/e2e/customer-admin.spec.ts",
-      content: `import { test, expect } from "@playwright/test";\n\ntest("customer and admin surfaces load", async ({ page }) => {\n  await page.goto("/app");\n  await expect(page.getByText("${projectName}")).toBeVisible();\n  await page.goto("/admin");\n  await expect(page.getByText("Admin Console")).toBeVisible();\n});\n`
+      content: `import { test, expect } from "@playwright/test";\n\ntest("customer and admin surfaces load", async ({ page }) => {\n  await page.goto("/app");\n  await expect(page.getByText("${projectName}")).toBeVisible();\n  await page.goto("/admin");\n  await expect(page.getByRole("heading", { name: /^Run / })).toBeVisible();\n});\n`
     },
     {
       path: "vercel.json",
@@ -628,7 +628,10 @@ export const adminProjects = ${JSON.stringify(appData.adminProjects, null, 2)};
     ...foundationModuleFiles()
   ];
 
-  return files.filter((file) => moduleFileEntries.has(file) || !moduleFilePaths.has(file.path));
+  const kept = files
+    .filter((file) => moduleFileEntries.has(file) || !moduleFilePaths.has(file.path))
+    .filter((file) => moduleFileEntries.has(file) || !PLACEHOLDER_PAGES.has(file.path));
+  return kept.map((file) => (file.content === ADMIN_HOME_PLACEHOLDER ? { ...file, content: adminHomePage(kept) } : file));
 }
 
 type RolePermission = {
@@ -1151,4 +1154,35 @@ function balancedHeadingHtml(input: string) {
 
 function sqlString(input: string) {
   return `'${input.replace(/'/g, "''")}'`;
+}
+
+// Scaffold pages no module feeds. Built apps showed them to paying customers as
+// seed rows and builder notes ("Demo Organization", $49/$149/$399 plans, QA and
+// deployment queues). A module that ships one of these paths still replaces it.
+const PLACEHOLDER_PAGES = new Set([
+  "src/app/onboarding/page.tsx",
+  "src/app/requests/page.tsx",
+  "src/app/notifications/page.tsx",
+  "src/app/admin/customers/page.tsx",
+  "src/app/admin/projects/page.tsx",
+  "src/app/api/customer/requests/route.ts",
+  "src/app/api/admin/customers/route.ts",
+  "src/app/api/admin/projects/route.ts"
+]);
+
+const ADMIN_HOME_PLACEHOLDER = "/* admin home: generated from the final file set */";
+
+const ADMIN_LABELS: Record<string, string> = { "admin-ops": "Operations", email: "Email", support: "Support requests" };
+
+function adminHomePage(files: GeneratedFile[]) {
+  const links = files
+    .map((file) => file.path.match(/^src\/app\/(admin\/[a-z0-9-]+|admin-ops)\/page\.tsx$/)?.[1])
+    .filter((route): route is string => Boolean(route))
+    .sort()
+    .map((route) => {
+      const key = route.replace(/^admin\//, "");
+      const label = ADMIN_LABELS[key] || key.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
+      return { href: `/${route}`, label };
+    });
+  return `import { appBrand } from "@/lib/app-brand";\nimport { requireAdminAccess } from "@/lib/auth/session";\n\nexport const dynamic = "force-dynamic";\n\nconst ADMIN_PAGES = ${JSON.stringify(links, null, 2)};\n\nexport default async function AdminPage() {\n  const user = await requireAdminAccess("/admin");\n\n  return (\n    <main className="shell">\n      <p className="eyebrow">Admin</p>\n      <h1>Run {appBrand.name}</h1>\n      <p className="session-note">Signed in as {user.email}.</p>\n      {ADMIN_PAGES.length ? (\n        <section className="grid">\n          {ADMIN_PAGES.map((item) => (\n            <a className="card" key={item.href} href={item.href}>\n              <span>Manage</span>\n              <strong>{item.label}</strong>\n            </a>\n          ))}\n        </section>\n      ) : (\n        <p>Everything for this app is on its own pages \u2014 open them from the menu.</p>\n      )}\n    </main>\n  );\n}\n`;
 }
