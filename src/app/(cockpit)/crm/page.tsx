@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineOwner } from "@/lib/auth/access";
-import { directoryPreviewRows, directoryQueryFromParams, filterDirectoryRows, providerReportFromRows } from "@/lib/engine/crm-directory-core";
-import { loadDirectoryPage, loadProviderReport } from "@/lib/engine/crm-directory";
+import { cardMatchesContactTagFilter, directoryContactTagFilter, directoryContactTagFilterActive, directoryPreviewRows, directoryQueryFromParams, filterDirectoryRows, providerReportFromRows } from "@/lib/engine/crm-directory-core";
+import { loadDirectoryPage, loadProviderReport, loadTaggedChurchLeadCards } from "@/lib/engine/crm-directory";
 import { CrmDirectoryList } from "@/components/engine/crm-directory-list";
 import { loadCrmSnapshot, rememberCrmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { CRM_APP_LABEL, DONT_REPEAT_DAYS, DROP_OFF_REST_DAYS, cardMatchesCrmSearch, contactsForViewer, orgForViewer, withOutreachLog, type CrmCard } from "@/lib/engine/lpl-crm-core";
@@ -162,13 +162,15 @@ export default async function CrmPage({
   const previewTech = process.env.NODE_ENV !== "production" && isOwner && previewParam === "tech";
   const previewDirectory = process.env.NODE_ENV !== "production" && isOwner && previewParam === "directory";
   const directoryQuery = directoryQueryFromParams(params);
-  const [directory, providerReport] = await Promise.all([
+  const tagFilter = directoryContactTagFilter(directoryQuery);
+  const [directory, providerReport, taggedLeads] = await Promise.all([
     previewDirectory
       ? Promise.resolve({ configured: true, ok: true, rows: filterDirectoryRows(directoryPreviewRows(), directoryQuery), nextCursor: "" })
       : loadDirectoryPage(directoryQuery),
     previewDirectory
       ? Promise.resolve({ ok: true, rows: providerReportFromRows(directoryPreviewRows()) })
-      : loadProviderReport()
+      : loadProviderReport(),
+    previewDirectory ? Promise.resolve([]) : loadTaggedChurchLeadCards(directoryQuery)
   ]);
   let topInitial: TopProspectState = null;
   let avInitial: AvProspectState = null;
@@ -239,17 +241,28 @@ export default async function CrmPage({
   const snapshot = await loadCrmSnapshot();
   rememberCrmFollowUpCount(snapshot);
   // Admins see names and titles only: strip church contact emails and phones before anything reaches the browser.
+  const taggedLeadIds = new Set(taggedLeads.map((card) => card.leadId).filter((id): id is string => Boolean(id)));
   const viewCards = [
-    ...(previewTech ? techPreviewCards() : []),
-    ...snapshot.cards.map((card) => ({
+    ...taggedLeads.map((card) => ({
       ...card,
       contacts: contactsForViewer(card.contacts, isOwner),
       org: orgForViewer(card.org, isOwner),
       signals: isOwner ? card.signals ?? [] : []
-    }))
-  ].filter((card) => cardMatchesCrmSearch(card, searchQuery));
+    })),
+    ...(previewTech ? techPreviewCards() : []),
+    ...snapshot.cards
+      .filter((card) => !card.leadId || !taggedLeadIds.has(card.leadId))
+      .map((card) => ({
+        ...card,
+        contacts: contactsForViewer(card.contacts, isOwner),
+        org: orgForViewer(card.org, isOwner),
+        signals: isOwner ? card.signals ?? [] : []
+      }))
+  ].filter((card) => cardMatchesCrmSearch(card, searchQuery) && cardMatchesContactTagFilter(card, tagFilter));
   const visibleKeys = new Set(viewCards.map((card) => card.key));
-  const followUps = searchQuery ? snapshot.followUps.filter((row) => visibleKeys.has(row.cardKey)) : snapshot.followUps;
+  const followUps = searchQuery || directoryContactTagFilterActive(tagFilter)
+    ? snapshot.followUps.filter((row) => visibleKeys.has(row.cardKey))
+    : snapshot.followUps;
 
   const todayRows = followUps.filter((row) => row.today).length;
   const waitRows = followUps.filter((row) => !row.today).length;

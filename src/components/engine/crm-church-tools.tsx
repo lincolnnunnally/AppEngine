@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
 import { logChurchVisitAction, logContactOutreachAction, removeChurchContactAction, saveChurchContactAction, undoDoNotContactAction, searchChurchesAction, attachLeadAction, dismissLeadAction, type ChurchPickState, type CrmFormState } from "@/app/(cockpit)/crm/actions";
 import { CRM_CONTACT_STATUSES, DROP_OFF_REST_DAYS, VISIT_REST_DAYS, contactStatusLabel, type CrmCard, type CrmContact } from "@/lib/engine/lpl-crm-core";
-import { SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG, httpUrl, isTechnicalDirector, signalsForContact, type ChurchSignal } from "@/lib/engine/tech-director-core";
+import { SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG, cleanImportContactTags, httpUrl, isTechnicalDirector, signalsForContact, type ChurchSignal } from "@/lib/engine/tech-director-core";
 
 // Contacts and "log a visit" on a CRM card, for a ChurchConnect church or a
 // business lead (the same forms; the form carries church_id or lead_id and the
@@ -11,6 +11,10 @@ import { SIGNAL_STAFF, TECHNICAL_DIRECTOR_TAG, httpUrl, isTechnicalDirector, sig
 // desk sees names and titles. Email and phone arrive only for the owner (the
 // page strips them for anyone else), and only the owner gets the save forms.
 // Every save runs an owner check on the server again.
+
+function campaignTagLine(tags: readonly string[] | undefined): string {
+  return cleanImportContactTags(tags ?? []).join(" · ");
+}
 
 const SOURCE_LABEL: Record<CrmContact["source"], string> = {
   saved: "",
@@ -145,11 +149,13 @@ export function TechDirectorPeople({
       <ul className="crm-contacts">
         {directors.map((person) => {
           const source = httpUrl(person.sourceUrl);
+          const tags = campaignTagLine(person.tags);
           return (
             <li key={person.id || person.name} className="crm-contact">
               <div>
                 <span className="crm-contact-name">{person.name}</span>
                 {person.title ? <span className="crm-dim"> · {person.title}</span> : null}
+                {tags ? <span className="crm-dim"> · {tags}</span> : null}
               </div>
               {person.email || person.phone || source ? (
                 <div className="crm-contact-links">
@@ -387,6 +393,7 @@ function ContactForm({ target, contact, onDone, onCancel }: { target: SaveTarget
       </label>
       {target.noun === "church" ? (
         <>
+          <input type="hidden" name="kept_tags" value={cleanImportContactTags(contact?.tags ?? []).join("|")} />
           <label className="crm-field">
             <span>Role tag</span>
             <select name="role_tag" defaultValue={contact && isTechnicalDirector(contact) ? TECHNICAL_DIRECTOR_TAG : ""}>
@@ -703,6 +710,7 @@ export function PeopleTools({ card, canSave }: { card: CrmCard; canSave: boolean
                 <div>
                   <span className="crm-contact-name">{contact.name}</span>
                   {contact.title ? <span className="crm-dim"> · {contact.title}</span> : null}
+                  {campaignTagLine(contact.tags) ? <span className="crm-dim"> · {campaignTagLine(contact.tags)}</span> : null}
                   {SOURCE_LABEL[contact.source] ? <span className="crm-contact-note">{SOURCE_LABEL[contact.source]}</span> : null}
                 </div>
               )}

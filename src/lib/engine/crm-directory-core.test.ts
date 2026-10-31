@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { realIsoDay, storedServiceProvider } from "./lpl-crm-core.ts";
 import {
+  cardMatchesContactTagFilter,
+  directoryContactTagFilter,
+  directoryHref,
   directoryPreviewRows,
   directoryQueryFromParams,
   directoryRpcArgs,
   directoryRowFromRecord,
   directoryStatusLabel,
+  directoryTagChurchPath,
   emptyDirectoryQuery,
   filterDirectoryRows,
   pageDirectoryRaw,
@@ -157,5 +161,61 @@ describe("church directory pages", () => {
     assert.equal(query.opportunity, "website:possible");
     assert.equal(directoryQueryFromParams({ opp: "operate:possible" }).opportunity, "");
     assert.equal(directoryRpcArgs(query, null, 41).p_opportunity, "website:possible");
+  });
+
+  it("filters campaign fit and size from contact tags and leaves AVL fit on fit", () => {
+    const query = directoryQueryFromParams({
+      campaign_fit: "avl_tech_media,uug_group_buy_avl",
+      size: "large_800_plus",
+      verify: "verified,likely",
+      q: "fit:avl_tech_media"
+    });
+    assert.equal(directoryQueryFromParams({ fit: "2" }).fitMin, 2);
+    assert.equal(directoryQueryFromParams({ fit: "2" }).campaignFit, "");
+    assert.equal(query.campaignFit, "avl_tech_media,uug_group_buy_avl");
+    assert.equal(query.sizeBand, "large_800_plus");
+    assert.deepEqual(directoryContactTagFilter(query).fit, ["fit:avl_tech_media", "fit:uug_group_buy_avl"]);
+    assert.deepEqual(directoryContactTagFilter(query).verify, ["verify:verified", "verify:likely"]);
+    const tagged = directoryRowFromRecord({
+      id: "circle",
+      name: "3Circle Church",
+      city: "Fairhope",
+      state: "AL",
+      staff_contacts: [{ name: "Andrew Example", tags: ["verify:verified", "fit:avl_tech_media", "fit:uug_group_buy_avl", "size:large_800_plus", "role:strict_av", "src:nationwide-20261031"] }]
+    });
+    const office = directoryRowFromRecord({
+      id: "agape",
+      name: "Agape Christian Fellowship",
+      city: "Alexandria",
+      state: "Alabama",
+      staff_contacts: [{ name: "Office info@agapecf.example", tags: ["verify:likely", "fit:cc_pro_invite", "size:small", "role:office", "src:nationwide-20261031"] }]
+    });
+    assert.ok(tagged && office);
+    const rows = [tagged, office];
+    assert.deepEqual(filterDirectoryRows(rows, query).map((row) => row.id), ["circle"]);
+    const either = filterDirectoryRows(rows, { ...emptyDirectoryQuery(), verify: "verified,likely" });
+    assert.deepEqual(either.map((row) => row.id), ["circle", "agape"]);
+    const small = filterDirectoryRows(rows, { ...emptyDirectoryQuery(), size: "small", campaignFit: "cc_pro_invite" });
+    assert.deepEqual(small.map((row) => row.id), ["agape"]);
+    const byTag = filterDirectoryRows(rows, { ...emptyDirectoryQuery(), q: "fit:cc_pro_invite" });
+    assert.deepEqual(byTag.map((row) => row.name), ["Agape Christian Fellowship"]);
+    const alabama = filterDirectoryRows(rows, { ...emptyDirectoryQuery(), state: "AL", q: "src:nationwide-20261031" });
+    assert.equal(alabama.length, 2);
+    assert.equal(cardMatchesContactTagFilter({ contacts: [{ tags: ["fit:avl_tech_media", "verify:verified"] }] }, directoryContactTagFilter({ q: "", campaignFit: "avl_tech_media", sizeBand: "", verifyStatus: "verified" })), true);
+    assert.equal(cardMatchesContactTagFilter({ contacts: [{ tags: ["fit:cc_pro_invite"] }] }, directoryContactTagFilter({ q: "", campaignFit: "avl_tech_media", sizeBand: "", verifyStatus: "" })), false);
+    const href = directoryHref({ ...emptyDirectoryQuery(), campaignFit: "avl_tech_media", sizeBand: "large_800_plus", verifyStatus: "verified", state: "AL" });
+    assert.equal(href.includes("campaign_fit=avl_tech_media"), true);
+    assert.equal(href.includes("size=large_800_plus"), true);
+    assert.equal(href.includes("verify=verified"), true);
+    assert.equal(/[?&]fit=/.test(href), false);
+    const path = directoryTagChurchPath({ ...emptyDirectoryQuery(), campaignFit: "avl_tech_media", state: "AL" }, "church-1", 41);
+    assert.ok(path);
+    assert.equal(path?.startsWith("cc_churches?"), true);
+    assert.equal(path?.includes("fit%3Aavl_tech_media"), true);
+    assert.equal(path?.includes("id=gt.church-1"), true);
+    assert.equal(path?.includes("crm_directory_page"), false);
+    assert.equal(directoryTagChurchPath(emptyDirectoryQuery(), "", 41), null);
+    assert.equal(JSON.stringify(directoryPreviewRows()).includes("Messenger AVL"), true);
+    assert.equal(directoryPreviewRows().every((row) => row.contactTags.length === 0), true);
   });
 });

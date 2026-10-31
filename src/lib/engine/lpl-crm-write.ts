@@ -19,7 +19,7 @@ import { mintHs256Jwt } from "@/lib/engine/admin-door-handoff";
 import { resolveCrmSecret } from "@/lib/engine/crm-pass-secret";
 import { BUSINESS_OFFER_IDS, cleanBusinessOfferIds, cleanChurchOfferIds } from "@/lib/engine/church-offer-rule";
 import { domainFromEmail, normDomain, normEmail, normName, normPhone, cleanBuildingStage, cleanContactOutreach, cleanContactStatus, cleanProviderType, cleanServiceOpportunityStatus, isAllowedChurchStatus, realIsoDay, serviceOpportunitiesToDoc, serviceProvidersToDoc, storedServiceOpportunity, storedServiceProvider, resolveOrgKind, SERVICE_OPPORTUNITY_IDS, SERVICE_PROVIDER_IDS, type CrmContactStatus, type OrgKind, type ServiceOpportunities, type ServiceOpportunityId, type ServiceProvider, type ServiceProviders, type ServiceProviderId } from "@/lib/engine/lpl-crm-core";
-import { cleanRoleTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
+import { cleanStoredContactTags, httpUrl, parseSignalTypes } from "@/lib/engine/tech-director-core";
 import { addChurchSignals, crmPatchRpcMissing, mergeChurchSignalContacts, rankAttachChurches } from "@/lib/engine/tech-director";
 
 export const CRM_PASS_ISSUER = "appengine-owner-desk";
@@ -123,7 +123,7 @@ export function cleanContactInput(input: Partial<ContactInput>): ContactInput | 
     title: text(input.title, 80),
     email,
     phone,
-    tags: cleanRoleTags(input.tags),
+    tags: cleanStoredContactTags(input.tags),
     sourceUrl: httpUrl(input.sourceUrl),
     status: cleanContactStatus(input.status)
   };
@@ -979,7 +979,7 @@ export function leadContacts(value: unknown): StoredContact[] {
   return list
     .filter((item) => item && typeof item === "object" && text(item.name, 120))
     .map((item) => {
-      const tags = cleanRoleTags(item.tags);
+      const tags = cleanStoredContactTags(item.tags);
       const source = httpUrl(item.source_url ?? item.sourceUrl);
       const status = cleanContactStatus(item.status);
       const entry: StoredContact = {

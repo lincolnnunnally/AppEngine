@@ -55,7 +55,12 @@
 // Columns: church, church_id (optional), city, state (optional), website,
 // staff_page_url, name, title, contact, signal_types, evidence_quote,
 // source_url, signal_date, score, plus optional lead_class, existing,
-// jev_avl_fit, and jev_project_stage.
+// jev_avl_fit, jev_project_stage, and contact_tags.
+// contact_tags is optional pipe-separated verify:, fit:, size:, role:, src:, and prio: tags.
+// When it is set, those tags are stored and a repeat of the same name adds any new tags.
+// When it is blank, a staff row still gets the Technical director tag.
+// Verified nationwide files are converted first by scripts/import-nationwide-verified.ts.
+// That wrapper uses this script's --dry-run / --apply guards. It does not send email.
 // signal_types is staff, campaign, renovation, or several joined with |
 // lead_class is campaign_planning, under_construction, staff_only, or other_services.
 // existing=yes, and Northridge Christian in Milledgeville GA, record an existing AVL relationship. Contact status stays as it is.
@@ -627,7 +632,7 @@ async function writeChurchSignalLead(config: { url: string; key: string }, body:
       leadId = String(rows[0].id ?? "");
       if (!leadId) return "error";
       const merged = mergeChurchSignalContacts(rows[0].contacts, body.contacts);
-      if (merged.added === 0) {
+      if (merged.added === 0 && merged.tagsUpdated === 0) {
         outcome = "exists";
         settled = true;
         break;
