@@ -64,7 +64,10 @@ export async function saveChurchContactAction(_prev: CrmFormState, formData: For
     title: field(formData, "title"),
     email: field(formData, "email"),
     phone: field(formData, "phone"),
-    tags: field(formData, "role_tag") ? [field(formData, "role_tag")] : [],
+    tags: [
+      ...(field(formData, "role_tag") ? [field(formData, "role_tag")] : []),
+      ...field(formData, "kept_tags").split("|").map((tag) => tag.trim()).filter(Boolean)
+    ],
     sourceUrl: field(formData, "source_url")
   };
   const result = lead

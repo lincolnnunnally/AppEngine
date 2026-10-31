@@ -24,6 +24,9 @@ function moreFilterCount(query: DirectoryQuery): number {
   if (query.opening) count += 1;
   if (query.tier) count += 1;
   if (query.fitMin !== null) count += 1;
+  if (query.campaignFit.trim()) count += 1;
+  if (query.sizeBand.trim()) count += 1;
+  if (query.verifyStatus.trim()) count += 1;
   if (query.contacted) count += 1;
   if (query.contactedOn) count += 1;
   if (query.staff) count += 1;
@@ -61,7 +64,7 @@ export function CrmDirectoryList({
         <div className="crm-dir-primary">
           <label>
             <span>Search</span>
-            <input name="q" defaultValue={query.q} placeholder="e.g. Atlanta or 31061" aria-label="Search by name, city, or ZIP" />
+            <input name="q" defaultValue={query.q} placeholder="e.g. Atlanta, 31061, or fit:avl_tech_media" aria-label="Search by name, city, ZIP, or contact tag" />
           </label>
           <label>
             <span>State</span>
@@ -124,6 +127,18 @@ export function CrmDirectoryList({
                   </option>
                 ))}
               </select>
+            </label>
+            <label>
+              <span>Campaign fit</span>
+              <input name="campaign_fit" defaultValue={query.campaignFit} placeholder="e.g. avl_tech_media" aria-label="Campaign fit tag" />
+            </label>
+            <label>
+              <span>Size</span>
+              <input name="size" defaultValue={query.sizeBand} placeholder="e.g. large_800_plus" aria-label="Size band tag" />
+            </label>
+            <label>
+              <span>Verify</span>
+              <input name="verify" defaultValue={query.verifyStatus} placeholder="e.g. verified or likely" aria-label="Verify status tag" />
             </label>
             <label>
               <span>AVL fit at least</span>

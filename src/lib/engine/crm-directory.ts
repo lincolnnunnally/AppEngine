@@ -5,8 +5,13 @@ import { readChurchSignals } from "./tech-director-core.ts";
 import {
   DIRECTORY_PAGE_SIZE,
   TIER_WALK,
+  churchLeadTagPath,
   decodeDirectoryCursor,
+  directoryContactTagFilter,
+  directoryContactTagFilterActive,
   directoryRpcArgs,
+  directoryRowMatches,
+  directoryTagChurchPath,
   encodeDirectoryCursor,
   directoryRowFromRecord,
   pageDirectoryRaw,
@@ -17,7 +22,8 @@ import {
   type TierWalk
 } from "./crm-directory-core.ts";
 import type { CrmCard, CrmChurchSignal, CrmContact } from "./lpl-crm-core.ts";
-import { PROVIDER_TYPE_LABEL, normEmail, type ProviderType } from "./lpl-crm-core.ts";
+import { PROVIDER_TYPE_LABEL, normEmail, withOutreachLog, type ProviderType } from "./lpl-crm-core.ts";
+import { businessNode } from "./lpl-crm.ts";
 
 export type DirectoryPage = {
   configured: boolean;
@@ -80,6 +86,7 @@ function tiersToWalk(query: DirectoryQuery, cursor: DirectoryCursor | null): Tie
 export async function loadDirectoryPage(query: DirectoryQuery): Promise<DirectoryPage> {
   const cfg = config();
   if (!cfg) return { configured: false, ok: false, rows: [], nextCursor: "" };
+  if (directoryContactTagFilterActive(directoryContactTagFilter(query))) return loadTaggedDirectoryPage(cfg, query);
   const cursor = decodeDirectoryCursor(query.cursor);
   const want = DIRECTORY_PAGE_SIZE + 1;
   const raw: Record<string, unknown>[] = [];
@@ -104,6 +111,100 @@ export async function loadDirectoryPage(query: DirectoryQuery): Promise<Director
 
   const page = pageDirectoryRaw(raw, query);
   return { configured: true, ok: true, rows: page.rows, nextCursor: page.next ? encodeDirectoryCursor(page.next) : "" };
+}
+
+const TAG_BATCH = 80;
+const TAG_BATCHES = 8;
+
+/** Contact-tag pages read cc_churches directly. crm_directory_page has no tag argument, and this adds none. */
+async function loadTaggedDirectoryPage(cfg: Config, query: DirectoryQuery): Promise<DirectoryPage> {
+  const cursor = decodeDirectoryCursor(query.cursor);
+  let after = cursor?.id ?? "";
+  const matches: DirectoryRow[] = [];
+  let exhausted = false;
+  for (let batch = 0; batch < TAG_BATCHES && matches.length <= DIRECTORY_PAGE_SIZE; batch += 1) {
+    const path = directoryTagChurchPath(query, after, TAG_BATCH);
+    if (!path) return { configured: true, ok: false, rows: [], nextCursor: "" };
+    const rows = await rest(cfg, path);
+    if (!rows) return { configured: true, ok: false, rows: [], nextCursor: "" };
+    if (!rows.length) {
+      exhausted = true;
+      break;
+    }
+    for (const item of rows) {
+      const row = directoryRowFromRecord(item as Record<string, unknown>);
+      if (row && directoryRowMatches(row, query)) matches.push(row);
+    }
+    const last = String((rows[rows.length - 1] as { id?: unknown }).id ?? "");
+    if (!last || last === after) {
+      exhausted = true;
+      break;
+    }
+    after = last;
+    if (rows.length < TAG_BATCH) {
+      exhausted = true;
+      break;
+    }
+  }
+  const pageRows = matches.slice(0, DIRECTORY_PAGE_SIZE);
+  const more = matches.length > DIRECTORY_PAGE_SIZE || !exhausted;
+  const edge = matches.length > DIRECTORY_PAGE_SIZE ? pageRows[pageRows.length - 1]?.id : after;
+  const nextCursor = more && edge ? encodeDirectoryCursor({ sort: "id", dir: "asc", id: edge, value: "", tier: "", nulls: false }) : "";
+  return { configured: true, ok: true, rows: pageRows, nextCursor };
+}
+
+/** Unmatched nationwide rows live on church-leads. This finds the ones whose contact tags match. Nothing is sent. */
+export async function loadTaggedChurchLeadCards(query: DirectoryQuery): Promise<CrmCard[]> {
+  const path = churchLeadTagPath(query, DIRECTORY_PAGE_SIZE);
+  if (!path) return [];
+  const cfg = config();
+  if (!cfg) return [];
+  const rows = await rest(cfg, path);
+  if (!rows) return [];
+  const cards: CrmCard[] = [];
+  for (const item of rows) {
+    const card = cardFromChurchLead(item as Record<string, unknown>);
+    if (card) cards.push(card);
+  }
+  return cards;
+}
+
+function cardFromChurchLead(row: Record<string, unknown>): CrmCard | null {
+  const node = businessNode(row);
+  if (!node?.leadId || !node.leadQueue) return null;
+  return withOutreachLog({
+    key: node.id,
+    name: node.name,
+    town: node.town,
+    state: node.state,
+    kinds: ["org"],
+    apps: ["business"],
+    matchedBy: [],
+    recordCount: 1,
+    touches: node.touches,
+    lastOutreach: null,
+    lastTouch: null,
+    repeat: { level: null, text: "" },
+    stops: [],
+    possibleMatches: [],
+    tokens: [],
+    events: [],
+    locations: [],
+    nextActionDate: null,
+    nextActionMovedFrom: null,
+    nextAction: "",
+    nextStep: "",
+    followUpReasons: [],
+    recordPaths: {},
+    churchId: null,
+    leadId: node.leadId,
+    leadQueue: true,
+    contacts: node.contacts ?? [],
+    deskDoNotContact: false,
+    org: node.org ?? null,
+    signals: node.signals,
+    crmStatus: node.crmStatus
+  });
 }
 
 async function readRaw(cfg: Config, query: DirectoryQuery, cursor: DirectoryCursor | null, limit: number, tier: TierWalk | ""): Promise<Record<string, unknown>[] | null> {

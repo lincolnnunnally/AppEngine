@@ -67,6 +67,7 @@ function row(partial: Partial<TechDirectorCsvRow> & Pick<TechDirectorCsvRow, "ch
     existing: "",
     jev_avl_fit: "",
     jev_project_stage: "",
+    contact_tags: "",
     line: 2,
     ...partial
   };
@@ -280,7 +281,7 @@ describe("technical director dedupe", () => {
     if (!parsed.ok) return;
     assert.deepEqual(
       Object.keys(parsed.rows[0]).filter((key) => key !== "line"),
-      ["church", "church_id", "city", "state", "website", "staff_page_url", "name", "title", "contact", "signal_types", "evidence_quote", "source_url", "signal_date", "score", "lead_class", "existing", "jev_avl_fit", "jev_project_stage"]
+      ["church", "church_id", "city", "state", "website", "staff_page_url", "name", "title", "contact", "signal_types", "evidence_quote", "source_url", "signal_date", "score", "lead_class", "existing", "jev_avl_fit", "jev_project_stage", "contact_tags"]
     );
     const plan = planTechDirectorImport(parsed.rows, churches);
     assert.equal(plan.matched, 6);
@@ -342,6 +343,38 @@ describe("technical director dedupe", () => {
     assert.equal(plan.duplicatesSkipped, 1);
     assert.equal(plan.additions.length, 0);
     assert.equal(plan.unmatched.length, 0);
+  });
+
+  it("adds campaign tags onto a person who is already stored", () => {
+    const withJane: DirectoryChurch[] = churches.map((church) =>
+      church.id === "g1" ? { ...church, contacts: [{ name: "Jane Doe" }] } : church
+    );
+    const plan = planTechDirectorImport(
+      [
+        row({
+          church: "Grace Chapel",
+          city: "Vidalia",
+          state: "GA",
+          website: "https://gracechapel.example",
+          name: "Jane Doe",
+          title: "Director of Media",
+          contact_tags: "verify:verified|fit:avl_tech_media|size:large_800_plus|role:strict_av|src:nationwide-20261031"
+        })
+      ],
+      withJane
+    );
+    assert.equal(plan.newContacts, 0);
+    assert.equal(plan.duplicatesSkipped, 1);
+    assert.equal(plan.additions.length, 1);
+    assert.deepEqual(plan.additions[0].contact.tags, ["verify:verified", "fit:avl_tech_media", "size:large_800_plus", "role:strict_av", "src:nationwide-20261031"]);
+    const merged = addStaffContacts(
+      [{ id: "old", name: "Jane Doe", tags: ["Technical director"], note: "keep me" }],
+      plan.additions.map((item) => item.contact)
+    );
+    assert.equal(merged.added, 0);
+    assert.equal(merged.tagsUpdated, 1);
+    assert.deepEqual(merged.staff[0].tags, ["Technical director", "verify:verified", "fit:avl_tech_media", "size:large_800_plus", "role:strict_av", "src:nationwide-20261031"]);
+    assert.equal(merged.staff[0].note, "keep me");
   });
 
   it("keeps existing contact keys and will not append the same name twice", () => {
@@ -804,6 +837,7 @@ describe("crm search and contact status", () => {
     assert.equal(cardMatchesCrmSearch(palm, "technical/media staff"), false);
     assert.equal(cardMatchesCrmSearch(palm, "orlando"), true);
     assert.equal(cardMatchesCrmSearch(grace, ""), true);
+    assert.equal(cardMatchesCrmSearch({ ...grace, contacts: [{ name: "Andrew Example", title: "Technical Director", tags: ["fit:avl_tech_media", "verify:verified", "size:large_800_plus"] }] }, "fit:avl_tech_media"), true);
   });
 
   it("accepts a note, a day, and a contact status, and rejects a send-shaped gap", () => {
