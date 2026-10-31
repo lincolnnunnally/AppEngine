@@ -29,9 +29,9 @@ import {
 /** Northridge Christian, Milledgeville GA. Existing AVL relationship even when the CSV existing column is blank. */
 export const NORTHRIDGE_MILLEDGEVILLE_ID = "fb3d153f-dac5-49fc-ad9f-2f594d4dcc24";
 
-/** Prod cc_churches is about 151k. Keyset pages of 1000 need more than 151 pages. Offset page 81 times out. */
+/** Prod cc_churches is about 344k and still growing. 220 pages of 1000 stopped at 220k, so the read allows 500. */
 export const CHURCH_READ_PAGE = 1000;
-export const CHURCH_READ_MAX_PAGES = 220;
+export const CHURCH_READ_MAX_PAGES = 500;
 
 export const CHURCH_PROFILE_PATCH_KEYS = [
   "crm_status",
