@@ -159,6 +159,23 @@ Each customer app = one Vercel project (team Pro plan) + one Neon project (its o
 
 **Safeguard:** `/api/cron/usage` runs daily. It measures every live app (Neon API + `pg_database_size`), emails the app's owner once at 80% ("heads-up") and once past 100% ("time for a bigger plan — nothing is switched off"), at most once per level per month, and puts the app in the owner deck's attention queue. Smoke: `npm run smoke:app-usage`.
 
-**Still the owner's call (money):**
-- the yearly hosting fee after the first month (recommended **$49/year** — annual because Stripe's 30¢ fee eats ~9% of a $5 monthly charge vs ~3.5% of $49/year);
-- the price of the bigger plan. Until it is set, upgrades are handled by reply email.
+**Hosting price — DECIDED (Lincoln, 2026-11-01): usage-based, no yearly fee.** Source of truth: LPL
+`03_APP_ENGINE__SOURCE_OF_TRUTH.md` §9a. His words: "A micro app that doesn't cost us anything we could host for free.
+I don't want anything getting in the way of someone willing to make an app. And then when app gets busy, then we can
+start billing for its activity."
+
+- **Free while inside the free allowance**, with no end date. Starting allowance: 10 compute-hours (CU-hours),
+  500 MB storage and 2 GB served per app per month. That costs $0 on Neon's free plan (first 100 apps) and at most
+  about $1.06 a month per app after that.
+- **Past the allowance, bill the activity only**: (measured cost of the overage) × `APP_ENGINE_BILLING_MARGIN` (1.3),
+  drawn from prepaid App Engine credits (`billing.ts`) so card fees never eat a small charge.
+- **Never switched off.** The 80% and 100% notices stay. The 100% notice now says what activity past the allowance
+  costs, instead of "time for a bigger plan".
+- **The old recommendation is superseded:** the "$49/year" figure and a separate bigger-plan price were never adopted.
+
+Cost reference (prices checked 2026-11-01): Neon $0.106 per CU-hour and $0.35 per GB-month; Vercel Pro $20 a month
+with a $20 usage credit and 1 TB transfer, then about $0.15/GB. The smallest database (0.25 CU) awake for one hour
+uses 0.25 CU-hours, about 2.7¢. Cost follows how many hours a day an app is in use, not how many people use it.
+
+**Not built yet:** metering the overage and drawing it from credits, and lowering `STANDARD_ALLOWANCE.computeHours`
+from 50 to 10. Open item: what happens if a busy app's owner has no credits (Lincoln's call).

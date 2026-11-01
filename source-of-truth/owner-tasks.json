@@ -57,8 +57,8 @@
     {
       "id": "appengine-launch-terms-and-scope",
       "app": "appengine",
-      "title": "Pick App Engine's yearly hosting fee (recommended: $49/year after the first free month)",
-      "why": "Already decided, so don't re-decide: the build price ($25 core, $10 per add-on, $20 heavier, custom +$25 with a $50 floor), where App Engine is offered (inside ChurchConnect and Operate, plus on its own), and that busy apps get an upgrade notice. The only open piece is what customers pay to keep their app hosted after the first month. Agents asked on Oct 26 and Oct 31, and it was never answered.",
+      "title": "Decide how App Engine charges for hosting",
+      "why": "DECIDED 2026-11-01, recorded in LPL 03 §9a: usage-based. Apps inside the free allowance are hosted free; busy apps pay for activity past it at cost + 30%, drawn from credits; nothing is switched off.",
       "steps": [
         "Reply with the fee: $49/year as recommended, or your number",
         "Optionally, the bigger-plan price for busy apps",
@@ -70,7 +70,7 @@
       "source": "LPL 03_APP_ENGINE__SOURCE_OF_TRUTH.md §9a (open since 2026-10-26); AppEngine docs/MODULE_PRICING_AND_PROFIT.md",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "done"
     },
     {
       "id": "appengine-legal-pages",
