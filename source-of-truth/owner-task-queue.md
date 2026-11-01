@@ -68,6 +68,24 @@ can create". Don't add a duplicate task for it.
 - **id**: optional. Without one it's derived from app + title. Re-posting the
   same id updates the wording; it never creates a duplicate.
 
+## Before you ask: check he hasn't already answered
+
+Lincoln has had to repeat decisions because answers given in chat were never
+written down, so the next agent asked again. Before adding a `decision` or
+`money` ask:
+
+1. Search the source of truth: LPL `_SOURCE_OF_TRUTH/` (especially `03_APP_ENGINE`
+   §7 and §9a, `01_ECOSYSTEM_MAP`, `CURRENT_FOCUS`), AppEngine
+   `source-of-truth/ecosystem-owner-rulings.md`, and the app's own docs.
+2. Check closed tasks and their notes: `GET /api/engine/owner-tasks?all=1`.
+3. Ask only the part that is genuinely open. Name what is already decided in
+   `why` so he can see you looked, e.g. "Build price is set ($25 core…); only
+   the hosting fee is open."
+
+**When he answers anything, in chat or in a note, write it down the same day**,
+with the date and his words, in the source-of-truth file that owns that topic.
+Then close the task. An answer that lives only in a chat is lost.
+
 ## Closing the loop
 
 - Lincoln clicks **Done**, **Started, waiting on someone**, or **Not doing this**,

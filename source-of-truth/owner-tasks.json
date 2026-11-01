@@ -3,8 +3,8 @@
     {
       "id": "appengine-neon-api-key",
       "app": "appengine",
-      "title": "Create a Neon API key so every app a customer buys gets its own database",
-      "why": "Until it exists, customer apps go live with no database (nobody can sign in), and flat-rate checkout (C3) has to stay switched off.",
+      "title": "Create a Neon API key (only for apps customers pay App Engine to build)",
+      "why": "Your own apps stay on the shared Supabase, and nothing about them changes. Your ruling (LPL 03 §7, 2026-06-18) gives each app a CUSTOMER buys through App Engine its own free Neon database, so their data stays out of your Supabase. Without the key, those customer apps launch with no database, so paid App Engine checkout stays off. If you'd rather put customer apps on Supabase too, click Not doing this and add a note saying so.",
       "steps": [
         "Sign in at neon.com (the free plan allows 100 projects)",
         "Account settings → API keys → Create new API key",
@@ -57,17 +57,17 @@
     {
       "id": "appengine-launch-terms-and-scope",
       "app": "appengine",
-      "title": "Decide what an App Engine flat price includes after launch",
-      "why": "Before real customers pay, the offer has to say how long hosting lasts, whether changes are included, and what support they get.",
+      "title": "Pick App Engine's yearly hosting fee (recommended: $49/year after the first free month)",
+      "why": "Already decided, so don't re-decide: the build price ($25 core, $10 per add-on, $20 heavier, custom +$25 with a $50 floor), where App Engine is offered (inside ChurchConnect and Operate, plus on its own), and that busy apps get an upgrade notice. The only open piece is what customers pay to keep their app hosted after the first month. Agents asked on Oct 26 and Oct 31, and it was never answered.",
       "steps": [
-        "Decide the hosting term included in the pack price",
-        "Decide what changes and support are included",
-        "Tell an agent, who will write it into the pricing page and order records"
+        "Reply with the fee: $49/year as recommended, or your number",
+        "Optionally, the bigger-plan price for busy apps",
+        "An agent writes it into LPL 03 §9a, the pricing page and checkout"
       ],
       "kind": "decision",
       "priority": "blocker",
       "link": null,
-      "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
+      "source": "LPL 03_APP_ENGINE__SOURCE_OF_TRUTH.md §9a (open since 2026-10-26); AppEngine docs/MODULE_PRICING_AND_PROFIT.md",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open"
@@ -75,14 +75,14 @@
     {
       "id": "appengine-legal-pages",
       "app": "appengine",
-      "title": "Approve Terms, Privacy and Refund text for App Engine customers",
-      "why": "C8 lists these as open owner decisions; paid customers need them before buying.",
+      "title": "Review the Terms, Privacy and Refund pages once an agent drafts them",
+      "why": "No wording has ever been written or approved; earlier sessions asked and it was never answered. Agents will draft all three. Your part is to read them and say OK or change something (with counsel if you want). Paid customers need them before buying.",
       "steps": [
-        "Ask an agent for draft Terms, Privacy and Refund pages",
-        "Review them (with counsel if you want), approve or edit"
+        "Wait for the drafts (an agent writes them, then marks this ready)",
+        "Read them and say approve or what to change in the note"
       ],
       "kind": "decision",
-      "priority": "blocker",
+      "priority": "recommended",
       "link": null,
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
