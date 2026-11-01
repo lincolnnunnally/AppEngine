@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { listInboxTickets, getInboxCounts, type InboxStatus } from "@/lib/engine/ecosystem-inbox";
+import { isKnownAppSlug } from "@/lib/engine/app-ops-catalog";
 import { InboxActions } from "@/components/engine/inbox-actions";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,15 @@ export default async function InboxPage({
     status === "open"
       ? tickets.filter((ticket) => ticket.status !== "resolved")
       : tickets;
+  // Keep the app filter across a status change — losing it silently widened
+  // the view back to every app.
+  const inboxHref = (next: InboxStatus | "all") => {
+    const query = new URLSearchParams();
+    if (next !== "open") query.set("status", next);
+    if (slug) query.set("app", slug);
+    const suffix = query.toString();
+    return suffix ? `/inbox?${suffix}` : "/inbox";
+  };
 
   return (
     <main className="shell">
@@ -43,22 +53,27 @@ export default async function InboxPage({
             <span>waiting</span>
             <p>{counts.open} new · {counts.inProgress} in progress</p>
           </a>
-          <div className="dx-stat dx-stat--cyan">
+          <a className="dx-stat dx-stat--cyan" href={`/inbox?status=resolved${slug ? `&app=${encodeURIComponent(slug)}` : ""}`}>
             <strong>{counts.resolved}</strong>
-            <span>resolved (recent)</span>
-            <p>kept so you can see what already got done</p>
-          </div>
+            <span>resolved</span>
+            <p>kept so you can see what already got done →</p>
+          </a>
         </div>
-        <div className="dx-chips" style={{ marginTop: 16 }}>
-          <a className={`dx-chip${status === "open" && !slug ? " dx-chip--active" : ""}`} href="/inbox">
+        <div className="dx-chips">
+          <a className={`dx-chip${status === "open" ? " dx-chip--active" : ""}`} href={inboxHref("open")}>
             Waiting <strong>{counts.open + counts.inProgress}</strong>
           </a>
-          <a className={`dx-chip${status === "resolved" ? " dx-chip--active" : ""}`} href="/inbox?status=resolved">
+          <a className={`dx-chip${status === "resolved" ? " dx-chip--active" : ""}`} href={inboxHref("resolved")}>
             Resolved
           </a>
-          <a className={`dx-chip${status === "all" ? " dx-chip--active" : ""}`} href="/inbox?status=all">
+          <a className={`dx-chip${status === "all" ? " dx-chip--active" : ""}`} href={inboxHref("all")}>
             All
           </a>
+          {slug ? (
+            <a className="dx-chip" href="/inbox">
+              Clear app filter ({slug}) ✕
+            </a>
+          ) : null}
         </div>
       </section>
 
@@ -77,9 +92,15 @@ export default async function InboxPage({
         shown.map((ticket) => (
           <section className="panel" key={ticket.id}>
             <p className="dx-label">
-              <a className="account-link" href={`/apps/${ticket.appSlug}`}>
-                {ticket.appName}
-              </a>
+              {isKnownAppSlug(ticket.appSlug) ? (
+                <a className="account-link" href={`/apps/${ticket.appSlug}`}>
+                  {ticket.appName}
+                </a>
+              ) : (
+                <span title={`No app is registered under "${ticket.appSlug}", so there is no page to open.`}>
+                  {ticket.appName || ticket.appSlug}
+                </span>
+              )}
               {" · "}
               {ticket.status.replace("_", " ")}
               {ticket.createdAt ? ` · ${new Date(ticket.createdAt).toLocaleString("en-US")}` : ""}

@@ -264,22 +264,48 @@ export async function updateInboxTicket(
   return updated;
 }
 
+// Counted in the database, not over a page of rows. Reading the newest 200
+// tickets and tallying them in JS meant that once the archive passed 200, a
+// wave of resolved tickets pushed open ones out of the window and the deck
+// quietly reported fewer people waiting than there were.
 export async function getInboxCounts(): Promise<InboxCounts> {
-  const tickets = await listInboxTickets({ status: "all", limit: 200 });
   const bySlug: Record<string, number> = {};
   let open = 0;
   let inProgress = 0;
   let resolved = 0;
-  for (const ticket of tickets) {
-    if (ticket.status === "open") {
-      open += 1;
-      bySlug[ticket.appSlug] = (bySlug[ticket.appSlug] ?? 0) + 1;
-    } else if (ticket.status === "in_progress") {
-      inProgress += 1;
-      bySlug[ticket.appSlug] = (bySlug[ticket.appSlug] ?? 0) + 1;
-    } else {
-      resolved += 1;
+
+  if (useDb()) {
+    const sql = getDatabase();
+    await ensureTable(sql);
+    const rows = (await sql`
+      SELECT app_slug, status, count(*)::int AS n
+      FROM ecosystem_inbox
+      GROUP BY app_slug, status
+    `) as Array<Record<string, unknown>>;
+    for (const row of rows) {
+      const status = String(row.status ?? "");
+      const slug = String(row.app_slug ?? "");
+      const n = Number(row.n ?? 0);
+      if (status === "open") open += n;
+      else if (status === "in_progress") inProgress += n;
+      else {
+        resolved += n;
+        continue;
+      }
+      if (slug) bySlug[slug] = (bySlug[slug] ?? 0) + n;
     }
+    return { open, inProgress, resolved, bySlug };
+  }
+
+  // In-memory fallback: the map IS every ticket, so tally it whole.
+  for (const ticket of memory.values()) {
+    if (ticket.status === "resolved") {
+      resolved += 1;
+      continue;
+    }
+    if (ticket.status === "open") open += 1;
+    else inProgress += 1;
+    bySlug[ticket.appSlug] = (bySlug[ticket.appSlug] ?? 0) + 1;
   }
   return { open, inProgress, resolved, bySlug };
 }
