@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadAppDossier } from "@/lib/engine/app-dossier";
 import { InboxActions } from "@/components/engine/inbox-actions";
+import { OwnerTaskActions } from "@/components/engine/owner-task-actions";
+import { PRIORITY_LABEL } from "@/lib/engine/owner-tasks-core";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,9 @@ export default async function AppDossierPage({
               {dossier.family === "toner" ? "Toner Central admin ↗" : "This app's admin ↗"}
             </a>
           ) : null}
+          <a className="dx-btn" href={`/tasks?app=${encodeURIComponent(app.slug)}`}>
+            To do{dossier.ownerTasks.length ? ` (${dossier.ownerTasks.length})` : ""}
+          </a>
           <a className="dx-btn" href={`/inbox?app=${encodeURIComponent(app.slug)}`}>
             Inbox{openTickets.length ? ` (${openTickets.length})` : ""}
           </a>
@@ -57,6 +62,38 @@ export default async function AppDossierPage({
         </div>
         {dossier.adminNote ? <p className="dx-note" style={{ marginTop: 12 }}>{dossier.adminNote}</p> : null}
       </section>
+
+      {dossier.ownerTasks.length > 0 ? (
+        <section className="panel owner-todo-panel--alert">
+          <p className="dx-label">Only you can do these — {app.name}</p>
+          {dossier.ownerTasks.map((task) => (
+            <article className="inbox-card" key={task.id}>
+              <p className="dx-label">
+                <span className={task.priority === "blocker" ? "dx-tag dx-tag--alert" : "dx-tag dx-tag--warn"}>
+                  {task.status === "waiting" ? "Waiting" : PRIORITY_LABEL[task.priority]}
+                </span>
+              </p>
+              <h3>{task.title}</h3>
+              {task.why ? <p className="dx-note">{task.why}</p> : null}
+              {task.steps.length ? (
+                <ol className="owner-task-steps">
+                  {task.steps.map((step, index) => (
+                    <li key={index}>{step}</li>
+                  ))}
+                </ol>
+              ) : null}
+              {task.link ? (
+                <p style={{ marginTop: 8 }}>
+                  <a className="dx-btn dx-btn--primary" href={task.link} target={task.link.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
+                    Do it here {task.link.startsWith("/") ? "→" : "↗"}
+                  </a>
+                </p>
+              ) : null}
+              <OwnerTaskActions id={task.id} status={task.status} ownerNote={task.ownerNote} />
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       <section className="panel">
         <p className="dx-label">How it is doing</p>

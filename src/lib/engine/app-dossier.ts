@@ -12,6 +12,8 @@ import {
   type AppFamilyId
 } from "@/lib/engine/app-ops-catalog";
 import { listInboxTickets, type InboxTicket } from "@/lib/engine/ecosystem-inbox";
+import { listOwnerTasks } from "@/lib/engine/owner-tasks";
+import { isActiveStatus, type OwnerTask } from "@/lib/engine/owner-tasks-core";
 
 export type AppDossier = {
   app: DeckApp;
@@ -22,6 +24,7 @@ export type AppDossier = {
   adminNote: string;
   siblings: Array<{ slug: string; name: string }>;
   tickets: InboxTicket[];
+  ownerTasks: OwnerTask[]; // open asks of the owner for this app
   attention: DeckAttention[];
   insights: DeckInsight[];
   helpUrl: string;
@@ -35,6 +38,9 @@ export async function loadAppDossier(slug: string): Promise<AppDossier | null> {
   const catalog = getAppOpsCatalogEntry(slug);
   const family = familyForSlug(slug);
   const tickets = await listInboxTickets({ slug, status: "all", limit: 50 });
+  const ownerTasks = (await listOwnerTasks({ slug }).catch(() => [] as OwnerTask[])).filter((task) =>
+    isActiveStatus(task.status)
+  );
   const inboxOpen = tickets.filter((ticket) => ticket.status !== "resolved").length;
   const door = resolveAdminDoor(slug, app.url);
   const siblingSlugs = siblingsInFamily(slug);
@@ -53,6 +59,7 @@ export async function loadAppDossier(slug: string): Promise<AppDossier | null> {
       })
       .filter((entry): entry is { slug: string; name: string } => Boolean(entry)),
     tickets,
+    ownerTasks,
     attention: deck.attention.filter((item) => item.appName === app.name),
     insights: deriveAppInsights(app, inboxOpen),
     helpUrl: `/help?app=${encodeURIComponent(slug)}`

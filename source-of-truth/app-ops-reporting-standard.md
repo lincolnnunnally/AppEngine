@@ -108,6 +108,13 @@ admin to see who is waiting.
 The inbox is the **across-the-board queue**. It does not replace per-app
 admin dashboards.
 
+## Owner to-do list (what only Lincoln can do)
+
+Agent asks of Lincoln (money, keys only he can create, product decisions) live on
+`/tasks` and at the top of the desk, per app on each dossier. They stay until he
+clears them. Source: `source-of-truth/owner-tasks.json` plus `/api/engine/owner-tasks`.
+Rules: `source-of-truth/owner-task-queue.md`.
+
 ## Guardrails
 
 - Free tier only; no new paid resources.

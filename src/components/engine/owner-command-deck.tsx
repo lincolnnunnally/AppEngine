@@ -6,6 +6,57 @@ import { buildWeeklyGoal, type WeeklyGoalReport } from "@/lib/engine/weekly-reve
 import { BusinessExplorer } from "@/components/engine/business-explorer";
 import { WeeklyGoalGlance } from "@/components/engine/weekly-goal-panel";
 import { crmFollowUpCount } from "@/lib/engine/lpl-crm";
+import { listOwnerTasks } from "@/lib/engine/owner-tasks";
+import { countTasks, isActiveStatus, PRIORITY_LABEL, type OwnerTask } from "@/lib/engine/owner-tasks-core";
+
+// The first thing on the desk: what only Lincoln can do. Top five, blockers
+// first, each one click from the place to do it. The full list is /tasks.
+function OwnerToDoPanel({ tasks, nameFor }: { tasks: OwnerTask[]; nameFor: (slug: string) => string }) {
+  const active = tasks.filter((task) => isActiveStatus(task.status));
+  const counts = countTasks(tasks);
+  if (active.length === 0) {
+    return (
+      <section className="panel" id="todo">
+        <p className="dx-label">Your to-do</p>
+        <p className="dx-note">
+          Nothing is waiting on you. When an agent needs you, it shows up here and on{" "}
+          <a className="account-link" href="/tasks">
+            To do
+          </a>
+          .
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className={`panel${counts.blockers ? " owner-todo-panel--alert" : ""}`} id="todo">
+      <p className="dx-label">
+        Your to-do — {counts.open + counts.waiting} waiting on you
+        {counts.blockers ? ` · ${counts.blockers} blocking` : ""}
+      </p>
+      {active.slice(0, 5).map((task, index) => (
+        <p className="dx-row" key={task.id}>
+          <span className="dx-index">{String(index + 1).padStart(2, "0")}</span>
+          <span className={task.priority === "blocker" ? "dx-tag dx-tag--alert" : task.priority === "recommended" ? "dx-tag dx-tag--warn" : "dx-tag"}>
+            {task.status === "waiting" ? "Waiting" : PRIORITY_LABEL[task.priority]}
+          </span>
+          <b>{task.title}</b>
+          <span className="dx-note">{task.appSlug === "ecosystem" ? "All apps" : nameFor(task.appSlug)}</span>
+          {task.link ? (
+            <a className="account-link" href={task.link} target={task.link.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
+              Do it →
+            </a>
+          ) : null}
+        </p>
+      ))}
+      <p style={{ marginTop: 10 }}>
+        <a className="dx-btn dx-btn--primary" href="/tasks">
+          Open the full list{active.length > 5 ? ` (${active.length - 5} more)` : ""} →
+        </a>
+      </p>
+    </section>
+  );
+}
 
 // Internal business desk. Money, people, help, and a table you can search
 // and sort. Factory language stays on /start.
@@ -67,14 +118,17 @@ function MoneyStrip({ stripe, weekly }: { stripe: StripeSummary; weekly: WeeklyG
 }
 
 export async function OwnerCommandDeck({ userKey }: { userKey: string | null; appsFilter?: string }) {
-  const [deck, stripe, detail, followUps, recurring, traffic] = await Promise.all([
+  const [deck, stripe, detail, followUps, recurring, traffic, ownerTasks] = await Promise.all([
     loadOwnerDeck(),
     loadStripeSummary(userKey),
     loadRevenueDetail(userKey),
     crmFollowUpCount(),
     loadRecurringSummary(userKey),
-    loadSiteTraffic()
+    loadSiteTraffic(),
+    listOwnerTasks().catch(() => [] as OwnerTask[])
   ]);
+  const appNames = new Map(deck.apps.map((app) => [app.slug, app.name]));
+  const nameFor = (slug: string) => appNames.get(slug) || slug;
   const weekly = buildWeeklyGoal(detail);
   const actItems = deck.attention.filter((item) => item.severity === "act");
   const ordersAcross = deck.apps.reduce((sum, app) => sum + (app.ordersRecent ?? 0), 0);
@@ -93,6 +147,7 @@ export async function OwnerCommandDeck({ userKey }: { userKey: string | null; ap
 
   return (
     <main className="shell wide-shell">
+      <OwnerToDoPanel tasks={ownerTasks} nameFor={nameFor} />
       <section className="panel biz-hero">
         <p className="dx-label">United Under God — the businesses</p>
         <h1 className="dx-display">

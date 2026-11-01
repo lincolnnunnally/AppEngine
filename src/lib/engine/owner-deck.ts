@@ -24,6 +24,7 @@ import {
   type AppFamilyId
 } from "@/lib/engine/app-ops-catalog";
 import { getInboxCounts } from "@/lib/engine/ecosystem-inbox";
+import { getOwnerTaskCounts } from "@/lib/engine/owner-tasks";
 import { flatCheckoutEnabled, listOrdersNeedingRebuild, type BuildOrder } from "@/lib/engine/build-orders";
 
 export type DeckGrowth = "up" | "down" | "steady" | null;
@@ -240,6 +241,12 @@ export async function loadOwnerDeck(): Promise<OwnerDeck> {
   for (const item of credentialItems) bump(item.slug);
   for (const [slug, count] of Object.entries(inbox.bySlug)) {
     if (count > 0) bump(slug);
+  }
+  // Open asks on the owner's to-do list count toward the app's attention badge.
+  const ownerTaskCounts = await getOwnerTaskCounts().catch(() => null);
+  for (const [slug, count] of Object.entries(ownerTaskCounts?.bySlug ?? {})) {
+    const canonical = canonicalSlug(slug);
+    attentionBySlug.set(canonical, (attentionBySlug.get(canonical) ?? 0) + count);
   }
 
   const apps: DeckApp[] = board.entries.map((entry) => {
