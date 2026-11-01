@@ -719,12 +719,31 @@ export function directoryTagChurchPath(query: DirectoryQuery, afterId: string, l
   return `cc_churches?select=${DIRECTORY_TAG_SELECT}&${joinPostgrestFilters(parts)}&order=id.asc&limit=${limitText}${after}`;
 }
 
+const OP_LEAD_TAG_SELECT = "id,business_name,city,state,phone,email,website_url,status,signals,services,contacts,created_at,updated_at";
+
 /** Church-lead rows whose contacts contain the same tags. No text ilike. Empty when there is no tag filter. */
 export function churchLeadTagPath(query: DirectoryQuery, limit: number): string | null {
   const filter = directoryContactTagFilter(query);
   if (!directoryContactTagFilterActive(filter)) return null;
   const limitText = String(Math.min(Math.max(limit, 1), 40));
-  return `op_leads?select=id,business_name,city,state,phone,email,website_url,status,signals,services,contacts,created_at,updated_at&kind=eq.church-lead&${tagContainmentParam("contacts", filter)}&order=updated_at.desc&limit=${limitText}`;
+  return `op_leads?select=${OP_LEAD_TAG_SELECT}&kind=eq.church-lead&${tagContainmentParam("contacts", filter)}&order=updated_at.desc&limit=${limitText}`;
+}
+
+/**
+ * Field rows whose contacts or signals contain fit:avl_referral (and any other active tag).
+ * Empty unless that fit tag is in the filter. Shops and church-leads stay on their own reads.
+ */
+export function fieldReferralTagPath(query: DirectoryQuery, limit: number): string | null {
+  const filter = directoryContactTagFilter(query);
+  if (!filter.fit.includes("fit:avl_referral")) return null;
+  const sets = directoryTagContainments(filter);
+  if (!sets.length) return null;
+  const branches = sets.flatMap((tags) => [
+    containmentClause("contacts", tags, true),
+    `signals.cs.${postgrestQuoted(JSON.stringify({ tags: [...tags] }))}`
+  ]);
+  const limitText = String(Math.min(Math.max(limit, 1), 40));
+  return `op_leads?select=${OP_LEAD_TAG_SELECT}&kind=eq.field&or=(${branches.join(",")})&order=updated_at.desc&limit=${limitText}`;
 }
 
 export function directoryPreviewRows(): DirectoryRow[] {

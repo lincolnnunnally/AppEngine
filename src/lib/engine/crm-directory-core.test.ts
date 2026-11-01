@@ -11,6 +11,7 @@ import {
   directoryRowFromRecord,
   directoryStatusLabel,
   churchLeadTagPath,
+  fieldReferralTagPath,
   directoryTagChurchPath,
   emptyDirectoryQuery,
   filterDirectoryRows,
@@ -233,6 +234,18 @@ describe("church directory pages", () => {
     assert.equal(leadPath?.includes("kind=eq.church-lead"), true);
     assert.equal(directoryTagChurchPath(emptyDirectoryQuery(), "", 41), null);
     assert.equal(churchLeadTagPath(emptyDirectoryQuery(), 40), null);
+    const referral = fieldReferralTagPath({ ...emptyDirectoryQuery(), campaignFit: "avl_referral" }, 40);
+    assert.equal(referral?.includes("kind=eq.field"), true);
+    assert.equal(referral?.includes("kind=eq.church-lead"), false);
+    assert.equal(referral?.includes("referral-partner"), false);
+    assert.equal(referral?.includes("contacts.ilike"), false);
+    assert.equal(referral?.includes("signals.cs."), true);
+    assert.equal(referral?.includes("fit:avl_referral"), true);
+    assert.equal(fieldReferralTagPath({ ...emptyDirectoryQuery(), campaignFit: "avl_tech_media" }, 40), null);
+    assert.equal(fieldReferralTagPath(emptyDirectoryQuery(), 40), null);
+    const both = fieldReferralTagPath({ ...emptyDirectoryQuery(), q: "fit:avl_referral", verifyStatus: "verified" }, 40);
+    assert.equal(both?.includes("kind=eq.field"), true);
+    assert.equal(both?.includes("verify:verified"), true);
     assert.equal(JSON.stringify(directoryPreviewRows()).includes("Messenger AVL"), true);
     assert.equal(directoryPreviewRows().every((row) => row.contactTags.length === 0), true);
   });

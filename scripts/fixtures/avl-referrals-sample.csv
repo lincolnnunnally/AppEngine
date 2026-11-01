@@ -1,0 +1,9 @@
+org_name,contact_name,title,role,email,phone,website,city,state,zip,church_projects,source_url,verify_status,lead_class
+"PAR Church Builders",Ada Example,President,builder,ada@par.example,4785550100,https://parchurchbuilders.com,Macon,GA,31201,"Grace Chapel, Macon",https://parchurchbuilders.com,verified,avl_referral
+"A Beazley Architecture",Glenn Example,Designer,architect,glenn@beazley.example,,https://abachurchdesign.com,Broussard,LA,70518,"Our Saviour's Church",https://abachurchdesign.com,likely,avl_referral
+"Aspen Group",,,"design-build",not found,,https://www.aspengroup.com,Frankfort,IL,60423,,https://www.aspengroup.com/about,verified,avl_referral
+"Campaign Partners",Pat Example,Consultant,capital_campaign_consultant,pat@campaign.example,8005550101,https://campaign.example,Atlanta,Georgia,30309,,https://campaign.example,risky,avl_referral
+"Domus Studio",Office,Principal,architect,not found,not found,https://domusstudio.com,Nashville,TN,37203,,https://domusstudio.com,verified,avl_referral
+"Paragon 360",Sam Example,Integrator,builder,,,https://paragon360.com,Grand Rapids,MI,49503,,https://paragon360.com,likely,avl_referral
+"No Site Builders",Jo Example,Owner,builder,jo@nosite.example,2295550102,,Valdosta,GA,31601,,https://example.com/source,verified,avl_referral
+"Skip Firm",,,"architect",skip@example.com,4045550199,https://skip.example,Atlanta,GA,30301,,https://skip.example,do_not_use,avl_referral

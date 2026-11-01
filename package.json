@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/lib/auth/*.test.ts src/lib/engine/*.test.ts src/lib/group-buy/*.test.ts scripts/import-tech-directors.cli.test.ts scripts/import-nationwide-verified.cli.test.ts",
+    "test": "node --test src/lib/auth/*.test.ts src/lib/engine/*.test.ts src/lib/group-buy/*.test.ts scripts/import-tech-directors.cli.test.ts scripts/import-nationwide-verified.cli.test.ts scripts/import-avl-referrals.cli.test.ts",
     "db:setup": "node scripts/setup-database.mjs",
     "env:compose": "node scripts/compose-app-env.mjs",
     "prompt:make": "node scripts/make-codex-prompt.js",
