@@ -60,14 +60,13 @@
       "title": "Decide how App Engine charges for hosting",
       "why": "DECIDED 2026-11-01, recorded in LPL 03 §9a: usage-based. Apps inside the free allowance are hosted free; busy apps pay for activity past it at cost + 30%, drawn from credits; nothing is switched off.",
       "steps": [
-        "Reply with the fee: $49/year as recommended, or your number",
-        "Optionally, the bigger-plan price for busy apps",
-        "An agent writes it into LPL 03 §9a, the pricing page and checkout"
+        "Nothing left for you. Agents build the usage metering and credit draw next.",
+        "Still open: what happens when a busy app's owner has no credits (asked 2026-11-01)."
       ],
       "kind": "decision",
       "priority": "blocker",
       "link": null,
-      "source": "LPL 03_APP_ENGINE__SOURCE_OF_TRUTH.md §9a (open since 2026-10-26); AppEngine docs/MODULE_PRICING_AND_PROFIT.md",
+      "source": "LPL 03_APP_ENGINE__SOURCE_OF_TRUTH.md §9a (decided 2026-11-01); AppEngine docs/MODULE_PRICING_AND_PROFIT.md",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "done"
