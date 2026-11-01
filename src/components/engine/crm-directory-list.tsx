@@ -64,7 +64,7 @@ export function CrmDirectoryList({
         <div className="crm-dir-primary">
           <label>
             <span>Search</span>
-            <input name="q" defaultValue={query.q} placeholder="e.g. Atlanta, 31061, or fit:avl_tech_media" aria-label="Search by name, city, ZIP, or contact tag" />
+            <input name="q" defaultValue={query.q} placeholder="e.g. Atlanta, 31061, fit:avl_tech_media, or fit:avl_referral" aria-label="Search by name, city, ZIP, or contact tag" />
           </label>
           <label>
             <span>State</span>
@@ -130,7 +130,7 @@ export function CrmDirectoryList({
             </label>
             <label>
               <span>Campaign fit</span>
-              <input name="campaign_fit" defaultValue={query.campaignFit} placeholder="e.g. avl_tech_media" aria-label="Campaign fit tag" />
+              <input name="campaign_fit" defaultValue={query.campaignFit} placeholder="e.g. avl_tech_media or avl_referral" aria-label="Campaign fit tag" />
             </label>
             <label>
               <span>Size</span>

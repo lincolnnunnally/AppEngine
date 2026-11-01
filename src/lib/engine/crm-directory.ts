@@ -6,6 +6,7 @@ import {
   DIRECTORY_PAGE_SIZE,
   TIER_WALK,
   churchLeadTagPath,
+  fieldReferralTagPath,
   decodeDirectoryCursor,
   directoryContactTagFilter,
   directoryContactTagFilterActive,
@@ -153,25 +154,35 @@ async function loadTaggedDirectoryPage(cfg: Config, query: DirectoryQuery): Prom
   return { configured: true, ok: true, rows: pageRows, nextCursor };
 }
 
-/** Unmatched nationwide rows live on church-leads. This finds the ones whose contact tags match. Nothing is sent. */
+/** Unmatched nationwide rows live on church-leads. Field AVL referrals are a separate read. Nothing is sent. */
 export async function loadTaggedChurchLeadCards(query: DirectoryQuery): Promise<CrmCard[]> {
-  const path = churchLeadTagPath(query, DIRECTORY_PAGE_SIZE);
-  if (!path) return [];
+  const churchPath = churchLeadTagPath(query, DIRECTORY_PAGE_SIZE);
+  const fieldPath = fieldReferralTagPath(query, DIRECTORY_PAGE_SIZE);
+  if (!churchPath && !fieldPath) return [];
   const cfg = config();
   if (!cfg) return [];
-  const rows = await rest(cfg, path);
-  if (!rows) return [];
   const cards: CrmCard[] = [];
-  for (const item of rows) {
-    const card = cardFromChurchLead(item as Record<string, unknown>);
-    if (card) cards.push(card);
-  }
+  const seen = new Set<string>();
+  const take = async (path: string | null, queue: boolean) => {
+    if (!path) return;
+    const rows = await rest(cfg, path);
+    if (!rows) return;
+    for (const item of rows) {
+      const card = cardFromLead(item as Record<string, unknown>, queue);
+      if (!card?.leadId || seen.has(card.leadId)) continue;
+      seen.add(card.leadId);
+      cards.push(card);
+    }
+  };
+  await take(churchPath, true);
+  await take(fieldPath, false);
   return cards;
 }
 
-function cardFromChurchLead(row: Record<string, unknown>): CrmCard | null {
+function cardFromLead(row: Record<string, unknown>, queue: boolean): CrmCard | null {
   const node = businessNode(row);
-  if (!node?.leadId || !node.leadQueue) return null;
+  if (!node?.leadId) return null;
+  if (queue && !node.leadQueue) return null;
   return withOutreachLog({
     key: node.id,
     name: node.name,
@@ -198,7 +209,7 @@ function cardFromChurchLead(row: Record<string, unknown>): CrmCard | null {
     recordPaths: {},
     churchId: null,
     leadId: node.leadId,
-    leadQueue: true,
+    leadQueue: queue,
     contacts: node.contacts ?? [],
     deskDoNotContact: false,
     org: node.org ?? null,
