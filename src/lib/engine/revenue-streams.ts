@@ -59,6 +59,27 @@ function streamLabel(id: IncomeStreamId): string {
 
 const KNOWN = uniqueStreamDefs();
 
+// Apps whose charges are labeled with a sibling's name. Their money is real;
+// it belongs to the sibling's stream. (Toner Connect is already an income door.)
+const STREAM_SLUG_ALIASES: Record<string, string> = {
+  "printer-protector-monitoring": "toner-management"
+};
+
+// The revenue stream that carries this app's money, or null when no income door
+// exists for it. Null means "we cannot attribute this app's revenue". It never
+// means zero.
+export function streamSlugForApp(appSlug: string): string | null {
+  const target = STREAM_SLUG_ALIASES[appSlug] ?? appSlug;
+  const door = INCOME_DOORS.find((entry) => entry.slug === target);
+  if (!door) return null;
+  return KNOWN.find((stream) => stream.id === door.streamId)?.slug ?? null;
+}
+
+// True when charges for this app can be told apart from everyone else's.
+export function isRevenueWired(appSlug: string): boolean {
+  return streamSlugForApp(appSlug) !== null;
+}
+
 export function listKnownStreams(): Array<{ id: IncomeStreamId; slug: string; label: string }> {
   return KNOWN.map((stream) => ({ id: stream.id, slug: stream.slug, label: stream.label }));
 }

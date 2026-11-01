@@ -12,6 +12,15 @@ Claude Code has FULL technical autonomy — coding, testing, git branches/commit
 
 Surface to Lincoln ONLY three things: (1) **money** — new paid services, plan upgrades, purchases; (2) **credentials only he can create** — account API keys (e.g. Render), OAuth apps, registrar/DNS logins, Stripe/email accounts (once provided, their use is autonomous); (3) **mission, philosophy, doctrine, and product direction** (what an app IS). Consume the philosophy; never invent or change it.
 
+## Asking Lincoln for something (owner request, 2026-11-01)
+
+When you need Lincoln to do one of the three things above, **put it on his to-do list**,
+not only in your chat reply. Chat asks get buried. Add it to `source-of-truth/owner-tasks.json`
+(`npm run tasks:add -- --app <slug> --title "..." --why "..." --step "..." --kind credential --priority blocker --link <url> --by "<you>"`,
+then `npm run tasks:check`), or POST it with `APP_ENGINE_TASKS_TOKEN`. It shows at the top of
+`dashboard.unitedundergod.org` and on `/tasks` until he clears it. In chat, mention it in one line
+with its id. Close tasks you verified are done. Full rules: `source-of-truth/owner-task-queue.md`.
+
 ## Commands
 
 - Install dependencies: `npm ci`

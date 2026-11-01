@@ -1,0 +1,609 @@
+{
+  "tasks": [
+    {
+      "id": "appengine-neon-api-key",
+      "app": "appengine",
+      "title": "Create a Neon API key (only for apps customers pay App Engine to build)",
+      "why": "Your own apps stay on the shared Supabase, and nothing about them changes. Your ruling (LPL 03 §7, 2026-06-18) gives each app a CUSTOMER buys through App Engine its own free Neon database, so their data stays out of your Supabase. Without the key, those customer apps launch with no database, so paid App Engine checkout stays off. If you'd rather put customer apps on Supabase too, click Not doing this and add a note saying so.",
+      "steps": [
+        "Sign in at neon.com (the free plan allows 100 projects)",
+        "Account settings → API keys → Create new API key",
+        "Save it as NEON_API_KEY on the dashboard Keys page (/integrations)",
+        "Tell an agent so it can set APP_ENGINE_FLAT_CHECKOUT_ENABLED=true and run the first paid build"
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "link": "https://console.neon.tech/app/settings/api-keys",
+      "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "easypeazy-rotate-stripe-key-with-connect",
+      "app": "easy-peasy-website",
+      "title": "Replace the exposed live Stripe key with a new one that also allows Stripe Connect",
+      "why": "A live key was pasted and stored in ep_api_credentials on 2026-08-25, and only rotating it fixes that. The current restricted key also gets a 403 on /v1/accounts, so giving produces no gift records for ChurchConnect.",
+      "steps": [
+        "Stripe → Developers → API keys → create a new restricted key and include write access to Accounts (/v1/accounts)",
+        "Give it to an agent to set STRIPE_API_KEY on easypeazy-api, STRIPE_SECRET_KEY on ai-website-design (if it is the same Stripe account) and STRIPE_SECRET_KEY on app-engine, which uses EasyPeazy's key, then redeploy and check /health?deep=1",
+        "Revoke the old key only after that check passes"
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "link": "https://dashboard.stripe.com/apikeys",
+      "source": "easypeazy/HANDOFF.md (last changed 2026-10-17)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "operate-prospect-mailing-address",
+      "app": "operate",
+      "title": "Give Operate the mailing address to print in chamber prospect emails",
+      "why": "Prospect invite emails stay off until PROSPECT_MAILING_ADDRESS is set, because CAN-SPAM requires a physical address in every commercial email.",
+      "steps": [
+        "Pick the business mailing address (a PO box is fine)",
+        "Give it to an agent to set as PROSPECT_MAILING_ADDRESS on the Vercel project operate"
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "link": null,
+      "source": "operate/docs/PROSPECTS.md (last changed 2026-10-27)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "appengine-launch-terms-and-scope",
+      "app": "appengine",
+      "title": "Decide how App Engine charges for hosting",
+      "why": "DECIDED 2026-11-01, recorded in LPL 03 §9a: usage-based. Apps inside the free allowance are hosted free; busy apps pay for activity past it at cost + 30%, drawn from credits; nothing is switched off.",
+      "steps": [
+        "Nothing left for you. Agents build the usage metering and credit draw next.",
+        "Still open: what happens when a busy app's owner has no credits (asked 2026-11-01)."
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "link": null,
+      "source": "LPL 03_APP_ENGINE__SOURCE_OF_TRUTH.md §9a (decided 2026-11-01); AppEngine docs/MODULE_PRICING_AND_PROFIT.md",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "done"
+    },
+    {
+      "id": "appengine-legal-pages",
+      "app": "appengine",
+      "title": "Review the Terms, Privacy and Refund pages once an agent drafts them",
+      "why": "No wording has ever been written or approved; earlier sessions asked and it was never answered. Agents will draft all three. Your part is to read them and say OK or change something (with counsel if you want). Paid customers need them before buying.",
+      "steps": [
+        "Wait for the drafts (an agent writes them, then marks this ready)",
+        "Read them and say approve or what to change in the note"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "link": null,
+      "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "stripe-connect-enable-platform",
+      "app": "ecosystem",
+      "title": "Turn on Stripe Connect so makers, sitters and churches can be paid out",
+      "why": "Laser maker payouts, FurFriend's paid sitting marketplace and EasyPeazy church giving records all wait on Connect.",
+      "steps": [
+        "Stripe Dashboard → Connect → Get started, and finish the platform profile",
+        "Copy the Connect client ID (needed for Laser maker onboarding)",
+        "Hand the client ID to an agent for Laser, FurFriend and EasyPeazy"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "link": "https://dashboard.stripe.com/connect/overview",
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (last changed 2026-10-17)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "churchconnect-meta-app-review",
+      "app": "churchconnect",
+      "title": "Trim and submit ChurchConnect's Meta App Review for Facebook/Instagram posting",
+      "why": "Until Meta approves it, only app testers can connect a Page, so churches cannot publish posts to Facebook or Instagram.",
+      "steps": [
+        "developers.facebook.com → app 'Church Connect' → App Review → remove every permission not in docs/META_APP_REVIEW.md and add instagram_content_publish",
+        "Make the six Graph API test calls listed in the doc",
+        "Record the ~90-second screencast at www.churchconnect.cloud as an app tester",
+        "Paste the ready-written descriptions and submit"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "link": "https://developers.facebook.com/apps",
+      "source": "ChurchConnect/docs/META_APP_REVIEW.md (last changed 2026-10-29)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "appengine-first-audience",
+      "app": "appengine",
+      "title": "Pick App Engine's first audience and how to promote it",
+      "why": "Campaigns and outreach for App Engine cannot start until you name who it is for first and through which channel.",
+      "steps": [
+        "Choose the first audience (for example churches through ChurchConnect, or Vidalia businesses through Operate)",
+        "Choose the promotion channel",
+        "Tell an agent to build the campaign in /campaigns"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "link": "/campaigns",
+      "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "google-business-profiles",
+      "app": "ecosystem",
+      "title": "Create Google Business Profiles for United Under God, Church AV and Operate",
+      "why": "These profiles are the biggest lever for showing up in local search, and the postcard or video verification can only be done by you.",
+      "steps": [
+        "business.google.com → add United Under God (nonprofit, Vidalia address)",
+        "Add Church AV as a service-area business covering the GA counties",
+        "Add Operate as a service-area business",
+        "Complete postcard/video verification for each"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "link": "https://business.google.com",
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_SEO_GROWTH.md (last changed 2026-10-23)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "spark-canonical-home",
+      "app": "spark-of-hope",
+      "title": "Decide Spark of Hope's one home (D6)",
+      "why": "Spark has several leftover surfaces and no single front door; reconciling them waits on your ruling.",
+      "steps": [
+        "Choose: a standalone repo/app at spark-of-hope.com, or the life-produces-life monorepo",
+        "Tell an agent to consolidate"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (last changed 2026-10-17)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "building-gods-way-workshop",
+      "app": "united-under-god",
+      "title": "Decide whether to register for the Building God's Way workshop (Nov 10)",
+      "why": "It is a partner workshop near Atlanta, flagged 'ask Lincoln', and registration is time-limited.",
+      "steps": [
+        "Decide, and register if going"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "link": null,
+      "source": "lpl-handoff-data/HANDOFF.md (last changed 2026-10-24)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "messenger-avl-partner-terms",
+      "app": "united-under-god",
+      "title": "Agree and sign the church AV partner terms (commission/referral) with Messenger AVL",
+      "why": "Track B depends on a written commission-only, non-exclusive agreement. The leave-behind QR page and pages.config flag stay off until it is signed. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Agree commission and referral tiers with Jim",
+        "Decide whether Track A marketing is paid or goodwill, and whether to offer the free checkup",
+        "Decide whether to disclose paid introductions to pastors (recommended: yes)",
+        "Sign, then tell an agent to flip the flag"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/CURRENT_FOCUS.md (last changed 2026-10-18)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "search-console-bing-verify",
+      "app": "ecosystem",
+      "title": "Give agents Google Search Console and Bing access, or add the domains yourself",
+      "why": "Sitemaps and indexing requests cannot be submitted without your Google/Bing accounts, so the SEO work cannot show up in search. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Google Search Console → Add property → Domain for unitedundergod.org, churchconnect.cloud, easypeazy.site, ai-website.design and operate",
+        "Let an agent add the DNS TXT verification records (agents own DNS)",
+        "Bing Webmaster Tools → Import from Search Console",
+        "Submit each /sitemap.xml"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "link": "https://search.google.com/search-console",
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_GROK_SEARCH_VISIBILITY.md (last changed 2026-10-23)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "chamber-memberships",
+      "app": "operate",
+      "title": "Decide whether to pay for chamber memberships (Vidalia-Toombs first)",
+      "why": "Chamber listings are paid memberships that give local backlinks and listings; agents may not spend money.",
+      "steps": [
+        "Check the Vidalia-Toombs Chamber membership price",
+        "Join if worth it, then tell an agent to fill in the listing"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_SEO_GROWTH.md (last changed 2026-10-23)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "awd-wordpress-plan-price",
+      "app": "ai-website-design",
+      "title": "Set a separate price for the 'WordPress with Divi' go-live option",
+      "why": "The WordPress option costs more to run and support, so it needs its own plan price, not a $19 add-on, before it can be offered.",
+      "steps": [
+        "Pick a monthly/yearly price for the WordPress plan",
+        "Tell an agent, who will add the go-live choice once one site has been proven in Divi"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "ai-website-design/docs/wordpress-offer.md (last changed 2026-10-26)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "awd-divi-ai-terms",
+      "app": "ai-website-design",
+      "title": "Check whether customer sites can use Divi AI under your Elegant Themes plan",
+      "why": "Divi AI cannot be promised to customers until the account terms and per-site cost are confirmed.",
+      "steps": [
+        "Elegant Themes account → read the Divi AI terms for multisite and client sites",
+        "Note the per-site cost and tell an agent"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "link": "https://www.elegantthemes.com/members-area/",
+      "source": "ai-website-design/docs/wordpress-offer.md (last changed 2026-10-26)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "easypeazy-define-customer",
+      "app": "easy-peasy-website",
+      "title": "Define what counts as an EasyPeazy 'customer' for the admin numbers",
+      "why": "The console counts every ep_users row (95, about 11 of them QA) as a customer, so the business numbers are wrong.",
+      "steps": [
+        "Choose a definition: paid, has a live website, or something else",
+        "Tell an agent to change /api/admin/stats"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "easypeazy/HANDOFF.md (last changed 2026-10-17)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "easypeazy-qa-showcase-sites",
+      "app": "easy-peasy-website",
+      "title": "Keep or remove four old QA sites holding real branded addresses",
+      "why": "gracechapel9399, hopechapel552, newhope913 (churchconnect.cloud) and bellasflowers284 (easypeazy.site) look like real customers. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Decide: keep as showcases or delete",
+        "Tell an agent"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "easypeazy/HANDOFF.md (last changed 2026-10-17)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "opportunity-packaging",
+      "app": "opportunity",
+      "title": "Decide how Opportunity is packaged and whether we-succeed.org becomes Pulse's home",
+      "why": "Opportunity's own-app build and the repurposing of we-succeed.org are both waiting on product direction. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Confirm how Opportunity should ship as its own app",
+        "Say what we-succeed.org should become"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/ECOSYSTEM_APP_COMPLETION_BOARD.md (last changed 2026-10-22)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "kindred-aligned-souls-handoff",
+      "app": "kindred-connections",
+      "title": "Decide whether and when Kindred points people to Aligned Souls",
+      "why": "The 01_ECOSYSTEM_MAP lists it as an open owner decision. Nothing may point lonely day-1 Kindred users at dating until you rule.",
+      "steps": [
+        "Decide if Kindred shows Aligned Souls as a next step, and after what"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (last changed 2026-10-17)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "iconium-model-and-pricing",
+      "app": "iconium",
+      "title": "Decide Iconium's image model, cost and free/paid model (D1–D2)",
+      "why": "The per-image cost decides whether Iconium can be free, and the next build waits on it.",
+      "steps": [
+        "Confirm current image-model pricing",
+        "Choose free, freemium or paid"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/10_ICONIUM__OWNER_DEFINITION.md (last changed 2026-07-31)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "iconium-icon-licensing-and-library",
+      "app": "iconium",
+      "title": "Choose Iconium's icon sources and where the shared asset library lives (D3–D4)",
+      "why": "Commercial and engraved-resale licensing differs by source, and Laser uses the same library.",
+      "steps": [
+        "Pick icon sources (Iconify, Noun Project, Font Awesome…)",
+        "Choose where the library lives: Iconium, Laser, or a shared service"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/10_ICONIUM__OWNER_DEFINITION.md (last changed 2026-07-31)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "barefoot-membership-and-gatherings",
+      "app": "barefoot-coalition",
+      "title": "Decide Barefoot Coalition membership and gatherings (D5–D6)",
+      "why": "The first participation loop ('I'm in' plus seeing a gathering) is blocked until these are resolved.",
+      "steps": [
+        "Membership: free, paid, or none?",
+        "Gatherings: real events/RSVPs, or reuse Live On Mission/ChurchConnect events?"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/09_BAREFOOT_COALITION__OWNER_DEFINITION.md (last changed 2026-07-31)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "barefoot-brand-domain-card",
+      "app": "barefoot-coalition",
+      "title": "Decide Barefoot's advocacy card, domain purchase and logo (D1–D4)",
+      "why": "Physical goods and the brand need a decision on the /card, the shield mark, a vector logo, and whether to buy barefootcoalition.org.",
+      "steps": [
+        "Keep, restrict, or drop the /card advocacy card",
+        "Buy barefootcoalition.org/.com or stay on barefoot.unitedundergod.org",
+        "Adopt or drop the shared shield mark; say who makes the vector logo"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/09_BAREFOOT_COALITION__OWNER_DEFINITION.md (last changed 2026-07-31)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "solution-engine-safety-contact",
+      "app": "ecosystem",
+      "title": "Name the safety-escalation contact and crisis resource list for Solution Engine",
+      "why": "Safety alerts go to you by default until a pastoral contact is named, and the crisis list stays national-only. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Name the person who gets safety escalations (D-S2)",
+        "Choose a national, Georgia-local or church-partner crisis list (D-S3)"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/08_SOLUTION_ENGINE__OWNER_DEFINITION.md (last changed 2026-07-29)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "resend-pro-upgrade",
+      "app": "churchconnect",
+      "title": "Decide on Resend Pro (~$20/mo) if outreach outgrows the free 100/day",
+      "why": "The outreach plan says the free plan caps outreach at about 70 a day, while the newer daily numbers are higher. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Resend → Billing: check the current plan and usage",
+        "Upgrade if still on free"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "link": "https://resend.com/settings/billing",
+      "source": "ChurchConnect/docs/outreach/OUTREACH_PLAN.md (last changed 2026-10-30)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "kindred-google-sign-in",
+      "app": "kindred-connections",
+      "title": "Create a Google OAuth client for 'Continue with Google' on the shared Supabase",
+      "why": "Google sign-in is still dormant for Kindred and the other shared-identity apps. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Google Cloud Console → APIs & Services → Credentials → OAuth client (Web)",
+        "Add the Supabase auth callback URL",
+        "Give the client ID and secret to an agent to enable the provider (the same client can serve App Engine's AUTH_GOOGLE_ID)"
+      ],
+      "kind": "credential",
+      "priority": "optional",
+      "link": "https://console.cloud.google.com/apis/credentials",
+      "source": "Kindred-Connection/AIPOS/MIGRATION_PLAN.md (last changed 2026-07-09)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "appengine-github-oauth-callbacks",
+      "app": "appengine",
+      "title": "Add App Engine and dashboard callback URLs to the existing GitHub OAuth app",
+      "why": "GitHub sign-in fails on a host whose callback is not registered. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "GitHub → Settings → Developer settings → OAuth Apps → the existing app (do not create a new one)",
+        "Add https://appengine.unitedundergod.org/api/auth/callback/github and https://dashboard.unitedundergod.org/api/auth/callback/github"
+      ],
+      "kind": "credential",
+      "priority": "optional",
+      "link": "https://github.com/settings/developers",
+      "source": "AppEngine/source-of-truth/github-oauth-soft-launch-callbacks.md (last changed 2026-09-18)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "send-to-claude-code-guardrail",
+      "app": "appengine",
+      "title": "Approve letting the dashboard file GitHub issues ('Send to Claude Code')",
+      "why": "This vision item stays unbuilt until you OK relaxing the noGitHubIssueCreation guardrail.",
+      "steps": [
+        "Say yes or no to dashboard-filed issues (shipped as owner-approved drafts)"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "operate-preview-database",
+      "app": "operate",
+      "title": "Claim or create a free Neon database for Operate previews",
+      "why": "The claimable preview database expired 2026-10-09 unless claimed, so previews run read-only. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Neon → create a free project or claim sparkling-butterfly-56155036",
+        "Give the URL to an agent for PREVIEW_DATABASE_URL (Preview only)"
+      ],
+      "kind": "account",
+      "priority": "optional",
+      "link": "https://console.neon.tech",
+      "source": "operate/README.md (last changed 2026-10-16)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "snip-show-host-and-oauth",
+      "app": "snip-show",
+      "title": "Approve a paid host/storage and social OAuth apps for Snip.Show",
+      "why": "T8: deploying the cloud work needs a paid host and storage, and cross-posting needs an OAuth app per platform. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Approve or decline paid hosting and storage (or confirm the native-iOS-only direction)",
+        "Create OAuth apps for each platform you want cross-posting on"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "link": null,
+      "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "ideas-direct-posting-credentials",
+      "app": "ideas",
+      "title": "Create social account credentials if you want Ideas to post directly",
+      "why": "Ideas can only copy out today; direct posting is waiting on your credentials. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Decide which platforms",
+        "Create developer apps there and hand over the keys"
+      ],
+      "kind": "credential",
+      "priority": "optional",
+      "link": null,
+      "source": "ideas-app/src/lib/destinations.ts (last changed 2026-09-13)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "toner-management-com-dns",
+      "app": "toner-management",
+      "title": "Look at toner-management.com's two A records",
+      "why": "The handoff says you will look at this yourself, so agents were told not to touch it. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Check which host each A record points at and keep the right one"
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_GROK_CHAMBER_PROSPECTS.md (last changed 2026-10-23)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "church-data-csv-copy",
+      "app": "churchconnect",
+      "title": "Copy the tech-director and church-builder CSVs off the Grok box if agents need them",
+      "why": "The source files for loading more CRM contacts sit only on the Grok machine. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Copy /workspace/church-data/* to a place agents can reach (a repo or Supabase Storage)"
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "link": null,
+      "source": "lpl-handoff-data/HANDOFF.md (last changed 2026-10-24)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    },
+    {
+      "id": "knd-brotherhood-fund-counsel",
+      "app": "kids-need-dads",
+      "title": "Have counsel confirm the Kids Need Dads Brotherhood Fund giving structure",
+      "why": "Rule DC-11 says legal and charitable claims need verified backing. The page now uses only the UUG EIN, and the board still lists this as owner plus counsel. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "steps": [
+        "Ask counsel whether the reciprocal-gift fund under the UUG 501(c)(3) is sound",
+        "Tell an agent what wording is allowed"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "link": null,
+      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/ECOSYSTEM_APP_COMPLETION_BOARD.md (last changed 2026-10-22)",
+      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "addedOn": "2026-11-01",
+      "status": "open"
+    }
+  ]
+}

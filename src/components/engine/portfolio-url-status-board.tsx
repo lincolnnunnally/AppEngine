@@ -1,5 +1,6 @@
 import type { PortfolioUrlStatus, PortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { URL_STATUS_LABEL } from "@/lib/engine/portfolio-url-status";
+import { isKnownAppSlug } from "@/lib/engine/app-ops-catalog";
 
 // The URL board: every registry app's web-address situation on one panel —
 // live at its domain, deployed but nameless, domain parked with nothing
@@ -50,7 +51,16 @@ export function UrlStatusBoardPanel({ board }: { board: PortfolioUrlStatusBoard 
                 <li key={entry.slug} className={status}>
                   <div className="portfolio-url-body">
                     <strong>
-                      {entry.appName}
+                      {/* This board names every app; each name opens that app's
+                          business page, so the roster is a way in rather than a
+                          list to read and then navigate away from. */}
+                      {isKnownAppSlug(entry.slug) ? (
+                        <a className="account-link" href={`/apps/${entry.slug}`}>
+                          {entry.appName}
+                        </a>
+                      ) : (
+                        entry.appName
+                      )}
                       {entry.intendedDomain ? <code>{entry.intendedDomain}</code> : <code className="none">no domain yet</code>}
                     </strong>
                     <p>{entry.nextStep}</p>
