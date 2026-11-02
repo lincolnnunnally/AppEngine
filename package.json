@@ -221,7 +221,9 @@
     "dupes:check": "node scripts/check-duplicate-files.js",
     "dupes:clean": "node scripts/check-duplicate-files.js --fix",
     "smoke:solution-engine": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-solution-engine.js",
-    "smoke:admin-door-handoff": "node --experimental-strip-types --import ./scripts/ts-esm-register.mjs scripts/smoke-admin-door-handoff.js"
+    "smoke:admin-door-handoff": "node --experimental-strip-types --import ./scripts/ts-esm-register.mjs scripts/smoke-admin-door-handoff.js",
+    "tasks:check": "node scripts/owner-task.mjs check",
+    "tasks:add": "node scripts/owner-task.mjs add"
   },
   "dependencies": {
     "@auth/pg-adapter": "1.11.2",

@@ -147,7 +147,9 @@ async function countOrNull(query: () => Promise<unknown>): Promise<number | null
 
 // AppEngine's own reading, straight from its own tables (no HTTP hop). The
 // factory's "orders" are builds started in the last 30 days; its tickets are
-// the central ecosystem inbox (open + in progress).
+// the requests addressed to AppEngine ITSELF. The portfolio-wide inbox total
+// belongs to OwnerDeck.openTickets — counting it here made every other app's
+// help requests read as AppEngine's own backlog.
 export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: AppOpsStats; note: string }> {
   if (!getConfiguredDatabaseUrl()) {
     return { reporting: false, stats: emptyStats(), note: "Not reporting yet — no durable database in this environment." };
@@ -158,7 +160,7 @@ export async function getSelfOpsStats(): Promise<{ reporting: boolean; stats: Ap
     () => sql`select count(*)::int as n from app_build_jobs where created_at > now() - interval '30 days'`
   );
   const inbox = await getInboxCounts().catch(() => null);
-  const ticketsOpen = inbox ? inbox.open + inbox.inProgress : null;
+  const ticketsOpen = inbox ? (inbox.bySlug.appengine ?? 0) : null;
   // AppEngine's own impact: people with a live session on the platform. Its user
   // table (NextAuth) has no join timestamp, so the new-users trend stays null for
   // self rather than mislabeling builds as sign-ups — builds already show as the

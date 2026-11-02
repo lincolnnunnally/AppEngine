@@ -15,6 +15,7 @@ const OPERATOR_GROUPS: RailGroup[] = [
     label: "Command",
     items: [
       { label: "Businesses", href: "/" },
+      { label: "To do", href: "/tasks" },
       { label: "Inbox", href: "/inbox" },
       { label: "Campaigns", href: "/campaigns" },
       { label: "People & places", href: "/crm" },
