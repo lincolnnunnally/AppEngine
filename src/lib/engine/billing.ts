@@ -169,3 +169,29 @@ export async function grantFreeStarterIfNew(userKey: string): Promise<void> {
   if (freeStarterCents <= 0) return;
   await applyLedger(userKey, freeStarterCents, "free_starter", `free_starter:${userKey}`, "Welcome credit");
 }
+
+// Usage-based hosting (owner decision 2026-11-01): a busy app pays for its
+// activity past the free allowance, once per app per month. The balance may go
+// below zero; nothing is switched off (see app-usage.ts for reminders).
+export async function chargeForHosting(
+  userKey: string,
+  reference: string,
+  priceCents: number,
+  note: string
+): Promise<number> {
+  return applyLedger(userKey, -Math.abs(Math.round(priceCents)), "hosting", reference, note);
+}
+
+// Owners whose credits are below zero because of hosting charges.
+export async function listHostingDebtors(): Promise<Array<{ userKey: string; balanceCents: number }>> {
+  const sql = getDatabase();
+  await ensureSchema(sql);
+  const rows = (await sql`
+    SELECT a.user_key, a.balance_cents FROM app_credit_accounts a
+    WHERE a.balance_cents < 0
+      AND EXISTS (SELECT 1 FROM app_credit_ledger l WHERE l.user_key = a.user_key AND l.kind = 'hosting')
+    ORDER BY a.balance_cents ASC
+    LIMIT 500
+  `) as Array<{ user_key: string; balance_cents: number | string }>;
+  return rows.map((row) => ({ userKey: row.user_key, balanceCents: Number(row.balance_cents) }));
+}

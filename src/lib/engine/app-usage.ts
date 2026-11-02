@@ -1,9 +1,12 @@
-// Usage safeguard for customer apps. Every app gets a standard allowance with
-// its build (and its monthly hosting). A busy app is good news — but past the
-// allowance it costs real money to keep fast, so the owner is told before it
-// matters: a heads-up at 80%, an upgrade request past 100%, each at most once
-// per level per month, and the platform owner sees it in the attention queue.
-// Nothing is throttled or switched off here — that would punish success.
+// Usage-based hosting for customer apps (owner decision 2026-11-01, LPL 03 §9a).
+// Every app is hosted free inside the free allowance. A busy app is good news;
+// past the allowance it pays for its activity: cost × margin, charged once a
+// month from App Engine credits. The owner hears first: a heads-up at 80%, a
+// "now billing for activity" note past 100%, each once per level per month, and
+// the platform owner sees it in the attention queue.
+// Nothing is throttled or switched off here; that would punish success. Out of
+// credits = weekly reminder, and after 30 days unpaid it goes on Lincoln's to-do
+// list (2026-11-02).
 // SERVER ONLY. Run daily by /api/cron/usage.
 import { neon } from "@neondatabase/serverless";
 import { getDatabase } from "@/lib/db/client";
@@ -11,17 +14,22 @@ import { listBuildJobsByStatus, type BuildJob } from "@/lib/engine/build-jobs";
 import { getAppNeonDatabase, getNeonProjectUsage } from "@/lib/engine/database-setup";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { sendEmail } from "@/lib/solution-engine/notify";
+import { chargeForHosting, getBalanceCents, getBillingConfig, isBillingEnabled, listHostingDebtors, normalizeUserKey } from "@/lib/engine/billing";
+import { submitOwnerTask, updateOwnerTask } from "@/lib/engine/owner-tasks";
+import { normalizeTaskInput } from "@/lib/engine/owner-tasks-core";
+import {
+  dollars,
+  dunningStep,
+  FREE_ALLOWANCE,
+  hostingChargeReference,
+  overageFor,
+  previousPeriod
+} from "@/lib/engine/hosting-charge-core";
 
 const MB = 1024 * 1024;
 
-// What the standard plan includes per app, per month. Sized inside what one app
-// costs us to host (Neon per-project free allowance: 100 compute-hours) so the
-// standard price stays profitable. Change here; everything else follows.
-export const STANDARD_ALLOWANCE = {
-  storageBytes: 500 * MB,
-  computeHours: 50,
-  transferBytes: 2 * 1024 * MB
-};
+// Free every month, per app (hosting-charge-core.ts). Past it, activity is billed.
+export const STANDARD_ALLOWANCE = FREE_ALLOWANCE;
 
 export type UsageLevel = "ok" | "warn" | "over";
 export type AppUsage = {
@@ -33,6 +41,7 @@ export type AppUsage = {
   transferBytes: number;
   level: UsageLevel;
   worst: { metric: "storage" | "compute" | "transfer"; percent: number };
+  priceCentsSoFar?: number; // activity past the free allowance this month, cost × margin
 };
 
 const LEVEL_RANK: Record<UsageLevel, number> = { ok: 0, warn: 1, over: 2 };
@@ -66,6 +75,16 @@ async function ensureTable(sql: ReturnType<typeof getDatabase>) {
           usage jsonb NOT NULL DEFAULT '{}'::jsonb,
           checked_at timestamptz NOT NULL DEFAULT now(),
           PRIMARY KEY (job_id, period)
+        )
+      `;
+      // Set once the month is settled: what was charged (0 = inside the free allowance).
+      await sql`ALTER TABLE app_usage_checks ADD COLUMN IF NOT EXISTS charged_cents bigint`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS app_hosting_dunning (
+          user_key text PRIMARY KEY,
+          first_unpaid_at timestamptz NOT NULL DEFAULT now(),
+          last_reminded_at timestamptz,
+          escalated boolean NOT NULL DEFAULT false
         )
       `;
     })().catch((error) => {
@@ -147,7 +166,17 @@ export async function measureApp(job: BuildJob): Promise<AppUsage | null> {
     computeHours: Math.round(((neonUsage?.computeSeconds || 0) / 3600) * 10) / 10,
     transferBytes: neonUsage?.transferBytes || 0
   };
-  return { jobId: job.id, app: job.url || job.idea.slice(0, 60), ownerEmail: job.userEmail, ...measured, ...usageLevel(measured) };
+  // Neon's project counters are an estimate, not its invoice (its docs say so).
+  // They count processor time, which never exceeds what Neon bills, so this
+  // errs toward charging the owner less, never more.
+  return {
+    jobId: job.id,
+    app: job.url || job.idea.slice(0, 60),
+    ownerEmail: job.userEmail,
+    ...measured,
+    ...usageLevel(measured),
+    priceCentsSoFar: overageFor(measured, getBillingConfig().marginMultiplier).priceCents
+  };
 }
 
 const LABEL = { storage: "storage", compute: "processing time", transfer: "data served" } as const;
@@ -156,14 +185,17 @@ export function usageEmail(job: Pick<BuildJob, "idea" | "url">, usage: AppUsage)
   const app = job.url || job.idea.slice(0, 80);
   const what = LABEL[usage.worst.metric];
   if (usage.level === "over") {
+    const soFar = usage.priceCentsSoFar ?? 0;
     return {
-      subject: "Your app is busy — time for a bigger plan",
+      subject: "Your app is busy. Here's what that means",
       body: [
         `Good news: your app (${app}) is getting real use.`,
         "",
-        `This month it has used ${usage.worst.percent}% of the ${what} its standard plan includes. It's still running, but to keep it fast as it grows it needs a bigger plan.`,
+        `This month it has used ${usage.worst.percent}% of the ${what} that's free every month. Hosting stays free up to that point. Activity past it is billed at our cost plus a small margin, once a month, from your App Engine credits.`,
         "",
-        "Reply to this email and we'll move it over — nothing is switched off while we sort it out.",
+        soFar > 0 ? `So far this month that comes to about ${dollars(soFar)}.` : "So far this month that comes to less than a cent.",
+        "",
+        "Nothing is switched off or slowed down. Add credits any time: https://appengine.unitedundergod.org/account",
         "",
         "— App Engine"
       ].join("\n")
@@ -172,20 +204,138 @@ export function usageEmail(job: Pick<BuildJob, "idea" | "url">, usage: AppUsage)
   return {
     subject: "Heads-up: your app is getting busy",
     body: [
-      `Your app (${app}) has used ${usage.worst.percent}% of the ${what} its standard plan includes this month.`,
+      `Your app (${app}) has used ${usage.worst.percent}% of the ${what} that's free every month.`,
       "",
-      "Nothing to do yet. If it keeps growing we'll let you know when it's time for a bigger plan — or reply now if you'd like to talk about it.",
+      "Nothing to do. Hosting stays free up to the allowance. If it goes past, only the extra activity is billed, at our cost plus a small margin, from your App Engine credits. We'll tell you before that happens.",
       "",
       "— App Engine"
     ].join("\n")
   };
 }
 
+// ---- monthly settlement: charge last month's activity past the allowance -------
+async function settleMonth(month: string): Promise<{ charged: number }> {
+  if (!useDb() || !isBillingEnabled()) return { charged: 0 };
+  const sql = getDatabase();
+  await ensureTable(sql);
+  const { marginMultiplier } = getBillingConfig();
+  const rows = (await sql`
+    select job_id, usage from app_usage_checks where period = ${month} and charged_cents is null limit 500
+  `) as Array<{ job_id: string; usage: AppUsage }>;
+  let charged = 0;
+  for (const row of rows) {
+    const usage = row.usage;
+    const price = overageFor(usage, marginMultiplier).priceCents;
+    const userKey = normalizeUserKey(usage.ownerEmail);
+    if (price > 0 && userKey) {
+      const balance = await chargeForHosting(
+        userKey,
+        hostingChargeReference(row.job_id, month),
+        price,
+        `Hosting activity past the free allowance, ${month} (${usage.app})`
+      );
+      charged += 1;
+      const sent = await sendEmail({
+        to: usage.ownerEmail,
+        subject: `Your app's hosting for ${month}: ${dollars(price)}`,
+        body: [
+          `Your app (${usage.app}) was busy in ${month}. The activity past the free allowance came to ${dollars(price)}, taken from your App Engine credits.`,
+          "",
+          balance >= 0
+            ? `Credits left: ${dollars(balance)}.`
+            : `Your credits are ${dollars(-balance)} short. The app keeps running. Add credits when you can: https://appengine.unitedundergod.org/account`,
+          "",
+          "— App Engine"
+        ].join("\n")
+      });
+      if (!sent.sent) console.error(`hosting receipt for ${row.job_id} not sent: ${sent.reason}`);
+    }
+    await sql`update app_usage_checks set charged_cents = ${price} where job_id = ${row.job_id} and period = ${month}`;
+  }
+  return { charged };
+}
+
+// ---- out of credits: weekly reminder; after 30 days, Lincoln's to-do list ------
+function unpaidTaskId(userKey: string) {
+  return `appengine-unpaid-hosting-${userKey.replace(/[^a-z0-9]+/g, "-")}`.slice(0, 80);
+}
+
+async function runDunning(now: Date): Promise<{ reminded: number; escalated: number }> {
+  if (!useDb() || !isBillingEnabled()) return { reminded: 0, escalated: 0 };
+  const sql = getDatabase();
+  await ensureTable(sql);
+  const debtors = await listHostingDebtors();
+  const owing = new Set(debtors.map((debtor) => debtor.userKey));
+  let reminded = 0;
+  let escalated = 0;
+  for (const { userKey, balanceCents } of debtors) {
+    const rows = (await sql`
+      insert into app_hosting_dunning (user_key) values (${userKey})
+      on conflict (user_key) do update set user_key = excluded.user_key
+      returning first_unpaid_at, last_reminded_at, escalated
+    `) as Array<{ first_unpaid_at: Date | string; last_reminded_at: Date | string | null; escalated: boolean }>;
+    const state = rows[0];
+    const iso = (value: Date | string | null) => (value ? new Date(value).toISOString() : null);
+    const step = dunningStep(
+      { firstUnpaidAt: iso(state.first_unpaid_at)!, lastRemindedAt: iso(state.last_reminded_at), escalated: state.escalated },
+      now
+    );
+    if (step.remind) {
+      const sent = await sendEmail({
+        to: userKey,
+        subject: "A reminder about your app's hosting",
+        body: [
+          `Your App Engine credits are ${dollars(-balanceCents)} short for hosting activity past the free allowance.`,
+          "",
+          "Your app is still running. Nothing is switched off. Add credits when you can: https://appengine.unitedundergod.org/account",
+          "",
+          "— App Engine"
+        ].join("\n")
+      });
+      if (sent.sent) {
+        reminded += 1;
+        await sql`update app_hosting_dunning set last_reminded_at = now() where user_key = ${userKey}`;
+      }
+    }
+    if (step.escalate) {
+      const task = normalizeTaskInput({
+        id: unpaidTaskId(userKey),
+        app: "appengine",
+        title: `Unpaid hosting: ${userKey} is ${dollars(-balanceCents)} short`,
+        why: `Their app has been past its free allowance and unpaid for ${step.daysUnpaid} days. It is still running and they get a weekly reminder. Your rule (2026-11-02): a personal call after 30 days.`,
+        steps: ["Reach out personally", "Add credits for them, forgive it, or agree a plan. Note what you decided."],
+        kind: "money",
+        priority: "recommended",
+        requestedBy: "App Engine usage check"
+      });
+      if (task.ok) {
+        await submitOwnerTask(task.task, "api");
+        await sql`update app_hosting_dunning set escalated = true where user_key = ${userKey}`;
+        escalated += 1;
+      }
+    }
+  }
+  // Paid up: stop reminding and clear the to-do item.
+  const tracked = (await sql`select user_key, escalated from app_hosting_dunning`) as Array<{ user_key: string; escalated: boolean }>;
+  for (const row of tracked) {
+    if (owing.has(row.user_key)) continue;
+    if ((await getBalanceCents(row.user_key)) < 0) continue;
+    await sql`delete from app_hosting_dunning where user_key = ${row.user_key}`;
+    if (row.escalated) await updateOwnerTask(unpaidTaskId(row.user_key), { status: "done" }).catch(() => null);
+  }
+  return { reminded, escalated };
+}
+
 export async function sweepUsage(
   now = new Date(),
   measure: (job: BuildJob) => Promise<AppUsage | null> = measureApp
-): Promise<{ checked: number; warned: number; over: number }> {
+): Promise<{ checked: number; warned: number; over: number; charged: number; reminded: number; escalated: number }> {
   const month = period(now);
+  // Close last month first: one charge per app, idempotent by ledger reference.
+  const settled = await settleMonth(previousPeriod(month)).catch((error) => {
+    console.error("hosting settlement failed", error);
+    return { charged: 0 };
+  });
   let checked = 0;
   let warned = 0;
   let over = 0;
@@ -201,5 +351,9 @@ export async function sweepUsage(
     if (usage.level === "over") over += 1;
     else warned += 1;
   }
-  return { checked, warned, over };
+  const dunning = await runDunning(now).catch((error) => {
+    console.error("hosting reminders failed", error);
+    return { reminded: 0, escalated: 0 };
+  });
+  return { checked, warned, over, charged: settled.charged, ...dunning };
 }
