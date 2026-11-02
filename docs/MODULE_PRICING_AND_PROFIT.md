@@ -178,4 +178,4 @@ with a $20 usage credit and 1 TB transfer, then about $0.15/GB. The smallest dat
 uses 0.25 CU-hours, about 2.7¢. Cost follows how many hours a day an app is in use, not how many people use it.
 
 **Not built yet:** metering the overage and drawing it from credits, and lowering `STANDARD_ALLOWANCE.computeHours`
-from 50 to 10. Open item: what happens if a busy app's owner has no credits (Lincoln's call).
+from 50 to 10. Out of credits (decided 2026-11-02, delegated by Lincoln): the app keeps running, the owner gets a weekly reminder, and after 30 days unpaid it goes on Lincoln's to-do list. Nothing is slowed or switched off automatically.

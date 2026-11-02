@@ -60,8 +60,7 @@
       "title": "Decide how App Engine charges for hosting",
       "why": "DECIDED 2026-11-01, recorded in LPL 03 §9a: usage-based. Apps inside the free allowance are hosted free; busy apps pay for activity past it at cost + 30%, drawn from credits; nothing is switched off.",
       "steps": [
-        "Nothing left for you. Agents build the usage metering and credit draw next.",
-        "Still open: what happens when a busy app's owner has no credits (asked 2026-11-01)."
+        "Nothing left for you. Out of credits: the app keeps running, with weekly reminders, and it reaches your to-do list after 30 days (decided 2026-11-02)."
       ],
       "kind": "decision",
       "priority": "blocker",
