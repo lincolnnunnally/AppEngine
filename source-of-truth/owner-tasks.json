@@ -603,6 +603,24 @@
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open"
+    },
+    {
+      "id": "appengine-neon-launch-plan",
+      "title": "Switch Neon to its pay-as-you-go plan when the first customer app gets busy",
+      "why": "On Neon's free plan, an app past 100 database-hours a month gets paused by Neon, which would break your 'never switched off' rule. The Launch plan has no monthly minimum: we pay only for busy apps' activity, which those apps now pay us back for at cost + 30%. Nothing to do until the dashboard shows a customer app past its free allowance.",
+      "steps": [
+        "Wait until a customer app shows up as busy on the dashboard (none exist yet)",
+        "Neon console → Billing → choose Launch (pay-as-you-go, no minimum)",
+        "Tell an agent, who switches usage measuring to Neon's exact billing numbers"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://console.neon.tech/app/billing",
+      "source": "AppEngine docs/MODULE_PRICING_AND_PROFIT.md (2026-11-02)",
+      "requestedBy": "Claude (usage-based hosting build)",
+      "app": "appengine",
+      "addedOn": "2026-11-02"
     }
   ]
 }

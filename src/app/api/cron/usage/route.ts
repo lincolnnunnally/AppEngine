@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // Vercel Cron, daily (vercel.json): measure every live customer app against its
-// standard allowance and tell owners who need a bigger plan. Vercel sends `Authorization: Bearer $CRON_SECRET`;
+// free allowance, tell owners when they get busy, charge last month's activity
+// past the allowance from credits, and remind owners who are short. Vercel sends `Authorization: Bearer $CRON_SECRET`;
 // without the secret configured, nothing runs.
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

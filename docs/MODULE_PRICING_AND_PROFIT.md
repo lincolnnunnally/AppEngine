@@ -177,5 +177,22 @@ Cost reference (prices checked 2026-11-01): Neon $0.106 per CU-hour and $0.35 pe
 with a $20 usage credit and 1 TB transfer, then about $0.15/GB. The smallest database (0.25 CU) awake for one hour
 uses 0.25 CU-hours, about 2.7¢. Cost follows how many hours a day an app is in use, not how many people use it.
 
-**Not built yet:** metering the overage and drawing it from credits, and lowering `STANDARD_ALLOWANCE.computeHours`
-from 50 to 10. Out of credits (decided 2026-11-02, delegated by Lincoln): the app keeps running, the owner gets a weekly reminder, and after 30 days unpaid it goes on Lincoln's to-do list. Nothing is slowed or switched off automatically.
+**Built (2026-11-02):** `src/lib/engine/hosting-charge-core.ts` (allowance, rates, price, reminders; tested),
+wired into the daily `/api/cron/usage` sweep (`app-usage.ts`):
+- every day: measure each live app; emails at 80% and past 100% say hosting is free up to the allowance and what
+  the extra activity costs so far;
+- first run of a new month: charge last month's activity past the allowance from credits, once per app
+  (ledger reference `hosting:<job>:<YYYY-MM>`), and email a receipt;
+- owners below zero: weekly reminder; after 30 days unpaid, a task on Lincoln's to-do list, cleared automatically
+  once they're paid up. Nothing is slowed or switched off.
+
+Charges only run when credits billing is on (`APP_ENGINE_BILLING_ENABLED=true` + Stripe + database) and apps have
+Neon databases (`NEON_API_KEY`).
+
+Measurement is Neon's project counters, an estimate. Neon says its invoice-grade numbers come from
+`/consumption_history/v2/projects` (Launch plan or higher, needs the org id). The counters measure processor time,
+which never exceeds what Neon bills, so the estimate under-charges rather than over-charges. Switch to the v2
+endpoint once a Neon key exists and its response can be checked against a real invoice.
+
+Neon's free plan pauses an app's database past 100 CU-hours a month. A busy app that must never be paused needs
+Neon Launch (pay-as-you-go, no minimum): a paid account change, which is on Lincoln's to-do list.

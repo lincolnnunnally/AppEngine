@@ -10,7 +10,7 @@
 //      that hold APP_ENGINE_TASKS_TOKEN (or the inbox token).
 // The owner's own clicks (done / waiting / not doing / notes) live only in the
 // table, so a re-sync of the file never undoes them. See mergeTask.
-import taskFileJson from "../../../source-of-truth/owner-tasks.json";
+import taskFileJson from "../../../source-of-truth/owner-tasks.json" with { type: "json" };
 import { getDatabase } from "@/lib/db/client";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { sendEmail } from "@/lib/solution-engine/notify";

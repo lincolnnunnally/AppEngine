@@ -56,7 +56,7 @@ async function liveApp(email, measured) {
   return job;
 }
 const calm = await liveApp("calm@example.org", quiet);
-const growing = await liveApp("growing@example.org", { ...quiet, computeHours: 42 });
+const growing = await liveApp("growing@example.org", { ...quiet, computeHours: STANDARD_ALLOWANCE.computeHours * 0.85 });
 const busy = await liveApp("busy@example.org", { ...quiet, storageBytes: STANDARD_ALLOWANCE.storageBytes * 1.2 });
 const measure = async (job) => {
   const m = usageFor.get(job.id);
@@ -69,8 +69,10 @@ check(result.checked === 3 && result.warned === 1 && result.over === 1, "the swe
 const to = (addr) => emails.filter((e) => e.to[0] === addr);
 check(to("calm@example.org").length === 0, "an app within its plan gets no email");
 check(to("growing@example.org").length === 1 && /heads-up/i.test(to("growing@example.org")[0].subject), "an app at 80% gets one heads-up");
-check(to("busy@example.org").length === 1 && /bigger plan/i.test(to("busy@example.org")[0].subject), "an app past its plan is asked to upgrade");
-check(/nothing is switched off/i.test(to("busy@example.org")[0].text), "the upgrade email promises the app keeps running");
+check(to("busy@example.org").length === 1 && /busy/i.test(to("busy@example.org")[0].subject), "an app past its free allowance is told");
+check(/nothing is switched off/i.test(to("busy@example.org")[0].text), "the busy email promises the app keeps running");
+check(/free every month/i.test(to("busy@example.org")[0].text) && /credits/i.test(to("busy@example.org")[0].text), "the busy email says hosting is free up to the allowance and extra activity comes from credits");
+check(!/bigger plan/i.test(emails.map((e) => e.text).join("\n")), "no email asks for a bigger plan (usage-based hosting, 2026-11-01)");
 check(!/\bAI\b|generated/i.test(emails.map((e) => e.text).join("\n")), "the emails read like a person wrote them");
 
 // Next day, same levels: no repeats.
@@ -80,15 +82,15 @@ check(emails.length === 2, "no repeat email for the same level in the same month
 // Growing app crosses 100%: it gets the upgrade email (level rose).
 usageFor.set(growing.id, { ...quiet, computeHours: 60 });
 await sweepUsage(new Date("2026-10-22T06:17:00Z"), measure);
-check(to("growing@example.org").length === 2 && /bigger plan/i.test(to("growing@example.org")[1].subject), "rising from heads-up to over sends the upgrade email");
+check(to("growing@example.org").length === 2 && /busy/i.test(to("growing@example.org")[1].subject), "rising from heads-up to over sends the busy email");
 
 // The owner sees both in the attention queue.
 const flagged = await listAppsNeedingUpgrade("2026-10");
-check(flagged.length === 2 && flagged.every((u) => u.level === "over") && !flagged.some((u) => u.jobId === calm.id), "the owner's queue lists the apps that need a bigger plan");
+check(flagged.length === 2 && flagged.every((u) => u.level === "over") && !flagged.some((u) => u.jobId === calm.id), "the owner's queue lists the apps past their free allowance");
 
 // A new month starts fresh: still over → told again, once.
 await sweepUsage(new Date("2026-11-02T06:17:00Z"), measure);
-check(to("busy@example.org").length === 2, "a new month re-notifies an app still over its plan");
+check(to("busy@example.org").length === 2, "a new month re-notifies an app still past its allowance");
 void busy;
 
 if (failures) {
