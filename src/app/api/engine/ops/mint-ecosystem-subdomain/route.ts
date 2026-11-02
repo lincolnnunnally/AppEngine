@@ -11,13 +11,10 @@ export const maxDuration = 60;
 // Add-only: existing DNS records are never updated or deleted.
 // `project` is the Vercel project id (stable); `name` is the project name.
 const APPS = [
-  { project: "prj_2TvscItZmLyq2jvPD0W1Ce9n5Exb", name: "porchlight", label: "porchlight" },
-  { project: "prj_xnPf03EadncVsDu8UpE8fwecstnl", name: "rally", label: "rally" },
-  { project: "prj_jbtscxIKC8hiq1speVWPg0ernaDq", name: "selah", label: "selah" },
-  { project: "prj_jIygvY1T7B5C738lK4Eb4w4VLrWY", name: "singtrue-vocal-coach", label: "singtrue" },
-  { project: "prj_YZbZrN4jfL5SrUndRjOr5hYpmH8d", name: "lincoln-nunnally-resume", label: "resume" }
+  // Partnerly (gift pairings) is served by the Laser Engrave project; vercel.json routes the host.
+  { project: "prj_81S3QSU9GkGFTI5fUr9wVVOFN0MO", name: "laser-engrave-market", label: "partnerly" }
 ] as const;
-const NONCE = "uug-mint-2026-09-06-prs";
+const NONCE = "uug-mint-2026-11-02-partnerly";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;
@@ -75,7 +72,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const probeProject = APPS[3].project;
+  const probeProject = APPS[0].project;
   const probe = await vercel(`/v9/projects/${encodeURIComponent(probeProject)}`);
   const probeBody = (await probe.json().catch(() => ({}))) as { name?: string; error?: { message?: string } };
 
