@@ -11,12 +11,14 @@ export const maxDuration = 60;
 // Add-only: existing DNS records are never updated or deleted.
 // `project` is the Vercel project id (stable); `name` is the project name.
 const APPS = [
-  // Remembered had only remembered-one.vercel.app, which no Search Console
-  // property covers; remembered.unitedundergod.org falls under the verified
-  // sc-domain:unitedundergod.org property so Google can index it.
-  { project: "prj_yRVpYuukILAr4mMRo333bX5SpOWW", name: "remembered", label: "remembered" }
+  // Both hosts were attached in Vercel but had no Cloudflare record, so they
+  // did not resolve. bible.unitedundergod.org is the United Under God Bible
+  // reader (BIBLE_HOST in united-under-god src/lib/bible.ts);
+  // desk.unitedundergod.org is Solution Desk.
+  { project: "prj_I5ISLrPg8UMR1dB8OkibtASXrkOR", name: "united-under-god", label: "bible" },
+  { project: "prj_vdf8tF741UdKO9xLAQlYxPi3TAKn", name: "solution-desk", label: "desk" }
 ] as const;
-const NONCE = "uug-mint-2026-11-03-remembered";
+const NONCE = "uug-mint-2026-11-03-bible-desk";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;
