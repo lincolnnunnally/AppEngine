@@ -11,10 +11,12 @@ export const maxDuration = 60;
 // Add-only: existing DNS records are never updated or deleted.
 // `project` is the Vercel project id (stable); `name` is the project name.
 const APPS = [
-  // Partnerly (gift pairings) is served by the Laser Engrave project; vercel.json routes the host.
-  { project: "prj_81S3QSU9GkGFTI5fUr9wVVOFN0MO", name: "laser-engrave-market", label: "partnerly" }
+  // Remembered had only remembered-one.vercel.app, which no Search Console
+  // property covers; remembered.unitedundergod.org falls under the verified
+  // sc-domain:unitedundergod.org property so Google can index it.
+  { project: "prj_yRVpYuukILAr4mMRo333bX5SpOWW", name: "remembered", label: "remembered" }
 ] as const;
-const NONCE = "uug-mint-2026-11-02-partnerly";
+const NONCE = "uug-mint-2026-11-03-remembered";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;
