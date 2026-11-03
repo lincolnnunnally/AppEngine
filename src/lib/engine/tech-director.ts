@@ -1322,7 +1322,9 @@ export function churchSignalLeadSlug(row: TechDirectorCsvRow): string {
   const city = cityKey(row.city);
   const state = stateKey(row.state);
   const digest = createHash("sha1").update([church, city, state].join("|"), "utf8").digest("hex").slice(0, 10);
-  const base = church.replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "church-signal";
+  const base =
+    church.replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60).replace(/-+/g, "-").replace(/^-|-$/g, "") ||
+    "church-signal";
   return `cs-${base}-${digest}`.slice(0, 80);
 }
 
