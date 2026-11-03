@@ -11,6 +11,7 @@ import {
   NORTHRIDGE_MILLEDGEVILLE_ID,
   churchSignalActivity,
   churchSignalLeadBody,
+  churchSignalLeadSlug,
   CRM_PATCH_RETRY_BACKOFF_MS,
   crmPatchRetryableFailure,
   crmPatchRpcMissing,
@@ -917,6 +918,21 @@ describe("crm search and contact status", () => {
     assert.equal(activity.source, "church_signal_import");
     assert.equal(activity.lead_id, "44444444-4444-4444-8444-444444444444");
     assert.equal(churchSignalActivity("44444444-4444-4444-8444-444444444444", body, "No church on file matches this row.").client_ref, activity.client_ref);
+  });
+
+  it("does not leave a double hyphen when a long church title slices on a hyphen", () => {
+    const slug = churchSignalLeadSlug(
+      row({
+        church: "Grace Assembly Christian Church- Administrative & Business Office",
+        city: "Gatesville",
+        state: "TX",
+        name: "Office"
+      })
+    );
+    assert.equal(slug.includes("--"), false);
+    assert.match(slug, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    assert.equal(slug.length <= 80, true);
+    assert.equal(slug, "cs-grace-assembly-christian-church-administrative-and-business-a2da5f5bdf");
   });
 
   it("treats a text-equals-uuid failure as a real error, not a missing function", () => {
