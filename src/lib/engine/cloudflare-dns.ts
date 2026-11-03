@@ -20,6 +20,10 @@ import { attachDomainToVercelProject } from "./domains.ts";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 export const ECOSYSTEM_ZONE_NAME = "unitedundergod.org";
+// Other zones in the same Cloudflare account this adapter may add to. Same
+// add-only rules apply. easypeazy.site carries the EasyPeazy product hosts
+// (wp.easypeazy.site = WP Easy Peazy, owner decision 2026-11-03).
+export const ALLOWED_ZONES = new Set([ECOSYSTEM_ZONE_NAME, "easypeazy.site"]);
 // Vercel's universal CNAME target — the grey-cloud (DNS-only) record the host asks for.
 const VERCEL_CNAME_TARGET = "cname.vercel-dns.com";
 
@@ -73,33 +77,42 @@ type CfResponse = {
   errors?: Array<{ message?: string }>;
 };
 
-let cachedZoneId: string | null = null;
-async function zoneId(): Promise<string | null> {
-  const fromEnv = process.env.CLOUDFLARE_ZONE_ID?.trim();
+const cachedZoneIds = new Map<string, string>();
+async function zoneId(zoneName: string = ECOSYSTEM_ZONE_NAME): Promise<string | null> {
+  // CLOUDFLARE_ZONE_ID names the unitedundergod.org zone only.
+  const fromEnv = zoneName === ECOSYSTEM_ZONE_NAME ? process.env.CLOUDFLARE_ZONE_ID?.trim() : "";
   if (fromEnv) return fromEnv;
-  if (cachedZoneId) return cachedZoneId;
-  const { data } = await cfGet(`/zones?name=${ECOSYSTEM_ZONE_NAME}`);
+  const cached = cachedZoneIds.get(zoneName);
+  if (cached) return cached;
+  const { data } = await cfGet(`/zones?name=${zoneName}`);
   const zone = Array.isArray(data.result) ? data.result[0] : undefined;
-  cachedZoneId = typeof zone?.id === "string" ? zone.id : null;
-  return cachedZoneId;
+  const id = typeof zone?.id === "string" ? zone.id : null;
+  if (id) cachedZoneIds.set(zoneName, id);
+  return id;
 }
 
 // Creates <label>.unitedundergod.org as a DNS-only CNAME to Vercel — ONLY if no
 // record of any type already exists under that exact name. Never modifies anything.
-export async function ensureEcosystemSubdomain(labelOrSlug: string): Promise<SubdomainDnsResult> {
+export async function ensureEcosystemSubdomain(
+  labelOrSlug: string,
+  zoneName: string = ECOSYSTEM_ZONE_NAME
+): Promise<SubdomainDnsResult> {
+  if (!ALLOWED_ZONES.has(zoneName)) {
+    return { ok: false, message: `${zoneName} is not a zone this adapter may add to.` };
+  }
   const label = subdomainLabelFromProjectName(labelOrSlug);
   if (RESERVED_LABELS.has(label) || label.startsWith("_")) {
     return { ok: false, message: `"${label}" is reserved for site/email infrastructure — pick another name.` };
   }
-  const fqdn = `${label}.${ECOSYSTEM_ZONE_NAME}`;
+  const fqdn = `${label}.${zoneName}`;
   if (!cloudflareDnsConfigured()) {
     return { ok: false, fqdn, message: "DNS isn't configured (CLOUDFLARE_API_TOKEN)." };
   }
 
   try {
-    const zone = await zoneId();
+    const zone = await zoneId(zoneName);
     if (!zone) {
-      return { ok: false, fqdn, message: `Couldn't find the ${ECOSYSTEM_ZONE_NAME} zone with this token.` };
+      return { ok: false, fqdn, message: `Couldn't find the ${zoneName} zone with this token.` };
     }
 
     // ADD-ONLY fence: list first; ANY existing record under this name wins.

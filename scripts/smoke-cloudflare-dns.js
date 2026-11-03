@@ -76,6 +76,30 @@ await runStep("fresh name -> exactly one POST, DNS-only CNAME to Vercel", async 
   assertEqual(writes[0].body.proxied, false, "grey cloud / DNS-only per the runbook");
 });
 
+await runStep("second allowed zone: easypeazy.site looks up its own zone, still add-only", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), method: init?.method || "GET" });
+    if (String(url).includes("/zones?name=easypeazy.site")) return jsonResponse({ success: true, result: [{ id: "zone-ep" }] });
+    if (String(url).includes("dns_records?name=")) return jsonResponse({ success: true, result: [] });
+    if (init?.method === "POST") return jsonResponse({ success: true, result: { id: "rec2" } });
+    throw new Error(`unexpected call: ${url}`);
+  };
+  const result = await ensureEcosystemSubdomain("wp", "easypeazy.site");
+  assertEqual(result.ok, true, "created");
+  assertEqual(result.fqdn, "wp.easypeazy.site", "fqdn in the other zone");
+  const post = calls.find((c) => c.method === "POST");
+  assertIncludes(post.url, "/zones/zone-ep/dns_records", "written to the easypeazy.site zone, not the UUG zone");
+});
+
+await runStep("zones outside the allowlist are refused before any call", async () => {
+  let called = false;
+  globalThis.fetch = async () => { called = true; return jsonResponse({}); };
+  const result = await ensureEcosystemSubdomain("wp", "example.com");
+  assertEqual(result.ok, false, "refused");
+  assertEqual(called, false, "no network call");
+});
+
 await runStep("add-only BY CONSTRUCTION: no update/delete verbs exist in the module", () => {
   const text = read("src/lib/engine/cloudflare-dns.ts");
   for (const verb of ['"PUT"', '"PATCH"', '"DELETE"', "'PUT'", "'PATCH'", "'DELETE'"]) {

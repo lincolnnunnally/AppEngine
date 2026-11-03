@@ -1,24 +1,21 @@
 import { NextResponse } from "next/server";
-import { cloudflareDnsConfigured, publishEcosystemSubdomain } from "@/lib/engine/cloudflare-dns";
+import { cloudflareDnsConfigured, ensureEcosystemSubdomain } from "@/lib/engine/cloudflare-dns";
 import { vercelTeamId } from "@/lib/engine/domains";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// One-shot allowlist mint used by the AppEngine adapter path
-// (publishEcosystemSubdomain = attach domain + add-only CNAME).
+// One-shot allowlist mint: add-only CNAME to Vercel, then make sure a cert exists.
 // Add-only: existing DNS records are never updated or deleted.
-// `project` is the Vercel project id (stable); `name` is the project name.
-const APPS = [
-  // Both hosts were attached in Vercel but had no Cloudflare record, so they
-  // did not resolve. bible.unitedundergod.org is the United Under God Bible
-  // reader (BIBLE_HOST in united-under-god src/lib/bible.ts);
-  // desk.unitedundergod.org is Solution Desk.
-  { project: "prj_I5ISLrPg8UMR1dB8OkibtASXrkOR", name: "united-under-god", label: "bible" },
-  { project: "prj_vdf8tF741UdKO9xLAQlYxPi3TAKn", name: "solution-desk", label: "desk" }
+// WP Easy Peazy (owner decision 2026-11-03): both hosts are already attached to
+// easypeazy-web (wp.unitedundergod.org as a 308 redirect to wp.easypeazy.site),
+// so this run only adds the DNS records and checks certs.
+const HOSTS = [
+  { label: "wp", zone: "easypeazy.site", project: "easypeazy-web" },
+  { label: "wp", zone: "unitedundergod.org", project: "easypeazy-web" }
 ] as const;
-const NONCE = "uug-mint-2026-11-03-bible-desk";
+const NONCE = "uug-mint-2026-11-03-wp-easy-peazy";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;
@@ -76,26 +73,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const probeProject = APPS[0].project;
-  const probe = await vercel(`/v9/projects/${encodeURIComponent(probeProject)}`);
-  const probeBody = (await probe.json().catch(() => ({}))) as { name?: string; error?: { message?: string } };
-
   const results = [];
-  for (const app of APPS) {
-    const dns = await publishEcosystemSubdomain(app.project, app.label);
-    const fqdn = `${app.label}.unitedundergod.org`;
-    const cert = dns.ok ? await ensureCert(fqdn) : { ok: false, issued: false, message: "skipped cert (DNS/attach failed)" };
-    results.push({ slug: app.label, project: app.name, fqdn, dns, cert });
+  for (const host of HOSTS) {
+    const dns = await ensureEcosystemSubdomain(host.label, host.zone);
+    const fqdn = `${host.label}.${host.zone}`;
+    const cert = dns.ok ? await ensureCert(fqdn) : { ok: false, issued: false, message: "skipped cert (DNS failed)" };
+    results.push({ fqdn, project: host.project, dns, cert });
   }
   return NextResponse.json({
     ok: results.every((row) => row.dns.ok && row.cert.ok),
     teamLooksLikeTeamId: vercelTeamId().startsWith("team_"),
-    probe: {
-      project: probeProject,
-      status: probe.status,
-      name: probeBody.name || null,
-      message: probeBody.error?.message || null
-    },
     results
   });
 }
