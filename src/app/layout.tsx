@@ -8,9 +8,19 @@ import { isDashboardRequest } from "@/lib/auth/hosts";
 const deskSans = Inter({ subsets: ["latin"], variable: "--font-desk-sans" });
 const deskDisplay = Outfit({ subsets: ["latin"], variable: "--font-desk-display" });
 
+// One United Under God mark everywhere: the battle standard on a dark tile.
+// Declared in every format a browser or phone looks for, because each one that
+// is missing gets filled in by the browser itself — Safari, which does not
+// reliably use SVG favicons, drew its own tile when there was no .ico, and iOS
+// had no home-screen icon at all. The version bump makes cached copies refetch.
 const SEAL_ICONS: Metadata["icons"] = {
-  icon: [{ url: "/favicon.svg?v=standard1", type: "image/svg+xml" }],
-  shortcut: "/favicon.svg?v=standard1",
+  icon: [
+    { url: "/favicon.svg?v=standard2", type: "image/svg+xml" },
+    { url: "/favicon.ico?v=standard2", sizes: "16x16 32x32 48x48" },
+    { url: "/icon-192.png?v=standard2", type: "image/png", sizes: "192x192" }
+  ],
+  shortcut: "/favicon.ico?v=standard2",
+  apple: [{ url: "/apple-touch-icon.png?v=standard2", sizes: "180x180" }]
 };
 
 export async function generateMetadata(): Promise<Metadata> {
