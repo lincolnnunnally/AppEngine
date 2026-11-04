@@ -34,22 +34,81 @@ function OwnerToDoPanel({ tasks, nameFor }: { tasks: OwnerTask[]; nameFor: (slug
         Your to-do — {counts.open + counts.waiting} waiting on you
         {counts.blockers ? ` · ${counts.blockers} blocking` : ""}
       </p>
+      {/* Only the top five show here, so a task further down can't be found by
+          looking. Searching hands off to the full list. */}
+      <form className="owner-todo-find" action="/tasks#list" method="get" role="search">
+        <input
+          className="biz-search desk-input"
+          type="search"
+          name="q"
+          placeholder={`Find any of the ${counts.open + counts.waiting} — facebook, dns, stripe…`}
+          aria-label="Find a task"
+          autoComplete="off"
+        />
+        <button className="dx-btn" type="submit">
+          Find
+        </button>
+      </form>
+      {/* Each row opens where it sits. The glance stays a glance, but the ask
+          carries its own instructions: what it unblocks, the steps, and the
+          place to do it. Sending the owner to a bare link without telling him
+          what to do there is how a to-do list becomes a list of riddles.
+
+          Five slots, not the generic dx-row's four: index, priority, title,
+          app, and the open/close hint. On the shared four-column grid the
+          action wrapped onto a line of its own and the oversized label track
+          left a gap before every title. */}
       {active.slice(0, 5).map((task, index) => (
-        <p className="dx-row" key={task.id}>
-          <span className="dx-index">{String(index + 1).padStart(2, "0")}</span>
-          <span className={task.priority === "blocker" ? "dx-tag dx-tag--alert" : task.priority === "recommended" ? "dx-tag dx-tag--warn" : "dx-tag"}>
-            {task.status === "waiting" ? "Waiting" : PRIORITY_LABEL[task.priority]}
-          </span>
-          <b>{task.title}</b>
-          <span className="dx-note">{task.appSlug === "ecosystem" ? "All apps" : nameFor(task.appSlug)}</span>
-          {task.link ? (
-            <a className="account-link" href={task.link} target={task.link.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
-              Do it →
-            </a>
-          ) : null}
-        </p>
+        <details className="owner-todo-item" key={task.id}>
+          <summary className="dx-row owner-todo-row">
+            <span className="dx-index">{String(index + 1).padStart(2, "0")}</span>
+            <span className={task.priority === "blocker" ? "dx-tag dx-tag--alert" : task.priority === "recommended" ? "dx-tag dx-tag--warn" : "dx-tag"}>
+              {task.status === "waiting" ? "Waiting" : PRIORITY_LABEL[task.priority]}
+            </span>
+            <b className="owner-todo-title">{task.title}</b>
+            <span className="dx-note owner-todo-app">{task.appSlug === "ecosystem" ? "All apps" : nameFor(task.appSlug)}</span>
+            <span className="owner-todo-how">How</span>
+          </summary>
+          <div className="owner-todo-body">
+            {task.why ? <p className="owner-todo-why">{task.why}</p> : null}
+            {task.steps.length ? (
+              <ol className="owner-task-steps">
+                {task.steps.map((step, stepIndex) => (
+                  <li key={stepIndex}>{step}</li>
+                ))}
+              </ol>
+            ) : (
+              <p className="dx-note">
+                No steps were recorded for this one. Open{" "}
+                <a className="account-link" href="/tasks">
+                  To do
+                </a>{" "}
+                for everything the asking agent sent.
+              </p>
+            )}
+            <p className="owner-todo-actions">
+              {task.link ? (
+                <a
+                  className="dx-btn dx-btn--primary"
+                  href={task.link}
+                  target={task.link.startsWith("/") ? undefined : "_blank"}
+                  rel="noreferrer"
+                >
+                  Do it here {task.link.startsWith("/") ? "→" : "↗"}
+                </a>
+              ) : null}
+              <a className="dx-btn" href={`/tasks#${encodeURIComponent(task.id)}`}>
+                Mark it done →
+              </a>
+            </p>
+            <p className="dx-note owner-todo-source">
+              Asked by {task.requestedBy || "an agent"}
+              {task.source ? ` · ${task.source}` : ""}
+            </p>
+          </div>
+        </details>
       ))}
-      <p style={{ marginTop: 10 }}>
+      <p className="owner-todo-more">
         <a className="dx-btn dx-btn--primary" href="/tasks">
           Open the full list{active.length > 5 ? ` (${active.length - 5} more)` : ""} →
         </a>

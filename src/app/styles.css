@@ -7875,6 +7875,273 @@ button.compose-arch:hover {
   border-left: 3px solid var(--pink);
 }
 
+/* The desk panel's rows carry five things — index, priority, title, app,
+   action — where the shared .dx-row grid defines four columns. That pushed
+   "Do it →" onto a line of its own and left a wide gap before every title,
+   because the generic label track is sized for long findings rather than a
+   one-word priority. These rows get their own tracks: the priority sized to
+   the longest label it holds, the title taking the slack, and the app and
+   action together on the right where the eye already ends up. */
+/* Specificity matters here: `.desk .dx-row` sets the generic four-column grid
+   later in this file, so a bare `.owner-todo-row` loses to it and the fifth
+   cell keeps wrapping onto its own line. Both classes plus `.desk` wins. */
+@media (min-width: 900px) {
+  .desk .dx-row.owner-todo-row {
+    display: grid;
+    grid-template-columns: 1.75rem 7rem minmax(0, 1fr) minmax(0, 12rem) auto;
+    column-gap: 18px;
+    align-items: baseline;
+  }
+}
+
+.owner-todo-row {
+  padding: 11px 0;
+  border-top: 0; /* the <details> wrapper draws the separator instead */
+}
+
+.desk .dx-row.owner-todo-row .dx-tag {
+  min-width: 0;
+}
+
+.owner-todo-title {
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Every cell is a grid item, and a grid item's default min-width:auto is its
+   min-content width — so a long title refused to wrap, widened the row, and
+   pushed the whole page into a sideways scroll at narrow widths. */
+.desk .dx-row.owner-todo-row > * {
+  min-width: 0;
+}
+
+/* The app a task belongs to is context, not the headline: it sits quiet
+   against the action and never squeezes the title. */
+.desk .dx-row.owner-todo-row .owner-todo-app {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* The open/close hint sits where the action used to, so the right edge of the
+   list stays a straight line whether a row is open or shut. */
+.desk .dx-row.owner-todo-row .owner-todo-how {
+  justify-self: end;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+.owner-todo-row .owner-todo-how::after {
+  content: " ▸";
+}
+
+.owner-todo-item[open] .owner-todo-how::after {
+  content: " ▾";
+}
+
+.owner-todo-item {
+  border-top: 1px solid var(--line);
+}
+
+.owner-todo-item:first-of-type {
+  border-top: 0;
+}
+
+.owner-todo-row {
+  list-style: none;
+  cursor: pointer;
+}
+
+.owner-todo-row::-webkit-details-marker {
+  display: none;
+}
+
+.owner-todo-item:hover .owner-todo-title,
+.owner-todo-item[open] .owner-todo-title {
+  color: var(--teal);
+}
+
+/* The instructions themselves. Indented to the title's column so the ask and
+   its steps read as one thing, and capped at a comfortable measure. */
+.owner-todo-body {
+  padding: 2px 0 16px calc(1.75rem + 7rem + 36px);
+  display: grid;
+  gap: 10px;
+  max-width: 78ch;
+  min-width: 0;
+}
+
+/* Grid children default to min-width:auto, so an unbreakable step — a DNS
+   target, a long SKU — widens the track and scrolls the whole page sideways.
+   Let them wrap instead. */
+.owner-todo-body > *,
+.owner-todo-body li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.owner-todo-why {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.owner-todo-body .owner-task-steps {
+  margin: 0 0 0 1.1rem;
+}
+
+.owner-todo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 0;
+}
+
+.owner-todo-source {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.owner-todo-more {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* Narrow: two lines rather than five cramped columns. Index and priority lead,
+   the title spans beneath them, and the app and action close the row. */
+@media (max-width: 899px) {
+  .owner-todo-body {
+    padding-left: calc(1.75rem + 12px);
+  }
+
+  .desk .dx-row.owner-todo-row {
+    display: grid;
+    grid-template-columns: 1.75rem 7rem minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 4px;
+    align-items: baseline;
+  }
+
+  .desk .dx-row.owner-todo-row .owner-todo-title {
+    grid-column: 2 / -1;
+  }
+
+  .desk .dx-row.owner-todo-row .owner-todo-app {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .desk .dx-row.owner-todo-row .owner-todo-how {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
+/* /tasks search. Label, field and button on one line; the field takes the
+   slack so a long query never pushes the button off the row. */
+.owner-task-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.owner-task-search-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.owner-task-search .biz-search {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* Importance chips carry their level's colour on the count, so the chip row
+   reads as the list's shape — how much is blocking, how much can wait. */
+.owner-task-levels {
+  margin: 0 0 6px;
+}
+
+.owner-task-level--blocker strong { color: var(--pink); }
+.owner-task-level--recommended strong { color: var(--gold); }
+.owner-task-level--optional strong { color: var(--muted); }
+
+.owner-task-result {
+  margin: 6px 0 4px;
+}
+
+/* One heading per level of importance. Sized and coloured by weight: blocking
+   is loudest, "when you can" is quiet, so importance is felt before it is read. */
+.owner-task-group {
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.owner-task-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-desk-display), Outfit, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.owner-task-group-head span {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.owner-task-group-head--blocker {
+  font-size: 1.25rem;
+  color: var(--pink);
+  border-bottom-color: color-mix(in srgb, var(--pink) 40%, transparent);
+}
+
+.owner-task-group-head--recommended {
+  font-size: 1.05rem;
+  color: var(--gold);
+}
+
+.owner-task-group-head--optional {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+/* The desk panel's own search: submits to /tasks so the full list does the
+   finding, but you can start from the first screen. */
+.owner-todo-find {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.owner-todo-find .biz-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Deep-linked from the desk's to-do panel with #<id>: land the card below the
+   header rather than tucked under it. */
+.owner-task-card[id] {
+  scroll-margin-top: 80px;
+}
+
 .owner-task-steps {
   margin: 8px 0 0 1.2rem;
   padding: 0;
