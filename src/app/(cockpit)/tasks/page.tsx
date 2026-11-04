@@ -17,7 +17,8 @@ function TaskCard({ task, appName }: { task: OwnerTask; appName: string }) {
   const active = isActiveStatus(task.status);
   const tagClass = task.priority === "blocker" ? "dx-tag dx-tag--alert" : task.priority === "recommended" ? "dx-tag dx-tag--warn" : "dx-tag";
   return (
-    <article className="inbox-card owner-task-card" data-status={task.status}>
+    // The desk panel deep-links here with #<id>, so each card is an anchor.
+    <article className="inbox-card owner-task-card" id={task.id} data-status={task.status}>
       <p className="dx-label">
         <span className={tagClass}>{active ? PRIORITY_LABEL[task.priority] : task.status === "done" ? "Done" : "Not doing"}</span>{" "}
         {task.appSlug === "ecosystem" ? (
