@@ -145,19 +145,20 @@
     {
       "id": "google-business-profiles",
       "app": "ecosystem",
-      "title": "Create Google Business Profiles for United Under God, Church AV and Operate",
-      "why": "These profiles are the biggest lever for showing up in local search, and the postcard or video verification can only be done by you.",
+      "title": "Create Google Business Profiles for United Under God, Church AV, Operate and the laser shop",
+      "why": "These profiles are the biggest lever for showing up in local Maps and 'near me' searches, and the postcard or video verification can only be done by you. Only list a business that really does the work: a Vidalia Pro trade gets a profile only if you do that trade yourself (see vidalia-pro-trades-you-do).",
       "steps": [
-        "business.google.com → add United Under God (nonprofit, Vidalia address)",
+        "business.google.com → add United Under God (nonprofit, 703 Green Street, Vidalia)",
         "Add Church AV as a service-area business covering the GA counties",
         "Add Operate as a service-area business",
-        "Complete postcard/video verification for each"
+        "Add Engrave Market (laser engraving) as a service-area business around Vidalia, website https://laser.engrave.market, category 'Engraver'",
+        "Complete postcard/video verification for each, then tell an agent to fill in services, photos and posts"
       ],
       "kind": "account",
       "priority": "recommended",
-      "link": "https://business.google.com",
-      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_SEO_GROWTH.md (last changed 2026-10-23)",
-      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "link": "https://business.google.com/",
+      "source": "HANDOFF_SEO_GROWTH.md; SEO session 2026-11-04 added the laser shop",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "addedOn": "2026-11-01",
       "status": "open"
     },
@@ -216,19 +217,18 @@
     {
       "id": "search-console-bing-verify",
       "app": "ecosystem",
-      "title": "Give agents Google Search Console and Bing access, or add the domains yourself",
-      "why": "Sitemaps and indexing requests cannot be submitted without your Google/Bing accounts, so the SEO work cannot show up in search. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "title": "Import your Search Console sites into Bing Webmaster Tools (5 minutes)",
+      "why": "Google Search Console already has 10 domains verified (checked 2026-11-04). Bing hasn't been set up. Bing also feeds DuckDuckGo, Yahoo and ChatGPT search, so we're missing those searchers.",
       "steps": [
-        "Google Search Console → Add property → Domain for unitedundergod.org, churchconnect.cloud, easypeazy.site, ai-website.design and operate",
-        "Let an agent add the DNS TXT verification records (agents own DNS)",
-        "Bing Webmaster Tools → Import from Search Console",
-        "Submit each /sitemap.xml"
+        "bing.com/webmasters → Sign in with your Google account (lincoln.nunnally@gmail.com)",
+        "Choose Import from Google Search Console → Allow → select every site → Import",
+        "That's it: Bing reads each site's sitemap from the import. Tell an agent so it can start sending new pages to Bing directly (IndexNow)"
       ],
       "kind": "account",
       "priority": "recommended",
-      "link": "https://search.google.com/search-console",
-      "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_GROK_SEARCH_VISIBILITY.md (last changed 2026-10-23)",
-      "requestedBy": "Claude (owner-task sweep of all repos)",
+      "link": "https://www.bing.com/webmasters",
+      "source": "Search Console audit 2026-11-04 (OpenSEO)",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "addedOn": "2026-11-01",
       "status": "open"
     },
@@ -832,6 +832,210 @@
       "source": "ideas-app PR #9",
       "requestedBy": "Claude (ideas-app session)",
       "app": "ideas",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "vidalia-pro-dns-records",
+      "title": "Add the vidalia.pro DNS records in Cloudflare so Vidalia Pro goes live",
+      "why": "vidalia.pro has no DNS records, so none of its pages load and Google can't find them. Every page is built and waiting: the directory, tennis, and 12 trade pages like pressure-washing.vidalia.pro.",
+      "steps": [
+        "dash.cloudflare.com → the account with vidalia.pro → vidalia.pro → DNS → Records",
+        "Add record: Type A, Name @, IPv4 76.76.21.21, Proxy status OFF (grey cloud)",
+        "Add a CNAME for each of these names, Target cname.vercel-dns.com, proxy OFF (grey cloud): www, pressure-washing, painting, flooring, handyman, plumbing, appliance-install, tv-mounting, finish-carpentry, roofing, remodeling, junk-removal, lawn-care, tennis",
+        "Don't add a wildcard (*) record",
+        "Same Cloudflare screen, for Google: search.google.com/search-console → Add property → Domain → vidalia.pro → copy the TXT value → add it in Cloudflare as Type TXT, Name @ → click Verify in Google",
+        "Tell an agent it's done: it checks the certificates, switches the pages to vidalia.pro addresses, and submits the sitemaps"
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://dash.cloudflare.com/",
+      "source": "operate PR #96; replaces the need for cloudflare-second-account-token for vidalia.pro",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "operate",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "laser-merchant-center-feed",
+      "title": "Put the engraved products into Google Shopping (free listings) with the ready-made feed",
+      "why": "Free Google Shopping listings show products with a photo and price for searches like 'custom cutting board'. The laser site has 0 Google impressions so far. The product feed is built and live; only you can open the Merchant Center account.",
+      "steps": [
+        "merchants.google.com → Create account → business name Engrave Market, website https://laser.engrave.market (it verifies itself because you already own engrave.market in Search Console)",
+        "Products → Add products → Add from a file → Enter a link to your file: https://laser.engrave.market/api/merchant/products.xml → Fetch daily",
+        "Settings → Shipping and returns → add a shipping rate (decide: flat rate or free over a set amount) and a return policy (made-to-order: say what you accept)",
+        "Turn on 'Free listings' (Growth → Manage programs). Don't turn on paid ads",
+        "Tell an agent: it fixes any product Merchant Center flags"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://merchants.google.com/",
+      "source": "LaserEngraving PR #133 (merchant feed)",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "free-local-listings",
+      "title": "Claim the free map and local listings (Bing, Apple, Facebook, Nextdoor, Yelp)",
+      "why": "These are free alternatives to the paid chamber listing. Each one is another place locals look and another link Google trusts. They all need your login, and some need a phone or postcard check.",
+      "steps": [
+        "Do these after the Google Business Profiles; most can import from Google",
+        "Bing Places: bingplaces.com → Import from Google Business Profile",
+        "Apple Business Connect: businessconnect.apple.com → add each business (shows in Apple Maps and Siri)",
+        "Facebook: a Page for Engrave Market and one for Vidalia Pro, with the website link",
+        "Nextdoor: business.nextdoor.com → claim a free business page for Engrave Market (and Vidalia Pro)",
+        "Yelp for Business and Foursquare (foursquare.com/add-place): add the laser shop",
+        "Use the exact same name, address/area and phone everywhere. Tell an agent which you finished"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.bingplaces.com/",
+      "source": "SEO session 2026-11-04 (free alternatives to the $288/yr chamber listing)",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "ecosystem",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "software-directory-listings",
+      "title": "List ChurchConnect and EasyPeazy on the free software directories (Capterra, G2 and others)",
+      "why": "People searching 'church software' or 'church website builder' often land on comparison sites, not on vendor sites. Free vendor profiles put us in those lists and give strong links. They need a vendor account in your name.",
+      "steps": [
+        "Capterra / GetApp / Software Advice (one form): digitalmarkets.gartner.com → List your software free → ChurchConnect, category Church Management",
+        "G2: sell.g2.com → Get a free profile → ChurchConnect",
+        "AlternativeTo.net and SourceForge: add ChurchConnect as an alternative to Planning Center and Church Center",
+        "Repeat Capterra and G2 for EasyPeazy (category Website Builder). Don't describe either one with the word 'AI'",
+        "Tell an agent when each profile exists: it writes the descriptions and screenshots for you to paste"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://digitalmarkets.gartner.com/",
+      "source": "SEO session 2026-11-04",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "churchconnect",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "laser-pinterest-catalog",
+      "title": "Open a Pinterest business account for the laser shop and load the product feed",
+      "why": "People plan Christmas and wedding gifts on Pinterest. Pinterest catalogs accept the same product feed Google uses, so every product becomes a shoppable pin for free.",
+      "steps": [
+        "business.pinterest.com → create a business account 'Engrave Market'",
+        "Settings → Claimed accounts → claim laser.engrave.market (an agent can add the verification tag; send it the code)",
+        "Ads → Catalogs → Add data source → https://laser.engrave.market/api/merchant/products.xml (catalogs are free; skip paid ads)"
+      ],
+      "kind": "account",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://business.pinterest.com/",
+      "source": "SEO session 2026-11-04",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "uug-nonprofit-listings-ad-grants",
+      "title": "Apply for Google for Nonprofits (Ad Grants: free Google search ads) and claim the Candid profile",
+      "why": "If United Under God has 501(c)(3) status, Google Ad Grants gives up to $10,000 a month of free search ads that could point people to ChurchConnect, Kids Need Dads and the other ministries. A Candid (GuideStar) profile helps donors trust and find UUG. Both need you as the organization's representative.",
+      "steps": [
+        "google.com/nonprofits → Get started → verify United Under God (EIN 81-3554390) through Percent",
+        "Once approved, activate Google Ad Grants and tell an agent: it builds the campaigns within the grant rules",
+        "candid.org → claim the United Under God profile, then GreatNonprofits.org → claim it too"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.google.com/nonprofits/",
+      "source": "SEO session 2026-11-04",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "united-under-god",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "tennis-page-details",
+      "title": "Send the details for your tennis page: where, when, cost, and your background",
+      "why": "vidalia.pro/tennis (and tennis.vidalia.pro) is built and takes sign-ups, but it can't name courts, times or prices until you say them. Real details are what make it rank for 'tennis lessons Vidalia GA'.",
+      "steps": [
+        "Tell an agent: which courts, which days/times, ages and levels, price (or free), and a line or two about your own tennis background",
+        "Optional: a photo of you on court"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://operate.unitedundergod.org/tennis",
+      "source": "operate PR #90",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "operate",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "vidalia-pro-trades-you-do",
+      "title": "Pick which Vidalia Pro trades you will do yourself",
+      "why": "A Google Business Profile for 'Pressure Washing Vidalia' is only allowed if a real business you run does that work (a DBA). Trades you don't do stay honest lead pages that pass requests to local pros.",
+      "steps": [
+        "Look at the list: pressure washing, painting, flooring, handyman, plumbing, appliance install, TV mounting, finish carpentry, roofing, remodeling, junk removal, lawn care",
+        "Tell an agent which ones you'll do. For those: register a DBA with Toombs County, then make a Business Profile (it writes the page copy to match)"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://operate.unitedundergod.org/directory",
+      "source": "SEO session 2026-11-04",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "operate",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "seo-unsourced-claims",
+      "title": "Keep, source or remove four claims on Kids Need Dads and Toner Management",
+      "why": "Unsupported numbers can hurt trust and search quality. Agents won't invent a source, so you decide.",
+      "steps": [
+        "Kids Need Dads: '80% of divorces are her choice', '60 days a year', 'Other divorced dads have found hope here'",
+        "Toner Management: 'Most offices buy roughly twice the toner they need'",
+        "For each one, reply keep (and give the source), soften, or remove"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsneeddad.com/",
+      "source": "SEO session 2026-11-03 (RebuildingDads #10, TotalTonerManagement #10)",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "kids-need-dads",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "sandlot-verified-venues-wording",
+      "title": "Decide whether Sandlot can say 'verified venues'",
+      "why": "The terms say 'verified venues', but the places are public parks and places parents add. The wording should match what's true.",
+      "steps": [
+        "Reply: either describe how places are verified, or change it to 'parks and places parents add'"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://sandlot.unitedundergod.org/",
+      "source": "SEO session 2026-11-03 (sandlot #5)",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "sandlot",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "vercel-web-analytics",
+      "title": "Decide whether to turn on Vercel Web Analytics for ChurchConnect, Operate and the laser shop",
+      "why": "We can see Google searches (Search Console) and leads, but not how many people visit or which pages they read. Vercel Web Analytics shows that, but it may cost money beyond the plan's included events.",
+      "steps": [
+        "Vercel → each project → Analytics tab → check the price shown → Enable if it's worth it",
+        "Tell an agent: it adds the tag to the site"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://vercel.com/dashboard",
+      "source": "SEO session 2026-11-03",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "ecosystem",
       "addedOn": "2026-11-04"
     }
   ]
