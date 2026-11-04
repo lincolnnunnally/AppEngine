@@ -120,6 +120,8 @@ runStep("every production_live UUG directory door has a catalog entry", () => {
     "toner-management",
     "ideas",
     "laser-engrave-market",
+    "remembered",
+    "wp-easy-peazy",
     "appengine"
   ];
   // production_live directory slugs that must not get their own catalog row.
@@ -156,6 +158,9 @@ runStep("UUG apps directory: unlocked Continuity doors live, Selah coming soon, 
     'liveUrl: "https://rally.unitedundergod.org"',
     "https://plenty.unitedundergod.org",
     "https://laser.engrave.market",
+    "https://partnerly.unitedundergod.org",
+    "https://remembered.unitedundergod.org",
+    "https://wp.easypeazy.site",
     "https://sandlot.unitedundergod.org",
     "https://backoffice.works",
     "https://selah.unitedundergod.org",

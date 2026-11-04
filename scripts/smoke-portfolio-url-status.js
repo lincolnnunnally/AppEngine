@@ -120,6 +120,29 @@ if (operate) {
   check(String(operate.domain?.note || "").includes("HOLD invent"), "operate notes HOLD invent for admin");
 }
 
+const remembered = apps.find((app) => app.slug === "remembered");
+check(Boolean(remembered), "remembered is registered");
+if (remembered) {
+  check(remembered.productionUrl === "https://remembered.unitedundergod.org", "remembered live URL");
+  check(remembered.domain?.urlStatus === "live", "remembered urlStatus is live");
+  check(String(remembered.domain?.note || "").includes("Stripe hosted Checkout stays HOLD"), "remembered notes Stripe checkout HOLD");
+  check(String(remembered.domain?.note || "").includes("never on the front"), "remembered keeps the front/back design lock");
+}
+const wpEasyPeazy = apps.find((app) => app.slug === "wp-easy-peazy");
+check(Boolean(wpEasyPeazy), "wp-easy-peazy is registered");
+if (wpEasyPeazy) {
+  check(wpEasyPeazy.productionUrl === "https://wp.easypeazy.site", "wp easy peazy live URL");
+  check(wpEasyPeazy.domain?.urlStatus === "live", "wp easy peazy urlStatus is live");
+  check(String(wpEasyPeazy.domain?.note || "").includes("waiting list"), "wp easy peazy notes the checkout waiting list");
+  check(String(wpEasyPeazy.domain?.note || "").includes("HOLD invent"), "wp easy peazy notes HOLD invent for admin");
+}
+check(!apps.some((app) => app.slug === "partnerly"), "partnerly is not a second portfolio app");
+const laser = apps.find((app) => app.slug === "laser-engrave-market");
+check(
+  String(laser?.domain?.note || "").includes("partnerly.unitedundergod.org"),
+  "laser notes that Partnerly is a host on the same project"
+);
+
 const plenty = apps.find((app) => app.slug === "plenty");
 check(Boolean(plenty), "plenty is registered");
 if (plenty) {

@@ -329,6 +329,21 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     family: "commerce",
     purpose: "backoffice.works — existing WordPress door. Product direction still open; do not rebuild it here.",
     adminNote: "WordPress at backoffice.works. Not an App Engine admin. Money only counts if a Stripe key for this slug is on the desk."
+  },
+  remembered: {
+    slug: "remembered",
+    family: "commerce",
+    purpose: "B2B engraved keepsake packs. Signup and Operate sync are live. Stripe checkout is still on hold.",
+    adminPath: "/admin",
+    adminNote:
+      "Owner desk in lincolnnunnally/remembered (sellers and packs). Direct /admin; unsigned visitors go to /login. No AppEngine handoff secret is configured."
+  },
+  "wp-easy-peazy": {
+    slug: "wp-easy-peazy",
+    family: "commerce",
+    purpose: "WordPress websites with Divi. The public page is live; paid checkout is still a waiting list.",
+    adminNote:
+      "HOLD invent — wp.easypeazy.site/admin is the public landing, not a staff door. Do not invent an AppEngine admin."
   }
 };
 

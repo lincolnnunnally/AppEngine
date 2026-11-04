@@ -1,31 +1,31 @@
 {
   "kind": "app_portfolio_registry",
   "schemaVersion": 1,
-  "generatedAt": "2026-09-25T17:30:00.000Z",
+  "generatedAt": "2026-11-04T15:00:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 42,
+    "totalApps": 44,
     "reviewReadyApps": 0,
-    "productionLiveApps": 31,
+    "productionLiveApps": 33,
     "blockedApps": 11,
     "byDeploymentState": {
-      "production_live": 31,
+      "production_live": 33,
       "production_blocked": 11
     },
     "byBuildState": {
-      "ready_for_vnext": 28,
+      "ready_for_vnext": 30,
       "review_blocked": 1,
       "ready_for_build": 1,
       "planned": 12
     },
     "nextSafeActions": {
-      "create_vnext_packet": 28,
+      "create_vnext_packet": 30,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 11
     },
     "byUrlStatus": {
-      "live": 31,
+      "live": 33,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -653,7 +653,7 @@
         "urlStatus": "live",
         "servingUrl": "https://laser.engrave.market",
         "nextStep": "None — both hosts serve the same shop.",
-        "note": "Same product at laser.unitedundergod.org and laser.engrave.market. Search doors (gifts, promotional, home signs, nameplates, wall signs) live on both.",
+        "note": "Same product at laser.unitedundergod.org and laser.engrave.market. Search doors (gifts, promotional, home signs, nameplates, wall signs) live on both. partnerly.unitedundergod.org is a host on this same project (gift pairings; public brand Partnerly, run from Laser Admin → Drops). Not a second portfolio app.",
         "factsFrom": "verified-2026-09-11"
       },
       "sourceOfTruthFiles": [
@@ -1587,6 +1587,86 @@
         "https://github.com/lincolnnunnally/plenty"
       ],
       "lastUpdated": "2026-09-25T17:15:00.000Z"
+    },
+    {
+      "name": "Remembered",
+      "slug": "remembered",
+      "reviewUrl": "https://remembered.unitedundergod.org",
+      "productionUrl": "https://remembered.unitedundergod.org",
+      "currentVersion": "continuity-signup-outbox-2026-11-04",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "remembered.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://remembered.unitedundergod.org",
+        "nextStep": "Public host is live. Leave Stripe hosted Checkout HOLD until coaster prices are confirmed.",
+        "note": "Early Continuity live: signup, outbox, and Operate multi-shop. Stripe hosted Checkout stays HOLD until owner task remembered-coaster-pricing-confirm locks prices. Front is the prospect mark plus a meaningful message; who this is for is system-only by default and optional on the back only, never on the front. The laser shop fulfills packs as a separate brand. Private repo lincolnnunnally/remembered. Owner desk is /admin in that repo (unsigned visitors go to /login). Production Vercel alias remembered-one.vercel.app, project remembered. No MRR recorded.",
+        "factsFrom": "continuity-2026-11-04"
+      },
+      "sourceOfTruthFiles": [
+        "remembered"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 448,
+          "title": "Mint remembered.unitedundergod.org so Google can index Remembered",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/448",
+          "state": "merged"
+        }
+      ],
+      "blockers": [
+        "Stripe hosted Checkout HOLD until wood coaster prices are confirmed (owner task remembered-coaster-pricing-confirm). Proposed tiers were $14 / $12 / $10 per coaster.",
+        "Supabase Auth Redirect URLs do not yet include Remembered /login hosts (owner task remembered-supabase-auth-redirects). Confirm-email still falls through to AppEngine until Lincoln adds them."
+      ],
+      "evidenceLinks": [
+        "https://remembered.unitedundergod.org",
+        "https://remembered-one.vercel.app",
+        "https://github.com/lincolnnunnally/remembered"
+      ],
+      "lastUpdated": "2026-11-04T15:00:00.000Z"
+    },
+    {
+      "name": "WP Easy Peazy",
+      "slug": "wp-easy-peazy",
+      "reviewUrl": "https://wp.easypeazy.site",
+      "productionUrl": "https://wp.easypeazy.site",
+      "currentVersion": "landing-waitlist-2026-11-03",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "wp.easypeazy.site",
+        "urlStatus": "live",
+        "servingUrl": "https://wp.easypeazy.site",
+        "nextStep": "DNS is done. Leave paid checkout closed until one real WordPress test site is provisioned and WP_EASY_PEAZY_OPEN=1 is set.",
+        "note": "Distinct public offering (owner decision 2026-11-03), not a second price on the $12 EasyPeazy site. Landing is live. wp.unitedundergod.org 308s to wp.easypeazy.site. Served by easypeazy-web from easypeazy frontend/public/wp/. Recorded price is $49 setup + $15/month. Checkout stays a waiting list until WP_EASY_PEAZY_OPEN=1. HOLD invent — /admin on this host is the public landing, not a staff door. No MRR recorded.",
+        "factsFrom": "continuity-2026-11-04"
+      },
+      "sourceOfTruthFiles": [
+        "easypeazy/PRODUCT_SOURCE_OF_TRUTH.md"
+      ],
+      "linkedIssues": [],
+      "linkedPRs": [
+        {
+          "number": 450,
+          "title": "Mint wp.easypeazy.site and wp.unitedundergod.org (WP Easy Peazy)",
+          "url": "https://github.com/lincolnnunnally/AppEngine/pull/450",
+          "state": "merged"
+        }
+      ],
+      "blockers": [
+        "Sales gate: checkout stays refused until WP_EASY_PEAZY_OPEN=1 on easypeazy-api, after one real test site is provisioned. The page takes a waiting list until then.",
+        "HOLD invent: wp.easypeazy.site/admin returns the public landing, not a staff door. Do not invent an AppEngine admin."
+      ],
+      "evidenceLinks": [
+        "https://wp.easypeazy.site",
+        "https://wp.unitedundergod.org",
+        "https://github.com/lincolnnunnally/easypeazy"
+      ],
+      "lastUpdated": "2026-11-04T15:00:00.000Z"
     }
   ],
   "guardrails": {

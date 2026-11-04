@@ -5,7 +5,7 @@
 // ONE RULE — the roster is NOT hand-written here. It is derived from the two
 // existing registries:
 //   1. source-of-truth/ecosystem-portfolio-registry.json (owner-verified
-//      domains + urlStatus, 24 apps) — read via the existing
+//      domains + urlStatus) — read via the existing
 //      getPortfolioUrlStatusBoard() in portfolio-url-status.ts.
 //   2. The code registry's imported ecosystem records
 //      (src/lib/engine/imported-ecosystem-apps.ts, consumed by
@@ -124,6 +124,12 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Everyday services",
     liveUrl: "https://easypeazy.site"
   },
+  "wp-easy-peazy": {
+    publicName: "WP Easy Peazy",
+    tagline: "A WordPress website with Divi, hosting, and backups — a separate offering from EasyPeazy.",
+    group: "Everyday services",
+    liveUrl: "https://wp.easypeazy.site"
+  },
   "toner-management": {
     publicName: "Toner Management",
     tagline:
@@ -179,7 +185,16 @@ const DISPLAY: Record<string, DisplayMeta> = {
     tagline: "Custom laser engraving with design assistance — personalized products, gifts, and business branding.",
     group: "Everyday services",
     // Customer door lock: laser.engrave.market. laser.unitedundergod.org may remain a redirect.
-    liveUrl: "https://laser.engrave.market"
+    // Partnerly is a host on this same project, not a second app (mint #446).
+    liveUrl: "https://laser.engrave.market",
+    doorLinks: [{ label: "Partnerly", href: "https://partnerly.unitedundergod.org" }]
+  },
+  remembered: {
+    publicName: "Remembered",
+    tagline:
+      "B2B engraved keepsake packs — a prospect mark and an inspirational message on the front; seller contact is optional on the back. The laser shop fulfills them as its own brand.",
+    group: "Everyday services",
+    liveUrl: "https://remembered.unitedundergod.org"
   },
   "kindred-connections": {
     tagline:
