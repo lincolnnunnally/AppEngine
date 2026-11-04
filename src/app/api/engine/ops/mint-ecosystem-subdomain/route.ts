@@ -8,14 +8,10 @@ export const maxDuration = 60;
 
 // One-shot allowlist mint: add-only CNAME to Vercel, then make sure a cert exists.
 // Add-only: existing DNS records are never updated or deleted.
-// WP Easy Peazy (owner decision 2026-11-03): both hosts are already attached to
-// easypeazy-web (wp.unitedundergod.org as a 308 redirect to wp.easypeazy.site),
-// so this run only adds the DNS records and checks certs.
-const HOSTS = [
-  { label: "wp", zone: "easypeazy.site", project: "easypeazy-web" },
-  { label: "wp", zone: "unitedundergod.org", project: "easypeazy-web" }
-] as const;
-const NONCE = "uug-mint-2026-11-03-wp-easy-peazy";
+// Commons (2026-11-04): commons.unitedundergod.org is already attached to the
+// Vercel project `commons`; this run only adds its DNS record and checks the cert.
+const HOSTS = [{ label: "commons", zone: "unitedundergod.org", project: "commons" }] as const;
+const NONCE = "uug-mint-2026-11-04-commons-7f3k";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;
