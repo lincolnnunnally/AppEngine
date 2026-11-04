@@ -34,6 +34,21 @@ function OwnerToDoPanel({ tasks, nameFor }: { tasks: OwnerTask[]; nameFor: (slug
         Your to-do — {counts.open + counts.waiting} waiting on you
         {counts.blockers ? ` · ${counts.blockers} blocking` : ""}
       </p>
+      {/* Only the top five show here, so a task further down can't be found by
+          looking. Searching hands off to the full list. */}
+      <form className="owner-todo-find" action="/tasks#list" method="get" role="search">
+        <input
+          className="biz-search desk-input"
+          type="search"
+          name="q"
+          placeholder={`Find any of the ${counts.open + counts.waiting} — facebook, dns, stripe…`}
+          aria-label="Find a task"
+          autoComplete="off"
+        />
+        <button className="dx-btn" type="submit">
+          Find
+        </button>
+      </form>
       {/* Each row opens where it sits. The glance stays a glance, but the ask
           carries its own instructions: what it unblocks, the steps, and the
           place to do it. Sending the owner to a bare link without telling him

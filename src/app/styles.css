@@ -8043,6 +8043,99 @@ button.compose-arch:hover {
   }
 }
 
+/* /tasks search. Label, field and button on one line; the field takes the
+   slack so a long query never pushes the button off the row. */
+.owner-task-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.owner-task-search-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.owner-task-search .biz-search {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* Importance chips carry their level's colour on the count, so the chip row
+   reads as the list's shape — how much is blocking, how much can wait. */
+.owner-task-levels {
+  margin: 0 0 6px;
+}
+
+.owner-task-level--blocker strong { color: var(--pink); }
+.owner-task-level--recommended strong { color: var(--gold); }
+.owner-task-level--optional strong { color: var(--muted); }
+
+.owner-task-result {
+  margin: 6px 0 4px;
+}
+
+/* One heading per level of importance. Sized and coloured by weight: blocking
+   is loudest, "when you can" is quiet, so importance is felt before it is read. */
+.owner-task-group {
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.owner-task-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-desk-display), Outfit, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.owner-task-group-head span {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.owner-task-group-head--blocker {
+  font-size: 1.25rem;
+  color: var(--pink);
+  border-bottom-color: color-mix(in srgb, var(--pink) 40%, transparent);
+}
+
+.owner-task-group-head--recommended {
+  font-size: 1.05rem;
+  color: var(--gold);
+}
+
+.owner-task-group-head--optional {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+/* The desk panel's own search: submits to /tasks so the full list does the
+   finding, but you can start from the first screen. */
+.owner-todo-find {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.owner-todo-find .biz-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* Deep-linked from the desk's to-do panel with #<id>: land the card below the
    header rather than tucked under it. */
 .owner-task-card[id] {
