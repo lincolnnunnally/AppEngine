@@ -1180,6 +1180,24 @@
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "commons-review-the-first-outreach-notes-toombs-neighbors-and-say-who-sends-them",
+      "title": "Review the first outreach notes (Toombs + neighbors) and say who sends them",
+      "why": "Each county or city gets a free report on its own website, opening with what's working and giving a fix for each issue. The notes go to real officials under a real name, so the send is your call. Nothing has been sent.",
+      "steps": [
+        "Read commons/data/outreach/ga-toombs-area.drafts.md in AllReposBackup PR #3 (the plan is in README.md beside it)",
+        "Say yes, no, or how you'd change them, and whose name and phone go at the bottom",
+        "Sending waits until Commons is live (needs the commons repo task first), so the report links work"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/3",
+      "source": "AllReposBackup PR #3",
+      "requestedBy": "Claude Code",
+      "app": "commons",
+      "addedOn": "2026-11-04"
     }
   ]
 }
