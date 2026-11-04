@@ -1055,6 +1055,57 @@
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "united-under-god",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "laser-holiday-order-by-dates",
+      "title": "Set the order-by dates for Thanksgiving and Christmas engraved gifts",
+      "why": "Shoppers decide on 'will it arrive in time?'. The seasonal pages say 'made to order, order early' until you give real dates. Agents won't guess your production time.",
+      "steps": [
+        "Decide how many days you need to make an order, and how you deliver (pickup in Vidalia, local delivery, shipping)",
+        "Tell an agent: the last order date for Thanksgiving (Nov 26) and for Christmas, for pickup and for shipping. It puts them on the pages and in the FAQ"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://laser.engrave.market/s/christmas",
+      "source": "LaserEngraving seasonal pages (2026-11-04)",
+      "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "laser-holiday-new-blanks",
+      "title": "Decide whether to stock charcuterie boards, serving trays and engraved wood ornaments for the holidays",
+      "why": "You asked for these, but the shop doesn't sell them yet. A product can't be listed without blanks you have, a price and a photo. Boards, coasters, spoons and spatulas are ready now; kids' paint-your-own ornaments use the existing cutouts.",
+      "steps": [
+        "Pick which blanks to buy (charcuterie/cheese board, serving tray, wood ornament) and from where",
+        "Tell an agent the cost, the price you want and the size, and send one photo of each blank. It adds them to the shop, the seasonal pages and the Google feed"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://laser.engrave.market/admin",
+      "source": "LaserEngraving seasonal pages (2026-11-04)",
+      "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "laser-new-year-icons-and-licenses",
+      "title": "Add New Year's icons, and confirm your clipart licenses allow selling engraved items",
+      "why": "Your 85 Christmas icons and 3 fall designs are in the design picker now, but there are no New Year's icons (those designs are text-only for now). The bundles look like marketplace clipart; their license must allow use on products you sell.",
+      "steps": [
+        "If you want New Year's art, buy or make a small bundle (2027, fireworks, champagne) and upload it in Admin → Design assets",
+        "Check the license of each bundle you uploaded on Sept 26 (Christmas animal 'breakouts', Santa, manger, campfire, autumn goat) allows commercial physical products"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://laser.engrave.market/admin",
+      "source": "Seasonal icon cleanup 2026-11-04 (design_assets backup: _backup_design_assets_seasonal_20261104)",
+      "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-04"
     }
   ]
 }
