@@ -1140,11 +1140,45 @@
       ],
       "kind": "decision",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://toombscountyga.gov/",
       "source": "AppEngine owner-task PR (local government niche)",
       "requestedBy": "Claude Code",
       "app": "operate",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "commons-create-the-empty-github-repo-lincolnnunnally-commons",
+      "title": "Create the empty GitHub repo lincolnnunnally/commons",
+      "why": "Commons (self-serve websites for cities and counties) is built and tested, but agent sessions cannot create repos. It is parked in AllReposBackup PR #3 until it has its own repo; nothing can deploy until then.",
+      "steps": [
+        "On GitHub, create a new private repo named commons under lincolnnunnally. Leave it empty (no README).",
+        "Tell any Claude session: 'commons repo exists — move it in and deploy.' It will copy the code, create the Vercel project at commons.unitedundergod.org, and verify it live."
+      ],
+      "kind": "account",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/new",
+      "source": "AllReposBackup PR #3",
+      "requestedBy": "Claude Code",
+      "app": "commons",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "commons-approve-the-commons-name-and-the-government-prices",
+      "title": "Approve the Commons name and the government prices",
+      "why": "Name and price are product decisions. Working name is Commons. Prices go by population: Town under 2,500 is $149/mo; 2,500-15k is $299; 15k-50k is $549 (Toombs); 50k-150k is $999; 150k+ is $1,999. Yearly is 10x monthly; 30 days free.",
+      "steps": [
+        "Reply 'approved' or give a different name or prices. A name change is one line in src/lib/commons/brand.ts.",
+        "Say whether you want a dedicated domain (it costs money) or commons.unitedundergod.org to start."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/3",
+      "source": "AllReposBackup PR #3",
+      "requestedBy": "Claude Code",
+      "app": "commons",
       "addedOn": "2026-11-04"
     }
   ]
