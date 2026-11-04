@@ -1075,18 +1075,20 @@
     },
     {
       "id": "laser-holiday-new-blanks",
-      "title": "Decide whether to stock charcuterie boards, serving trays and engraved wood ornaments for the holidays",
-      "why": "You asked for these, but the shop doesn't sell them yet. A product can't be listed without blanks you have, a price and a photo. Boards, coasters, spoons and spatulas are ready now; kids' paint-your-own ornaments use the existing cutouts.",
+      "title": "Upload your blank folders (charcuterie boards, trays, coasters) in the laser shop admin",
+      "why": "The shop can only sell what's in its catalog. One upload feeds the shop, the seasonal pages, the ready-to-order pages and the Google feed. New uploads stay hidden until you set a price.",
       "steps": [
-        "Pick which blanks to buy (charcuterie/cheese board, serving tray, wood ornament) and from where",
-        "Tell an agent the cost, the price you want and the size, and send one photo of each blank. It adds them to the shop, the seasonal pages and the Google feed"
+        "laser.engrave.market/admin → sign in → Products → Upload blank photos",
+        "Drag in whole folders, several at once, or a .zip (charcuterie boards, coasters, trays). It works from a computer; on a phone, choose the files",
+        "For each new product: set the price, size and wood, then turn it on",
+        "For public pages and Google, use your own photo of an engraved piece when you have one. Hobby Lobby's listing photos are their images, so use them only as a stand-in until you shoot your own"
       ],
-      "kind": "money",
-      "priority": "optional",
+      "kind": "other",
+      "priority": "recommended",
       "status": "open",
       "link": "https://laser.engrave.market/admin",
-      "source": "LaserEngraving seasonal pages (2026-11-04)",
-      "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
+      "source": "Owner sent Hobby Lobby blank photos 2026-11-04",
+      "requestedBy": "Claude (seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-04"
     },
