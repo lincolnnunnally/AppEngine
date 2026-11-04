@@ -836,21 +836,22 @@
     },
     {
       "id": "vidalia-pro-dns-records",
-      "title": "Add the vidalia.pro DNS records in Cloudflare so Vidalia Pro goes live",
-      "why": "vidalia.pro has no DNS records, so none of its pages load and Google can't find them. Every page is built and waiting: the directory, tennis, and 12 trade pages like pressure-washing.vidalia.pro.",
+      "title": "Add the vidalia.pro and vidalia.church DNS records in Cloudflare",
+      "why": "Neither domain has DNS records, so nothing on them loads and Google can't find them. Vidalia Pro (the directory, tennis and 12 trade pages) and vidalia.church (Vidalia's church directory on ChurchConnect) are built and waiting.",
       "steps": [
-        "dash.cloudflare.com → the account with vidalia.pro → vidalia.pro → DNS → Records",
-        "Add record: Type A, Name @, IPv4 76.76.21.21, Proxy status OFF (grey cloud)",
-        "Add a CNAME for each of these names, Target cname.vercel-dns.com, proxy OFF (grey cloud): www, pressure-washing, painting, flooring, handyman, plumbing, appliance-install, tv-mounting, finish-carpentry, roofing, remodeling, junk-removal, lawn-care, tennis",
-        "Don't add a wildcard (*) record",
-        "Same Cloudflare screen, for Google: search.google.com/search-console → Add property → Domain → vidalia.pro → copy the TXT value → add it in Cloudflare as Type TXT, Name @ → click Verify in Google",
-        "Tell an agent it's done: it checks the certificates, switches the pages to vidalia.pro addresses, and submits the sitemaps"
+        "dash.cloudflare.com → the account with vidalia.pro and vidalia.church (nameservers alfred / sue) → vidalia.pro → DNS → Records",
+        "vidalia.pro: add Type A, Name @, IPv4 76.76.21.21, Proxy status OFF (grey cloud)",
+        "vidalia.pro: add a CNAME for each of these names, Target cname.vercel-dns.com, proxy OFF: www, pressure-washing, painting, flooring, handyman, plumbing, appliance-install, tv-mounting, finish-carpentry, roofing, remodeling, junk-removal, lawn-care, tennis",
+        "Switch to vidalia.church → DNS: add Type A, Name @, 76.76.21.21, proxy OFF; and CNAME www → cname.vercel-dns.com, proxy OFF. Don't add records for church names; the website builder adds those itself",
+        "Don't add a wildcard (*) record on either domain",
+        "For Google: search.google.com/search-console → Add property → Domain → vidalia.pro → copy the TXT value → add it in Cloudflare as Type TXT, Name @ → Verify. Repeat for vidalia.church",
+        "Tell an agent it's done: it checks the certificates, switches the pages to the vidalia.pro address, and submits the sitemaps"
       ],
       "kind": "other",
       "priority": "blocker",
       "status": "open",
       "link": "https://dash.cloudflare.com/",
-      "source": "operate PR #96; replaces the need for cloudflare-second-account-token for vidalia.pro",
+      "source": "operate PR #96; ChurchConnect vidalia.church redirect; LPL 17_DISCOVERABILITY_PLAYBOOK.md",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "operate",
       "addedOn": "2026-11-04"
@@ -1036,6 +1037,23 @@
       "source": "SEO session 2026-11-03",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "ecosystem",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "uug-community-help-directory",
+      "title": "Decide whether United Under God gets a 'community help in Toombs County' directory",
+      "why": "The Vidalia Pro directory pattern (request first, then find the provider) could also list food pantries, recovery groups, family help and counseling, so people in need can find help and UUG gets found. What UUG offers is your call.",
+      "steps": [
+        "Reply yes or no. If yes, say which kinds of help to include and whether it lives on unitedundergod.org",
+        "Crisis lines wait for the safety contact (task solution-engine-safety-contact)"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://www.unitedundergod.org/",
+      "source": "LPL _SOURCE_OF_TRUTH/17_DISCOVERABILITY_PLAYBOOK.md §3",
+      "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
+      "app": "united-under-god",
       "addedOn": "2026-11-04"
     }
   ]
