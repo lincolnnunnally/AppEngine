@@ -1111,20 +1111,20 @@
     },
     {
       "id": "laser-ready-to-order-prices",
-      "title": "Give prices and sizes for the ready-to-order Christmas boards and snowman coaster",
-      "why": "Your photos are going on their own order pages (pick it, type who it's from on the back, check out). These blanks aren't in the shop yet, so each page stays hidden until it has a real price.",
+      "title": "Price and turn on the 3 ready-to-order Christmas pieces (their pages are built)",
+      "why": "The pages for the walnut Merry Christmas board, the acacia serving board and the snowman coaster are live but hidden. Each one appears on the Christmas, Thanksgiving and gift pages, in Google Shopping and in the sitemap as soon as it has a price and is turned on.",
       "steps": [
-        "Walnut paddle board with handle, 'Merry Christmas' + tree: size, price, and how many you can make before Christmas",
-        "Long acacia serving board with round handle, same design: size, price, how many",
-        "Hexagon snowman coaster: single price and/or a set price (set of 4?), how many",
-        "Is engraving the back (From: ___, year) included, or extra? How much?",
-        "Optional: OK to show the 'Plemons' family-name board photos? They show a real customer's name, so they stay off the site unless that family says yes"
+        "laser.engrave.market/admin → Products → edit BOARD-WALNUT-PADDLE-MERRYXMAS: set the price, engraving price, size and how many you have, then tick Active",
+        "Same for BOARD-ACACIA-SERVING-MERRYXMAS and COAST-HEX-SNOWMAN",
+        "If words on the back (From ___ / year) should cost extra, set the back-side price in the same form",
+        "Optional: upload your 'Merry Christmas + tree' design file and tell an agent, so each order carries the front file too (the snowman already has its file)",
+        "Optional: OK to show the 'Plemons' family-name board photos? They show a real customer's name"
       ],
       "kind": "decision",
       "priority": "blocker",
       "status": "open",
-      "link": "https://laser.engrave.market/s/christmas",
-      "source": "LaserEngraving ready-to-order pages (2026-11-04)",
+      "link": "https://laser.engrave.market/admin",
+      "source": "LaserEngraving PR #139",
       "requestedBy": "Claude (seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-04"
