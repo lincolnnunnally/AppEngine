@@ -156,6 +156,12 @@ const DISPLAY: Record<string, DisplayMeta> = {
     group: "Hope & transformation",
     liveUrl: "https://immerse.unitedundergod.org"
   },
+  commons: {
+    publicName: "Commons",
+    tagline: "The city and county website that keeps itself up to date — plus a free review of any government site.",
+    group: "Everyday services",
+    liveUrl: "https://commons.unitedundergod.org"
+  },
   neighborly: {
     publicName: "Neighborly",
     tagline: "Community connections for Milstead and beyond — neighbors helping neighbors, locally.",
