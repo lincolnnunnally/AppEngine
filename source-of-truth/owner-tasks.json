@@ -1128,6 +1128,24 @@
       "requestedBy": "Claude (seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "operate-decide-make-local-city-county-government-a-niche-market-pilot-toombs-cou",
+      "title": "Decide: make local city/county government a niche market (pilot: Toombs County)",
+      "why": "Toombs County's site has no working calendar and posts up to 6 years old. Small GA governments have this problem everywhere. Operate, Easy Peazy and Neighborly already cover most of the fix. What a product is and who it serves is your call.",
+      "steps": [
+        "Read the recommendation in the Claude session reply (2026-11-04)",
+        "Answer yes/no: add a 'government' kind to Operate (meetings, agendas, notices, bids, jobs) feeding an Easy Peazy site + Neighborly events",
+        "If yes: say whether to approach Toombs County / Lyons / Vidalia first, and whether you know the county clerk or manager"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://toombscountyga.gov/",
+      "source": "AppEngine owner-task PR (local government niche)",
+      "requestedBy": "Claude Code",
+      "app": "operate",
+      "addedOn": "2026-11-04"
     }
   ]
 }
