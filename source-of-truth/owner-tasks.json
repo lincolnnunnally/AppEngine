@@ -621,6 +621,129 @@
       "requestedBy": "Claude (usage-based hosting build)",
       "app": "appengine",
       "addedOn": "2026-11-02"
+    },
+    {
+      "id": "wp-easypeazy-hosting-ssh",
+      "title": "Put the Spaceship hosting SSH key into the EasyPeazy repo so WP Easy Peazy can build sites",
+      "why": "WP Easy Peazy (wp.easypeazy.site) is live but only takes a waiting list. The build job that installs WordPress and Divi on the Spaceship hosting account can't log in without this, so paid sign-ups stay off.",
+      "steps": [
+        "Spaceship → Hosting → cPanel → SSH Access → Manage SSH Keys → Generate a new key (or use an existing one) and Authorize it",
+        "Copy the PRIVATE key, plus the server host name, cPanel username and home folder (cPanel shows these on its right-hand panel)",
+        "Copy the hosting nameservers (Spaceship → Hosting → nameservers, two values like ns1…, ns2…)",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add CPANEL_SSH_KEY, CPANEL_HOST, CPANEL_USER, CPANEL_HOME and WP_HOSTING_NAMESERVERS (comma-separated)",
+        "Tell an agent: it runs one real test build, then turns paid sign-ups on"
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/easypeazy/settings/secrets/actions",
+      "source": "easypeazy PR #144",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "easy-peasy-website",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "wp-easypeazy-elegant-themes-key",
+      "title": "Add your Elegant Themes username and API key to the EasyPeazy repo (Divi for WP Easy Peazy)",
+      "why": "Each WP Easy Peazy site downloads and licenses Divi with your Elegant Themes account. Without the key the build job stops before installing Divi.",
+      "steps": [
+        "elegantthemes.com → Members Area → Account → API Key → copy your username and the API key",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → add ELEGANT_THEMES_USERNAME and ELEGANT_THEMES_API_KEY"
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://www.elegantthemes.com/members-area/api/",
+      "source": "easypeazy PR #144",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "easy-peasy-website",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "wp-easypeazy-copy-keys-to-github",
+      "title": "Copy six existing keys from Vercel into the EasyPeazy repo's GitHub secrets",
+      "why": "The WP Easy Peazy build job runs on GitHub, not Vercel, so it needs its own copy of keys you already have. Agents have no tool that can write GitHub secrets.",
+      "steps": [
+        "Vercel → easypeazy-api → Settings → Environment Variables: reveal and copy SUPABASE_DB_URL (or the database URL it uses), SPACESHIP_API_KEY, SPACESHIP_API_SECRET, OPENAI_API_KEY, RESEND_API_KEY and SENDER_EMAIL",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → add each one under the same name"
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/easypeazy/settings/secrets/actions",
+      "source": "easypeazy PR #144",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "easy-peasy-website",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "easypeazy-first-test-purchase",
+      "title": "Make one real $12 EasyPeazy purchase with your own card, then refund it",
+      "why": "EasyPeazy and AI Website Design have never had a completed payment. The refund found in Stripe was LaserEngraving's $1. One real purchase proves checkout, the webhook and publishing end to end.",
+      "steps": [
+        "Go to easypeazy.site → Build my draft, make a site, and publish it with your card ($12)",
+        "Tell an agent: it checks the site went live and the payment recorded, then you refund it in Stripe"
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://easypeazy.site/signup",
+      "source": "Stripe check, 2026-11-03",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "easy-peasy-website",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "search-console-three-domains",
+      "title": "Add furfriend.pet, live-on-mission.com and toner-management.com to Google Search Console",
+      "why": "Every other app domain is in Search Console now (verified 2026-11-03 through OpenSEO). These three aren't, so Google indexing for them can't be tracked or requested.",
+      "steps": [
+        "search.google.com/search-console → Add property → Domain → type each domain",
+        "Copy the TXT record Google shows and tell an agent (agents add the DNS record), or add it yourself",
+        "Click Verify, then tell an agent to connect it in OpenSEO"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://search.google.com/search-console",
+      "source": "Google indexing audit, 2026-11-03",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "ecosystem",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "cloudflare-second-account-token",
+      "title": "Give agents a Cloudflare token for the account holding vidalia.pro, we-succeed.org and backoffice.works",
+      "why": "Those three domains are in a different Cloudflare account (nameservers alfred/sue) than the token agents hold, so agents can't add the records that make them load and get indexed.",
+      "steps": [
+        "Log in to the Cloudflare account that has vidalia.pro",
+        "My Profile → API Tokens → Create Token → Edit zone DNS → Zone resources: include those three zones",
+        "Save it on the dashboard Keys page as CLOUDFLARE_API_TOKEN_2 and tell an agent"
+      ],
+      "kind": "credential",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://dash.cloudflare.com/profile/api-tokens",
+      "source": "Google indexing audit, 2026-11-03",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "ecosystem",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "github-claude-app-easypeazy",
+      "title": "Let the Claude GitHub app see the easypeazy repo",
+      "why": "Agents get CI and review notices on most repos, but not easypeazy, so a failed check there goes unseen until someone looks.",
+      "steps": [
+        "Open the link → choose your account → Repository access → add lincolnnunnally/easypeazy → Save"
+      ],
+      "kind": "account",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://github.com/apps/claude/installations/select_target",
+      "source": "easypeazy PR #144",
+      "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
+      "app": "easy-peasy-website",
+      "addedOn": "2026-11-04"
     }
   ]
 }
