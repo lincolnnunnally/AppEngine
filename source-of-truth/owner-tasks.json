@@ -744,6 +744,79 @@
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "easy-peasy-website",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "remembered-supabase-auth-redirects",
+      "title": "Add Remembered /login hosts to Supabase Auth Redirect URLs",
+      "why": "Confirm-email / signup soft-check still lands on AppEngine until the allowlist includes Remembered hosts; MCP cannot write Redirect URLs.",
+      "steps": [
+        "Open Supabase project uqhqulrqcygsmmzdzemx, then Authentication, then URL Configuration, then Redirect URLs.",
+        "Add https://remembered.unitedundergod.org/login",
+        "Add https://remembered-one.vercel.app/login (production alias on Vercel project remembered, confirmed 2026-11-04).",
+        "If Site URL still points at AppEngine, set it to https://remembered.unitedundergod.org",
+        "Tell CoS when done."
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/auth/url-configuration",
+      "source": "Chief of Staff Continuity ask 2026-11-04",
+      "requestedBy": "Chief of Staff (2026-11-04)",
+      "app": "remembered",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "remembered-coaster-pricing-confirm",
+      "title": "Confirm Remembered wood coaster prices for Stripe",
+      "why": "Checkout stays HOLD MERGE until prices are locked. Proposed Continuity tiers were $14 / $12 / $10 per coaster; put different numbers in the note if those are wrong.",
+      "steps": [
+        "Reply Done with the three coaster prices, or Not doing this with different amounts in the note.",
+        "CoS then unlocks Stripe hosted Checkout Continuity. This note is not permission to create Stripe products before you answer."
+      ],
+      "kind": "money",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://dashboard.unitedundergod.org/apps/remembered",
+      "source": "Chief of Staff Continuity ask 2026-11-04",
+      "requestedBy": "Chief of Staff (2026-11-04)",
+      "app": "remembered",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "supabase-lpl-compute-upgrade",
+      "title": "Upgrade LPL Supabase compute before ~100k contacts",
+      "why": "Nationwide CRM imports are LIVE. Micro (1GB) risks timeouts at 100k–300k scale. Not blocking current Continuity pace.",
+      "steps": [
+        "Open Supabase project uqhqulrqcygsmmzdzemx, then Settings, then Compute and Add-ons.",
+        "Choose the compute upgrade.",
+        "Tell CoS so CRM indexing leftovers can unlock."
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/settings/addons",
+      "source": "Chief of Staff Continuity ask 2026-11-04",
+      "requestedBy": "Chief of Staff (2026-11-04)",
+      "app": "ecosystem",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "nationwide-builders-talknow-wave5-go",
+      "title": "Spot-check Paragon/domusstudio then GO builders apply + talk-now + Wave5",
+      "why": "#443 is MERGED LIVE. LIVE --apply, talk-now dry-run, and Wave5 dry-run then apply stay HOLD until you spot-check and CoS gets a GO. Nothing is emailed without that OK.",
+      "steps": [
+        "Open the CRM AVL referral and talk-now views.",
+        "Spot-check the Paragon and Domus Studio rows.",
+        "Mark Done with GO, or Not doing this / wait, in the note."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://dashboard.unitedundergod.org/crm",
+      "source": "Chief of Staff Continuity ask 2026-11-04",
+      "requestedBy": "Chief of Staff (2026-11-04)",
+      "app": "churchconnect",
+      "addedOn": "2026-11-04"
     }
   ]
 }
