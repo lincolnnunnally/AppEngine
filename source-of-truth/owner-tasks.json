@@ -1215,6 +1215,41 @@
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "commons-give-commons-its-own-stripe-key",
+      "title": "Give Commons its own Stripe key",
+      "why": "Governments pay for Commons by card, bank, or invoice through Stripe. Stripe keys can only come from your Stripe account, and Vercel hides the existing ones so they can't be copied. Without one, sign-ups still work, but nobody can pay after the free month.",
+      "steps": [
+        "In Stripe (live mode), go to Developers, then API keys, then Create restricted key. Name it commons. Give it write access to Customers, Checkout Sessions, Prices, Products, Subscriptions, Invoices and Billing Portal",
+        "Once the commons Vercel project exists (after the repo task), add it there as STRIPE_SECRET_KEY (Production), or paste it to an agent session to add",
+        "An agent creates the webhook and its secret (docs/DEPLOY.md step 4)"
+      ],
+      "kind": "credential",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://dashboard.stripe.com/apikeys",
+      "source": "AllReposBackup PR #3",
+      "requestedBy": "Claude Code",
+      "app": "commons",
+      "addedOn": "2026-11-04"
+    },
+    {
+      "id": "commons-free-listings-for-commons-and-the-government-website-review",
+      "title": "Free listings for Commons and the Government Website Review",
+      "why": "Search engines rank pages higher when real sites point to them (playbook layer 3). Software directories that governments browse are free, but each needs an account in your name.",
+      "steps": [
+        "After Commons is live: create free vendor listings on Capterra/GetApp and G2 (category: government software), plus AlternativeTo",
+        "Use the same name, description and link everywhere: Commons, commons.unitedundergod.org; the free review at /review"
+      ],
+      "kind": "account",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://www.capterra.com/vendors/sign-up",
+      "source": "AllReposBackup PR #3",
+      "requestedBy": "Claude Code",
+      "app": "commons",
+      "addedOn": "2026-11-04"
     }
   ]
 }
