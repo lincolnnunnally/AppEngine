@@ -1202,15 +1202,15 @@
     {
       "id": "commons-pick-a-domain-for-the-free-government-website-review",
       "title": "Pick a domain for the free Government Website Review",
-      "why": "The free review page is built (/review in Commons). Its own plain domain (e.g. one with 'government website review' in it) is easier to find and to share in outreach than a page inside Commons. Buying one costs money; until then it runs free at commons.unitedundergod.org/review.",
+      "why": "The free review runs at commons.unitedundergod.org/review. A plain .com that says what it is is easier to find and to put in outreach notes. Checked available on 2026-11-04 at about $12/year each: govwebsitereview.com (recommended, for the free review) and commonsgov.com (optional, for the product). Avoid commons.city: $8 the first year, $29 to renew.",
       "steps": [
-        "Say whether to buy a dedicated domain, and which one (or tell an agent your price limit and it will list available names)",
-        "Or say 'use the subdomain' to keep it free for now"
+        "Say \"buy govwebsitereview.com\" (and commonsgov.com if you want both) to a Claude session. It buys through Vercel, points it at Commons, and redirects to the review page",
+        "Or say \"use the subdomain\" to keep it free for now"
       ],
       "kind": "money",
       "priority": "optional",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/3",
+      "link": "https://commons.unitedundergod.org/review",
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
       "app": "commons",
@@ -1219,17 +1219,18 @@
     {
       "id": "commons-give-commons-its-own-stripe-key",
       "title": "Give Commons its own Stripe key",
-      "why": "Governments pay for Commons by card, bank, or invoice through Stripe. Stripe keys can only come from your Stripe account, and Vercel hides the existing ones so they can't be copied. Without one, sign-ups still work, but nobody can pay after the free month.",
+      "why": "Governments pay for Commons by card, bank transfer, or a net-30 invoice with a PO number. Products, prices and the webhook can be made by an agent through the Stripe connection; a secret API key cannot (Stripe only lets the account owner create one). Without it, sign-ups and the free month work, but nobody can pay.",
       "steps": [
-        "In Stripe (live mode), go to Developers, then API keys, then Create restricted key. Name it commons. Give it write access to Customers, Checkout Sessions, Prices, Products, Subscriptions, Invoices and Billing Portal",
-        "Once the commons Vercel project exists (after the repo task), add it there as STRIPE_SECRET_KEY (Production), or paste it to an agent session to add",
-        "An agent creates the webhook and its secret (docs/DEPLOY.md step 4)"
+        "Recommended account: United Under God, Inc. (the company governments will contract with). In that account, live mode: Developers, API keys, Create restricted key, name it commons",
+        "Give it Write on: Customers, Checkout Sessions, Products, Prices, Subscriptions, Invoices, Customer portal. Leave everything else None",
+        "Paste the key (rk_live_...) to a Claude session, or add it yourself in Vercel project commons as STRIPE_SECRET_KEY (Production)",
+        "The agent then creates the webhook, sets STRIPE_WEBHOOK_SECRET, and confirms /api/health shows checkout: true. The five plans are created automatically on first checkout"
       ],
       "kind": "credential",
       "priority": "recommended",
       "status": "open",
-      "link": "https://dashboard.stripe.com/apikeys",
-      "source": "AllReposBackup PR #3",
+      "link": "https://dashboard.stripe.com/apikeys/create",
+      "source": "commons live at commons.unitedundergod.org",
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04"
