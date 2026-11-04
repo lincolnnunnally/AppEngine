@@ -1198,6 +1198,23 @@
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "commons-pick-a-domain-for-the-free-government-website-review",
+      "title": "Pick a domain for the free Government Website Review",
+      "why": "The free review page is built (/review in Commons). Its own plain domain (e.g. one with 'government website review' in it) is easier to find and to share in outreach than a page inside Commons. Buying one costs money; until then it runs free at commons.unitedundergod.org/review.",
+      "steps": [
+        "Say whether to buy a dedicated domain, and which one (or tell an agent your price limit and it will list available names)",
+        "Or say 'use the subdomain' to keep it free for now"
+      ],
+      "kind": "money",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/3",
+      "source": "AllReposBackup PR #3",
+      "requestedBy": "Claude Code",
+      "app": "commons",
+      "addedOn": "2026-11-04"
     }
   ]
 }
