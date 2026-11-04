@@ -817,6 +817,22 @@
       "requestedBy": "Chief of Staff (2026-11-04)",
       "app": "churchconnect",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "ideas-approve-the-ideas-auto-prepare-database-change",
+      "title": "Approve the Ideas auto-prepare database change",
+      "why": "Turns on automatic concept splitting, the Idea library, and kept audio recordings in the Ideas app (ideas-app PR #9). The agent's request to apply it is waiting on your approval in Supabase.",
+      "steps": [
+        "Reply 'go' in the Claude session and approve the Supabase prompt when it appears — OR open Supabase (Life Produces Life) → SQL Editor, paste ideas-app/supabase/migrations/20261104090000_ideas_concepts_autoprep.sql, and Run. It only adds tables/columns."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/ideas-app/pull/9",
+      "source": "ideas-app PR #9",
+      "requestedBy": "Claude (ideas-app session)",
+      "app": "ideas",
+      "addedOn": "2026-11-04"
     }
   ]
 }
