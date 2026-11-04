@@ -1157,7 +1157,7 @@
       ],
       "kind": "account",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/new",
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
