@@ -96,3 +96,11 @@ and must not be executed** — we-succeed.org is live production. Do not repoint
 domain, rebrand the factory, or change `APP_ENGINE_PUBLIC_ACCESS` targeting until
 Lincoln confirms. Recorded so the direction isn't lost and nobody hard-codes "We
 Succeed = AppEngine" as permanent.
+
+## 2026-11-05 — Remembered wood coasters are $5 each
+
+Lincoln, 2026-11-05: Remembered wood coasters are **$5 each**, and that includes
+printing/engraving on the front and the back. This replaces the proposed
+$14 / $12 / $10 tiers. Owner task `remembered-coaster-pricing-confirm` is done.
+The price hold on those tiers is lifted. This ruling does not by itself create
+Stripe products.

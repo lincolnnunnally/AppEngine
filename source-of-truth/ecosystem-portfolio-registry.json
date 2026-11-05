@@ -1601,8 +1601,8 @@
         "intendedDomain": "remembered.unitedundergod.org",
         "urlStatus": "live",
         "servingUrl": "https://remembered.unitedundergod.org",
-        "nextStep": "Public host is live. Leave Stripe hosted Checkout HOLD until coaster prices are confirmed.",
-        "note": "Early Continuity live: signup, outbox, and Operate multi-shop. Stripe hosted Checkout stays HOLD until owner task remembered-coaster-pricing-confirm locks prices. Front is the prospect mark plus a meaningful message; who this is for is system-only by default and optional on the back only, never on the front. The laser shop fulfills packs as a separate brand. Private repo lincolnnunnally/remembered. Owner desk is /admin in that repo (unsigned visitors go to /login). Production Vercel alias remembered-one.vercel.app, project remembered. No MRR recorded.",
+        "nextStep": "Public host is live. Wood coasters are $5 each, front and back printing/engraving included (Lincoln, 2026-11-05).",
+        "note": "Early Continuity live: signup, outbox, and Operate multi-shop. 2026-11-05 Lincoln: wood coasters are $5 each, front and back printing/engraving included (not $14/$12/$10). Owner task remembered-coaster-pricing-confirm is done. Front is the prospect mark plus a meaningful message; who this is for is system-only by default and optional on the back only, never on the front. The laser shop fulfills packs as a separate brand. Private repo lincolnnunnally/remembered. Owner desk is /admin in that repo (unsigned visitors go to /login). Production Vercel alias remembered-one.vercel.app, project remembered. No MRR recorded.",
         "factsFrom": "continuity-2026-11-04"
       },
       "sourceOfTruthFiles": [
@@ -1618,7 +1618,6 @@
         }
       ],
       "blockers": [
-        "Stripe hosted Checkout HOLD until wood coaster prices are confirmed (owner task remembered-coaster-pricing-confirm). Proposed tiers were $14 / $12 / $10 per coaster.",
         "Supabase Auth Redirect URLs do not yet include Remembered /login hosts (owner task remembered-supabase-auth-redirects). Confirm-email still falls through to AppEngine until Lincoln adds them."
       ],
       "evidenceLinks": [
@@ -1626,7 +1625,7 @@
         "https://remembered-one.vercel.app",
         "https://github.com/lincolnnunnally/remembered"
       ],
-      "lastUpdated": "2026-11-04T15:00:00.000Z"
+      "lastUpdated": "2026-11-05T21:30:00.000Z"
     },
     {
       "name": "WP Easy Peazy",
