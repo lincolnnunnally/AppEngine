@@ -1251,6 +1251,22 @@
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04"
+    },
+    {
+      "id": "ideas-decide-where-ideas-auto-publishes-and-how-automatically",
+      "title": "Decide where Ideas auto-publishes, and how automatically",
+      "why": "Ideas now drafts articles/devotionals from every capture but has nowhere to publish them: only ChurchConnect /articles can show a full article today; unitedundergod.org has no Writing section. Auto-publishing under your name needs your call.",
+      "steps": [
+        "Reply in the Ideas Claude session: (1) where — a) new Writing section on unitedundergod.org + ChurchConnect articles [recommended], b) UUG only, c) ChurchConnect only; (2) how automatic — a) auto-publish after a 12-hour hold you can stop [recommended], b) immediately, c) only when you tap Ready."
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://ideas.unitedundergod.org/concepts",
+      "source": "ideas-app #14 follow-up",
+      "requestedBy": "Claude (ideas-app session)",
+      "app": "ideas",
+      "addedOn": "2026-11-05"
     }
   ]
 }
