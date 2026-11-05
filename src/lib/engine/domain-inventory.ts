@@ -29,7 +29,7 @@ export type DomainRecord = {
 // 2026-07-09). Rendered as one-click "add to inventory" suggestions, NOT auto-written.
 export const KNOWN_DOMAIN_SEEDS: ReadonlyArray<Omit<DomainRecord, "updatedAt" | "nameServers">> = [
   { domain: "unitedundergod.org", registrar: "Spaceship", dnsHost: "Cloudflare", appSlug: "united-under-god", status: "live (WordPress + app subdomains)", expiresOn: null, notes: "NS moved to Cloudflare 2026-07; WP + mail stay on DreamHost hosts" },
-  { domain: "we-succeed.org", registrar: "Spaceship", dnsHost: "Vercel", appSlug: "appengine", status: "live (to be repurposed)", expiresOn: null, notes: "Owner: will be used for something else; cockpit moves to appengine.unitedundergod.org" },
+  { domain: "we-succeed.org", registrar: "Spaceship", dnsHost: "Cloudflare", appSlug: "we-succeed", status: "repurposing", expiresOn: null, notes: "Owner decision 2026-11-05: We Succeed consulting/services door (uug-succeed project). Not App Engine. DNS in second Cloudflare account." },
   { domain: "churchconnect.cloud", registrar: "Spaceship", dnsHost: "Vercel", appSlug: "churchconnect", status: "live", expiresOn: null, notes: "" },
   { domain: "kidsneeddad.com", registrar: "eNom", dnsHost: "Netlify", appSlug: "kids-need-dads", status: "live (Netlify)", expiresOn: "2027-03-01", notes: "Singular; the plural kidsneeddads.com was never ours" },
   { domain: "easypeazy.site", registrar: "Spaceship", dnsHost: "Cloudflare", appSlug: "easy-peasy-website", status: "live", expiresOn: null, notes: "" },

@@ -320,11 +320,10 @@
     {
       "id": "opportunity-packaging",
       "app": "opportunity",
-      "title": "Decide how Opportunity is packaged and whether we-succeed.org becomes Pulse's home",
-      "why": "Opportunity's own-app build and the repurposing of we-succeed.org are both waiting on product direction. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "title": "Decide how Opportunity is packaged",
+      "why": "Opportunity's own-app build is waiting on product direction. (we-succeed.org was decided 2026-11-05: it is the We Succeed consulting/services door.)",
       "steps": [
-        "Confirm how Opportunity should ship as its own app",
-        "Say what we-succeed.org should become"
+        "Confirm how Opportunity should ship as its own app"
       ],
       "kind": "decision",
       "priority": "optional",
@@ -1266,6 +1265,24 @@
       "source": "ideas-app #14 follow-up",
       "requestedBy": "Claude (ideas-app session)",
       "app": "ideas",
+      "addedOn": "2026-11-05"
+    },
+    {
+      "id": "we-succeed-vercel-release",
+      "title": "Remove we-succeed.org from the AppEngine Vercel project",
+      "why": "You decided we-succeed.org is the We Succeed consulting and services door, not AppEngine. Vercel won't let agents move the domain while the app-engine project still holds it, and agent tools can't remove it.",
+      "steps": [
+        "Open the app-engine project's Domains settings (link below)",
+        "Remove we-succeed.org and www.we-succeed.org (nothing is served there today, so nothing breaks)",
+        "Tell an agent; it adds both to the uug-succeed project"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://vercel.com/life-produces-life/app-engine/settings/domains",
+      "source": "Owner decision in chat, 2026-11-05",
+      "requestedBy": "Claude (Remembered / We Succeed session 2026-11-05)",
+      "app": "we-succeed",
       "addedOn": "2026-11-05"
     }
   ]
