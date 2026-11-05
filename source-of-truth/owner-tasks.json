@@ -721,7 +721,7 @@
       ],
       "kind": "credential",
       "priority": "optional",
-      "status": "open",
+      "status": "done",
       "link": "https://dash.cloudflare.com/profile/api-tokens",
       "source": "Google indexing audit, 2026-11-03",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
