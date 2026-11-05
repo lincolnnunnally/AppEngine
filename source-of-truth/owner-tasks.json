@@ -1288,17 +1288,17 @@
     },
     {
       "id": "we-succeed-entity-structure",
-      "title": "Ask a CPA or attorney how We Succeed should take money: under the United Under God 501(c)(3) or as its own LLC",
-      "why": "United Under God is the only registered entity. Selling websites, consulting, engraving and software for profit through a 501(c)(3) can create unrelated-business income tax and, if it grows large, put the exemption at risk. Decide the structure before the first real invoice so revenue lands in the right place.",
+      "title": "Put We Succeed under the right entity (likely Helping You Succeed): rename it or file a DBA",
+      "why": "We Succeed's paid services (websites, consulting, engraving, software) should be billed by a for-profit entity, not the United Under God 501(c)(3). Lincoln has several entities, likely including one named Helping You Succeed, so the fix is a name, not a new company.",
       "steps": [
-        "Book a short call with a CPA or nonprofit attorney (Georgia)",
-        "Ask: can We Succeed run as a DBA of United Under God, or should paid services sit in an LLC that gives to the nonprofit?",
-        "Tell an agent the answer; it updates the sites, Stripe accounts and invoices to match"
+        "Confirm which entity should own We Succeed (Helping You Succeed?) and what type it is (LLC, etc.)",
+        "Either rename that entity to We Succeed, or register 'We Succeed' as a trade name (DBA) for it with your county's Clerk of Superior Court",
+        "Tell an agent the legal name; it puts that name in the site footer, invoices and Stripe so payments land in the right place"
       ],
       "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://www.irs.gov/charities-non-profits/unrelated-business-income-tax",
+      "link": null,
       "source": "Owner question in chat, 2026-11-05",
       "requestedBy": "Claude (Remembered / We Succeed session 2026-11-05)",
       "app": "we-succeed",
