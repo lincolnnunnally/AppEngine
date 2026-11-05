@@ -8,10 +8,26 @@ export const maxDuration = 60;
 
 // One-shot allowlist mint: add-only CNAME to Vercel, then make sure a cert exists.
 // Add-only: existing DNS records are never updated or deleted.
-// Commons (2026-11-04): commons.unitedundergod.org is already attached to the
-// Vercel project `commons`; this run only adds its DNS record and checks the cert.
-const HOSTS = [{ label: "commons", zone: "unitedundergod.org", project: "commons" }] as const;
-const NONCE = "uug-mint-2026-11-04-commons-7f3k";
+// Vidalia Pro (2026-11-05): every vidalia.pro subdomain below is already attached to
+// the Vercel project `operate`; none had a DNS record. handyman. and signs. are the
+// one-business lead sites (operate PR #101); the rest are the trade pages.
+const HOSTS = [
+  { label: "handyman", zone: "vidalia.pro", project: "operate" },
+  { label: "signs", zone: "vidalia.pro", project: "operate" },
+  { label: "pressure-washing", zone: "vidalia.pro", project: "operate" },
+  { label: "painting", zone: "vidalia.pro", project: "operate" },
+  { label: "flooring", zone: "vidalia.pro", project: "operate" },
+  { label: "plumbing", zone: "vidalia.pro", project: "operate" },
+  { label: "appliance-install", zone: "vidalia.pro", project: "operate" },
+  { label: "tv-mounting", zone: "vidalia.pro", project: "operate" },
+  { label: "finish-carpentry", zone: "vidalia.pro", project: "operate" },
+  { label: "roofing", zone: "vidalia.pro", project: "operate" },
+  { label: "remodeling", zone: "vidalia.pro", project: "operate" },
+  { label: "junk-removal", zone: "vidalia.pro", project: "operate" },
+  { label: "lawn-care", zone: "vidalia.pro", project: "operate" },
+  { label: "tennis", zone: "vidalia.pro", project: "operate" }
+] as const;
+const NONCE = "uug-mint-2026-11-05-vidalia-pro-q8m2";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;

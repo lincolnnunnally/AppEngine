@@ -23,7 +23,9 @@ export const ECOSYSTEM_ZONE_NAME = "unitedundergod.org";
 // Other zones in the same Cloudflare account this adapter may add to. Same
 // add-only rules apply. easypeazy.site carries the EasyPeazy product hosts
 // (wp.easypeazy.site = WP Easy Peazy, owner decision 2026-11-03).
-export const ALLOWED_ZONES = new Set([ECOSYSTEM_ZONE_NAME, "easypeazy.site"]);
+// vidalia.pro carries the Vidalia Pro trade pages and one-business lead sites
+// (handyman., signs.), all served by the Vercel project `operate` (2026-11-05).
+export const ALLOWED_ZONES = new Set([ECOSYSTEM_ZONE_NAME, "easypeazy.site", "vidalia.pro"]);
 // Vercel's universal CNAME target — the grey-cloud (DNS-only) record the host asks for.
 const VERCEL_CNAME_TARGET = "cname.vercel-dns.com";
 
