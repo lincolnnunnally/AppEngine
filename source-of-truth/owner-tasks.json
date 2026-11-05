@@ -1303,6 +1303,25 @@
       "requestedBy": "Claude (Remembered / We Succeed session 2026-11-05)",
       "app": "we-succeed",
       "addedOn": "2026-11-05"
+    },
+    {
+      "id": "operate-send-the-details-for-the-handyman-and-sign-company-websites-handyman-vid",
+      "title": "Send the details for the handyman and sign company websites (handyman.vidalia.pro, signs.vidalia.pro)",
+      "why": "The sites can't go live with a made-up name or phone number, and leads need a real phone and email to land on.",
+      "steps": [
+        "Handyman: his name, business name (or none), cell for texts, email, and the towns he'll drive to",
+        "Sign company: business name, owner name, cell, email, Baxley address or none, and the kinds of signs he makes",
+        "Say whether leads go straight to each of them, or to you first",
+        "Optional: 3-10 photos of their real work (text them to yourself and drop them in the chat)"
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://vidalia.pro/",
+      "source": "chat 2026-11-05: friend lead sites",
+      "requestedBy": "Claude Code",
+      "app": "operate",
+      "addedOn": "2026-11-05"
     }
   ]
 }
