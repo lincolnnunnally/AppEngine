@@ -712,15 +712,15 @@
     },
     {
       "id": "cloudflare-second-account-token",
-      "title": "Give agents a Cloudflare token for the account holding vidalia.pro, we-succeed.org and backoffice.works",
-      "why": "Those three domains are in a different Cloudflare account (nameservers alfred/sue) than the token agents hold, so agents can't add the records that make them load and get indexed.",
+      "title": "Give agents a Cloudflare token for the account holding vidalia.pro and backoffice.works",
+      "why": "Those domains are in a different Cloudflare account (nameservers alfred/sue) than the token agents hold, so agents can't add the records that make them load and get indexed. (we-succeed.org was set by hand on 2026-11-05 and is live.)",
       "steps": [
         "Log in to the Cloudflare account that has vidalia.pro",
-        "My Profile → API Tokens → Create Token → Edit zone DNS → Zone resources: include those three zones",
+        "My Profile → API Tokens → Create Token → Edit zone DNS → Zone resources: include vidalia.pro and backoffice.works (add we-succeed.org too so agents can maintain it)",
         "Save it on the dashboard Keys page as CLOUDFLARE_API_TOKEN_2 and tell an agent"
       ],
       "kind": "credential",
-      "priority": "recommended",
+      "priority": "optional",
       "status": "open",
       "link": "https://dash.cloudflare.com/profile/api-tokens",
       "source": "Google indexing audit, 2026-11-03",
