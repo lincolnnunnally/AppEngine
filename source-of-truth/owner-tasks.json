@@ -508,7 +508,7 @@
       "id": "operate-preview-database",
       "app": "operate",
       "title": "Claim or create a free Neon database for Operate previews",
-      "why": "The claimable preview database expired 2026-10-09 unless claimed, so previews run read-only. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "The claimable preview database expired 2026-10-09 unless claimed, so previews run read-only. (The sweep could not confirm this is still open. If it's already done, click Not doing this.) (Done by an agent 2026-11-05: free Neon project Operate-Preview (plain-fog-92893846), PREVIEW_DATABASE_URL set on operate Preview only; a fresh preview reports 46/46 migrations, 57 tables in schema operate.)",
       "steps": [
         "Neon → create a free project or claim sparkling-butterfly-56155036",
         "Give the URL to an agent for PREVIEW_DATABASE_URL (Preview only)"
@@ -519,7 +519,7 @@
       "source": "operate/README.md (last changed 2026-10-16)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "done"
     },
     {
       "id": "snip-show-host-and-oauth",
@@ -559,7 +559,7 @@
       "id": "toner-management-com-dns",
       "app": "toner-management",
       "title": "Look at toner-management.com's two A records",
-      "why": "The handoff says you will look at this yourself, so agents were told not to touch it. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "The handoff says you will look at this yourself, so agents were told not to touch it. (The sweep could not confirm this is still open. If it's already done, click Not doing this.) (Checked by an agent 2026-11-05: both A records are Vercel; Vercel reports the domain configured. Nothing to change.)",
       "steps": [
         "Check which host each A record points at and keep the right one"
       ],
@@ -569,7 +569,7 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_GROK_CHAMBER_PROSPECTS.md (last changed 2026-10-23)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "done"
     },
     {
       "id": "church-data-csv-copy",
@@ -631,6 +631,7 @@
         "Copy the PRIVATE key, plus the server host name, cPanel username and home folder (cPanel shows these on its right-hand panel)",
         "Copy the hosting nameservers (Spaceship → Hosting → nameservers, two values like ns1…, ns2…)",
         "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add CPANEL_SSH_KEY, CPANEL_HOST, CPANEL_USER, CPANEL_HOME and WP_HOSTING_NAMESERVERS (comma-separated)",
+        "In the same GitHub secrets page, also add the six keys WP Easy Peazy reuses from Vercel project easypeazy-api: SUPABASE_DB_URL, SPACESHIP_API_KEY, SPACESHIP_API_SECRET, OPENAI_API_KEY, RESEND_API_KEY, SENDER_EMAIL (Vercel → easypeazy-api → Settings → Environment Variables → reveal each)",
         "Tell an agent: it runs one real test build, then turns paid sign-ups on"
       ],
       "kind": "credential",
@@ -662,14 +663,14 @@
     {
       "id": "wp-easypeazy-copy-keys-to-github",
       "title": "Copy six existing keys from Vercel into the EasyPeazy repo's GitHub secrets",
-      "why": "The WP Easy Peazy build job runs on GitHub, not Vercel, so it needs its own copy of keys you already have. Agents have no tool that can write GitHub secrets.",
+      "why": "Folded into wp-easypeazy-hosting-ssh (2026-11-05): agents cannot write GitHub secrets, and these six keys unblock nothing until the hosting SSH key and Elegant Themes key exist. Do them in the same GitHub visit.",
       "steps": [
         "Vercel → easypeazy-api → Settings → Environment Variables: reveal and copy SUPABASE_DB_URL (or the database URL it uses), SPACESHIP_API_KEY, SPACESHIP_API_SECRET, OPENAI_API_KEY, RESEND_API_KEY and SENDER_EMAIL",
         "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → add each one under the same name"
       ],
       "kind": "other",
       "priority": "blocker",
-      "status": "open",
+      "status": "dismissed",
       "link": "https://github.com/lincolnnunnally/easypeazy/settings/secrets/actions",
       "source": "easypeazy PR #144",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
@@ -732,13 +733,13 @@
     {
       "id": "github-claude-app-easypeazy",
       "title": "Let the Claude GitHub app see the easypeazy repo",
-      "why": "Agents get CI and review notices on most repos, but not easypeazy, so a failed check there goes unseen until someone looks.",
+      "why": "Agents get CI and review notices on most repos, but not easypeazy, so a failed check there goes unseen until someone looks. (Verified 2026-11-05: agents can read and push lincolnnunnally/easypeazy.)",
       "steps": [
         "Open the link → choose your account → Repository access → add lincolnnunnally/easypeazy → Save"
       ],
       "kind": "account",
       "priority": "optional",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/apps/claude/installations/select_target",
       "source": "easypeazy PR #144",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
@@ -748,13 +749,10 @@
     {
       "id": "remembered-supabase-auth-redirects",
       "title": "Add Remembered /login hosts to Supabase Auth Redirect URLs",
-      "why": "Confirm-email / signup soft-check still lands on AppEngine until the allowlist includes Remembered hosts; MCP cannot write Redirect URLs.",
+      "why": "Agents can change the shared Supabase database but not its sign-in settings: that needs a Supabase account access token, and none exists. Until one of the two options below is done, Remembered's sign-up confirmation emails land on App Engine instead of Remembered (the account still confirms; the person just lands on the wrong site).",
       "steps": [
-        "Open Supabase project uqhqulrqcygsmmzdzemx, then Authentication, then URL Configuration, then Redirect URLs.",
-        "Add https://remembered.unitedundergod.org/login",
-        "Add https://remembered-one.vercel.app/login (production alias on Vercel project remembered, confirmed 2026-11-04).",
-        "If Site URL still points at AppEngine, set it to https://remembered.unitedundergod.org",
-        "Tell CoS when done."
+        "EITHER (2 minutes, fixes only this): supabase.com → project uqhqulrqcygsmmzdzemx → Authentication → URL Configuration → Redirect URLs → add https://remembered.unitedundergod.org/login and https://remembered-one.vercel.app/login",
+        "OR (2 minutes, fixes this and every future sign-in setting ask): supabase.com/dashboard/account/tokens → Generate new token, name it 'agents' → give it to an agent through the secure credential form (never in chat). Agents then handle redirect URLs, providers and email settings themselves"
       ],
       "kind": "credential",
       "priority": "blocker",
