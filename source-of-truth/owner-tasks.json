@@ -624,15 +624,14 @@
     },
     {
       "id": "wp-easypeazy-hosting-ssh",
-      "title": "Put the Spaceship hosting SSH key into the EasyPeazy repo so WP Easy Peazy can build sites",
-      "why": "WP Easy Peazy (wp.easypeazy.site) is live but only takes a waiting list. The build job that installs WordPress and Divi on the Spaceship hosting account can't log in without this, so paid sign-ups stay off.",
+      "title": "Give the WP Easy Peazy build job its keys (one GitHub visit)",
+      "why": "WP Easy Peazy (wp.easypeazy.site) only takes a waiting list until this is done. The build job runs on GitHub, not Vercel, so it needs its own copy of a few keys. Agents have no tool that can write GitHub secrets.",
       "steps": [
-        "Spaceship → Hosting → cPanel → SSH Access → Manage SSH Keys → Generate a new key (or use an existing one) and Authorize it",
-        "Copy the PRIVATE key, plus the server host name, cPanel username and home folder (cPanel shows these on its right-hand panel)",
-        "Copy the hosting nameservers (Spaceship → Hosting → nameservers, two values like ns1…, ns2…)",
-        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add CPANEL_SSH_KEY, CPANEL_HOST, CPANEL_USER, CPANEL_HOME and WP_HOSTING_NAMESERVERS (comma-separated)",
-        "In the same GitHub secrets page, also add the six keys WP Easy Peazy reuses from Vercel project easypeazy-api: SUPABASE_DB_URL, SPACESHIP_API_KEY, SPACESHIP_API_SECRET, OPENAI_API_KEY, RESEND_API_KEY, SENDER_EMAIL (Vercel → easypeazy-api → Settings → Environment Variables → reveal each)",
-        "Tell an agent: it runs one real test build, then turns paid sign-ups on"
+        "Spaceship → Hosting → cPanel → SSH Access → Manage SSH Keys → generate a key and Authorize it. Copy the PRIVATE key, plus the server host name, cPanel username and home folder (shown on cPanel's right-hand panel). Also copy the two hosting nameservers (ns1…, ns2…).",
+        "Spaceship → API Manager → create a NEW API key with domain read and write access. Copy its key and secret. (You need a new one because Vercel has the existing secret locked: it is marked Sensitive and can't be shown.)",
+        "Vercel → project easypeazy-api → Settings → Environment Variables. Click the eye next to each of these and copy the value: SUPABASE_DB_URL, OPENAI_API_KEY, RESEND_API_KEY, ELEGANT_THEMES_USERNAME, ELEGANT_THEMES_API_KEY. (easypeazy-api is the right project even though its home page is plain text. It is the back end; easypeazy-web is the website and has none of these keys.)",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add each under these exact names: CPANEL_SSH_KEY, CPANEL_HOST, CPANEL_USER, CPANEL_HOME, WP_HOSTING_NAMESERVERS (both, comma-separated), SPACESHIP_API_KEY, SPACESHIP_API_SECRET (the new pair from step 2), SUPABASE_DB_URL, OPENAI_API_KEY, RESEND_API_KEY, ELEGANT_THEMES_USERNAME, ELEGANT_THEMES_API_KEY.",
+        "Mark this done. An agent then runs one real test build and turns paid sign-ups on."
       ],
       "kind": "credential",
       "priority": "blocker",
@@ -641,19 +640,20 @@
       "source": "easypeazy PR #144",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "easy-peasy-website",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "updatedOn": "2026-11-05"
     },
     {
       "id": "wp-easypeazy-elegant-themes-key",
       "title": "Add your Elegant Themes username and API key to the EasyPeazy repo (Divi for WP Easy Peazy)",
-      "why": "Each WP Easy Peazy site downloads and licenses Divi with your Elegant Themes account. Without the key the build job stops before installing Divi.",
+      "why": "Not needed as a separate step (2026-11-05): your Elegant Themes username and API key are already in Vercel easypeazy-api. Copying them to GitHub is now part of wp-easypeazy-hosting-ssh.",
       "steps": [
         "elegantthemes.com → Members Area → Account → API Key → copy your username and the API key",
         "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → add ELEGANT_THEMES_USERNAME and ELEGANT_THEMES_API_KEY"
       ],
       "kind": "credential",
       "priority": "blocker",
-      "status": "open",
+      "status": "dismissed",
       "link": "https://www.elegantthemes.com/members-area/api/",
       "source": "easypeazy PR #144",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
@@ -663,7 +663,7 @@
     {
       "id": "wp-easypeazy-copy-keys-to-github",
       "title": "Copy six existing keys from Vercel into the EasyPeazy repo's GitHub secrets",
-      "why": "Folded into wp-easypeazy-hosting-ssh (2026-11-05): agents cannot write GitHub secrets, and these six keys unblock nothing until the hosting SSH key and Elegant Themes key exist. Do them in the same GitHub visit.",
+      "why": "Replaced 2026-11-05 by the corrected wp-easypeazy-hosting-ssh. Two of the six keys listed here can't be copied: SPACESHIP_API_SECRET and SENDER_EMAIL are locked in Vercel. SENDER_EMAIL isn't needed at all.",
       "steps": [
         "Vercel → easypeazy-api → Settings → Environment Variables: reveal and copy SUPABASE_DB_URL (or the database URL it uses), SPACESHIP_API_KEY, SPACESHIP_API_SECRET, OPENAI_API_KEY, RESEND_API_KEY and SENDER_EMAIL",
         "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → add each one under the same name"
