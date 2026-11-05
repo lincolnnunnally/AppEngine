@@ -1261,7 +1261,7 @@
       ],
       "kind": "decision",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://ideas.unitedundergod.org/concepts",
       "source": "ideas-app #14 follow-up",
       "requestedBy": "Claude (ideas-app session)",
