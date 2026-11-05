@@ -53,7 +53,14 @@ async function vercel(path: string, init?: RequestInit) {
 async function ensureCert(fqdn: string) {
   const list = await vercel(`/v8/certs?domain=${encodeURIComponent(fqdn)}`);
   const data = (await list.json().catch(() => ({}))) as { certs?: unknown[] };
-  const certs = Array.isArray(data.certs) ? data.certs : Array.isArray(data) ? (data as unknown[]) : [];
+  const all = Array.isArray(data.certs) ? data.certs : Array.isArray(data) ? (data as unknown[]) : [];
+  // The list is not filtered by `domain`: it returns the team's certs. Only a cert
+  // naming this exact host counts (2026-11-05: "already has a cert" was reported
+  // for 14 vidalia.pro hosts that had none, and they failed TLS until issued).
+  const certs = all.filter((c) => {
+    const cns = (c as { cns?: unknown }).cns;
+    return Array.isArray(cns) && cns.some((n) => String(n).toLowerCase() === fqdn.toLowerCase());
+  });
   if (certs.length > 0) {
     return { ok: true, issued: false, message: `${fqdn} already has a cert.` };
   }
