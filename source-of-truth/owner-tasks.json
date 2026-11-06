@@ -698,13 +698,12 @@
     },
     {
       "id": "wp-easypeazy-hosting-ssh",
-      "title": "Finish the WP Easy Peazy build keys (7 GitHub secrets left)",
-      "why": "The hosting part is already done: the cPanel key, host, user, folder and nameservers are in GitHub. The hourly build still says keys are missing, so wp.easypeazy.site only takes a waiting list.",
+      "title": "One key left for the WP Easy Peazy build job: SUPABASE_DB_URL",
+      "why": "You added 11 of the 12 keys correctly (verified by a test run on 2026-11-06). The build job still sees SUPABASE_DB_URL as empty, so it can't read orders yet. Usually the name is spelled a little differently, or it was saved under the Variables tab instead of Secrets.",
       "steps": [
-        "Spaceship → API Manager → create a NEW API key with domain read and write. Copy the key and secret. Do NOT delete the old key, EasyPeazy uses it.",
-        "Vercel → easypeazy-api → Settings → Environment Variables: click the eye and copy SUPABASE_DB_URL, OPENAI_API_KEY, RESEND_API_KEY, ELEGANT_THEMES_API_KEY. ELEGANT_THEMES_USERNAME is shown in plain text.",
-        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add only these 7: SUPABASE_DB_URL, ELEGANT_THEMES_USERNAME, ELEGANT_THEMES_API_KEY, OPENAI_API_KEY, RESEND_API_KEY, SPACESHIP_API_KEY, SPACESHIP_API_SECRET. Leave the CPANEL_* and WP_HOSTING_NAMESERVERS secrets as they are.",
-        "Mark this done. An agent checks the next hourly run, does one real test build, then turns paid sign-ups on."
+        "Vercel → project easypeazy-api → Settings → Environment Variables → SUPABASE_DB_URL → click the eye and copy the value (it starts with postgresql://)",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → Secrets tab (not Variables) → New repository secret. Name it exactly SUPABASE_DB_URL and paste the value",
+        "Mark this done. An agent then runs a test build and turns paid sign-ups on"
       ],
       "kind": "credential",
       "priority": "blocker",
@@ -714,7 +713,7 @@
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "easy-peasy-website",
       "addedOn": "2026-11-04",
-      "updatedOn": "2026-11-05",
+      "updatedOn": "2026-11-06",
       "verifiedOn": "2026-11-06",
       "verifiedHow": "GitHub Actions run 42215439974: CPANEL_* set; 7 keys missing; easypeazy-api vars revealable except Spaceship (2026-11-06)"
     },
