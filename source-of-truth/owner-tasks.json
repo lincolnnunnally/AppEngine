@@ -1488,6 +1488,26 @@
       "verifiedHow": "Checked 2026-11-06: /deep-dive page takes requests with price null (src/lib/groundwork/brand.ts DEEP_DIVE_PRICE_USD); no data source is wired.",
       "app": "groundwork",
       "addedOn": "2026-11-06"
+    },
+    {
+      "id": "laser-engrave-market-set-prices-for-the-thankful-sign-merry-christmas-word-paint",
+      "title": "Set prices for the Thankful sign, Merry Christmas word, paint-your-own turkey and nativity set",
+      "why": "These four seasonal gifts (business name engraved on the back) are built and appear on every catalog page once each has a price. Prices are your call. The ornaments are already priced ($4 layered, $3 single-layer, 50 cents off from 51, $1 off from 100).",
+      "steps": [
+        "Open laser.engrave.market/admin → Products",
+        "Find SIGN-WORD-THANKFUL, WORD-CUT-MERRYXMAS, KIDS-PAINT-TURKEY and NATIVITY-SET",
+        "Enter a price for each (volume prices optional), then turn it on"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://laser.engrave.market/admin",
+      "source": "LaserEngraving PR #145",
+      "requestedBy": "Claude (LaserEngraving session)",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Queried products on 2026-11-06: all four rows exist, active=false, base_price 0; a page shows only active products. Prices are a product decision the owner asked to set in Admin -> Products.",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-06"
     }
   ]
 }
