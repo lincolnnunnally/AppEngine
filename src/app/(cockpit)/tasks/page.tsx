@@ -1,7 +1,24 @@
 import { redirect } from "next/navigation";
 import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { listOwnerTasks, ownerTaskFileErrors } from "@/lib/engine/owner-tasks";
-import { countTasks, isActiveStatus, KIND_LABEL, PRIORITY_LABEL, type OwnerTask, type OwnerTaskPriority } from "@/lib/engine/owner-tasks-core";
+import {
+  countTasks,
+  isActiveStatus,
+  KIND_LABEL,
+  needsCheck,
+  OWNER_TASK_KINDS,
+  PRIORITY_LABEL,
+  SORT_LABEL,
+  SORT_MODES,
+  sortTasksBy,
+  taskLinkLabel,
+  STATUS_LABEL,
+  VERIFIED_FRESH_DAYS,
+  type OwnerTask,
+  type OwnerTaskKind,
+  type OwnerTaskPriority,
+  type OwnerTaskSort
+} from "@/lib/engine/owner-tasks-core";
 import { getCredentialAttentionItems, type CredentialAttentionItem } from "@/lib/engine/ecosystem-credential-registry";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { OwnerTaskActions, OwnerTaskAddForm } from "@/components/engine/owner-task-actions";
@@ -13,14 +30,20 @@ export const dynamic = "force-dynamic";
 // API (source-of-truth/owner-task-queue.md). Keys only he can create are read
 // live from the credential registry and shown here too, so there is ONE list.
 
-function TaskCard({ task, appName }: { task: OwnerTask; appName: string }) {
+function dayLabel(day: string): string {
+  const date = new Date(`${day}T12:00:00Z`);
+  return Number.isFinite(date.getTime()) ? date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : day;
+}
+
+function TaskCard({ task, appName, now }: { task: OwnerTask; appName: string; now: Date }) {
   const active = isActiveStatus(task.status);
   const tagClass = task.priority === "blocker" ? "dx-tag dx-tag--alert" : task.priority === "recommended" ? "dx-tag dx-tag--warn" : "dx-tag";
+  const unchecked = needsCheck(task, now);
   return (
     // The desk panel deep-links here with #<id>, so each card is an anchor.
     <article className="inbox-card owner-task-card" id={task.id} data-status={task.status}>
       <p className="dx-label">
-        <span className={tagClass}>{active ? PRIORITY_LABEL[task.priority] : task.status === "done" ? "Done" : "Not doing"}</span>{" "}
+        <span className={tagClass}>{active ? PRIORITY_LABEL[task.priority] : STATUS_LABEL[task.status]}</span>{" "}
         {task.appSlug === "ecosystem" ? (
           "All apps"
         ) : (
@@ -30,7 +53,7 @@ function TaskCard({ task, appName }: { task: OwnerTask; appName: string }) {
         )}
         {" · "}
         {KIND_LABEL[task.kind]}
-        {task.status === "waiting" ? " · started, waiting on someone" : ""}
+        {task.status === "waiting" ? (task.kind === "decision" && task.ownerNote ? " · answered, an agent is acting on it" : " · started, waiting on someone") : ""}
       </p>
       <h3>{task.title}</h3>
       {task.why ? <p className="dx-note">{task.why}</p> : null}
@@ -41,6 +64,23 @@ function TaskCard({ task, appName }: { task: OwnerTask; appName: string }) {
           ))}
         </ol>
       ) : null}
+      {active ? (
+        unchecked ? (
+          <p className="owner-task-check owner-task-check--warn">
+            {task.verifiedOn
+              ? `Last double-checked ${dayLabel(task.verifiedOn)}, more than ${VERIFIED_FRESH_DAYS} days ago.`
+              : "No agent has double-checked this against the real setting yet."}{" "}
+            Read the steps with care. If anything is off, tap <b>This is wrong</b>.
+          </p>
+        ) : (
+          <p className="owner-task-check owner-task-check--ok">
+            ✓ Double-checked {dayLabel(task.verifiedOn!)}
+            {task.verifiedHow ? `: ${task.verifiedHow}` : ""}
+          </p>
+        )
+      ) : null}
+      {task.ownerNote && task.status !== "wrong" ? <p className="dx-note owner-task-answer">You said: {task.ownerNote}</p> : null}
+      {task.status === "wrong" ? <p className="dx-note owner-task-answer">{task.ownerNote}</p> : null}
       {task.link && active ? (
         <p style={{ marginTop: 8 }}>
           <a
@@ -49,7 +89,7 @@ function TaskCard({ task, appName }: { task: OwnerTask; appName: string }) {
             target={task.link.startsWith("/") ? undefined : "_blank"}
             rel="noreferrer"
           >
-            Do it here {task.link.startsWith("/") ? "→" : "↗"}
+            {taskLinkLabel(task.link)}
           </a>
         </p>
       ) : null}
@@ -59,7 +99,7 @@ function TaskCard({ task, appName }: { task: OwnerTask; appName: string }) {
         {task.source ? ` · ${task.source}` : ""}
         {task.doneAt && !active ? ` · closed ${new Date(task.doneAt).toLocaleDateString("en-US")}` : ""}
       </p>
-      <OwnerTaskActions id={task.id} status={task.status} ownerNote={task.ownerNote} />
+      <OwnerTaskActions id={task.id} status={task.status} ownerNote={task.ownerNote} kind={task.kind} />
     </article>
   );
 }
@@ -89,6 +129,14 @@ function isPriority(value: string): value is OwnerTaskPriority {
   return (PRIORITY_ORDER as string[]).includes(value);
 }
 
+function isKind(value: string): value is OwnerTaskKind {
+  return (OWNER_TASK_KINDS as readonly string[]).includes(value);
+}
+
+function isSort(value: string): value is OwnerTaskSort {
+  return (SORT_MODES as readonly string[]).includes(value);
+}
+
 // Everything a person might remember a task by: its words, its steps, the app
 // it belongs to, who asked. Every search term has to appear somewhere, so
 // "facebook churchconnect" narrows rather than widens.
@@ -114,7 +162,7 @@ function taskMatches(task: OwnerTask, terms: string[], appName: string): boolean
 export default async function OwnerTasksPage({
   searchParams
 }: {
-  searchParams: Promise<{ app?: string; show?: string; q?: string; priority?: string }>;
+  searchParams: Promise<{ app?: string; show?: string; q?: string; priority?: string; kind?: string; sort?: string; check?: string }>;
 }) {
   if (!(await canAccessEngineAdmin())) redirect("/");
   const params = await searchParams;
@@ -123,15 +171,23 @@ export default async function OwnerTasksPage({
   const query = (params.q || "").trim().slice(0, 120);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const priority = params.priority && isPriority(params.priority) ? params.priority : null;
+  const kind = params.kind && isKind(params.kind) ? params.kind : null;
+  const sort: OwnerTaskSort = params.sort && isSort(params.sort) ? params.sort : "importance";
+  const uncheckedOnly = params.check === "needed";
+  const now = new Date();
 
   // Every filter link keeps the others, so narrowing by importance never
   // silently drops the search or the app the owner already picked.
-  const tasksHref = (next: { app?: string | null; show?: string | null; q?: string | null; priority?: string | null }) => {
+  type Next = { app?: string | null; show?: string | null; q?: string | null; priority?: string | null; kind?: string | null; sort?: string | null; check?: string | null };
+  const tasksHref = (next: Next) => {
     const merged = {
       app: next.app === undefined ? slug : next.app,
       show: next.show === undefined ? (showClosed ? "closed" : "") : next.show,
       q: next.q === undefined ? query : next.q,
-      priority: next.priority === undefined ? priority : next.priority
+      priority: next.priority === undefined ? priority : next.priority,
+      kind: next.kind === undefined ? kind : next.kind,
+      sort: next.sort === undefined ? (sort === "importance" ? "" : sort) : next.sort,
+      check: next.check === undefined ? (uncheckedOnly ? "needed" : "") : next.check
     };
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(merged)) {
@@ -153,16 +209,25 @@ export default async function OwnerTasksPage({
   const scoped = slug ? allTasks.filter((task) => task.appSlug === slug) : allTasks;
   const inView = scoped.filter((task) => (showClosed ? !isActiveStatus(task.status) : isActiveStatus(task.status)));
   const searched = inView.filter((task) => taskMatches(task, terms, nameFor(task.appSlug)));
-  const shown = priority ? searched.filter((task) => task.priority === priority) : searched;
+  const narrowed = searched
+    .filter((task) => (kind ? task.kind === kind : true))
+    .filter((task) => (uncheckedOnly ? needsCheck(task, now) : true));
+  const shown = sortTasksBy(priority ? narrowed.filter((task) => task.priority === priority) : narrowed, sort, nameFor);
+  const byKind = Object.fromEntries(OWNER_TASK_KINDS.map((value) => [value, searched.filter((task) => task.kind === value).length])) as Record<
+    OwnerTaskKind,
+    number
+  >;
   // Counts per level of importance, over what the search left — so each chip
   // says how many it will show before it is clicked.
   const byPriority = Object.fromEntries(
-    PRIORITY_ORDER.map((level) => [level, searched.filter((task) => task.priority === level).length])
+    PRIORITY_ORDER.map((level) => [level, narrowed.filter((task) => task.priority === level).length])
   ) as Record<OwnerTaskPriority, number>;
   const groups = PRIORITY_ORDER.map((level) => ({ level, tasks: shown.filter((task) => task.priority === level) })).filter(
     (group) => group.tasks.length > 0
   );
-  const filtering = Boolean(query) || Boolean(priority);
+  const filtering = Boolean(query) || Boolean(priority) || Boolean(kind) || uncheckedOnly;
+  // Grouped by importance only when sorted by importance; any other order is one list.
+  const listGroups = sort === "importance" ? groups : [{ level: null as OwnerTaskPriority | null, tasks: shown }];
   const keys = slug ? keyItems.filter((item) => item.slug === slug) : keyItems;
   const fileErrors = ownerTaskFileErrors();
   const appsWithTasks = Object.entries(counts.bySlug).sort((a, b) => b[1] - a[1]);
@@ -178,13 +243,13 @@ export default async function OwnerTasksPage({
           Every time an agent needs you to pay for something, create a key, or make a call about what an app is, it lands
           here and stays until you clear it. Nothing gets buried in a chat. Agents do the rest themselves.
         </p>
-        <div className="dx-stat-grid">
-          <a className={`dx-stat ${counts.blockers ? "dx-stat--pink" : ""}`} href="/tasks">
+        <div className="dx-stat-grid owner-task-stats">
+          <a className={`dx-stat ${counts.blockers ? "dx-stat--pink" : ""}`} href="/tasks?priority=blocker#list">
             <strong>{counts.blockers}</strong>
             <span>blocking something</span>
             <p>{counts.blockers ? "start with these" : "nothing is stuck on you"}</p>
           </a>
-          <a className="dx-stat dx-stat--cyan" href="/tasks">
+          <a className="dx-stat dx-stat--cyan" href="/tasks#list">
             <strong>{counts.open}</strong>
             <span>to do</span>
             <p>{counts.waiting} started, waiting on someone</p>
@@ -242,6 +307,9 @@ export default async function OwnerTasksPage({
           {slug ? <input type="hidden" name="app" value={slug} /> : null}
           {showClosed ? <input type="hidden" name="show" value="closed" /> : null}
           {priority ? <input type="hidden" name="priority" value={priority} /> : null}
+          {kind ? <input type="hidden" name="kind" value={kind} /> : null}
+          {sort !== "importance" ? <input type="hidden" name="sort" value={sort} /> : null}
+          {uncheckedOnly ? <input type="hidden" name="check" value="needed" /> : null}
           <label className="owner-task-search-label" htmlFor="task-search">
             Find a task
           </label>
@@ -261,7 +329,7 @@ export default async function OwnerTasksPage({
 
         <div className="dx-chips owner-task-levels" aria-label="Filter by importance">
           <a className={`dx-chip${!priority ? " dx-chip--active" : ""}`} href={`${tasksHref({ priority: null })}#list`}>
-            Every level <strong>{searched.length}</strong>
+            Every level <strong>{narrowed.length}</strong>
           </a>
           {PRIORITY_ORDER.map((level) => (
             <a
@@ -274,13 +342,44 @@ export default async function OwnerTasksPage({
           ))}
         </div>
 
+        <div className="dx-chips" aria-label="Filter by type">
+          <a className={`dx-chip${!kind ? " dx-chip--active" : ""}`} href={`${tasksHref({ kind: null })}#list`}>
+            Every type
+          </a>
+          {OWNER_TASK_KINDS.filter((value) => byKind[value] > 0).map((value) => (
+            <a key={value} className={`dx-chip${kind === value ? " dx-chip--active" : ""}`} href={`${tasksHref({ kind: value })}#list`}>
+              {KIND_LABEL[value]} <strong>{byKind[value]}</strong>
+            </a>
+          ))}
+          {!showClosed && counts.unchecked ? (
+            <a
+              className={`dx-chip${uncheckedOnly ? " dx-chip--active" : ""}`}
+              href={`${tasksHref({ check: uncheckedOnly ? null : "needed" })}#list`}
+              title="Asks no agent has double-checked in the last two weeks"
+            >
+              Not double-checked <strong>{counts.unchecked}</strong>
+            </a>
+          ) : null}
+        </div>
+
+        <div className="owner-task-sortbar" aria-label="Sort">
+          <span className="dx-label">Sort</span>
+          {SORT_MODES.map((mode) => (
+            <a key={mode} className={`dx-chip${sort === mode ? " dx-chip--active" : ""}`} href={`${tasksHref({ sort: mode === "importance" ? null : mode })}#list`}>
+              {SORT_LABEL[mode]}
+            </a>
+          ))}
+        </div>
+
         {filtering ? (
           <p className="dx-note owner-task-result">
             {shown.length} {shown.length === 1 ? "task" : "tasks"}
             {query ? <> matching &ldquo;{query}&rdquo;</> : null}
             {priority ? ` · ${PRIORITY_LABEL[priority].toLowerCase()} only` : ""}
+            {kind ? ` · ${KIND_LABEL[kind].toLowerCase()} only` : ""}
+            {uncheckedOnly ? " · not double-checked" : ""}
             {" · "}
-            <a className="account-link" href={`${tasksHref({ q: null, priority: null })}#list`}>
+            <a className="account-link" href={`${tasksHref({ q: null, priority: null, kind: null, check: null })}#list`}>
               clear
             </a>
           </p>
@@ -308,14 +407,16 @@ export default async function OwnerTasksPage({
         ) : (
           // Grouped by importance, most important first, each group counted —
           // so the list's weight shows at a glance instead of as one long run.
-          groups.map((group) => (
-            <div className="owner-task-group" key={group.level}>
-              <h2 className={`owner-task-group-head owner-task-group-head--${group.level}`}>
-                {PRIORITY_LABEL[group.level]}
-                <span>{group.tasks.length}</span>
-              </h2>
+          listGroups.map((group) => (
+            <div className="owner-task-group" key={group.level ?? "all"}>
+              {group.level ? (
+                <h2 className={`owner-task-group-head owner-task-group-head--${group.level}`}>
+                  {PRIORITY_LABEL[group.level]}
+                  <span>{group.tasks.length}</span>
+                </h2>
+              ) : null}
               {group.tasks.map((task) => (
-                <TaskCard key={task.id} task={task} appName={nameFor(task.appSlug)} />
+                <TaskCard key={task.id} task={task} appName={nameFor(task.appSlug)} now={now} />
               ))}
             </div>
           ))

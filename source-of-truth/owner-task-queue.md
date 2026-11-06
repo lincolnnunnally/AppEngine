@@ -57,6 +57,36 @@ can create". Don't add a duplicate task for it.
 
    A brand-new `blocker` posted this way also emails `APP_ENGINE_OWNER_EMAIL`.
 
+## Accuracy gate: check it against the real thing first (owner request, 2026-11-06)
+
+Lincoln, 2026-11-06: several asks on his list were wrong, and one "would've actually been very problematic,
+but I just happen to catch." He acts on these. An ask that is wrong is worse than no ask.
+
+Before an ask goes on the list, the agent confirms each of these **live, today**, not from memory, an old
+doc or another agent's handoff:
+
+1. **It is still needed.** The key, setting, record or page really is missing or wrong right now (read the
+   Vercel env names, the database row, the live page, the provider's API). A doc saying "open" is not proof.
+2. **No agent can do it.** You tried the vault, the token, the API, the MCP connector. Only money, a
+   credential only he can create, an account only he can open, or a decision belongs here.
+3. **Every step is possible exactly as written.** Click through it in your head against the real UI.
+   Known traps:
+   - Vercel **Sensitive** env vars can't be revealed or copied, not even by Lincoln. Ask him to *create a
+     new* key at the provider instead (the WP Easy Peazy ask, #488).
+   - Never tell him to copy secrets between places agents can reach. Agents push from the vault.
+   - DNS: check what the records point at before asking him to touch them (toner-management.com, #486).
+4. **No step can break something live.** Revoking a key, deleting, DNS and payment changes come in the safe
+   order: new thing first, verify, *then* remove the old. Say so in the steps.
+5. **The link opens the exact page step 1 needs**, not a home page. Open it to confirm.
+
+Record what you checked with `--verified-how "<what you looked at>"` (the CLI refuses an ask without it).
+The card shows Lincoln "✓ Double-checked <date>: <how>". Asks with no check, or older than 14 days, show
+him a warning. Re-check open asks you touch with `node scripts/owner-task.mjs verify <id> --how "..."`.
+
+**When he marks one "This is wrong"** it leaves his list at once, with his reason in the note
+(`GET /api/engine/owner-tasks?all=1`, status `wrong`). Fix the ask (or close it), re-check it, run
+`verify`, and merge. It returns to his list only after that re-check lands.
+
 ## Writing a good ask
 
 - **title**: the action, in plain words. "Create the X key", not "X key status".

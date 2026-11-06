@@ -8085,6 +8085,7 @@ button.compose-arch:hover {
 .owner-task-group {
   margin-top: 22px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* follow the screen, not the longest card */
   gap: 12px;
 }
 
@@ -8146,8 +8147,16 @@ button.compose-arch:hover {
   margin: 8px 0 0 1.2rem;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   font-size: 0.92rem;
+}
+
+/* Steps carry long unbreakable things (SKUs, DNS targets, URLs). */
+.owner-task-steps li,
+.owner-task-card h3,
+.owner-task-card .dx-note {
+  overflow-wrap: anywhere;
 }
 
 .owner-task-card[data-status="done"],
@@ -8199,6 +8208,11 @@ button.compose-arch:hover {
   width: 100%;
   margin: 0;
   display: grid;
+  /* One column that follows the screen. Without minmax(0, 1fr) the implicit
+     column sized itself to the widest content (a table, a long title) — on a
+     phone the whole page became ~870px wide, slid sideways, and taps landed on
+     whatever slid under the finger: "Do it here" did nothing (2026-11-06). */
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(16px, 2vw, 24px);
   align-content: start;
 }
@@ -8475,4 +8489,59 @@ a.dx-stat::after {
 /* Chips are links here as often as buttons; keep both looking the same. */
 a.dx-chip {
   text-decoration: none;
+}
+
+/* Owner to-do: accuracy and sorting (2026-11-06). */
+.dx-btn--danger {
+  color: var(--pink);
+  border-color: color-mix(in srgb, var(--pink) 55%, transparent);
+}
+
+.owner-task-check {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.owner-task-check--ok { color: var(--lime); }
+
+.owner-task-check--warn {
+  color: var(--gold);
+  border-left: 2px solid var(--gold);
+  padding-left: 8px;
+}
+
+.owner-task-answer {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--teal);
+  overflow-wrap: anywhere;
+}
+
+.owner-task-sortbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.owner-task-sortbar .dx-label { margin: 0; }
+
+/* On a phone the four count tiles stacked into a full screen of scrolling
+   before the first task. Two by two, compact. */
+@media (max-width: 700px) {
+  .owner-task-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .owner-task-stats .dx-stat {
+    padding: 12px 14px;
+  }
+  .owner-task-stats .dx-stat strong {
+    font-size: 1.6rem;
+  }
+  .owner-task-stats .dx-stat p {
+    font-size: 0.8rem;
+  }
 }

@@ -3,7 +3,7 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadAppDossier } from "@/lib/engine/app-dossier";
 import { InboxActions } from "@/components/engine/inbox-actions";
 import { OwnerTaskActions } from "@/components/engine/owner-task-actions";
-import { PRIORITY_LABEL } from "@/lib/engine/owner-tasks-core";
+import { PRIORITY_LABEL, taskLinkLabel } from "@/lib/engine/owner-tasks-core";
 
 export const dynamic = "force-dynamic";
 
@@ -98,11 +98,11 @@ export default async function AppDossierPage({
               {task.link ? (
                 <p style={{ marginTop: 8 }}>
                   <a className="dx-btn dx-btn--primary" href={task.link} target={task.link.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
-                    Do it here {task.link.startsWith("/") ? "→" : "↗"}
+                    {taskLinkLabel(task.link)}
                   </a>
                 </p>
               ) : null}
-              <OwnerTaskActions id={task.id} status={task.status} ownerNote={task.ownerNote} />
+              <OwnerTaskActions id={task.id} status={task.status} ownerNote={task.ownerNote} kind={task.kind} />
             </article>
           ))}
         </section>

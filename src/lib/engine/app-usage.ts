@@ -306,7 +306,9 @@ async function runDunning(now: Date): Promise<{ reminded: number; escalated: num
         steps: ["Reach out personally", "Add credits for them, forgive it, or agree a plan. Note what you decided."],
         kind: "money",
         priority: "recommended",
-        requestedBy: "App Engine usage check"
+        requestedBy: "App Engine usage check",
+        verifiedOn: now.toISOString().slice(0, 10),
+        verifiedHow: `credits ledger shows a ${dollars(-balanceCents)} balance below zero, unpaid ${step.daysUnpaid} days`
       });
       if (task.ok) {
         await submitOwnerTask(task.task, "api");
