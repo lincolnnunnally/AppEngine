@@ -1507,6 +1507,25 @@
       "verifiedHow": "Queried products on 2026-11-06: all four rows exist, active=false, base_price 0; a page shows only active products. Prices are a product decision the owner asked to set in Admin -> Products.",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-06"
+    },
+    {
+      "id": "churchconnect-add-credits-to-the-openai-account-balance-hit-zero-2026-11-06",
+      "title": "Add credits to the OpenAI account (balance hit zero 2026-11-06)",
+      "why": "OpenAI now refuses every call with 'credit_balance_exhausted', both images and text. It ran out while making church photos for the ChurchConnect landing page. Four of the six photos were made first, and the page uses those. ChurchConnect's text AI falls back to another provider when OpenAI fails, but anything that only uses OpenAI (image generation, apps without a fallback) stops until credits are added.",
+      "steps": [
+        "Open the OpenAI billing page and add credits (or turn on auto-recharge)",
+        "Tell any agent session it's done; it will confirm with a test call"
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://platform.openai.com/settings/organization/billing/",
+      "source": "lincolnnunnally/ChurchConnect#689",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "2026-11-06 22:10 UTC: live POST to api.openai.com /v1/images/generations and /v1/chat/completions with the saved OpenAI key both returned 402-style insufficient_quota / credit_balance_exhausted; earlier calls the same hour succeeded, so the key is valid and only the balance is empty. Adding credits needs Lincoln's card.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-06"
     }
   ]
 }
