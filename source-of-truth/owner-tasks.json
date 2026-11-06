@@ -4,38 +4,44 @@
       "id": "appengine-neon-api-key",
       "app": "appengine",
       "title": "Create a Neon API key (only for apps customers pay App Engine to build)",
-      "why": "Your own apps stay on the shared Supabase, and nothing about them changes. Your ruling (LPL 03 §7, 2026-06-18) gives each app a CUSTOMER buys through App Engine its own free Neon database, so their data stays out of your Supabase. Without the key, those customer apps launch with no database, so paid App Engine checkout stays off. If you'd rather put customer apps on Supabase too, click Not doing this and add a note saying so.",
+      "why": "Your own apps stay on the shared Supabase. Your ruling (LPL 03 §7) gives each app a customer buys through App Engine its own free Neon database. Without this key, customer apps launch with no database, so paid App Engine checkout stays off. You already have a Neon account. This is only a key.",
       "steps": [
-        "Sign in at neon.com (the free plan allows 100 projects)",
-        "Account settings → API keys → Create new API key",
-        "Save it as NEON_API_KEY on the dashboard Keys page (/integrations)",
-        "Tell an agent so it can set APP_ENGINE_FLAT_CHECKOUT_ENABLED=true and run the first paid build"
+        "Sign in at console.neon.tech (you already have an account and an organization there)",
+        "Organization settings → API keys → Create new API key. Make it an organization key, not a personal one, so new app databases land in your org",
+        "Save it as NEON_API_KEY on the dashboard Keys page (dashboard.unitedundergod.org/integrations)",
+        "Tell an agent. It runs a test build first, then turns on paid checkout. The first real paid order is a real charge."
       ],
       "kind": "credential",
       "priority": "blocker",
-      "link": "https://console.neon.tech/app/settings/api-keys",
+      "link": "https://console.neon.tech/app/org-little-rain-06040323/settings",
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel app-engine env: NEON_API_KEY absent; Neon: 11 projects in your org (2026-11-06)"
     },
     {
       "id": "easypeazy-rotate-stripe-key-with-connect",
       "app": "easy-peasy-website",
-      "title": "Replace the exposed live Stripe key with a new one that also allows Stripe Connect",
-      "why": "A live key was pasted and stored in ep_api_credentials on 2026-08-25, and only rotating it fixes that. The current restricted key also gets a 403 on /v1/accounts, so giving produces no gift records for ChurchConnect.",
+      "title": "Replace the exposed EasyPeazy Stripe key (it is used by 2–3 live apps)",
+      "why": "On 2026-08-25 a live restricted key was pasted into an old form and saved in the database. Nothing reads it, but it may still work, and only rolling or revoking it in Stripe fixes that. EasyPeazy, App Engine and maybe AI Website Design use keys on this Stripe account. Swap all of them before the old key stops working.",
       "steps": [
-        "Stripe → Developers → API keys → create a new restricted key and include write access to Accounts (/v1/accounts)",
-        "Give it to an agent to set STRIPE_API_KEY on easypeazy-api, STRIPE_SECRET_KEY on ai-website-design (if it is the same Stripe account) and STRIPE_SECRET_KEY on app-engine, which uses EasyPeazy's key, then redeploy and check /health?deep=1",
-        "Revoke the old key only after that check passes"
+        "Stripe (account EasyPeazy.Site) → Developers → API keys → Restricted keys. Ask an agent first which key ends in the 4 characters stored in the database, so you roll the right one.",
+        "Use 'Roll key' on that key and choose an expiry of 24 hours or more for the old one (do not 'Expire now'). If you also want Connect, edit its permissions to add Connect → Accounts: Write.",
+        "Paste the new key into Vercel yourself (not into chat): easypeazy-api → STRIPE_API_KEY (Production and Preview), app-engine → STRIPE_SECRET_KEY (Production), and ai-website-design → STRIPE_SECRET_KEY only if it uses this same Stripe account.",
+        "Tell an agent it is done. The agent redeploys all three and checks https://easypeazy-api.vercel.app/api/health?deep=1 shows stripe 'ok', and that App Engine checkout still works.",
+        "Let the old key expire on its own. Then an agent deletes the leftover database rows."
       ],
       "kind": "credential",
-      "priority": "blocker",
+      "priority": "recommended",
       "link": "https://dashboard.stripe.com/apikeys",
       "source": "easypeazy/HANDOFF.md (last changed 2026-10-17)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel env on 3 projects + stored key row present + /api/health?deep=1 ok (2026-11-06)"
     },
     {
       "id": "operate-prospect-mailing-address",
@@ -43,8 +49,9 @@
       "title": "Give Operate the mailing address to print in chamber prospect emails",
       "why": "Prospect invite emails stay off until PROSPECT_MAILING_ADDRESS is set, because CAN-SPAM requires a physical address in every commercial email.",
       "steps": [
-        "Pick the business mailing address (a PO box is fine)",
-        "Give it to an agent to set as PROSPECT_MAILING_ADDRESS on the Vercel project operate"
+        "Reply with the mailing address for Operate's business emails. A PO box or private mailbox is fine.",
+        "Option: 703 Green Street, Vidalia, GA 30474. ChurchConnect emails already use it, but it is United Under God's (nonprofit) address. If We Succeed or another business entity has its own address, use that one.",
+        "An agent sets PROSPECT_MAILING_ADDRESS on Vercel project operate and redeploys"
       ],
       "kind": "decision",
       "priority": "blocker",
@@ -52,7 +59,9 @@
       "source": "operate/docs/PROSPECTS.md (last changed 2026-10-27)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel operate env list: PROSPECT_MAILING_ADDRESS absent (2026-11-06)"
     },
     {
       "id": "appengine-launch-terms-and-scope",
@@ -73,11 +82,12 @@
     {
       "id": "appengine-legal-pages",
       "app": "appengine",
-      "title": "Review the Terms, Privacy and Refund pages once an agent drafts them",
-      "why": "No wording has ever been written or approved; earlier sessions asked and it was never answered. Agents will draft all three. Your part is to read them and say OK or change something (with counsel if you want). Paid customers need them before buying.",
+      "title": "Decide the refund rule for App Engine; an agent then writes Terms, Privacy and Refund for you to approve",
+      "why": "App Engine has no Terms, Privacy or Refund pages yet (all three give 404). An agent can write them from the United Under God Terms and Privacy pages. The one thing only you can decide is the refund rule: what a customer gets if a paid build fails. Real customers need these pages before they buy.",
       "steps": [
-        "Wait for the drafts (an agent writes them, then marks this ready)",
-        "Read them and say approve or what to change in the note"
+        "In the note, write your refund rule (for example: full refund if the build fails and can't be fixed in X days)",
+        "An agent writes all three pages on a preview link and adds that link to this task",
+        "Read them and write 'approve' or what to change (ask counsel if you want)"
       ],
       "kind": "decision",
       "priority": "recommended",
@@ -85,17 +95,19 @@
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "curl appengine.unitedundergod.org/terms|privacy|refund = 404; no drafts on AppEngine main (2026-11-06)"
     },
     {
       "id": "stripe-connect-enable-platform",
       "app": "ecosystem",
-      "title": "Turn on Stripe Connect so makers, sitters and churches can be paid out",
-      "why": "Laser maker payouts, FurFriend's paid sitting marketplace and EasyPeazy church giving records all wait on Connect.",
+      "title": "Turn on Stripe Connect in the Laser and FurFriend Stripe accounts",
+      "why": "Laser maker payouts and FurFriend paid sitting create Express accounts for makers and sitters. Stripe allows that only after Connect is set up in the account the app charges through. No client ID is needed. EasyPeazy giving is covered by task easypeazy-rotate-stripe-key-with-connect.",
       "steps": [
-        "Stripe Dashboard → Connect → Get started, and finish the platform profile",
-        "Copy the Connect client ID (needed for Laser maker onboarding)",
-        "Hand the client ID to an agent for Laser, FurFriend and EasyPeazy"
+        "Stripe Dashboard: switch to the Laser.Engrave.Market account → Connect → Get started → choose Express → finish the platform profile",
+        "Do the same in the Stripe account FurFriend charges through (ask an agent which one if unsure)",
+        "Tell an agent. It runs one maker onboarding to prove it works. Nothing needs copying."
       ],
       "kind": "account",
       "priority": "recommended",
@@ -103,7 +115,9 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (last changed 2026-10-17)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Stripe: 10 accounts; Laser code uses Express accounts, no client ID (2026-11-06)"
     },
     {
       "id": "churchconnect-meta-app-review",
@@ -122,17 +136,19 @@
       "source": "ChurchConnect/docs/META_APP_REVIEW.md (last changed 2026-10-29)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "church-connect Meta keys set 2026-10-29; review doc unchanged (2026-11-06)"
     },
     {
       "id": "appengine-first-audience",
       "app": "appengine",
       "title": "Pick App Engine's first audience and how to promote it",
-      "why": "Campaigns and outreach for App Engine cannot start until you name who it is for first and through which channel.",
+      "why": "Campaign Builder already works (the LED wall campaign is live). App Engine itself has no campaign yet, because no one has said who it is sold to first or where.",
       "steps": [
-        "Choose the first audience (for example churches through ChurchConnect, or Vidalia businesses through Operate)",
-        "Choose the promotion channel",
-        "Tell an agent to build the campaign in /campaigns"
+        "Name App Engine's first buyers (for example, local businesses or church offices who want a custom app)",
+        "Name one channel (email, the We Succeed site, in person)",
+        "Tell an agent to build that campaign in /campaigns"
       ],
       "kind": "decision",
       "priority": "recommended",
@@ -140,20 +156,20 @@
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "BUILD-LEDGER C8 still open; /campaigns live (2026-11-06)"
     },
     {
       "id": "google-business-profiles",
       "app": "ecosystem",
       "title": "Create Google Business Profiles for United Under God, We Succeed, Church AV, Operate and the laser shop",
-      "why": "These profiles are the biggest lever for showing up in local Maps and 'near me' searches, and the postcard or video verification can only be done by you. Only list a business that really does the work: a Vidalia Pro trade gets a profile only if you do that trade yourself (see vidalia-pro-trades-you-do).",
+      "why": "Google Business Profiles are the biggest lever for showing up in Maps and 'near me' searches, and only you can do the postcard or video check. Make one profile per truly separate business. Overlapping profiles at one address can get suspended.",
       "steps": [
-        "business.google.com → add United Under God (nonprofit, 703 Green Street, Vidalia)",
-        "Add We Succeed as a service-area business around Vidalia (category 'Business management consultant' or 'Marketing consultant'), website https://www.we-succeed.org",
-        "Add Church AV as a service-area business covering the GA counties",
-        "Add Operate as a service-area business",
-        "Add Engrave Market (laser engraving) as a service-area business around Vidalia, website https://laser.engrave.market, category 'Engraver'",
-        "Complete postcard/video verification for each, then tell an agent to fill in services, photos and posts"
+        "business.google.com → add United Under God (nonprofit, 703 Green Street, Vidalia). Add church sound, livestream and lighting as services on this profile, not as a separate Church AV profile, unless Church AV is its own business",
+        "Add Engrave Market (laser engraving) as a service-area business around Vidalia, category 'Engraver', website https://laser.engrave.market",
+        "Pick ONE of We Succeed or Vidalia Pro (Operate's local name) for the business-services profile, and use the name shown on its website",
+        "Complete the postcard or video check for each, then tell an agent to fill in services, photos and posts"
       ],
       "kind": "account",
       "priority": "recommended",
@@ -161,69 +177,76 @@
       "source": "HANDOFF_SEO_GROWTH.md; SEO session 2026-11-04 added the laser shop",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "curl site titles + operate LOCAL_BRAND='Vidalia Pro'; no Google profiles per SEO handoff (2026-11-06)"
     },
     {
       "id": "spark-canonical-home",
       "app": "spark-of-hope",
       "title": "Decide Spark of Hope's one home (D6)",
-      "why": "Spark has several leftover surfaces and no single front door; reconciling them waits on your ruling.",
+      "why": "spark-of-hope.com is already live as its own site. What's undecided is where its code lives: a standalone repo or the life-produces-life monorepo, which also holds a copy. Your 2026-06-19 note said 'its own Vercel project at spark-of-hope.com'. Confirm that, or pick the monorepo.",
       "steps": [
         "Choose: a standalone repo/app at spark-of-hope.com, or the life-produces-life monorepo",
         "Tell an agent to consolidate"
       ],
       "kind": "decision",
       "priority": "recommended",
-      "link": null,
+      "link": "https://spark-of-hope.com",
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (last changed 2026-10-17)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel spark-of-hope serves spark-of-hope.com (200); LPL D6 still open (2026-11-06)"
     },
     {
       "id": "building-gods-way-workshop",
       "app": "united-under-god",
-      "title": "Decide whether to register for the Building God's Way workshop (Nov 10)",
-      "why": "It is a partner workshop near Atlanta, flagged 'ask Lincoln', and registration is time-limited.",
+      "title": "Decide by this weekend: Building God's Way workshop, Tue Nov 10, Hampton GA",
+      "why": "A church-building workshop near Atlanta (Calvin Center, Hampton GA), 8 AM–2 PM. It is 4 days away and registration closes before then.",
       "steps": [
-        "Decide, and register if going"
+        "Open the listing, decide, and register if going"
       ],
       "kind": "decision",
       "priority": "recommended",
-      "link": null,
+      "link": "https://happeningnext.com/event/building-gods-way-workshop-atlanta-ga-eid1ef0l0m2c8wr",
       "source": "lpl-handoff-data/HANDOFF.md (last changed 2026-10-24)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Event listing: Nov 10 2026, Calvin Center, Hampton GA (2026-11-06)"
     },
     {
       "id": "messenger-avl-partner-terms",
       "app": "united-under-god",
-      "title": "Agree and sign the church AV partner terms (commission/referral) with Messenger AVL",
-      "why": "Track B depends on a written commission-only, non-exclusive agreement. The leave-behind QR page and pages.config flag stay off until it is signed. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "title": "Decide if you still want a written partner deal with Messenger AVL",
+      "why": "The church AV pages went live on Oct 22 without naming any installer, and the LED wall campaign now invites several companies to bid. A commission agreement with Jim is only needed if Messenger gets a special role.",
       "steps": [
-        "Agree commission and referral tiers with Jim",
-        "Decide whether Track A marketing is paid or goodwill, and whether to offer the free checkup",
-        "Decide whether to disclose paid introductions to pastors (recommended: yes)",
-        "Sign, then tell an agent to flip the flag"
+        "Decide: a written commission/referral deal with Messenger AVL, or Messenger as one of several bidders with no special terms",
+        "If a deal: agree the commission and referral tiers with Jim, decide whether to tell pastors about paid introductions (recommended: yes), sign, and tell an agent",
+        "If no deal: click Not doing this"
       ],
       "kind": "decision",
-      "priority": "recommended",
+      "priority": "optional",
       "link": null,
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/CURRENT_FOCUS.md (last changed 2026-10-18)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "ChurchConnect pages.config.json live since Oct 22; /church-av 200 (2026-11-06)"
     },
     {
       "id": "search-console-bing-verify",
       "app": "ecosystem",
       "title": "Import your Search Console sites into Bing Webmaster Tools (5 minutes)",
-      "why": "Google Search Console already has 10 domains verified (checked 2026-11-04). Bing hasn't been set up. Bing also feeds DuckDuckGo, Yahoo and ChatGPT search, so we're missing those searchers.",
+      "why": "Bing hasn't been set up. Bing also feeds DuckDuckGo, Yahoo and ChatGPT search. Importing from Google Search Console takes 5 minutes and brings every Google-verified site. Do this after the 'Add domains to Search Console' task, so the missing domains come along too.",
       "steps": [
-        "bing.com/webmasters → Sign in with your Google account (lincoln.nunnally@gmail.com)",
-        "Choose Import from Google Search Console → Allow → select every site → Import",
-        "That's it: Bing reads each site's sitemap from the import. Tell an agent so it can start sending new pages to Bing directly (IndexNow)"
+        "bing.com/webmasters → Sign in with Google (lincoln.nunnally@gmail.com)",
+        "Choose 'Import from Google Search Console' → Allow → select every site → Import",
+        "Tell an agent you're done so it can check that the sitemaps were picked up"
       ],
       "kind": "account",
       "priority": "recommended",
@@ -231,30 +254,34 @@
       "source": "Search Console audit 2026-11-04 (OpenSEO)",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "OpenSEO Search Console list: 10 sites; no Bing auth file or meta on sites (2026-11-06)"
     },
     {
       "id": "chamber-memberships",
       "app": "operate",
-      "title": "Decide whether to pay for chamber memberships (Vidalia-Toombs first)",
+      "title": "Decide whether to pay for chamber memberships (Greater Vidalia Chamber first)",
       "why": "Chamber listings are paid memberships that give local backlinks and listings; agents may not spend money.",
       "steps": [
-        "Check the Vidalia-Toombs Chamber membership price",
-        "Join if worth it, then tell an agent to fill in the listing"
+        "Ask the Greater Vidalia Chamber for its dues. They are not posted. Dana Brown, danab@greatervidaliachamber.com or 912-537-4466",
+        "Decide which business joins (United Under God or Operate). If it's worth it, join with the form on their membership page, then tell an agent to fill in the listing"
       ],
       "kind": "money",
       "priority": "optional",
-      "link": null,
+      "link": "https://www.greatervidaliachamber.com/membership/",
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/HANDOFF_SEO_GROWTH.md (last changed 2026-10-23)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "greatervidaliachamber.com/membership: renamed chamber, no posted dues (2026-11-06)"
     },
     {
       "id": "awd-wordpress-plan-price",
       "app": "ai-website-design",
       "title": "Set a separate price for the 'WordPress with Divi' go-live option",
-      "why": "The WordPress option costs more to run and support, so it needs its own plan price, not a $19 add-on, before it can be offered.",
+      "why": "Closed by the 2026-11-06 re-check. No longer applies: Replaced by your 2026-11-03 decision: WP Easy Peazy, $49 setup + $15/month (2026-11-06)",
       "steps": [
         "Pick a monthly/yearly price for the WordPress plan",
         "Tell an agent, who will add the go-live choice once one site has been proven in Divi"
@@ -265,13 +292,15 @@
       "source": "ai-website-design/docs/wordpress-offer.md (last changed 2026-10-26)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "dismissed",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Replaced by your 2026-11-03 decision: WP Easy Peazy, $49 setup + $15/month (2026-11-06)"
     },
     {
       "id": "awd-divi-ai-terms",
       "app": "ai-website-design",
       "title": "Check whether customer sites can use Divi AI under your Elegant Themes plan",
-      "why": "Divi AI cannot be promised to customers until the account terms and per-site cost are confirmed.",
+      "why": "Closed by the 2026-11-06 re-check. No longer applies: AI Website Design doesn't use Divi AI; WordPress offer is off (2026-11-06)",
       "steps": [
         "Elegant Themes account → read the Divi AI terms for multisite and client sites",
         "Note the per-site cost and tell an agent"
@@ -282,13 +311,15 @@
       "source": "ai-website-design/docs/wordpress-offer.md (last changed 2026-10-26)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "dismissed",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "AI Website Design doesn't use Divi AI; WordPress offer is off (2026-11-06)"
     },
     {
       "id": "easypeazy-define-customer",
       "app": "easy-peasy-website",
       "title": "Define what counts as an EasyPeazy 'customer' for the admin numbers",
-      "why": "The console counts every ep_users row (95, about 11 of them QA) as a customer, so the business numbers are wrong.",
+      "why": "Closed by the 2026-11-06 re-check. An agent can do this; it is not yours: Supabase SQL counts + easypeazy server.py /admin/stats (2026-11-06)",
       "steps": [
         "Choose a definition: paid, has a live website, or something else",
         "Tell an agent to change /api/admin/stats"
@@ -299,48 +330,56 @@
       "source": "easypeazy/HANDOFF.md (last changed 2026-10-17)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "dismissed",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Supabase SQL counts + easypeazy server.py /admin/stats (2026-11-06)"
     },
     {
       "id": "easypeazy-qa-showcase-sites",
       "app": "easy-peasy-website",
       "title": "Keep or remove four old QA sites holding real branded addresses",
-      "why": "gracechapel9399, hopechapel552, newhope913 (churchconnect.cloud) and bellasflowers284 (easypeazy.site) look like real customers. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Four test sites still live at real-looking addresses: Grace Chapel, Hope Chapel, New Hope Fellowship (on churchconnect.cloud) and Bella's Flowers (on easypeazy.site). Visitors could take them for real customers. Checked live 2026-11-06.",
       "steps": [
-        "Decide: keep as showcases or delete",
-        "Tell an agent"
+        "Decide: keep as labeled showcase examples, or take them down",
+        "Tell an agent. It does the rest."
       ],
       "kind": "decision",
       "priority": "optional",
-      "link": null,
+      "link": "https://gracechapel9399.churchconnect.cloud",
       "source": "easypeazy/HANDOFF.md (last changed 2026-10-17)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "curl: all 4 test addresses answer 200 with church/florist titles (2026-11-06)"
     },
     {
       "id": "opportunity-packaging",
       "app": "opportunity",
-      "title": "Decide how Opportunity is packaged",
-      "why": "Opportunity's own-app build is waiting on product direction. (we-succeed.org was decided 2026-11-05: it is the We Succeed consulting/services door.)",
+      "title": "Answer three questions so Opportunity can grow past v1",
+      "why": "Opportunity is already live as its own app. To build more, agents need your answers to the open questions in its source of truth.",
       "steps": [
-        "Confirm how Opportunity should ship as its own app"
+        "Is the 8-step flow the right shape, or would you word the steps differently?",
+        "How openly should faith show up in its public wording? Any words to use or avoid?",
+        "For churches and nonprofits: a separate 'team' mode, or the same flow done on someone's behalf?"
       ],
       "kind": "decision",
       "priority": "optional",
-      "link": null,
+      "link": "https://opportunity.unitedundergod.org",
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/ECOSYSTEM_APP_COMPLETION_BOARD.md (last changed 2026-10-22)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "opportunity.unitedundergod.org live as its own app; SoT 02 §10 questions open (2026-11-06)"
     },
     {
       "id": "kindred-aligned-souls-handoff",
       "app": "kindred-connections",
       "title": "Decide whether and when Kindred points people to Aligned Souls",
-      "why": "The 01_ECOSYSTEM_MAP lists it as an open owner decision. Nothing may point lonely day-1 Kindred users at dating until you rule.",
+      "why": "Today Kindred mentions Aligned Souls only to people who say at sign-up that they want a romantic partner. The ecosystem map still lists as open whether Kindred should ever suggest it to anyone else, and when.",
       "steps": [
-        "Decide if Kindred shows Aligned Souls as a next step, and after what"
+        "Decide: keep it as is (only for people who ask), or also suggest Aligned Souls after a milestone you name"
       ],
       "kind": "decision",
       "priority": "optional",
@@ -348,16 +387,18 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/01_ECOSYSTEM_MAP.md (last changed 2026-10-17)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Kindred main Onboarding.js: handoff only for the 'partner' choice (2026-11-06)"
     },
     {
       "id": "iconium-model-and-pricing",
       "app": "iconium",
       "title": "Decide Iconium's image model, cost and free/paid model (D1–D2)",
-      "why": "The per-image cost decides whether Iconium can be free, and the next build waits on it.",
+      "why": "The cost per image decides whether Iconium can be free. An agent will look up current prices first, so you only have to choose.",
       "steps": [
-        "Confirm current image-model pricing",
-        "Choose free, freemium or paid"
+        "An agent adds today's per-image cost for 2–3 image models to this task's note (with links)",
+        "Choose free, freemium (how many free images) or paid"
       ],
       "kind": "money",
       "priority": "optional",
@@ -365,7 +406,9 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/10_ICONIUM__OWNER_DEFINITION.md (last changed 2026-07-31)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "LPL 10_ICONIUM D1/D2 still open; no Iconium commits since 2026-05 (2026-11-06)"
     },
     {
       "id": "iconium-icon-licensing-and-library",
@@ -382,7 +425,9 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/10_ICONIUM__OWNER_DEFINITION.md (last changed 2026-07-31)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "LPL 10_ICONIUM D3/D4 still open on main (2026-11-06)"
     },
     {
       "id": "barefoot-membership-and-gatherings",
@@ -399,7 +444,9 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/09_BAREFOOT_COALITION__OWNER_DEFINITION.md (last changed 2026-07-31)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "SoT 09 D5/D6 still open; no member or event tables in the repo (2026-11-06)"
     },
     {
       "id": "barefoot-brand-domain-card",
@@ -417,16 +464,19 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/09_BAREFOOT_COALITION__OWNER_DEFINITION.md (last changed 2026-07-31)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "DNS: barefootcoalition.org/.com unregistered; /card 200 (2026-11-06)"
     },
     {
       "id": "solution-engine-safety-contact",
       "app": "ecosystem",
       "title": "Name the safety-escalation contact and crisis resource list for Solution Engine",
-      "why": "Safety alerts go to you by default until a pastoral contact is named, and the crisis list stays national-only. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Safety alerts go to lincoln@unitedundergod.org until you name a pastoral contact. The crisis list shows national lines only (988, Crisis Text Line, Domestic Violence Hotline, 911). Confirmed still open on 2026-11-06.",
       "steps": [
-        "Name the person who gets safety escalations (D-S2)",
-        "Choose a national, Georgia-local or church-partner crisis list (D-S3)"
+        "Name the person who should get safety alerts, with their email (or say 'keep me')",
+        "Choose the crisis list: national only, add Georgia lines, or add a church partner (give name and number)",
+        "An agent updates the setting and the list"
       ],
       "kind": "decision",
       "priority": "optional",
@@ -434,13 +484,15 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/08_SOLUTION_ENGINE__OWNER_DEFINITION.md (last changed 2026-07-29)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel app-engine SOLUTION_ENGINE_SAFETY_CONTACT set 2026-07-29 (owner); safety.ts D-S3 pending (2026-11-06)"
     },
     {
       "id": "resend-pro-upgrade",
       "app": "churchconnect",
       "title": "Decide on Resend Pro (~$20/mo) if outreach outgrows the free 100/day",
-      "why": "The outreach plan says the free plan caps outreach at about 70 a day, while the newer daily numbers are higher. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Closed by the 2026-11-06 re-check. Already done: Resend usage: already paid plan, 50,000/month, no daily cap (2026-11-06)",
       "steps": [
         "Resend → Billing: check the current plan and usage",
         "Upgrade if still on free"
@@ -451,17 +503,20 @@
       "source": "ChurchConnect/docs/outreach/OUTREACH_PLAN.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "done",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Resend usage: already paid plan, 50,000/month, no daily cap (2026-11-06)"
     },
     {
       "id": "kindred-google-sign-in",
       "app": "kindred-connections",
-      "title": "Create a Google OAuth client for 'Continue with Google' on the shared Supabase",
-      "why": "Google sign-in is still dormant for Kindred and the other shared-identity apps. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "title": "Create a Google sign-in client for the shared login",
+      "why": "The Google button on Kindred (and other shared-login apps) shows 'not enabled yet'. Only you can create the Google client.",
       "steps": [
-        "Google Cloud Console → APIs & Services → Credentials → OAuth client (Web)",
-        "Add the Supabase auth callback URL",
-        "Give the client ID and secret to an agent to enable the provider (the same client can serve App Engine's AUTH_GOOGLE_ID)"
+        "Google Cloud Console → Google Auth Platform → Branding: set up the consent screen if asked (app name, support email)",
+        "Clients (or APIs & Services → Credentials) → Create client → Web application",
+        "Authorized redirect URIs: add https://uqhqulrqcygsmmzdzemx.supabase.co/auth/v1/callback (and, for App Engine, https://appengine.unitedundergod.org/api/auth/callback/google)",
+        "Hand the client ID and secret over through the secure credential form an agent opens, not in chat. The agent turns on Google in Supabase and on App Engine."
       ],
       "kind": "credential",
       "priority": "optional",
@@ -469,16 +524,19 @@
       "source": "Kindred-Connection/AIPOS/MIGRATION_PLAN.md (last changed 2026-07-09)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Supabase auth google:false; app-engine AUTH_GOOGLE_* absent (2026-11-06)"
     },
     {
       "id": "appengine-github-oauth-callbacks",
       "app": "appengine",
       "title": "Add App Engine and dashboard callback URLs to the existing GitHub OAuth app",
-      "why": "GitHub sign-in fails on a host whose callback is not registered. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Only matters if anyone signs in with GitHub. You sign in by email today. Test first; it may already work.",
       "steps": [
-        "GitHub → Settings → Developer settings → OAuth Apps → the existing app (do not create a new one)",
-        "Add https://appengine.unitedundergod.org/api/auth/callback/github and https://dashboard.unitedundergod.org/api/auth/callback/github"
+        "Open dashboard.unitedundergod.org/signin and click Sign in with GitHub. Do the same at appengine.unitedundergod.org",
+        "If both sign you in, click Not doing this",
+        "If GitHub says the redirect_uri is not associated with the app: GitHub → Settings → Developer settings → OAuth Apps → the existing AppEngine app. ADD (do not replace) the failing URL: https://appengine.unitedundergod.org/api/auth/callback/github or https://dashboard.unitedundergod.org/api/auth/callback/github"
       ],
       "kind": "credential",
       "priority": "optional",
@@ -486,13 +544,15 @@
       "source": "AppEngine/source-of-truth/github-oauth-soft-launch-callbacks.md (last changed 2026-09-18)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Dashboard DB: GitHub sign-in unused since Sep; email sign-in live (2026-11-06)"
     },
     {
       "id": "send-to-claude-code-guardrail",
       "app": "appengine",
       "title": "Approve letting the dashboard file GitHub issues ('Send to Claude Code')",
-      "why": "This vision item stays unbuilt until you OK relaxing the noGitHubIssueCreation guardrail.",
+      "why": "Closed by the 2026-11-06 re-check. An agent can do this; it is not yours: AppEngine BUILD-LEDGER.md:145/154 (2026-11-06)",
       "steps": [
         "Say yes or no to dashboard-filed issues (shipped as owner-approved drafts)"
       ],
@@ -502,7 +562,9 @@
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "dismissed",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "AppEngine BUILD-LEDGER.md:145/154 (2026-11-06)"
     },
     {
       "id": "operate-preview-database",
@@ -525,7 +587,7 @@
       "id": "snip-show-host-and-oauth",
       "app": "snip-show",
       "title": "Approve a paid host/storage and social OAuth apps for Snip.Show",
-      "why": "T8: deploying the cloud work needs a paid host and storage, and cross-posting needs an OAuth app per platform. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Closed by the 2026-11-06 re-check. No longer applies: LPL: Snip.Show native-iOS plan locked 2026-07-05 (2026-11-06)",
       "steps": [
         "Approve or decline paid hosting and storage (or confirm the native-iOS-only direction)",
         "Create OAuth apps for each platform you want cross-posting on"
@@ -536,16 +598,19 @@
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "dismissed",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "LPL: Snip.Show native-iOS plan locked 2026-07-05 (2026-11-06)"
     },
     {
       "id": "ideas-direct-posting-credentials",
       "app": "ideas",
-      "title": "Create social account credentials if you want Ideas to post directly",
-      "why": "Ideas can only copy out today; direct posting is waiting on your credentials. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "title": "Optional: pick which social accounts Ideas should post to directly",
+      "why": "Ideas can only copy posts out today. Posting directly needs a developer app on each platform in your name. Some charge for posting (X), and Facebook/Instagram need Meta's app review.",
       "steps": [
-        "Decide which platforms",
-        "Create developer apps there and hand over the keys"
+        "Decide which platforms, if any (it is fine to stay copy-out)",
+        "Before creating an app on any platform, ask an agent what it costs and what review it needs",
+        "Create the apps and hand the keys over through the secure credential form, not chat"
       ],
       "kind": "credential",
       "priority": "optional",
@@ -553,7 +618,9 @@
       "source": "ideas-app/src/lib/destinations.ts (last changed 2026-09-13)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "ideas-app main: still copy-out, nothing posted (2026-11-06)"
     },
     {
       "id": "toner-management-com-dns",
@@ -575,7 +642,7 @@
       "id": "church-data-csv-copy",
       "app": "churchconnect",
       "title": "Copy the tech-director and church-builder CSVs off the Grok box if agents need them",
-      "why": "The source files for loading more CRM contacts sit only on the Grok machine. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Closed by the 2026-11-06 re-check. Already done: lpl-handoff-data has the tech-director and builder CSVs since 2026-10-24 (6db0064)",
       "steps": [
         "Copy /workspace/church-data/* to a place agents can reach (a repo or Supabase Storage)"
       ],
@@ -585,16 +652,18 @@
       "source": "lpl-handoff-data/HANDOFF.md (last changed 2026-10-24)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "done",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "lpl-handoff-data has the tech-director and builder CSVs since 2026-10-24 (6db0064)"
     },
     {
       "id": "knd-brotherhood-fund-counsel",
       "app": "kids-need-dads",
       "title": "Have counsel confirm the Kids Need Dads Brotherhood Fund giving structure",
-      "why": "Rule DC-11 says legal and charitable claims need verified backing. The page now uses only the UUG EIN, and the board still lists this as owner plus counsel. (The sweep could not confirm this is still open. If it's already done, click Not doing this.)",
+      "why": "Kids Need Dads lets dads give to a 'Shared Child Support' fund under the United Under God 501(c)(3), and the page says gifts may be tax-deductible. Counsel should confirm that gifts meant to help specific dads with child support are sound and deductible. Confirmed still open on 2026-11-06.",
       "steps": [
-        "Ask counsel whether the reciprocal-gift fund under the UUG 501(c)(3) is sound",
-        "Tell an agent what wording is allowed"
+        "Ask counsel: is a shared child-support fund under the UUG 501(c)(3) sound, and can those gifts be called tax-deductible?",
+        "Tell an agent what wording counsel allows"
       ],
       "kind": "decision",
       "priority": "optional",
@@ -602,16 +671,19 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/ECOSYSTEM_APP_COMPLETION_BOARD.md (last changed 2026-10-22)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open"
+      "status": "open",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "RebuildingDads main MutualAidApplication.tsx wording + LPL board row 53 (2026-11-06)"
     },
     {
       "id": "appengine-neon-launch-plan",
       "title": "Switch Neon to its pay-as-you-go plan when the first customer app gets busy",
-      "why": "On Neon's free plan, an app past 100 database-hours a month gets paused by Neon, which would break your 'never switched off' rule. The Launch plan has no monthly minimum: we pay only for busy apps' activity, which those apps now pay us back for at cost + 30%. Nothing to do until the dashboard shows a customer app past its free allowance.",
+      "why": "Only matters once a customer app is busy (none exist yet). Neon bills a whole organization, so switching your current org to Launch would also bill your own 11 internal databases. Do NOT switch the current one. Customer apps should get their own Neon organization, and only that one gets upgraded.",
       "steps": [
-        "Wait until a customer app shows up as busy on the dashboard (none exist yet)",
-        "Neon console → Billing → choose Launch (pay-as-you-go, no minimum)",
-        "Tell an agent, who switches usage measuring to Neon's exact billing numbers"
+        "Wait until the dashboard shows a customer app past its free allowance (none yet)",
+        "Ask an agent to confirm customer apps live in a separate Neon organization from your own apps",
+        "Only then: Neon console → that separate organization → Billing → choose Launch",
+        "Tell an agent so it switches usage tracking to Neon's billing numbers"
       ],
       "kind": "money",
       "priority": "optional",
@@ -620,18 +692,19 @@
       "source": "AppEngine docs/MODULE_PRICING_AND_PROFIT.md (2026-11-02)",
       "requestedBy": "Claude (usage-based hosting build)",
       "app": "appengine",
-      "addedOn": "2026-11-02"
+      "addedOn": "2026-11-02",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Neon: 11 internal projects share one org; plans are per organization (2026-11-06)"
     },
     {
       "id": "wp-easypeazy-hosting-ssh",
-      "title": "Give the WP Easy Peazy build job its keys (one GitHub visit)",
-      "why": "WP Easy Peazy (wp.easypeazy.site) only takes a waiting list until this is done. The build job runs on GitHub, not Vercel, so it needs its own copy of a few keys. Agents have no tool that can write GitHub secrets.",
+      "title": "Finish the WP Easy Peazy build keys (7 GitHub secrets left)",
+      "why": "The hosting part is already done: the cPanel key, host, user, folder and nameservers are in GitHub. The hourly build still says keys are missing, so wp.easypeazy.site only takes a waiting list.",
       "steps": [
-        "Spaceship → Hosting → cPanel → SSH Access → Manage SSH Keys → generate a key and Authorize it. Copy the PRIVATE key, plus the server host name, cPanel username and home folder (shown on cPanel's right-hand panel). Also copy the two hosting nameservers (ns1…, ns2…).",
-        "Spaceship → API Manager → create a NEW API key with domain read and write access. Copy its key and secret. (You need a new one because Vercel has the existing secret locked: it is marked Sensitive and can't be shown.)",
-        "Vercel → project easypeazy-api → Settings → Environment Variables. Click the eye next to each of these and copy the value: SUPABASE_DB_URL, OPENAI_API_KEY, RESEND_API_KEY, ELEGANT_THEMES_USERNAME, ELEGANT_THEMES_API_KEY. (easypeazy-api is the right project even though its home page is plain text. It is the back end; easypeazy-web is the website and has none of these keys.)",
-        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add each under these exact names: CPANEL_SSH_KEY, CPANEL_HOST, CPANEL_USER, CPANEL_HOME, WP_HOSTING_NAMESERVERS (both, comma-separated), SPACESHIP_API_KEY, SPACESHIP_API_SECRET (the new pair from step 2), SUPABASE_DB_URL, OPENAI_API_KEY, RESEND_API_KEY, ELEGANT_THEMES_USERNAME, ELEGANT_THEMES_API_KEY.",
-        "Mark this done. An agent then runs one real test build and turns paid sign-ups on."
+        "Spaceship → API Manager → create a NEW API key with domain read and write. Copy the key and secret. Do NOT delete the old key, EasyPeazy uses it.",
+        "Vercel → easypeazy-api → Settings → Environment Variables: click the eye and copy SUPABASE_DB_URL, OPENAI_API_KEY, RESEND_API_KEY, ELEGANT_THEMES_API_KEY. ELEGANT_THEMES_USERNAME is shown in plain text.",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → New repository secret. Add only these 7: SUPABASE_DB_URL, ELEGANT_THEMES_USERNAME, ELEGANT_THEMES_API_KEY, OPENAI_API_KEY, RESEND_API_KEY, SPACESHIP_API_KEY, SPACESHIP_API_SECRET. Leave the CPANEL_* and WP_HOSTING_NAMESERVERS secrets as they are.",
+        "Mark this done. An agent checks the next hourly run, does one real test build, then turns paid sign-ups on."
       ],
       "kind": "credential",
       "priority": "blocker",
@@ -641,7 +714,9 @@
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "easy-peasy-website",
       "addedOn": "2026-11-04",
-      "updatedOn": "2026-11-05"
+      "updatedOn": "2026-11-05",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "GitHub Actions run 42215439974: CPANEL_* set; 7 keys missing; easypeazy-api vars revealable except Spaceship (2026-11-06)"
     },
     {
       "id": "wp-easypeazy-elegant-themes-key",
@@ -682,8 +757,9 @@
       "title": "Make one real $12 EasyPeazy purchase with your own card, then refund it",
       "why": "EasyPeazy and AI Website Design have never had a completed payment. The refund found in Stripe was LaserEngraving's $1. One real purchase proves checkout, the webhook and publishing end to end.",
       "steps": [
-        "Go to easypeazy.site → Build my draft, make a site, and publish it with your card ($12)",
-        "Tell an agent: it checks the site went live and the payment recorded, then you refund it in Stripe"
+        "Go to easypeazy.site, click Build my draft, make a site, and click Pay $12 to publish with your own card. This starts a $12-a-year subscription",
+        "Tell an agent. It checks that the site went live, the payment was recorded, and the subscription row was written",
+        "Then in Stripe: refund the payment AND cancel the subscription (Customers → your name → the subscription → Cancel immediately). Without cancelling, it renews next year"
       ],
       "kind": "money",
       "priority": "recommended",
@@ -692,16 +768,18 @@
       "source": "Stripe check, 2026-11-03",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "easy-peasy-website",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Stripe EasyPeazy: 0 completed checkouts; no paid subscriptions yet (2026-11-06)"
     },
     {
       "id": "search-console-three-domains",
-      "title": "Add furfriend.pet, live-on-mission.com and toner-management.com to Google Search Console",
-      "why": "Every other app domain is in Search Console now (verified 2026-11-03 through OpenSEO). These three aren't, so Google indexing for them can't be tracked or requested.",
+      "title": "Add 7 domains to Google Search Console (furfriend.pet, live-on-mission.com, toner-management.com, we-succeed.org, vidalia.pro, vidalia.church, backoffice.works)",
+      "why": "These 7 live domains aren't in Search Console, so we can't track or request Google indexing for them. Do this before the Bing import so Bing gets them too.",
       "steps": [
-        "search.google.com/search-console → Add property → Domain → type each domain",
-        "Copy the TXT record Google shows and tell an agent (agents add the DNS record), or add it yourself",
-        "Click Verify, then tell an agent to connect it in OpenSEO"
+        "search.google.com/search-console → property menu → Add property → Domain → type one domain",
+        "Copy the TXT record Google shows into this task's note. An agent adds it in DNS",
+        "Click Verify, repeat for each domain, then tell an agent to connect them in OpenSEO"
       ],
       "kind": "account",
       "priority": "recommended",
@@ -710,7 +788,9 @@
       "source": "Google indexing audit, 2026-11-03",
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "ecosystem",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "OpenSEO Search Console list (10) vs Vercel domains, all 7 answer 200 (2026-11-06)"
     },
     {
       "id": "cloudflare-second-account-token",
@@ -782,30 +862,32 @@
     },
     {
       "id": "supabase-lpl-compute-upgrade",
-      "title": "Upgrade LPL Supabase compute before ~100k contacts",
-      "why": "Nationwide CRM imports are LIVE. Micro (1GB) risks timeouts at 100k–300k scale. Not blocking current Continuity pace.",
+      "title": "Decide whether to upgrade LPL Supabase compute from Small to Medium",
+      "why": "The database looks like it is already on Small (2 GB), not Micro. It holds 344k church rows. A bigger size costs more each month and is only needed if imports or searches start timing out. Changing it restarts every app on it for a few minutes.",
       "steps": [
-        "Open Supabase project uqhqulrqcygsmmzdzemx, then Settings, then Compute and Add-ons.",
-        "Choose the compute upgrade.",
-        "Tell CoS so CRM indexing leftovers can unlock."
+        "Ask an agent to check for slow queries and timeouts first",
+        "If needed: Supabase project uqhqulrqcygsmmzdzemx → Settings → Compute and Disk → pick the next size, at a quiet hour",
+        "Tell an agent when it's done"
       ],
       "kind": "money",
       "priority": "recommended",
       "status": "open",
-      "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/settings/addons",
+      "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/settings/compute-and-disk",
       "source": "Chief of Staff Continuity ask 2026-11-04",
       "requestedBy": "Chief of Staff (2026-11-04)",
       "app": "ecosystem",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "LPL Supabase: max_connections=90 (Small); cc_churches 343,958 rows (2026-11-06)"
     },
     {
       "id": "nationwide-builders-talknow-wave5-go",
-      "title": "Spot-check Paragon/domusstudio then GO builders apply + talk-now + Wave5",
-      "why": "#443 is MERGED LIVE. LIVE --apply, talk-now dry-run, and Wave5 dry-run then apply stay HOLD until you spot-check and CoS gets a GO. Nothing is emailed without that OK.",
+      "title": "Say GO or wait on the builder/AV referral outreach",
+      "why": "An agent will show you the dry-run list first. Two firms (Paragon 360, Domus Studio) are flagged as possibly doing AV in-house. Nothing is loaded or emailed until you say GO.",
       "steps": [
-        "Open the CRM AVL referral and talk-now views.",
-        "Spot-check the Paragon and Domus Studio rows.",
-        "Mark Done with GO, or Not doing this / wait, in the note."
+        "Wait for the agent's dry-run list on this card: firm names, how many, and the first email",
+        "Check Paragon 360 and Domus Studio: keep or drop",
+        "Mark Done with 'GO' (load and email) or Not doing this / wait"
       ],
       "kind": "decision",
       "priority": "recommended",
@@ -814,7 +896,9 @@
       "source": "Chief of Staff Continuity ask 2026-11-04",
       "requestedBy": "Chief of Staff (2026-11-04)",
       "app": "churchconnect",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "op_leads: 0 of 3294 rows are AVL/Paragon/Domus — import never run (2026-11-06)"
     },
     {
       "id": "ideas-approve-the-ideas-auto-prepare-database-change",
@@ -857,12 +941,12 @@
     {
       "id": "laser-merchant-center-feed",
       "title": "Put the engraved products into Google Shopping (free listings) with the ready-made feed",
-      "why": "Free Google Shopping listings show products with a photo and price for searches like 'custom cutting board'. The laser site has 0 Google impressions so far. The product feed is built and live; only you can open the Merchant Center account.",
+      "why": "Free Google Shopping listings show products with a photo and price for searches like 'custom cutting board'. The laser site has had only 4 Google impressions in 3 months. The feed is built and live; only you can open the Merchant Center account.",
       "steps": [
-        "merchants.google.com → Create account → business name Engrave Market, website https://laser.engrave.market (it verifies itself because you already own engrave.market in Search Console)",
-        "Products → Add products → Add from a file → Enter a link to your file: https://laser.engrave.market/api/merchant/products.xml → Fetch daily",
-        "Settings → Shipping and returns → add a shipping rate (decide: flat rate or free over a set amount) and a return policy (made-to-order: say what you accept)",
-        "Turn on 'Free listings' (Growth → Manage programs). Don't turn on paid ads",
+        "merchants.google.com, signed in as lincoln.nunnally@gmail.com. Create an account: business name Engrave Market, website https://laser.engrave.market. It verifies through Search Console",
+        "Products → Add products → Add products from a file → Enter a link: https://laser.engrave.market/api/merchant/products.xml, fetch daily",
+        "Settings → Shipping and returns: add a shipping rate and a return policy (made to order: say what you accept)",
+        "Marketing → Marketing methods: make sure Free listings is on. Skip Shopping ads and don't link Google Ads or add a card",
         "Tell an agent: it fixes any product Merchant Center flags"
       ],
       "kind": "account",
@@ -872,7 +956,9 @@
       "source": "LaserEngraving PR #133 (merchant feed)",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "laser-engrave-market",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Feed 200 with 13 items; you own engrave.market in Search Console (2026-11-06)"
     },
     {
       "id": "free-local-listings",
@@ -880,41 +966,44 @@
       "why": "These are free alternatives to the paid chamber listing. Each one is another place locals look and another link Google trusts. They all need your login, and some need a phone or postcard check.",
       "steps": [
         "Do these after the Google Business Profiles; most can import from Google",
-        "Bing Places: bingplaces.com → Import from Google Business Profile",
-        "Apple Business Connect: businessconnect.apple.com → add each business (shows in Apple Maps and Siri)",
-        "Facebook: a Page for Engrave Market and one for Vidalia Pro, with the website link",
-        "Nextdoor: business.nextdoor.com → claim a free business page for Engrave Market (and Vidalia Pro)",
+        "Bing Places: bing.com/forbusiness → sign in → Import from Google Business Profile",
+        "Apple Business Connect: business.apple.com → add each business (Apple Maps and Siri)",
+        "Facebook: a Page for Engrave Market, and one for Vidalia Pro once you've picked its trades, with the website link",
+        "Nextdoor: business.nextdoor.com → claim a free page for Engrave Market (and Vidalia Pro)",
         "Yelp for Business and Foursquare (foursquare.com/add-place): add the laser shop",
-        "Use the exact same name, address/area and phone everywhere. Tell an agent which you finished"
+        "Use the exact same name, area and phone everywhere. Tell an agent which ones you finished"
       ],
       "kind": "account",
       "priority": "recommended",
       "status": "open",
-      "link": "https://www.bingplaces.com/",
+      "link": "https://www.bing.com/forbusiness",
       "source": "SEO session 2026-11-04 (free alternatives to the $288/yr chamber listing)",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "ecosystem",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "curl: bingplaces.com → bing.com/forbusiness; other listing links answer (2026-11-06)"
     },
     {
       "id": "software-directory-listings",
       "title": "List ChurchConnect and EasyPeazy on the free software directories (Capterra, G2 and others)",
       "why": "People searching 'church software' or 'church website builder' often land on comparison sites, not on vendor sites. Free vendor profiles put us in those lists and give strong links. They need a vendor account in your name.",
       "steps": [
-        "Capterra / GetApp / Software Advice (one form): digitalmarkets.gartner.com → List your software free → ChurchConnect, category Church Management",
-        "G2: sell.g2.com → Get a free profile → ChurchConnect",
+        "G2: sell.g2.com → Get a free profile → ChurchConnect, category Church Management. This may now also list you on Capterra, GetApp and Software Advice. If not, Capterra's site has its own 'list your software' form",
         "AlternativeTo.net and SourceForge: add ChurchConnect as an alternative to Planning Center and Church Center",
-        "Repeat Capterra and G2 for EasyPeazy (category Website Builder). Don't describe either one with the word 'AI'",
-        "Tell an agent when each profile exists: it writes the descriptions and screenshots for you to paste"
+        "Repeat for EasyPeazy (category Website Builder). Don't use the word 'AI' for either one",
+        "Tell an agent when each profile exists. It writes the descriptions and screenshots for you to paste."
       ],
       "kind": "account",
       "priority": "recommended",
       "status": "open",
-      "link": "https://digitalmarkets.gartner.com/",
+      "link": "https://sell.g2.com/",
       "source": "SEO session 2026-11-04",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "churchconnect",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "curl: old Capterra vendor sign-up 404, sell.g2.com 200 (2026-11-06)"
     },
     {
       "id": "laser-pinterest-catalog",
@@ -932,16 +1021,18 @@
       "source": "SEO session 2026-11-04",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "laser-engrave-market",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Product feed answers 200 with 13 items; no Pinterest verify tag yet (2026-11-06)"
     },
     {
       "id": "uug-nonprofit-listings-ad-grants",
       "title": "Apply for Google for Nonprofits (Ad Grants: free Google search ads) and claim the Candid profile",
-      "why": "If United Under God has 501(c)(3) status, Google Ad Grants gives up to $10,000 a month of free search ads that could point people to ChurchConnect, Kids Need Dads and the other ministries. A Candid (GuideStar) profile helps donors trust and find UUG. Both need you as the organization's representative.",
+      "why": "United Under God is a confirmed 501(c)(3) (EIN 81-3554390). Google Ad Grants gives up to $10,000 a month in free search ads for unitedundergod.org. A Candid profile helps donors trust and find UUG. Both need you as the organization's representative.",
       "steps": [
-        "google.com/nonprofits → Get started → verify United Under God (EIN 81-3554390) through Percent",
-        "Once approved, activate Google Ad Grants and tell an agent: it builds the campaigns within the grant rules",
-        "candid.org → claim the United Under God profile, then GreatNonprofits.org → claim it too"
+        "google.com/nonprofits → Get started. Verify United Under God (EIN 81-3554390) through Percent",
+        "Once approved, turn on Ad Grants. Add no card. Tell an agent; it builds campaigns that point to unitedundergod.org pages, within the grant rules",
+        "candid.org: claim the United Under God profile. Then claim it on GreatNonprofits.org"
       ],
       "kind": "account",
       "priority": "recommended",
@@ -950,7 +1041,9 @@
       "source": "SEO session 2026-11-04",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "united-under-god",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "IRS records via ProPublica: EIN 81-3554390 is an active 501(c)(3) (2026-11-06)"
     },
     {
       "id": "tennis-page-details",
@@ -963,11 +1056,13 @@
       "kind": "decision",
       "priority": "optional",
       "status": "open",
-      "link": "https://operate.unitedundergod.org/tennis",
+      "link": "https://vidalia.pro/tennis",
       "source": "operate PR #90",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "operate",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "operate main tennis.tsx still placeholder; canonical vidalia.pro/tennis (2026-11-06)"
     },
     {
       "id": "vidalia-pro-trades-you-do",
@@ -975,7 +1070,8 @@
       "why": "A Google Business Profile for 'Pressure Washing Vidalia' is only allowed if a real business you run does that work (a DBA). Trades you don't do stay honest lead pages that pass requests to local pros.",
       "steps": [
         "Look at the list: pressure washing, painting, flooring, handyman, plumbing, appliance install, TV mounting, finish carpentry, roofing, remodeling, junk removal, lawn care",
-        "Tell an agent which ones you'll do. For those: register a DBA with Toombs County, then make a Business Profile (it writes the page copy to match)"
+        "Tell an agent which ones you'll do yourself",
+        "For those: file a trade name with the Toombs County Clerk of Superior Court (there's a fee, plus a newspaper notice), then make a Google Business Profile. The agent writes the page copy to match"
       ],
       "kind": "decision",
       "priority": "recommended",
@@ -984,7 +1080,9 @@
       "source": "SEO session 2026-11-04",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "operate",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "operate /directory live with trade list; no ruling in repos (2026-11-06)"
     },
     {
       "id": "seo-unsourced-claims",
@@ -1002,40 +1100,46 @@
       "source": "SEO session 2026-11-03 (RebuildingDads #10, TotalTonerManagement #10)",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "kids-need-dads",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Live kidsneeddad.com and TotalTonerManagement main still contain the four claims (2026-11-06)"
     },
     {
       "id": "sandlot-verified-venues-wording",
       "title": "Decide whether Sandlot can say 'verified venues'",
-      "why": "The terms say 'verified venues', but the places are public parks and places parents add. The wording should match what's true.",
+      "why": "Closed by the 2026-11-06 re-check. An agent can do this; it is not yours: Live /terms vs venues table: 1 verified, 3 community; wording fix is agent work (2026-11-06)",
       "steps": [
         "Reply: either describe how places are verified, or change it to 'parks and places parents add'"
       ],
       "kind": "decision",
       "priority": "optional",
-      "status": "open",
+      "status": "dismissed",
       "link": "https://sandlot.unitedundergod.org/",
       "source": "SEO session 2026-11-03 (sandlot #5)",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "sandlot",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Live /terms vs venues table: 1 verified, 3 community; wording fix is agent work (2026-11-06)"
     },
     {
       "id": "vercel-web-analytics",
       "title": "Decide whether to turn on Vercel Web Analytics for ChurchConnect, Operate and the laser shop",
-      "why": "We can see Google searches (Search Console) and leads, but not how many people visit or which pages they read. Vercel Web Analytics shows that, but it may cost money beyond the plan's included events.",
+      "why": "We see Google searches and leads, but not how many people visit or which pages they read. Vercel Web Analytics shows that but may cost money beyond the included events. Cloudflare Web Analytics is a free option an agent could set up instead.",
       "steps": [
-        "Vercel → each project → Analytics tab → check the price shown → Enable if it's worth it",
-        "Tell an agent: it adds the tag to the site"
+        "Choose: Vercel Web Analytics (open each project → Analytics tab → check the price shown → Enable) or 'use free Cloudflare analytics'",
+        "Tell an agent your choice: it adds the tag to the sites"
       ],
       "kind": "money",
       "priority": "optional",
       "status": "open",
-      "link": "https://vercel.com/dashboard",
+      "link": "https://vercel.com/life-produces-life/church-connect/analytics",
       "source": "SEO session 2026-11-03",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "ecosystem",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel analytics: 'Web Analytics not found' on church-connect, operate, laser-engrave-market (2026-11-06)"
     },
     {
       "id": "uug-community-help-directory",
@@ -1052,15 +1156,17 @@
       "source": "LPL _SOURCE_OF_TRUTH/17_DISCOVERABILITY_PLAYBOOK.md §3",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "app": "united-under-god",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "LPL 17 §3 awaits your yes; unitedundergod.org/help is 404 (2026-11-06)"
     },
     {
       "id": "laser-holiday-order-by-dates",
       "title": "Set the order-by dates for Thanksgiving and Christmas engraved gifts",
       "why": "Shoppers decide on 'will it arrive in time?'. The seasonal pages say 'made to order, order early' until you give real dates. Agents won't guess your production time.",
       "steps": [
-        "Decide how many days you need to make an order, and how you deliver (pickup in Vidalia, local delivery, shipping)",
-        "Tell an agent: the last order date for Thanksgiving (Nov 26) and for Christmas, for pickup and for shipping. It puts them on the pages and in the FAQ"
+        "The site already promises pickup/local in 3–5 business days and shipping in 5–8. If that is right, the last order dates are: Thanksgiving: shipping Mon Nov 16, pickup/local Thu Nov 19. Christmas: shipping Tue Dec 15, pickup/local Fri Dec 18.",
+        "Reply 'use these' or give your own days. An agent puts them on the seasonal pages and in the FAQ."
       ],
       "kind": "decision",
       "priority": "recommended",
@@ -1069,7 +1175,9 @@
       "source": "LaserEngraving seasonal pages (2026-11-04)",
       "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "laser /s/christmas still says 'order early'; site delivery estimates 3–5 / 5–8 days (2026-11-06)"
     },
     {
       "id": "laser-holiday-new-blanks",
@@ -1077,9 +1185,9 @@
       "why": "The shop can only sell what's in its catalog. One upload feeds the shop, the seasonal pages, the ready-to-order pages and the Google feed. New uploads stay hidden until you set a price.",
       "steps": [
         "laser.engrave.market/admin → sign in → Products → Upload blank photos",
-        "Drag in whole folders, several at once, or a .zip (charcuterie boards, coasters, trays). It works from a computer; on a phone, choose the files",
-        "For each new product: set the price, size and wood, then turn it on",
-        "For public pages and Google, use your own photo of an engraved piece when you have one. Hobby Lobby's listing photos are their images, so use them only as a stand-in until you shoot your own"
+        "Drag in whole folders or a .zip from a computer (on a phone, pick the files)",
+        "For each new product, and the 3 Christmas pieces already waiting hidden: set price, size and wood, then turn it on",
+        "Turn a product on only once it has your own photo of an engraved piece. Don't publish Hobby Lobby's photos; they are their images"
       ],
       "kind": "other",
       "priority": "recommended",
@@ -1088,15 +1196,17 @@
       "source": "Owner sent Hobby Lobby blank photos 2026-11-04",
       "requestedBy": "Claude (seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Laser admin upload exists; 3 hidden products from 11-04 waiting (2026-11-06)"
     },
     {
       "id": "laser-new-year-icons-and-licenses",
       "title": "Add New Year's icons, and confirm your clipart licenses allow selling engraved items",
-      "why": "Your 85 Christmas icons and 3 fall designs are in the design picker now, but there are no New Year's icons (those designs are text-only for now). The bundles look like marketplace clipart; their license must allow use on products you sell.",
+      "why": "Your 82 Christmas icons and 3 Thanksgiving designs are in the design picker, but there are no New Year's icons (those designs are text-only for now). The bundles look like marketplace clipart, and their license must allow use on products you sell.",
       "steps": [
-        "If you want New Year's art, buy or make a small bundle (2027, fireworks, champagne) and upload it in Admin → Design assets",
-        "Check the license of each bundle you uploaded on Sept 26 (Christmas animal 'breakouts', Santa, manger, campfire, autumn goat) allows commercial physical products"
+        "If you want New Year's art, buy or make a small bundle (2027, fireworks, champagne) and upload it in Admin → Assets → Bulk Upload",
+        "Check that the license of each bundle you uploaded on Sept 26 (Christmas animal 'breakouts', Santa, manger, campfire, autumn goat) allows commercial physical products"
       ],
       "kind": "decision",
       "priority": "optional",
@@ -1105,12 +1215,14 @@
       "source": "Seasonal icon cleanup 2026-11-04 (design_assets backup: _backup_design_assets_seasonal_20261104)",
       "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Supabase design_assets: 82 christmas, 3 thanksgiving, 0 new year; admin tab 'Assets' (2026-11-06)"
     },
     {
       "id": "laser-ready-to-order-prices",
       "title": "Price and turn on the 3 ready-to-order Christmas pieces (their pages are built)",
-      "why": "The pages for the walnut Merry Christmas board, the acacia serving board and the snowman coaster are live but hidden. Each one appears on the Christmas, Thanksgiving and gift pages, in Google Shopping and in the sitemap as soon as it has a price and is turned on.",
+      "why": "The pages for the walnut Merry Christmas board, the acacia serving board and the snowman coaster are built but hidden at $0. Once each has a price and is turned on, it appears on the Christmas, Thanksgiving and gift pages and in the sitemap. Google Shopping comes after the separate task laser-merchant-center-feed.",
       "steps": [
         "laser.engrave.market/admin → Products → edit BOARD-WALNUT-PADDLE-MERRYXMAS: set the price, engraving price, size and how many you have, then tick Active",
         "Same for BOARD-ACACIA-SERVING-MERRYXMAS and COAST-HEX-SNOWMAN",
@@ -1125,7 +1237,9 @@
       "source": "LaserEngraving PR #139",
       "requestedBy": "Claude (seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "LPL products: the 3 SKUs are inactive at $0 (2026-11-06)"
     },
     {
       "id": "operate-decide-make-local-city-county-government-a-niche-market-pilot-toombs-cou",
@@ -1165,37 +1279,41 @@
     {
       "id": "commons-approve-the-commons-name-and-the-government-prices",
       "title": "Approve the Commons name and the government prices",
-      "why": "Name and price are product decisions. Working name is Commons. Prices go by population: Town under 2,500 is $149/mo; 2,500-15k is $299; 15k-50k is $549 (Toombs); 50k-150k is $999; 150k+ is $1,999. Yearly is 10x monthly; 30 days free.",
+      "why": "Name and price are your call. Both are already live on the public pricing page as working choices: Commons; $149/mo under 2,500 people, $299 to 15k, $549 to 50k (Toombs), $999 to 150k, $1,999 above; yearly is 10x monthly; 30 days free.",
       "steps": [
-        "Reply 'approved' or give a different name or prices. A name change is one line in src/lib/commons/brand.ts.",
-        "Say whether you want a dedicated domain (it costs money) or commons.unitedundergod.org to start."
+        "Open the pricing page and reply 'approved', or give a different name or prices.",
+        "Say whether Commons should get its own domain (costs money) or stay on commons.unitedundergod.org for now."
       ],
       "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/3",
+      "link": "https://commons.unitedundergod.org/pricing",
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
       "app": "commons",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Live /pricing matches; old link (AllReposBackup PR #3) was closed, 404 (2026-11-06)"
     },
     {
       "id": "commons-review-the-first-outreach-notes-toombs-neighbors-and-say-who-sends-them",
       "title": "Review the first outreach notes (Toombs + neighbors) and say who sends them",
-      "why": "Each county or city gets a free report on its own website, opening with what's working and giving a fix for each issue. The notes go to real officials under a real name, so the send is your call. Nothing has been sent.",
+      "why": "Each county or city gets a free report on its own website that opens with what's working and gives a fix for each issue. The notes go to real officials under a real name, so the send is your call. Commons is live now. Nothing has been sent.",
       "steps": [
-        "Read commons/data/outreach/ga-toombs-area.drafts.md in AllReposBackup PR #3 (the plan is in README.md beside it)",
-        "Say yes, no, or how you'd change them, and whose name and phone go at the bottom",
-        "Sending waits until Commons is live (needs the commons repo task first), so the report links work"
+        "Wait: an agent first re-runs the scan against live Commons and puts the drafts in the commons repo (data/outreach/), then marks this ready",
+        "Read them there, plus README.md beside them",
+        "Say yes, no, or what to change, and whose name and phone go at the bottom"
       ],
       "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/3",
+      "link": "https://github.com/lincolnnunnally/commons/tree/main/data/outreach",
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
       "app": "commons",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Old PR #3 closed; Commons live; drafts not yet in the commons repo (2026-11-06)"
     },
     {
       "id": "commons-pick-a-domain-for-the-free-government-website-review",
@@ -1212,17 +1330,20 @@
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
       "app": "commons",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel availability: govwebsitereview.com $12.03/yr, available (2026-11-06)"
     },
     {
       "id": "commons-give-commons-its-own-stripe-key",
       "title": "Give Commons its own Stripe key",
-      "why": "Governments pay for Commons by card, bank transfer, or a net-30 invoice with a PO number. Products, prices and the webhook can be made by an agent through the Stripe connection; a secret API key cannot (Stripe only lets the account owner create one). Without it, sign-ups and the free month work, but nobody can pay.",
+      "why": "Governments pay for Commons by card, bank transfer or a net-30 invoice with a PO number. An agent can make the products, prices and webhook. Only you can create a secret key. Bank transfer is not turned on in the United Under God, Inc. Stripe account yet.",
       "steps": [
-        "Recommended account: United Under God, Inc. (the company governments will contract with). In that account, live mode: Developers, API keys, Create restricted key, name it commons",
+        "In the United Under God, Inc. Stripe account, live mode: Settings → Payment methods → turn on ACH Direct Debit (US bank account). If you'd rather not, tell an agent to take bank transfer out of Commons checkout",
+        "Developers → API keys → Create restricted key, name it commons",
         "Give it Write on: Customers, Checkout Sessions, Products, Prices, Subscriptions, Invoices, Customer portal. Leave everything else None",
-        "Paste the key (rk_live_...) to a Claude session, or add it yourself in Vercel project commons as STRIPE_SECRET_KEY (Production)",
-        "The agent then creates the webhook, sets STRIPE_WEBHOOK_SECRET, and confirms /api/health shows checkout: true. The five plans are created automatically on first checkout"
+        "Add it yourself in Vercel project commons as STRIPE_SECRET_KEY (Production), or save it on the dashboard Keys page",
+        "The agent then creates the webhook and customer-portal settings, sets STRIPE_WEBHOOK_SECRET, and confirms /api/health shows checkout: true"
       ],
       "kind": "credential",
       "priority": "recommended",
@@ -1231,24 +1352,29 @@
       "source": "commons live at commons.unitedundergod.org",
       "requestedBy": "Claude Code",
       "app": "commons",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Vercel commons: STRIPE_SECRET_KEY absent; health checkout:false; UUG Stripe bank transfer unavailable (2026-11-06)"
     },
     {
       "id": "commons-free-listings-for-commons-and-the-government-website-review",
       "title": "Free listings for Commons and the Government Website Review",
-      "why": "Search engines rank pages higher when real sites point to them (playbook layer 3). Software directories that governments browse are free, but each needs an account in your name.",
+      "why": "Free software-directory listings help governments find Commons and help search ranking. Do this only after the name is approved and Commons can take payment, so the listings never need redoing.",
       "steps": [
-        "After Commons is live: create free vendor listings on Capterra/GetApp and G2 (category: government software), plus AlternativeTo",
-        "Use the same name, description and link everywhere: Commons, commons.unitedundergod.org; the free review at /review"
+        "Wait until the name is approved and the Stripe key task is done",
+        "Create FREE vendor listings (skip any paid plan) on Capterra/GetApp and G2 (category: government software), plus AlternativeTo",
+        "Use the same name, description and link everywhere: Commons, commons.unitedundergod.org, free review at /review"
       ],
       "kind": "account",
       "priority": "optional",
       "status": "open",
-      "link": "https://www.capterra.com/vendors/sign-up",
+      "link": "https://www.capterra.com/vendors/",
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
       "app": "commons",
-      "addedOn": "2026-11-04"
+      "addedOn": "2026-11-04",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Old Capterra link 404, /vendors/ 200; Commons live; payment task still open (2026-11-06)"
     },
     {
       "id": "ideas-decide-where-ideas-auto-publishes-and-how-automatically",
@@ -1286,12 +1412,12 @@
     },
     {
       "id": "we-succeed-entity-structure",
-      "title": "Put We Succeed under the right entity (likely Helping You Succeed): rename it or file a DBA",
-      "why": "We Succeed's paid services (websites, consulting, engraving, software) should be billed by a for-profit entity, not the United Under God 501(c)(3). Lincoln has several entities, likely including one named Helping You Succeed, so the fix is a name, not a new company.",
+      "title": "Name the business that owns We Succeed",
+      "why": "We Succeed's paid services should be billed by a for-profit entity, not the United Under God 501(c)(3). Which of your entities that is has not been written down anywhere.",
       "steps": [
-        "Confirm which entity should own We Succeed (Helping You Succeed?) and what type it is (LLC, etc.)",
-        "Either rename that entity to We Succeed, or register 'We Succeed' as a trade name (DBA) for it with your county's Clerk of Superior Court",
-        "Tell an agent the legal name; it puts that name in the site footer, invoices and Stripe so payments land in the right place"
+        "Name the entity that should own We Succeed, with its exact legal name and type (LLC, etc.)",
+        "If you rename it: file a name amendment with the Georgia Secretary of State. If you keep the name: register 'We Succeed' as a trade name with your county's Clerk of Superior Court and publish the required notice",
+        "Open a Stripe account under that entity (its own EIN), then tell an agent the legal name. It updates the site footer and invoices and connects that Stripe account"
       ],
       "kind": "decision",
       "priority": "recommended",
@@ -1300,7 +1426,9 @@
       "source": "Owner question in chat, 2026-11-05",
       "requestedBy": "Claude (Remembered / We Succeed session 2026-11-05)",
       "app": "we-succeed",
-      "addedOn": "2026-11-05"
+      "addedOn": "2026-11-05",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "SoT 11-05 ruling names no entity; no We Succeed Stripe account (2026-11-06)"
     },
     {
       "id": "operate-send-the-details-for-the-handyman-and-sign-company-websites-handyman-vid",
