@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { countTasks, mergeTask, normalizeTaskInput, parseTaskFile, safeLink, sortTasks, type OwnerTask } from "./owner-tasks-core.ts";
+import { countTasks, mergeTask, needsCheck, normalizeTaskInput, parseTaskFile, safeLink, sortTasks, sortTasksBy, taskLinkLabel, type OwnerTask } from "./owner-tasks-core.ts";
 
 function definition(overrides: Record<string, unknown> = {}) {
   const result = normalizeTaskInput({ app: "churchconnect", title: "Create the Stripe live key", priority: "blocker", kind: "credential", ...overrides });
@@ -92,6 +92,63 @@ describe("ordering and counts", () => {
     assert.equal(sorted[0].title, "Blocking thing");
     assert.equal(sorted[2].title, "Done thing");
     const counts = countTasks(tasks);
-    assert.deepEqual(counts, { open: 2, blockers: 1, waiting: 0, done: 1, bySlug: { churchconnect: 1, operate: 1 } });
+    assert.deepEqual(counts, { open: 2, blockers: 1, waiting: 0, done: 1, wrong: 0, unchecked: 2, bySlug: { churchconnect: 1, operate: 1 } });
+  });
+});
+
+describe("accuracy (owner request 2026-11-06)", () => {
+  const now = "2026-11-06T12:00:00.000Z";
+
+  it("keeps when and how an agent checked the ask", () => {
+    const task = definition({ verifiedOn: "2026-11-05", verifiedHow: "Vercel env list shows STRIPE_SECRET_KEY missing" });
+    assert.equal(task.verifiedOn, "2026-11-05");
+    assert.match(task.verifiedHow, /Vercel env/);
+    assert.equal(definition({ verifiedOn: "yesterday" }).verifiedOn, null);
+  });
+
+  it("flags asks nobody has checked, or checked too long ago", () => {
+    assert.equal(needsCheck({ verifiedOn: null }, new Date(now)), true);
+    assert.equal(needsCheck({ verifiedOn: "2026-11-01" }, new Date(now)), false);
+    assert.equal(needsCheck({ verifiedOn: "2026-10-01" }, new Date(now)), true);
+  });
+
+  it("a task marked wrong stays off the list when an agent merely re-posts it", () => {
+    const flagged: OwnerTask = { ...mergeTask(null, definition({ verifiedOn: "2026-11-01" }), "file", now), status: "wrong", doneAt: now };
+    assert.equal(mergeTask(flagged, definition({ verifiedOn: "2026-11-01" }), "file", now).status, "wrong");
+  });
+
+  it("comes back only after an agent fixes and re-checks it on or after the flag", () => {
+    const flagged: OwnerTask = { ...mergeTask(null, definition(), "file", now), status: "wrong", doneAt: now };
+    const fixed = mergeTask(flagged, definition({ why: "corrected", verifiedOn: "2026-11-06", verifiedHow: "checked the live page" }), "file", now);
+    assert.equal(fixed.status, "open");
+    assert.equal(fixed.doneAt, null);
+    assert.equal(fixed.why, "corrected");
+  });
+
+  it("counts wrong and unchecked asks separately", () => {
+    const tasks = [
+      mergeTask(null, definition({ title: "Checked ask", verifiedOn: "2026-11-05" }), "file", now),
+      mergeTask(null, definition({ title: "Unchecked ask" }), "file", now),
+      { ...mergeTask(null, definition({ title: "Bad ask" }), "file", now), status: "wrong" as const }
+    ];
+    const counts = countTasks(tasks, new Date(now));
+    assert.equal(counts.wrong, 1);
+    assert.equal(counts.unchecked, 1);
+    assert.equal(counts.open, 2);
+  });
+
+  it("sorts by newest, oldest and app", () => {
+    const a = { ...mergeTask(null, definition({ title: "Aaa task", app: "zeta" }), "file", "2026-11-01T00:00:00.000Z") };
+    const b = { ...mergeTask(null, definition({ title: "Bbb task", app: "alpha", priority: "optional" }), "file", "2026-11-05T00:00:00.000Z") };
+    assert.equal(sortTasksBy([a, b], "importance")[0].title, "Aaa task");
+    assert.equal(sortTasksBy([a, b], "newest")[0].title, "Bbb task");
+    assert.equal(sortTasksBy([a, b], "oldest")[0].title, "Aaa task");
+    assert.equal(sortTasksBy([a, b], "app")[0].appSlug, "alpha");
+  });
+
+  it("says where the button goes", () => {
+    assert.equal(taskLinkLabel("https://dashboard.stripe.com/apikeys"), "Open dashboard.stripe.com ↗");
+    assert.equal(taskLinkLabel("https://www.bing.com/webmasters"), "Open bing.com ↗");
+    assert.equal(taskLinkLabel("/integrations"), "Open it here →");
   });
 });

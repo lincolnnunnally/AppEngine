@@ -7,7 +7,7 @@ import { BusinessExplorer, type DeckRevenue } from "@/components/engine/business
 import { WeeklyGoalGlance } from "@/components/engine/weekly-goal-panel";
 import { crmFollowUpCount } from "@/lib/engine/lpl-crm";
 import { listOwnerTasks } from "@/lib/engine/owner-tasks";
-import { countTasks, isActiveStatus, PRIORITY_LABEL, type OwnerTask } from "@/lib/engine/owner-tasks-core";
+import { countTasks, isActiveStatus, PRIORITY_LABEL, type OwnerTask, taskLinkLabel } from "@/lib/engine/owner-tasks-core";
 
 // The first thing on the desk: what only Lincoln can do. Top five, blockers
 // first, each one click from the place to do it. The full list is /tasks.
@@ -94,7 +94,7 @@ function OwnerToDoPanel({ tasks, nameFor }: { tasks: OwnerTask[]; nameFor: (slug
                   target={task.link.startsWith("/") ? undefined : "_blank"}
                   rel="noreferrer"
                 >
-                  Do it here {task.link.startsWith("/") ? "→" : "↗"}
+                  {taskLinkLabel(task.link)}
                 </a>
               ) : null}
               <a className="dx-btn" href={`/tasks#${encodeURIComponent(task.id)}`}>

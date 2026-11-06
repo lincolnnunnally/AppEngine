@@ -13,7 +13,7 @@
 
 export const OWNER_TASK_KINDS = ["money", "credential", "decision", "account", "other"] as const;
 export const OWNER_TASK_PRIORITIES = ["blocker", "recommended", "optional"] as const;
-export const OWNER_TASK_STATUSES = ["open", "waiting", "done", "dismissed"] as const;
+export const OWNER_TASK_STATUSES = ["open", "waiting", "done", "dismissed", "wrong"] as const;
 
 export type OwnerTaskKind = (typeof OWNER_TASK_KINDS)[number];
 export type OwnerTaskPriority = (typeof OWNER_TASK_PRIORITIES)[number];
@@ -33,6 +33,8 @@ export type OwnerTask = {
   link: string | null; // where to actually do it
   source: string; // file / PR / session that asked
   requestedBy: string; // which agent or app asked
+  verifiedOn: string | null; // YYYY-MM-DD an agent last confirmed the ask is still needed and correct
+  verifiedHow: string; // what the agent actually checked (live setting, env var, page) — not "I believe"
   ownerNote: string;
   origin: OwnerTaskOrigin;
   createdAt: string | null;
@@ -48,11 +50,13 @@ export type OwnerTaskCounts = {
   blockers: number;
   waiting: number;
   done: number;
+  wrong: number; // Lincoln marked the ask wrong; an agent must fix and re-check it
+  unchecked: number; // active asks with no recent verification
   bySlug: Record<string, number>; // open + waiting per app
 };
 
 const PRIORITY_RANK: Record<OwnerTaskPriority, number> = { blocker: 0, recommended: 1, optional: 2 };
-const STATUS_RANK: Record<OwnerTaskStatus, number> = { open: 0, waiting: 1, done: 2, dismissed: 3 };
+const STATUS_RANK: Record<OwnerTaskStatus, number> = { open: 0, waiting: 1, done: 2, dismissed: 3, wrong: 4 };
 
 export const KIND_LABEL: Record<OwnerTaskKind, string> = {
   money: "Money",
@@ -70,6 +74,30 @@ export const PRIORITY_LABEL: Record<OwnerTaskPriority, string> = {
 
 export function isActiveStatus(status: OwnerTaskStatus): boolean {
   return status === "open" || status === "waiting";
+}
+
+export const STATUS_LABEL: Record<OwnerTaskStatus, string> = {
+  open: "To do",
+  waiting: "Waiting",
+  done: "Done",
+  dismissed: "Not doing",
+  wrong: "Marked wrong"
+};
+
+/** An ask is trusted for this long after an agent last checked it against the real thing. */
+export const VERIFIED_FRESH_DAYS = 14;
+
+/** True when no agent has confirmed this ask recently, so the owner should read it with care. */
+export function needsCheck(task: Pick<OwnerTask, "verifiedOn">, now: Date): boolean {
+  if (!task.verifiedOn) return true;
+  const checked = Date.parse(`${task.verifiedOn}T00:00:00Z`);
+  if (!Number.isFinite(checked)) return true;
+  return now.getTime() - checked > VERIFIED_FRESH_DAYS * 24 * 60 * 60 * 1000;
+}
+
+function isoDay(value: unknown): string | null {
+  const raw = typeof value === "string" ? value.trim().slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) && Number.isFinite(Date.parse(`${raw}T00:00:00Z`)) ? raw : null;
 }
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -131,7 +159,9 @@ export function normalizeTaskInput(
       status: pick(input.status, OWNER_TASK_STATUSES, "open"),
       link: safeLink(input.link),
       source: text(input.source, 300),
-      requestedBy: text(input.requestedBy, 120)
+      requestedBy: text(input.requestedBy, 120),
+      verifiedOn: isoDay(input.verifiedOn),
+      verifiedHow: text(input.verifiedHow, 400)
     }
   };
 }
@@ -180,6 +210,11 @@ export function mergeTask(existing: OwnerTask | null, incoming: OwnerTaskDefinit
     };
   }
   const agentCloses = isActiveStatus(existing.status) && !isActiveStatus(incoming.status);
+  // Lincoln marked it wrong. It comes back only when an agent has fixed it AND
+  // re-checked it on or after the day it was flagged.
+  const flaggedDay = existing.doneAt ? existing.doneAt.slice(0, 10) : "";
+  const fixedAfterFlag =
+    existing.status === "wrong" && isActiveStatus(incoming.status) && Boolean(incoming.verifiedOn) && incoming.verifiedOn! >= flaggedDay;
   return {
     ...existing,
     appSlug: incoming.appSlug,
@@ -191,8 +226,10 @@ export function mergeTask(existing: OwnerTask | null, incoming: OwnerTaskDefinit
     link: incoming.link,
     source: incoming.source || existing.source,
     requestedBy: incoming.requestedBy || existing.requestedBy,
-    status: agentCloses ? incoming.status : existing.status,
-    doneAt: agentCloses ? now : existing.doneAt,
+    verifiedOn: incoming.verifiedOn ?? existing.verifiedOn,
+    verifiedHow: incoming.verifiedOn ? incoming.verifiedHow : existing.verifiedHow,
+    status: fixedAfterFlag ? "open" : agentCloses ? incoming.status : existing.status,
+    doneAt: fixedAfterFlag ? null : agentCloses ? now : existing.doneAt,
     updatedAt: now
   };
 }
@@ -207,8 +244,8 @@ export function sortTasks(tasks: OwnerTask[]): OwnerTask[] {
   );
 }
 
-export function countTasks(tasks: OwnerTask[]): OwnerTaskCounts {
-  const counts: OwnerTaskCounts = { open: 0, blockers: 0, waiting: 0, done: 0, bySlug: {} };
+export function countTasks(tasks: OwnerTask[], now = new Date()): OwnerTaskCounts {
+  const counts: OwnerTaskCounts = { open: 0, blockers: 0, waiting: 0, done: 0, wrong: 0, unchecked: 0, bySlug: {} };
   for (const task of tasks) {
     if (task.status === "open") {
       counts.open += 1;
@@ -217,10 +254,45 @@ export function countTasks(tasks: OwnerTask[]): OwnerTaskCounts {
       counts.waiting += 1;
     } else if (task.status === "done") {
       counts.done += 1;
+    } else if (task.status === "wrong") {
+      counts.wrong += 1;
     }
     if (isActiveStatus(task.status)) {
       counts.bySlug[task.appSlug] = (counts.bySlug[task.appSlug] ?? 0) + 1;
+      if (needsCheck(task, now)) counts.unchecked += 1;
     }
   }
   return counts;
+}
+
+export const SORT_MODES = ["importance", "newest", "oldest", "app"] as const;
+export type OwnerTaskSort = (typeof SORT_MODES)[number];
+
+export const SORT_LABEL: Record<OwnerTaskSort, string> = {
+  importance: "Most important",
+  newest: "Newest",
+  oldest: "Oldest",
+  app: "By app"
+};
+
+/** Order a list the way the owner asked. Ties fall back to importance, then newest. */
+export function sortTasksBy(tasks: OwnerTask[], mode: OwnerTaskSort, appName: (slug: string) => string = (slug) => slug): OwnerTask[] {
+  const base = sortTasks(tasks);
+  if (mode === "importance") return base;
+  const index = new Map(base.map((task, position) => [task.id, position]));
+  const tie = (a: OwnerTask, b: OwnerTask) => (index.get(a.id) ?? 0) - (index.get(b.id) ?? 0);
+  const copy = [...base];
+  if (mode === "newest") return copy.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "") || tie(a, b));
+  if (mode === "oldest") return copy.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "") || tie(a, b));
+  return copy.sort((a, b) => appName(a.appSlug).localeCompare(appName(b.appSlug)) || tie(a, b));
+}
+
+/** What a task's button says, so it is clear where it goes. */
+export function taskLinkLabel(link: string): string {
+  if (link.startsWith("/")) return "Open it here →";
+  try {
+    return `Open ${new URL(link).hostname.replace(/^www\./, "")} ↗`;
+  } catch {
+    return "Open it ↗";
+  }
 }

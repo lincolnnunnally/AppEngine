@@ -16,6 +16,7 @@ import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 import { sendEmail } from "@/lib/solution-engine/notify";
 import {
   countTasks,
+  isActiveStatus,
   mergeTask,
   parseTaskFile,
   sortTasks,
@@ -61,6 +62,9 @@ async function ensureTable(sql: Sql): Promise<void> {
           done_at timestamptz
         )
       `;
+      // When and how an agent last confirmed the ask is still needed and correct.
+      await sql`ALTER TABLE owner_tasks ADD COLUMN IF NOT EXISTS verified_on text`;
+      await sql`ALTER TABLE owner_tasks ADD COLUMN IF NOT EXISTS verified_how text NOT NULL DEFAULT ''`;
       await sql`CREATE INDEX IF NOT EXISTS owner_tasks_status_idx ON owner_tasks (status, priority)`;
       await sql`CREATE INDEX IF NOT EXISTS owner_tasks_slug_idx ON owner_tasks (app_slug, status)`;
     })().catch((error) => {
@@ -91,6 +95,8 @@ function rowToTask(row: Record<string, unknown>): OwnerTask {
     link: row.link ? String(row.link) : null,
     source: String(row.source || ""),
     requestedBy: String(row.requested_by || ""),
+    verifiedOn: row.verified_on ? String(row.verified_on) : null,
+    verifiedHow: String(row.verified_how || ""),
     ownerNote: String(row.owner_note || ""),
     origin: String(row.origin || "api") as OwnerTaskOrigin,
     createdAt: toIso(row.created_at),
@@ -113,12 +119,13 @@ async function write(sql: Sql | null, task: OwnerTask): Promise<void> {
   await sql`
     INSERT INTO owner_tasks (
       id, app_slug, title, why, steps, kind, priority, status, link, source, requested_by,
-      owner_note, origin, created_at, updated_at, done_at
+      owner_note, origin, created_at, updated_at, done_at, verified_on, verified_how
     ) VALUES (
       ${task.id}, ${task.appSlug}, ${task.title}, ${task.why}, ${JSON.stringify(task.steps)}::jsonb,
       ${task.kind}, ${task.priority}, ${task.status}, ${task.link}, ${task.source}, ${task.requestedBy},
       ${task.ownerNote}, ${task.origin}, ${task.createdAt ?? new Date().toISOString()}::timestamptz,
-      ${task.updatedAt ?? new Date().toISOString()}::timestamptz, ${task.doneAt}::timestamptz
+      ${task.updatedAt ?? new Date().toISOString()}::timestamptz, ${task.doneAt}::timestamptz,
+      ${task.verifiedOn}, ${task.verifiedHow}
     )
     ON CONFLICT (id) DO UPDATE SET
       app_slug = EXCLUDED.app_slug,
@@ -133,7 +140,9 @@ async function write(sql: Sql | null, task: OwnerTask): Promise<void> {
       requested_by = EXCLUDED.requested_by,
       owner_note = EXCLUDED.owner_note,
       updated_at = EXCLUDED.updated_at,
-      done_at = EXCLUDED.done_at
+      done_at = EXCLUDED.done_at,
+      verified_on = EXCLUDED.verified_on,
+      verified_how = EXCLUDED.verified_how
   `;
 }
 
@@ -148,6 +157,8 @@ function sameDefinition(a: OwnerTask, b: OwnerTask): boolean {
     a.link === b.link &&
     a.source === b.source &&
     a.requestedBy === b.requestedBy &&
+    a.verifiedOn === b.verifiedOn &&
+    a.verifiedHow === b.verifiedHow &&
     a.status === b.status
   );
 }
@@ -254,8 +265,8 @@ export async function updateOwnerTask(
   const current = await readOne(sql, id);
   if (!current) return null;
   const status = patch.status ?? current.status;
-  const closing = (status === "done" || status === "dismissed") && status !== current.status;
-  const reopening = (status === "open" || status === "waiting") && (current.status === "done" || current.status === "dismissed");
+  const closing = !isActiveStatus(status) && status !== current.status;
+  const reopening = isActiveStatus(status) && !isActiveStatus(current.status);
   const next: OwnerTask = {
     ...current,
     status,
