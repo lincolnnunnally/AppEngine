@@ -1320,6 +1320,46 @@
       "requestedBy": "Claude Code",
       "app": "operate",
       "addedOn": "2026-11-05"
+    },
+    {
+      "id": "groundwork-name-the-new-marketing-leads-app-then-create-its-empty-github-repo",
+      "title": "Name the new marketing & leads app, then create its empty GitHub repo",
+      "why": "The marketing & leads app for small businesses (free website scan, paid deep dive, every lead into Operate) is built and tested, working name 'Groundwork'. Agent sessions can't create repos, so it's parked in AllReposBackup PR #5 and can't go live until it has a name and a repo.",
+      "steps": [
+        "Pick the name (keep 'Groundwork' or choose another). Say it in any Claude session.",
+        "On GitHub, create a new private repo with that name under lincolnnunnally. Leave it empty (no README).",
+        "Tell any Claude session: 'marketing repo exists — move it in and deploy.' It will copy the code, create the Vercel project and database schema, and verify a real scan and request end to end."
+      ],
+      "kind": "account",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/new",
+      "source": "AllReposBackup PR #5",
+      "requestedBy": "Claude Code",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Checked 2026-11-06: no repo for it exists (list_repos); app builds, 23 tests pass, and a local scan-to-request run worked against the Commons engine.",
+      "app": "groundwork",
+      "addedOn": "2026-11-06"
+    },
+    {
+      "id": "groundwork-set-the-deep-dive-price-and-approve-its-data-cost",
+      "title": "Set the deep dive price and approve its data cost",
+      "why": "The free website scan costs us nothing. The deep dive (Google listing, reviews, rankings, competitors, directory listings) needs a paid data source per report, so it stays request-only until you choose a price and approve that cost.",
+      "steps": [
+        "Choose a one-time price for the deep dive report.",
+        "Approve a pay-per-use data account for Google listing, reviews, and ranking lookups. An agent will set it up and show the cost per report before anything is spent.",
+        "Say both in any Claude session; it will turn on checkout and the automated report."
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/5",
+      "source": "AllReposBackup PR #5",
+      "requestedBy": "Claude Code",
+      "verifiedOn": "2026-11-06",
+      "verifiedHow": "Checked 2026-11-06: /deep-dive page takes requests with price null (src/lib/groundwork/brand.ts DEEP_DIVE_PRICE_USD); no data source is wired.",
+      "app": "groundwork",
+      "addedOn": "2026-11-06"
     }
   ]
 }
