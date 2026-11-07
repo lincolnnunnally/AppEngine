@@ -401,8 +401,8 @@ const MODULES: ModuleCatalogEntry[] = [
     slug: "marketplace-orders",
     name: "Marketplace & Orders",
     category: "commerce",
-    purpose: "Product catalog, ordering, checkout, vendor/maker management, and parts marketplace.",
-    capabilities: ["product catalog", "orders", "checkout", "vendor management", "inventory", "coupons", "marketplace"],
+    purpose: "Online store: product catalog, checkout that collects payment (Stripe), related items, customer price levels and per-customer prices, offers/negotiated prices, vendor/maker management.",
+    capabilities: ["product catalog", "orders", "checkout", "online payment", "related items", "customer pricing", "wholesale pricing", "offers", "negotiated prices", "vendor management", "inventory", "marketplace"],
     usedByApps: ["laser-engrave-market"],
     primarySource: "LaserEngraving (GitHub) src/components/ProductCatalogEnhanced.tsx + OrderAllocation.tsx + CheckoutForm.tsx + MakerManagement.tsx + JeepFix PartsMarketplacePage.tsx",
     status: "extractable"
