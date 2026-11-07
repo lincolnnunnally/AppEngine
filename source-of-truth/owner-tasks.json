@@ -1529,24 +1529,23 @@
     },
     {
       "id": "easy-peasy-website-decide-keep-my-business-up-to-date-add-on-for-restaurants-and",
-      "title": "Decide: 'Keep my business up to date' add-on for restaurants and local shops",
-      "why": "You suggested it on 2026-11-07 after looking at small-town restaurant sites. The owner snaps a photo of tonight's special once, and it posts to their website, Facebook, Instagram and Google. Hours and menu changes update everywhere. Before anything is built, you need to decide what it is and who it is for.",
+      "title": "Set the price for the 'Keep my business up to date' EasyPeazy add-on",
+      "why": "On 2026-11-07 you decided this is an EasyPeazy add-on. Competitor prices are researched and recorded in EasyPeazy PRODUCT_SOURCE_OF_TRUTH.md section 1b. Competitors charge $10–60/month for listings or posting alone, and $185–500/month for restaurant platforms. The agent recommends about $9/month with no setup fee, to fit EasyPeazy's volume pricing.",
       "steps": [
-        "Read the proposal in the Claude chat from 2026-11-07 (restaurant listings add-on)",
-        "Decide: an EasyPeazy add-on (recommended) or part of Operate",
-        "Decide the price, or tell an agent to research what competitors charge",
-        "Say go, and an agent adds the setup tasks you'll need (Meta developer app, Google Business Profile API access)"
+        "Pick a price: about $9/month (recommended), or your own number",
+        "Tell an agent. It records the price, then adds the setup tasks you'll need (a Meta developer app for Facebook/Instagram and a Google Business Profile API access request) and starts building"
       ],
-      "kind": "decision",
+      "kind": "money",
       "priority": "recommended",
       "status": "open",
-      "link": "https://easypeazy.site/",
+      "link": "https://github.com/lincolnnunnally/easypeazy/blob/main/PRODUCT_SOURCE_OF_TRUTH.md",
       "source": "chat 2026-11-07",
       "requestedBy": "Claude (EasyPeazy session 2026-11-07)",
       "verifiedOn": "2026-11-07",
       "verifiedHow": "Product idea, not a setting: checked source-of-truth and owner-tasks.json for an existing listings/social add-on (none; related google-business-profiles task is for our own businesses)",
       "app": "easy-peasy-website",
-      "addedOn": "2026-11-07"
+      "addedOn": "2026-11-07",
+      "updatedOn": "2026-11-07"
     }
   ]
 }
