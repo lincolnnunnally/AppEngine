@@ -1526,6 +1526,27 @@
       "verifiedHow": "2026-11-06 22:10 UTC: live POST to api.openai.com /v1/images/generations and /v1/chat/completions with the saved OpenAI key both returned 402-style insufficient_quota / credit_balance_exhausted; earlier calls the same hour succeeded, so the key is valid and only the balance is empty. Adding credits needs Lincoln's card.",
       "app": "churchconnect",
       "addedOn": "2026-11-06"
+    },
+    {
+      "id": "easy-peasy-website-decide-keep-my-business-up-to-date-add-on-for-restaurants-and",
+      "title": "Decide: 'Keep my business up to date' add-on for restaurants and local shops",
+      "why": "You suggested it on 2026-11-07 after looking at small-town restaurant sites. The owner snaps a photo of tonight's special once, and it posts to their website, Facebook, Instagram and Google. Hours and menu changes update everywhere. Before anything is built, you need to decide what it is and who it is for.",
+      "steps": [
+        "Read the proposal in the Claude chat from 2026-11-07 (restaurant listings add-on)",
+        "Decide: an EasyPeazy add-on (recommended) or part of Operate",
+        "Decide the price, or tell an agent to research what competitors charge",
+        "Say go, and an agent adds the setup tasks you'll need (Meta developer app, Google Business Profile API access)"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://easypeazy.site/",
+      "source": "chat 2026-11-07",
+      "requestedBy": "Claude (EasyPeazy session 2026-11-07)",
+      "verifiedOn": "2026-11-07",
+      "verifiedHow": "Product idea, not a setting: checked source-of-truth and owner-tasks.json for an existing listings/social add-on (none; related google-business-profiles task is for our own businesses)",
+      "app": "easy-peasy-website",
+      "addedOn": "2026-11-07"
     }
   ]
 }
