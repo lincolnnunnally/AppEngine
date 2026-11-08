@@ -1546,6 +1546,26 @@
       "app": "easy-peasy-website",
       "addedOn": "2026-11-07",
       "updatedOn": "2026-11-07"
+    },
+    {
+      "id": "churchconnect-put-a-stripe-key-from-the-easypeazy-site-account-on-churchconnect-",
+      "title": "Put a Stripe key from the EasyPeazy.Site account on ChurchConnect, so churches can pay",
+      "why": "Since the key change on Oct 26, ChurchConnect's key is from the Church Connect Stripe account, but the $49 Pro price and the payment notice that switches on Pro and $12 websites are in the EasyPeazy.Site account. Pro checkout fails right now ('No such price'), and a paid $12 website wouldn't switch on. No church has paid since, so nothing is lost yet; 500 Pro emails go out Monday.",
+      "steps": [
+        "In Stripe, switch to the EasyPeazy.Site account (top left) → Developers → API keys → Create secret key, name it 'ChurchConnect'. Copy it once. Don't delete or roll any existing key.",
+        "Vercel → project church-connect → Settings → Environment Variables → STRIPE_SECRET_KEY → Edit → paste the new key (keep Production and Preview ticked) → Save. Paste it only there, never in chat.",
+        "Tell an agent it's done. The agent redeploys church-connect and checks that Pro checkout opens Stripe at $49 a month and that the $12 website checkout opens too (no payment made)."
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://dashboard.stripe.com/apikeys",
+      "source": "ChurchConnect, Pro checkout check 2026-11-08",
+      "requestedBy": "Claude (ChurchConnect outreach session)",
+      "verifiedOn": "2026-11-08",
+      "verifiedHow": "2026-11-08: signed up a QA church on www.churchconnect.cloud/start-free (worked, Pro trial to Dec 8); POST /api/billing/checkout as that church answered 'No such price: price_1TyKMBDBmXajoC5V6nwK8JiR'. Stripe: that price is in EasyPeazy.Site (lookup churchconnect_ministry_pro_monthly, $49/mo) along with the webhook to www.churchconnect.cloud/api/billing/webhook; Vercel STRIPE_SECRET_KEY was last c",
+      "app": "churchconnect",
+      "addedOn": "2026-11-08"
     }
   ]
 }
