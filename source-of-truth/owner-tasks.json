@@ -1566,6 +1566,54 @@
       "verifiedHow": "2026-11-08: signed up a QA church on www.churchconnect.cloud/start-free (worked, Pro trial to Dec 8); POST /api/billing/checkout as that church answered 'No such price: price_1TyKMBDBmXajoC5V6nwK8JiR'. Stripe: that price is in EasyPeazy.Site (lookup churchconnect_ministry_pro_monthly, $49/mo) along with the webhook to www.churchconnect.cloud/api/billing/webhook; Vercel STRIPE_SECRET_KEY was last c",
       "app": "churchconnect",
       "addedOn": "2026-11-08"
+    },
+    {
+      "id": "commons-approve-commons-to-post-to-a-government-s-facebook-page",
+      "title": "Approve Commons to post to a government's Facebook Page",
+      "why": "A government cannot share a Commons notice to its Facebook Page until this Meta app exists and Meta approves Page posting. Checked live 2026-11-08: Vercel project commons has COMMONS_SHARE_TOKEN_KEY already, so do not make another token key. FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, META_LOGIN_CONFIG_ID, and COMMONS_FACEBOOK_SHARE are not set. The callback and data-deletion addresses are in AllReposBackup pull request 6 and still return 404 on the live site.",
+      "steps": [
+        "Open the link, then Create app. Name it Commons. Contact email: lincoln@unitedundergod.org. Finish creating it. Do not delete or change the Church Connect app.",
+        "In the Commons app, Settings → Basic. Privacy policy URL: https://commons.unitedundergod.org/privacy. User data deletion callback URL: https://commons.unitedundergod.org/api/share/facebook/deletion. Data deletion instructions URL: https://commons.unitedundergod.org/share/data-deletion.",
+        "Add Facebook Login if it is not already a product. Facebook Login → Settings → Valid OAuth Redirect URIs: add https://commons.unitedundergod.org/api/share/facebook/callback and Save. If Meta will not save it because the address is not live, stop and tell an agent. It 404s until AllReposBackup PR #6 is deployed. Do not type a different address.",
+        "Settings → Basic: copy the App ID and App secret (Show). Vercel → project commons → Settings → Environment Variables. Add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET for Production and Preview. If Meta shows a Login configuration ID, also add META_LOGIN_CONFIG_ID the same way. Paste only in Vercel, never in chat.",
+        "Do not add COMMONS_FACEBOOK_SHARE. Leave it unset. Facebook stays hidden until Meta approves, then an agent turns it on.",
+        "App Review → Permissions and Features. Request only these four: pages_show_list, pages_read_engagement, pages_manage_posts, business_management. When Meta asks for a screencast, tell an agent first so it can turn Facebook on for that test only.",
+        "When Meta emails that the four permissions are approved, mark this done or tell an agent. The agent sets COMMONS_FACEBOOK_SHARE. You do not."
+      ],
+      "kind": "credential",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://developers.facebook.com/apps",
+      "source": "AllReposBackup PR #6",
+      "requestedBy": "Cursor (Commons share session)",
+      "verifiedOn": "2026-11-08",
+      "verifiedHow": "2026-11-08 Vercel commons: COMMONS_SHARE_TOKEN_KEY set (Production+Preview); FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, META_LOGIN_CONFIG_ID, COMMONS_FACEBOOK_SHARE absent. curl callback, deletion, and /share/data-deletion are 404; /privacy 200. Routes exist on AllReposBackup PR 6. No matching id in owner-tasks.json.",
+      "app": "commons",
+      "addedOn": "2026-11-08"
+    },
+    {
+      "id": "commons-approve-commons-to-post-to-a-google-business-profile",
+      "title": "Approve Commons to post to a Google Business Profile",
+      "why": "A government cannot share a Commons notice to its Google Maps listing until Google approves Business Profile API access and the OAuth client is on Commons. Checked live 2026-11-08: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are not set. COMMONS_SHARE_TOKEN_KEY is already set, so do not make another token key. Google requires a Business Profile you manage that has been verified for 60 days; task google-business-profiles is still open.",
+      "steps": [
+        "Google refuses this until you manage a Business Profile that has been verified and active for 60 days, with its website on the listing. If you do not have one, finish task google-business-profiles first and wait. Applying early gets refused.",
+        "Google Cloud Console → create a project named Commons, or open one you already use for this. On the project Dashboard, copy the Project Number from the Project info card.",
+        "On the Prerequisites page (this task's link), follow Request access to the APIs. Submit Application for Basic API Access with that Project Number, from the Google account that owns or manages the Business Profile. If the form link opens the Business Profile help home instead of a form, stop and tell an agent. Checked 2026-11-08: support.google.com/business/contact/api_default did that.",
+        "Wait for Google's email. Approved means the Business Profile API quota is 300 requests a minute, not 0 (Cloud Console → APIs & Services → the Business Profile API → Quotas). Then enable the Business Profile APIs (the Basic setup page linked from Prerequisites). Do not create the OAuth client before approval.",
+        "APIs & Services → Credentials → Create credentials → OAuth client ID → Web application. Name it Commons. Authorized redirect URI, exactly: https://commons.unitedundergod.org/api/share/google/callback. Commons asks Google for the scope https://www.googleapis.com/auth/business.manage. You do not type that scope on this screen.",
+        "Vercel → project commons → Settings → Environment Variables. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for both Production and Preview. Paste them only there, never in chat. Do not add COMMONS_FACEBOOK_SHARE.",
+        "Tell an agent it is done. It checks that a Commons desk can start a Google connection. Do not change any other Commons variable."
+      ],
+      "kind": "credential",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://developers.google.com/my-business/content/prereqs",
+      "source": "AllReposBackup PR #6",
+      "requestedBy": "Cursor (Commons share session)",
+      "verifiedOn": "2026-11-08",
+      "verifiedHow": "2026-11-08 Vercel commons: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET absent; COMMONS_SHARE_TOKEN_KEY already set. curl /api/share/google/callback 404. PR 6 requests scope business.manage. prereqs page 200; contact/api_default opens the help home. No matching id in owner-tasks.json.",
+      "app": "commons",
+      "addedOn": "2026-11-08"
     }
   ]
 }
