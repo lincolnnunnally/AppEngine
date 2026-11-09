@@ -1652,6 +1652,26 @@
       "verifiedHow": "live-on-mission.com/gather returns 200 with the merged content; grep shows no fee, membership or sales wording on the page; ChatGPT's draft raised the same open question and no agent can answer it.",
       "app": "live-on-mission",
       "addedOn": "2026-11-09"
+    },
+    {
+      "id": "churchconnect-decide-should-churchconnect-take-church-gifts-itself-through-strip",
+      "title": "Decide: should ChurchConnect take church gifts itself through Stripe (to replace Tithe.ly), and may we ask Tithe.ly for partner API access?",
+      "why": "Churches like Mocks Church give through Tithe.ly. Tithe.ly's public API can't list a church's gifts, so today those gifts reach ChurchConnect only by export and import. Taking gifts through Stripe Connect would put every gift straight into reports and year-end statements, but it is a bigger build with money and Stripe terms involved.",
+      "steps": [
+        "Read the one-page findings: https://github.com/lincolnnunnally/ChurchConnect/blob/main/docs/giving/TITHELY_AND_STRIPE.md",
+        "Tell an agent one of: (a) build Stripe giving, (b) only make Tithe.ly import one step for now, or (c) both. Say whether ChurchConnect should charge any fee on gifts (Stripe's nonprofit rate is 2.2% + 30 cents).",
+        "Say yes or no to an agent emailing support@tithe.ly from your address to ask whether a partner can list a church's transactions."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/ChurchConnect/blob/main/docs/giving/TITHELY_AND_STRIPE.md",
+      "source": "ChurchConnect PR #705",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-09",
+      "verifiedHow": "Read Tithe.ly's published API (tithe.ly/api, tithe.ly/api/v2/docs) on 2026-11-09: only POST /transaction, no list or webhooks. Database: 0 rows in cc_platform_connections and cc_synced_donations. Code: OnlineGiving.tsx links out to giving_url; no Stripe Connect code in backend. Findings doc merged to main (PR #705), link opens.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-09"
     }
   ]
 }
