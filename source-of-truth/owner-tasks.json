@@ -1614,6 +1614,25 @@
       "verifiedHow": "2026-11-08 Vercel commons: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET absent; COMMONS_SHARE_TOKEN_KEY already set. curl /api/share/google/callback 404. PR 6 requests scope business.manage. prereqs page 200; contact/api_default opens the help home. No matching id in owner-tasks.json.",
       "app": "commons",
       "addedOn": "2026-11-08"
+    },
+    {
+      "id": "live-on-mission-read-the-gather-page-and-confirm-how-faith-is-described-then-mer",
+      "title": "Read the Gather page and confirm how faith is described, then merge it",
+      "why": "Gather is new mission direction. You called it covert; the public page says faith is 'neither forced nor hidden' (no sermon at the door, coaches say they follow Jesus when asked, faith coaching for anyone who wants it). That wording is your call before it goes live on live-on-mission.com/gather.",
+      "steps": [
+        "Open PR #18 and read the 'Is faith part of it, or is it hidden?' question and the coaching section (Vercel preview link is on the PR).",
+        "If the wording is right, merge the PR. If not, comment on the PR with what to change and an agent will update it."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/live-on-mission/pull/18",
+      "source": "live-on-mission PR #18",
+      "requestedBy": "Claude (live-on-mission Gather session)",
+      "verifiedOn": "2026-11-09",
+      "verifiedHow": "PR #18 is open as a draft; built and typechecked; viewed /gather locally at 1280px and 390px; the FAQ wording is in src/app/gather/page.tsx QUESTIONS[2]; no agent can decide mission framing.",
+      "app": "live-on-mission",
+      "addedOn": "2026-11-09"
     }
   ]
 }
