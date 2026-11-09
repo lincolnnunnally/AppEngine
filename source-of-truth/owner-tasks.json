@@ -1710,6 +1710,25 @@
       "verifiedHow": "Read snip-show-mobile/supabase/schema.sql (profiles, videos, topics, snips, channels, referrals, analytics_snapshots - all keyed to a single user_id, no business column) and supabase/migrations/20261023_snip_clip_earnings.sql (creator_id throughout, share_rate 0.20). Grepped server, api and supabase for business/tenant/org_id and found none. Queried the shared LPL Supabase live on 2026-11-09 and c",
       "app": "snip-show",
       "addedOn": "2026-11-09"
+    },
+    {
+      "id": "churchconnect-decide-put-chatgpt-s-operations-email-ops-platform-back-into-the-d",
+      "title": "Decide: put ChatGPT's operations email (ops_platform) back into the daily rotation?",
+      "why": "It was a one-day test on Nov 9 (500 sent) and drew the only interested reply that day (Mocks Church asked about giving), plus 1 click by a person and 0 spam complaints. Its notes say not to continue it without reviewing Monday's results, so it is out of the new rotation until you say.",
+      "steps": [
+        "Read Monday's numbers: https://github.com/lincolnnunnally/ChurchConnect/blob/main/docs/outreach/LEARNINGS.md (section 'Monday 2026-11-09, end of day')",
+        "Tell an agent yes or no. If yes, it joins the Pro versions and gets its share of each day by results, like the others."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/ChurchConnect/blob/main/docs/outreach/LEARNINGS.md",
+      "source": "ChurchConnect PR #708",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-09",
+      "verifiedHow": "Queried cc_church_crm_activities on 2026-11-09: ops_platform sent 500, 1 person click, 1 reply (question), 0 complaints; DRAFTS_2026-11-09.md section G says 'Do not continue this variant Tuesday without reviewing Monday's results'; the variant is not in PRO_LETTERS/PRO_VERSIONS in backend/utils/service_outreach.py. LEARNINGS.md link opens on main.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-09"
     }
   ]
 }
