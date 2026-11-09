@@ -1672,6 +1672,44 @@
       "verifiedHow": "Read Tithe.ly's published API (tithe.ly/api, tithe.ly/api/v2/docs) on 2026-11-09: only POST /transaction, no list or webhooks. Database: 0 rows in cc_platform_connections and cc_synced_donations. Code: OnlineGiving.tsx links out to giving_url; no Stripe Connect code in backend. Findings doc merged to main (PR #705), link opens.",
       "app": "churchconnect",
       "addedOn": "2026-11-09"
+    },
+    {
+      "id": "snip-show-decide-how-to-close-the-open-snip-brain-endpoint-that-spends-your-anth",
+      "title": "Decide how to close the open Snip brain endpoint that spends your Anthropic key",
+      "why": "https://snip-show-mobile.vercel.app/detect-snips is public with no authentication, and it calls Claude on your ANTHROPIC_API_KEY. The Vercel project has that key set and has no SUPABASE_JWT_SECRET, so server/auth.py falls into its dev-bypass branch - the file itself says 'Never deploy without the secret set.' Anyone who knows the URL can run unlimited Claude calls on your bill. The iPhone app sends no token to the brain, so simply setting the secret would stop the app working until it is rebuilt.",
+      "steps": [
+        "Pick one: (a) I add a shared brain token, set it on Vercel, and you rebuild SnipSpike in Xcode once and paste the token in the app's settings; (b) I make the brain refuse every request until you are ready, which stops the app working now; (c) leave it open on purpose.",
+        "If (a): open SnipSpike/SnipSpike.xcodeproj in Xcode, Run on your iPhone, then paste the token I give you into the app's settings next to the brain URL."
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://vercel.com/life-produces-life/snip-show-mobile/settings/environment-variables",
+      "source": "operate PR #102",
+      "requestedBy": "Claude (Operate video campaigns session)",
+      "verifiedOn": "2026-11-09",
+      "verifiedHow": "Fetched https://snip-show-mobile.vercel.app/health live on 2026-11-09 and it returned auth:false. Listed the snip-show-mobile Vercel project env vars: ANTHROPIC_API_KEY is set for production and SUPABASE_JWT_SECRET is absent. Read server/auth.py (dev-bypass when JWT_SECRET unset), server/main.py (detect-snips depends on current_user) and server/snip_detection.py (calls AsyncAnthropic with claude-s",
+      "app": "snip-show",
+      "addedOn": "2026-11-09"
+    },
+    {
+      "id": "snip-show-decide-whether-snip-show-becomes-multi-business-so-operate-shops-manag",
+      "title": "Decide whether Snip.show becomes multi-business, so Operate shops manage their own clips there",
+      "why": "You asked for Operate to connect with snip.show so businesses can manage their content. Snip.show today is single-creator: videos.user_id and snips.user_id point at one auth.users row, snip_published_clips is keyed by creator_id, and there is no business or tenant anywhere in its schema or server. INTERCONNECT.md also says 'Do not run a second Ideas or a second clipper', so Operate must not grow its own clip library instead. Operate now plans and records the posts and links out to Snip.show, but a shop cannot yet have its own clips there. Which way this goes is product direction, not a technic",
+      "steps": [
+        "Pick one: (a) Snip.show gains businesses, so an Operate shop signs in and keeps its own clips and published-clip rows there; (b) Snip.show stays yours alone and Operate shops cut clips however they like and just paste links; (c) something else you have in mind.",
+        "If (a), also say whether the existing 20 percent share on snip_clip_earnings applies to a business's clips or only to creators."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/operate/pull/102",
+      "source": "operate PR #102",
+      "requestedBy": "Claude (Operate video campaigns session)",
+      "verifiedOn": "2026-11-09",
+      "verifiedHow": "Read snip-show-mobile/supabase/schema.sql (profiles, videos, topics, snips, channels, referrals, analytics_snapshots - all keyed to a single user_id, no business column) and supabase/migrations/20261023_snip_clip_earnings.sql (creator_id throughout, share_rate 0.20). Grepped server, api and supabase for business/tenant/org_id and found none. Queried the shared LPL Supabase live on 2026-11-09 and c",
+      "app": "snip-show",
+      "addedOn": "2026-11-09"
     }
   ]
 }
