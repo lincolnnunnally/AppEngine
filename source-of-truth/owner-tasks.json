@@ -1625,12 +1625,31 @@
       ],
       "kind": "decision",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/lincolnnunnally/live-on-mission/pull/18",
       "source": "live-on-mission PR #18",
       "requestedBy": "Claude (live-on-mission Gather session)",
       "verifiedOn": "2026-11-09",
       "verifiedHow": "PR #18 is open as a draft; built and typechecked; viewed /gather locally at 1280px and 390px; the FAQ wording is in src/app/gather/page.tsx QUESTIONS[2]; no agent can decide mission framing.",
+      "app": "live-on-mission",
+      "addedOn": "2026-11-09"
+    },
+    {
+      "id": "live-on-mission-decide-is-gather-a-free-space-or-a-makerspace-that-also-earns-mo",
+      "title": "Decide: is Gather a free space, or a makerspace that also earns money?",
+      "why": "This shapes the building layout, the pitch to churches and how Gather pays its own way. The live page (live-on-mission.com/gather) says nothing about fees yet and waits on your answer.",
+      "steps": [
+        "Pick one: (A) free community space paid for by churches and donors, or (B) the same, plus optional paid workshops, memberships, custom laser engraving and product sales that help cover rent. Under B, coming in and belonging stays free.",
+        "Reply in the Gather chat or comment on the task. An agent updates the page and the plan."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://live-on-mission.com/gather",
+      "source": "live-on-mission PR #18",
+      "requestedBy": "Claude (live-on-mission Gather session)",
+      "verifiedOn": "2026-11-09",
+      "verifiedHow": "live-on-mission.com/gather returns 200 with the merged content; grep shows no fee, membership or sales wording on the page; ChatGPT's draft raised the same open question and no agent can answer it.",
       "app": "live-on-mission",
       "addedOn": "2026-11-09"
     }
