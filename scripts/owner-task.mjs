@@ -59,6 +59,28 @@ const today = () => new Date().toISOString().slice(0, 10);
 // Lincoln, 2026-11-06: asks on his list were wrong, and one would have done real
 // harm. Nothing goes on the list unless the agent checked it against the real
 // thing first. See source-of-truth/owner-task-queue.md, "Accuracy gate".
+// Lincoln, 2026-11-10: "I pressed the open GitHub button and it took me to a 404." He reads the list on his phone
+// and is not signed in to GitHub there, so a pull request, a file or a folder in a repository does not open for
+// him. A link must open something he can read or act on with no GitHub sign-in: a live page, a preview, or the
+// service's own page. GitHub's own account pages (github.com/new, /settings, /apps) are still allowed.
+const UNREADABLE_LINK = `Refused: the link is a GitHub pull request, file, folder or repository, which Lincoln cannot open
+(private repositories answer 404 on his phone). Link to a page he can read: a live or preview URL, or publish the
+document as a page. If there is nothing to open, leave --link out and put what he needs in the steps.`;
+
+export function unreadableLink(link) {
+  if (!link) return false;
+  let url;
+  try {
+    url = new URL(link);
+  } catch {
+    return false;
+  }
+  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") return false;
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length < 2) return false; // github.com, github.com/new
+  return !["settings", "apps", "organizations", "new", "login"].includes(parts[0]);
+}
+
 const ACCURACY_GATE = `Refused: say what you checked. Add --verified-how "<what you looked at, live>".
 Before asking Lincoln, confirm against the real thing, not memory or a doc:
   - it is still needed (the setting / key / page really is missing today)
@@ -70,6 +92,7 @@ Full rules: source-of-truth/owner-task-queue.md`;
 
 function withVerification(input) {
   if (!input.verifiedHow || input.verifiedHow.trim().length < 12) fail(ACCURACY_GATE);
+  if (unreadableLink(input.link)) fail(UNREADABLE_LINK);
   return { ...input, verifiedOn: input.verifiedOn || today() };
 }
 

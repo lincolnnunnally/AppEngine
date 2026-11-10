@@ -147,3 +147,15 @@ cloud session on that environment can call the Cloudflare API directly; the netw
 2026-11-10: the token lists 19 zones, including we-succeed.org, vidalia.pro, backoffice.works, unitedundergod.org
 and churchconnect.cloud, and it created a CNAME on we-succeed.org. Look at where a record points before changing
 it, and add the new record before removing an old one.
+
+## Links Lincoln can open (2026-11-10)
+
+Lincoln: "It gives me instructions but no way to read or find what it tells me to read. I pressed the open GitHub
+button and it took me to a 404." He reads the list on his phone and is not signed in to GitHub there.
+
+- The link must open with no GitHub sign-in: a live page, a preview deployment, or the outside service's own page.
+  Never a pull request, a file, a folder or a repository. `owner-task.mjs add` refuses those.
+- If he has to read something, make it a page he can open (deploy a preview, or publish the document), or write
+  what he needs into the steps. "Read X in the linked pull request" is not a step he can do.
+- Put the address in the step text as well as on the button, so it is still there if the button fails.
+- A decision should be answerable in one line. Say what you recommend, and that "you decide" is an answer.
