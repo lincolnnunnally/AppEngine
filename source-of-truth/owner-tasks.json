@@ -1773,18 +1773,19 @@
       "title": "Read your marketing resume and cover letter, then email them to the City of Lyons",
       "why": "The Marketing Coordinator posting is open now and only you can apply. Your resume and cover letter are live as web pages with a Download PDF button on each.",
       "steps": [
-        "Open your resume: https://lincoln-resume.we-succeed.org/marketing (the button below opens it). Read every line. Tell an agent anything that is wrong; the location says Vidalia, Georgia area.",
-        "Open your cover letter: https://lincoln-resume.we-succeed.org/cover-letter . It does not mention fundraising, which the posting asks for. Tell an agent one or two sentences about your real fundraising experience and it adds them.",
-        "On each page tap Download PDF. Email both PDFs to lyonsmainstreet@lyonsga.gov (the address in the post text) and lyonsmainstreet@lyonsga.org (the address in the picture). The post says no phone calls."
+        "Tell an agent the years for each job: We Succeed (started when), Millstead Baptist Church (from and to), Consolidated Copier Services (from and to). No dates are on file, and an agent will not guess them",
+        "Open the resume at lincoln-resume.we-succeed.org and the letter at lincoln-resume.we-succeed.org/cover-letter and read both",
+        "If you have fundraising experience, tell an agent one true sentence about it; the posting asks for it and the resume leaves it out",
+        "Download both PDFs from those pages and email them to lyonsmainstreet@lyonsga.gov. The posting says no phone calls"
       ],
       "kind": "other",
       "priority": "recommended",
       "status": "open",
-      "link": "https://lincoln-resume.we-succeed.org/marketing",
+      "link": "https://lincoln-resume.we-succeed.org/",
       "source": "lincoln-nunnally-resume PR #3",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "Https://lincoln-resume.we-succeed.org/marketing and /cover-letter answer 200 with a valid certificate, and both PDF downloads answer 200 (application/pdf). Lincoln reported the earlier link (a GitHub pull request) gave him a 404; the link now opens the resume page directly.",
+      "verifiedHow": "Both pages return 200 at lincoln-resume.we-succeed.org on 2026-11-10; no dates exist in the resume repo",
       "app": "appengine",
       "addedOn": "2026-11-10"
     },
