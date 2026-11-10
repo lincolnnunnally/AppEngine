@@ -138,3 +138,12 @@ Then close the task. An answer that lives only in a chat is lost.
 - Desk home (`/`): "Your to-do" panel at the very top, top five, blockers first.
 - App dossier (`/apps/<slug>`): "Only you can do these" for that app, plus a To do button.
 - The business table's attention count includes open tasks.
+
+## Cloudflare DNS from a Claude cloud session (2026-11-10)
+
+Lincoln saved a Cloudflare API token on his Default cloud environment, for the host `api.cloudflare.com`. Every
+cloud session on that environment can call the Cloudflare API directly; the network proxy adds the token, so send
+`Authorization: Bearer proxy-injected` and never ask him for a token or a DNS record again. Checked on
+2026-11-10: the token lists 19 zones, including we-succeed.org, vidalia.pro, backoffice.works, unitedundergod.org
+and churchconnect.cloud, and it created a CNAME on we-succeed.org. Look at where a record points before changing
+it, and add the new record before removing an old one.
