@@ -18,6 +18,7 @@ import {
   countTasks,
   isActiveStatus,
   mergeTask,
+  normalizeDoc,
   parseTaskFile,
   sortTasks,
   type OwnerTask,
@@ -65,6 +66,8 @@ async function ensureTable(sql: Sql): Promise<void> {
       // When and how an agent last confirmed the ask is still needed and correct.
       await sql`ALTER TABLE owner_tasks ADD COLUMN IF NOT EXISTS verified_on text`;
       await sql`ALTER TABLE owner_tasks ADD COLUMN IF NOT EXISTS verified_how text NOT NULL DEFAULT ''`;
+      // What he has to read, copied into the task so it opens on the page (see OwnerTaskDoc).
+      await sql`ALTER TABLE owner_tasks ADD COLUMN IF NOT EXISTS doc jsonb`;
       await sql`CREATE INDEX IF NOT EXISTS owner_tasks_status_idx ON owner_tasks (status, priority)`;
       await sql`CREATE INDEX IF NOT EXISTS owner_tasks_slug_idx ON owner_tasks (app_slug, status)`;
     })().catch((error) => {
@@ -81,6 +84,14 @@ function toIso(value: unknown): string | null {
   return String(value);
 }
 
+function safeJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 function rowToTask(row: Record<string, unknown>): OwnerTask {
   const steps = Array.isArray(row.steps) ? row.steps.map(String) : [];
   return {
@@ -93,6 +104,7 @@ function rowToTask(row: Record<string, unknown>): OwnerTask {
     priority: String(row.priority || "recommended") as OwnerTask["priority"],
     status: String(row.status || "open") as OwnerTaskStatus,
     link: row.link ? String(row.link) : null,
+    doc: normalizeDoc(typeof row.doc === "string" ? safeJson(row.doc) : row.doc),
     source: String(row.source || ""),
     requestedBy: String(row.requested_by || ""),
     verifiedOn: row.verified_on ? String(row.verified_on) : null,
@@ -119,13 +131,13 @@ async function write(sql: Sql | null, task: OwnerTask): Promise<void> {
   await sql`
     INSERT INTO owner_tasks (
       id, app_slug, title, why, steps, kind, priority, status, link, source, requested_by,
-      owner_note, origin, created_at, updated_at, done_at, verified_on, verified_how
+      owner_note, origin, created_at, updated_at, done_at, verified_on, verified_how, doc
     ) VALUES (
       ${task.id}, ${task.appSlug}, ${task.title}, ${task.why}, ${JSON.stringify(task.steps)}::jsonb,
       ${task.kind}, ${task.priority}, ${task.status}, ${task.link}, ${task.source}, ${task.requestedBy},
       ${task.ownerNote}, ${task.origin}, ${task.createdAt ?? new Date().toISOString()}::timestamptz,
       ${task.updatedAt ?? new Date().toISOString()}::timestamptz, ${task.doneAt}::timestamptz,
-      ${task.verifiedOn}, ${task.verifiedHow}
+      ${task.verifiedOn}, ${task.verifiedHow}, ${task.doc ? JSON.stringify(task.doc) : null}::jsonb
     )
     ON CONFLICT (id) DO UPDATE SET
       app_slug = EXCLUDED.app_slug,
@@ -142,7 +154,8 @@ async function write(sql: Sql | null, task: OwnerTask): Promise<void> {
       updated_at = EXCLUDED.updated_at,
       done_at = EXCLUDED.done_at,
       verified_on = EXCLUDED.verified_on,
-      verified_how = EXCLUDED.verified_how
+      verified_how = EXCLUDED.verified_how,
+      doc = EXCLUDED.doc
   `;
 }
 
@@ -155,6 +168,7 @@ function sameDefinition(a: OwnerTask, b: OwnerTask): boolean {
     a.kind === b.kind &&
     a.priority === b.priority &&
     a.link === b.link &&
+    JSON.stringify(a.doc) === JSON.stringify(b.doc) &&
     a.source === b.source &&
     a.requestedBy === b.requestedBy &&
     a.verifiedOn === b.verifiedOn &&
