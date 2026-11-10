@@ -6,11 +6,13 @@ import {
   isActiveStatus,
   KIND_LABEL,
   needsCheck,
+  needsGithubSignIn,
   OWNER_TASK_KINDS,
   PRIORITY_LABEL,
   SORT_LABEL,
   SORT_MODES,
   sortTasksBy,
+  taskLinkAddress,
   taskLinkLabel,
   STATUS_LABEL,
   VERIFIED_FRESH_DAYS,
@@ -22,6 +24,7 @@ import {
 import { getCredentialAttentionItems, type CredentialAttentionItem } from "@/lib/engine/ecosystem-credential-registry";
 import { getPortfolioUrlStatusBoard } from "@/lib/engine/portfolio-url-status";
 import { OwnerTaskActions, OwnerTaskAddForm } from "@/components/engine/owner-task-actions";
+import { OwnerTaskDocReader } from "@/components/engine/owner-task-doc";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +67,7 @@ function TaskCard({ task, appName, now }: { task: OwnerTask; appName: string; no
           ))}
         </ol>
       ) : null}
+      {task.doc && active ? <OwnerTaskDocReader doc={task.doc} /> : null}
       {active ? (
         unchecked ? (
           <p className="owner-task-check owner-task-check--warn">
@@ -82,7 +86,7 @@ function TaskCard({ task, appName, now }: { task: OwnerTask; appName: string; no
       {task.ownerNote && task.status !== "wrong" ? <p className="dx-note owner-task-answer">You said: {task.ownerNote}</p> : null}
       {task.status === "wrong" ? <p className="dx-note owner-task-answer">{task.ownerNote}</p> : null}
       {task.link && active ? (
-        <p style={{ marginTop: 8 }}>
+        <div className="owner-task-open">
           <a
             className="dx-btn dx-btn--primary"
             href={task.link}
@@ -91,7 +95,14 @@ function TaskCard({ task, appName, now }: { task: OwnerTask; appName: string; no
           >
             {taskLinkLabel(task.link)}
           </a>
-        </p>
+          {/* The address in words, so a button that fails on his phone does not leave him stuck. */}
+          <p className="owner-task-address">
+            {needsGithubSignIn(task.link)
+              ? "This page needs you signed in to GitHub, so it is easiest on a computer. The address: "
+              : "If the button does not open, the address is: "}
+            <span>{taskLinkAddress(task.link)}</span>
+          </p>
+        </div>
       ) : null}
       <p className="dx-note" style={{ marginTop: 8, fontSize: "0.78rem" }}>
         Asked by {task.requestedBy || "an agent"}
@@ -300,6 +311,29 @@ export default async function OwnerTasksPage({
 
       <section className="panel" id="list">
         <p className="dx-label">{showClosed ? "Cleared" : "Your list"}{slug ? ` — ${slug === "ecosystem" ? "all-app items" : nameFor(slug)}` : ""}</p>
+
+        {!showClosed ? (
+          <details className="owner-task-howto">
+            <summary>How to finish one</summary>
+            <ol>
+              <li>
+                <b>Your decision:</b> type your answer in the box on the card and tap <b>Send my answer</b>. One line is
+                enough. If you would rather not choose, type <b>you decide</b> and the agent goes with what it recommended.
+              </li>
+              <li>
+                <b>Anything else:</b> do the numbered steps, then tap <b>Done</b>. The big button opens the page the first
+                step needs, and its address is written under it.
+              </li>
+              <li>
+                <b>Something to read?</b> Tap <b>Read it here</b> on the card. It opens right there; nothing to sign in to.
+              </li>
+              <li>
+                <b>Doesn&apos;t make sense, or you can&apos;t do a step?</b> Tap <b>This is wrong</b> and say why in a few
+                words. It leaves your list and an agent fixes it.
+              </li>
+            </ol>
+          </details>
+        ) : null}
 
         {/* A plain GET form: Enter searches, the result is a URL that can be
             bookmarked or sent, and it works before any script loads. */}

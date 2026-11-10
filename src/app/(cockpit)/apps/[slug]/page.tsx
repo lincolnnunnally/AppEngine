@@ -3,7 +3,8 @@ import { canAccessEngineAdmin } from "@/lib/auth/access";
 import { loadAppDossier } from "@/lib/engine/app-dossier";
 import { InboxActions } from "@/components/engine/inbox-actions";
 import { OwnerTaskActions } from "@/components/engine/owner-task-actions";
-import { PRIORITY_LABEL, taskLinkLabel } from "@/lib/engine/owner-tasks-core";
+import { needsGithubSignIn, PRIORITY_LABEL, taskLinkAddress, taskLinkLabel } from "@/lib/engine/owner-tasks-core";
+import { OwnerTaskDocReader } from "@/components/engine/owner-task-doc";
 
 export const dynamic = "force-dynamic";
 
@@ -95,12 +96,19 @@ export default async function AppDossierPage({
                   ))}
                 </ol>
               ) : null}
+              {task.doc ? <OwnerTaskDocReader doc={task.doc} /> : null}
               {task.link ? (
-                <p style={{ marginTop: 8 }}>
+                <div className="owner-task-open">
                   <a className="dx-btn dx-btn--primary" href={task.link} target={task.link.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
                     {taskLinkLabel(task.link)}
                   </a>
-                </p>
+                  <p className="owner-task-address">
+                    {needsGithubSignIn(task.link)
+                      ? "This page needs you signed in to GitHub, so it is easiest on a computer. The address: "
+                      : "If the button does not open, the address is: "}
+                    <span>{taskLinkAddress(task.link)}</span>
+                  </p>
+                </div>
               ) : null}
               <OwnerTaskActions id={task.id} status={task.status} ownerNote={task.ownerNote} kind={task.kind} />
             </article>

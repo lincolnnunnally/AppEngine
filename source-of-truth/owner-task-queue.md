@@ -159,3 +159,28 @@ button and it took me to a 404." He reads the list on his phone and is not signe
   what he needs into the steps. "Read X in the linked pull request" is not a step he can do.
 - Put the address in the step text as well as on the button, so it is still there if the button fails.
 - A decision should be answerable in one line. Say what you recommend, and that "you decide" is an answer.
+
+## Reading material opens on the card (2026-11-10)
+
+Lincoln: "I'm not sure how to complete tasks you give me in my dashboard." If an ask needs him to read something,
+send the words with the task. The card then shows **Read it here**, which opens on the to-do page itself, behind
+the dashboard's owner sign-in.
+
+```bash
+# with a new ask
+node scripts/owner-task.mjs add ... --doc-file ./findings.md --doc-title "Tithe.ly and Stripe findings" \
+  --doc-from "ChurchConnect docs/giving/TITHELY_AND_STRIPE.md"
+# on an ask already in the file
+node scripts/owner-task.mjs doc <id> --file ./findings.md --title "..." --from "<repo and path>"
+```
+
+- The text is **copied into the task** when you run the command. The dashboard server holds no GitHub credential
+  (checked 2026-11-10: Vercel project app-engine has none), so it cannot fetch a file from a repository. If the
+  source changes, run `doc` again.
+- Plain text or simple markdown: headings, lists, tables, bold, `code`, links. 30,000 characters at most. Copy only
+  the part he needs, and put it in plain words; he is not technical.
+- Private repository content stays private: it is shown only on `/tasks` and the app page, which need his sign-in.
+  Never publish it as a public page to make it linkable.
+- End the document with what you recommend. In the steps say that "you decide" is an answer, and what it means.
+- Each card also prints the button's address in words under it, and says when a page needs a GitHub sign-in.
+- `npm test` fails if an open ask's button or steps point at a GitHub pull request, file, folder or repository.

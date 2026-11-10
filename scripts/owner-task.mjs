@@ -12,6 +12,14 @@
 //
 //       Requires --verified-how "<what you checked, live>" (accuracy gate, 2026-11-06).
 //
+//       If he has to read something, send it with the task so it opens on the to-do page itself:
+//       --doc-file ./FINDINGS.md --doc-title "Tithe.ly and Stripe findings" --doc-from "ChurchConnect docs/giving/..."
+//       The file's text is copied into the task (the dashboard holds no GitHub credential, and he is not
+//       signed in to GitHub on his phone). Plain text or simple markdown.
+//
+//   node scripts/owner-task.mjs doc <id> --file <path> --title "..." --from "<repo and path>"
+//       Attach (or replace) the reading material on an ask that is already in the file.
+//
 //   node scripts/owner-task.mjs verify <id> --how "<what you checked>"
 //       Stamp an ask as re-checked today. A task Lincoln marked wrong comes back
 //       to his list only after this (and the fix) lands.
@@ -25,7 +33,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { needsCheck, normalizeTaskInput, parseTaskFile, VERIFIED_FRESH_DAYS } from "../src/lib/engine/owner-tasks-core.ts";
+import { DOC_TEXT_MAX, needsCheck, normalizeTaskInput, parseTaskFile, unreadableLink, VERIFIED_FRESH_DAYS } from "../src/lib/engine/owner-tasks-core.ts";
 
 const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "source-of-truth", "owner-tasks.json");
 
@@ -67,20 +75,6 @@ const UNREADABLE_LINK = `Refused: the link is a GitHub pull request, file, folde
 (private repositories answer 404 on his phone). Link to a page he can read: a live or preview URL, or publish the
 document as a page. If there is nothing to open, leave --link out and put what he needs in the steps.`;
 
-export function unreadableLink(link) {
-  if (!link) return false;
-  let url;
-  try {
-    url = new URL(link);
-  } catch {
-    return false;
-  }
-  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") return false;
-  const parts = url.pathname.split("/").filter(Boolean);
-  if (parts.length < 2) return false; // github.com, github.com/new
-  return !["settings", "apps", "organizations", "new", "login"].includes(parts[0]);
-}
-
 const ACCURACY_GATE = `Refused: say what you checked. Add --verified-how "<what you looked at, live>".
 Before asking Lincoln, confirm against the real thing, not memory or a doc:
   - it is still needed (the setting / key / page really is missing today)
@@ -89,6 +83,30 @@ Before asking Lincoln, confirm against the real thing, not memory or a doc:
   - no step can break something live; risky steps come in the safe order
   - the link opens the exact page the first step needs
 Full rules: source-of-truth/owner-task-queue.md`;
+
+// Copy what he must read into the task. Reads the file now, so the words are on the page even though the
+// dashboard cannot fetch from GitHub.
+function readDoc(file, title, from) {
+  if (!file) return null;
+  let body;
+  try {
+    body = fs.readFileSync(file, "utf8");
+  } catch {
+    fail(`Could not read the document "${file}".`);
+  }
+  if (!body.trim()) fail(`The document "${file}" is empty.`);
+  if (body.length > DOC_TEXT_MAX) {
+    fail(`The document is ${body.length} characters; the limit is ${DOC_TEXT_MAX}. Copy only the part he needs into a shorter file.`);
+  }
+  if (!title || title.trim().length < 3) fail('A document needs a title: --doc-title "<what it is, in plain words>".');
+  return { title: title.trim(), text: body, from: (from || path.basename(file)).trim() };
+}
+
+function withDoc(input) {
+  const doc = readDoc(input["doc-file"], input["doc-title"], input["doc-from"]);
+  const { "doc-file": _file, "doc-title": _title, "doc-from": _from, ...rest } = input;
+  return doc ? { ...rest, doc } : rest;
+}
 
 function withVerification(input) {
   if (!input.verifiedHow || input.verifiedHow.trim().length < 12) fail(ACCURACY_GATE);
@@ -125,16 +143,27 @@ if (command === "check") {
   writeFile(data);
   console.log(`Re-checked "${id}" (${task.verifiedOn}). Commit the file. If Lincoln had marked it wrong, it returns to his list.`);
 } else if (command === "add") {
-  const parsed = normalizeTaskInput(withVerification(flags(rest)));
+  const parsed = normalizeTaskInput(withVerification(withDoc(flags(rest))));
   if (!parsed.ok) fail(parsed.message);
   const data = readFile();
   const index = data.tasks.findIndex((task) => (task.id || "") === parsed.task.id);
   const entry = { ...parsed.task, app: parsed.task.appSlug, addedOn: new Date().toISOString().slice(0, 10) };
   delete entry.appSlug;
+  if (!entry.doc) delete entry.doc; // re-adding without --doc-file keeps the reading material already there
   if (index >= 0) data.tasks[index] = { ...data.tasks[index], ...entry, addedOn: data.tasks[index].addedOn || entry.addedOn };
   else data.tasks.push(entry);
   writeFile(data);
   console.log(`${index >= 0 ? "Updated" : "Added"} "${parsed.task.id}". Commit source-of-truth/owner-tasks.json with your PR.`);
+} else if (command === "doc") {
+  const id = rest[0];
+  const { file, title, from } = flags(rest.slice(1));
+  if (!id || !file) fail('Usage: owner-task.mjs doc <id> --file <path> --title "<what it is>" --from "<repo and path>"');
+  const data = readFile();
+  const task = data.tasks.find((entry) => entry.id === id);
+  if (!task) fail(`No task "${id}" in the file.`);
+  task.doc = readDoc(file, title, from);
+  writeFile(data);
+  console.log(`Attached "${task.doc.title}" to "${id}" (${task.doc.text.length} characters). It opens on the card as "Read it here".`);
 } else if (command === "done") {
   const id = rest[0];
   if (!id) fail("Usage: owner-task.mjs done <id>");
@@ -147,7 +176,7 @@ if (command === "check") {
 } else if (command === "post") {
   const token = (process.env.APP_ENGINE_TASKS_TOKEN || "").trim();
   if (!token) fail("APP_ENGINE_TASKS_TOKEN is not set. Use `add` and commit the file instead.");
-  const parsed = normalizeTaskInput(withVerification(flags(rest)));
+  const parsed = normalizeTaskInput(withVerification(withDoc(flags(rest))));
   if (!parsed.ok) fail(parsed.message);
   const base = (process.env.APP_ENGINE_DASHBOARD_URL || "https://dashboard.unitedundergod.org").replace(/\/$/, "");
   const response = await fetch(`${base}/api/engine/owner-tasks`, {
@@ -159,5 +188,5 @@ if (command === "check") {
   if (!response.ok) fail(`Dashboard said ${response.status}: ${body}`);
   console.log(body);
 } else {
-  fail("Commands: check | add | verify <id> --how \"...\" | done <id> | post   (see the header of scripts/owner-task.mjs)");
+  fail("Commands: check | add | verify <id> --how \"...\" | doc <id> --file ... | done <id> | post   (see the header of scripts/owner-task.mjs)");
 }

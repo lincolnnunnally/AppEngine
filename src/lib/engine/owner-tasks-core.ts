@@ -21,6 +21,20 @@ export type OwnerTaskStatus = (typeof OWNER_TASK_STATUSES)[number];
 /** Where the task came from: the git-tracked list, an API post, or typed in by the owner. */
 export type OwnerTaskOrigin = "file" | "api" | "owner";
 
+/**
+ * Reading material that travels with a task and opens on the to-do page itself.
+ * Lincoln, 2026-11-10: "It gives me instructions but no way to read or find what it tells me to read." He is
+ * not signed in to GitHub on his phone, and the dashboard server holds no GitHub credential, so the text is
+ * copied into the task when the ask is written. `from` records where it was copied from, for the next agent.
+ */
+export type OwnerTaskDoc = {
+  title: string; // what the button says: "Read it here: <title>"
+  text: string; // plain text or simple markdown, shown behind the dashboard's owner sign-in
+  from: string; // where it was copied from, e.g. "ChurchConnect docs/giving/TITHELY_AND_STRIPE.md, 2026-11-10"
+};
+
+export const DOC_TEXT_MAX = 30000;
+
 export type OwnerTask = {
   id: string;
   appSlug: string; // app-ops-catalog slug, or "ecosystem" for cross-app asks
@@ -31,6 +45,7 @@ export type OwnerTask = {
   priority: OwnerTaskPriority;
   status: OwnerTaskStatus;
   link: string | null; // where to actually do it
+  doc: OwnerTaskDoc | null; // what he has to read, shown on the page
   source: string; // file / PR / session that asked
   requestedBy: string; // which agent or app asked
   verifiedOn: string | null; // YYYY-MM-DD an agent last confirmed the ask is still needed and correct
@@ -129,6 +144,46 @@ export function safeLink(value: unknown): string | null {
   }
 }
 
+/** A document only counts when it has text to read. Anything else becomes null. */
+export function normalizeDoc(value: unknown): OwnerTaskDoc | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Record<string, unknown>;
+  const body = typeof input.text === "string" ? input.text.replace(/\r\n?/g, "\n").trim().slice(0, DOC_TEXT_MAX) : "";
+  if (!body) return null;
+  return { title: text(input.title, 120) || "What to read", text: body, from: text(input.from, 200) };
+}
+
+/**
+ * True for a GitHub pull request, file, folder or repository. Lincoln cannot open those: private repositories
+ * answer 404 to anyone not signed in (2026-11-10). GitHub's own account pages (github.com/new, /settings) and
+ * a repository's settings pages are not counted here; see needsGithubSignIn.
+ */
+export function unreadableLink(link: string | null | undefined): boolean {
+  const url = githubUrl(link);
+  if (!url) return false;
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length < 2) return false; // github.com, github.com/new
+  // A repository's own settings page is somewhere he acts, not something he reads. It still needs a
+  // sign-in, which the card says (needsGithubSignIn).
+  if (parts[2] === "settings") return false;
+  return !["settings", "apps", "organizations", "new", "login"].includes(parts[0]);
+}
+
+/** Any github.com page. Every one of them needs a GitHub sign-in, so the card says so. */
+export function needsGithubSignIn(link: string | null | undefined): boolean {
+  return Boolean(githubUrl(link));
+}
+
+function githubUrl(link: string | null | undefined): URL | null {
+  if (!link) return null;
+  try {
+    const url = new URL(link);
+    return url.hostname === "github.com" || url.hostname === "www.github.com" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Validate one incoming task (from the JSON file or an API post). With no id,
  * the id is derived from app + title so re-posting the same ask is idempotent
@@ -158,6 +213,7 @@ export function normalizeTaskInput(
       priority: pick(input.priority, OWNER_TASK_PRIORITIES, "recommended"),
       status: pick(input.status, OWNER_TASK_STATUSES, "open"),
       link: safeLink(input.link),
+      doc: normalizeDoc(input.doc),
       source: text(input.source, 300),
       requestedBy: text(input.requestedBy, 120),
       verifiedOn: isoDay(input.verifiedOn),
@@ -224,6 +280,7 @@ export function mergeTask(existing: OwnerTask | null, incoming: OwnerTaskDefinit
     kind: incoming.kind,
     priority: incoming.priority,
     link: incoming.link,
+    doc: incoming.doc,
     source: incoming.source || existing.source,
     requestedBy: incoming.requestedBy || existing.requestedBy,
     verifiedOn: incoming.verifiedOn ?? existing.verifiedOn,
@@ -285,6 +342,16 @@ export function sortTasksBy(tasks: OwnerTask[], mode: OwnerTaskSort, appName: (s
   if (mode === "newest") return copy.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "") || tie(a, b));
   if (mode === "oldest") return copy.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "") || tie(a, b));
   return copy.sort((a, b) => appName(a.appSlug).localeCompare(appName(b.appSlug)) || tie(a, b));
+}
+
+export const DASHBOARD_ORIGIN = "https://dashboard.unitedundergod.org";
+
+/**
+ * The full address behind a task's button, written out under it. If the button fails on his phone he can
+ * still read the address, copy it, or type it on a computer.
+ */
+export function taskLinkAddress(link: string): string {
+  return link.startsWith("/") ? `${DASHBOARD_ORIGIN}${link}` : link;
 }
 
 /** What a task's button says, so it is clear where it goes. */
