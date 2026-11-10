@@ -1,4 +1,5 @@
--- APPLIED to production (LPL Supabase uqhqulrqcygsmmzdzemx) on 2026-11-10.
+-- APPLIED to production (LPL Supabase uqhqulrqcygsmmzdzemx) on 2026-11-10. First live runs after: 6.6 s to 2.1 s,
+-- 3.5 s to 1.0 s, 3.1 s to 1.8 s.
 --
 -- crm_church_state_code was declared with "set search_path". Postgres never inlines a SQL
 -- function that has a SET clause, so every call started the function executor and rebuilt

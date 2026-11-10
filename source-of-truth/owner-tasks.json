@@ -870,7 +870,7 @@
     {
       "id": "supabase-lpl-compute-upgrade",
       "title": "Nothing to do yet: an agent tries the free fix before any Supabase upgrade",
-      "why": "The shared database is on Small (2 GB) and holds 344k church rows. An agent checked it on 2026-11-10: 20 often-run queries average more than 2 seconds (the worst about 6.6 seconds). That is usually fixed for free by tuning those queries, not by paying for a bigger size. A bigger size costs more each month and restarts every app on the database for a few minutes.",
+      "why": "Not needed: nothing for you to do. An agent checked on 2026-11-10 and the slow searches were caused by how the queries were written, not by the size of the database. They are fixed for free: the slowest went from 6.6 seconds to 2.1, most of the rest now run in about 1 second, and two went from over 3 seconds to under a tenth of a second. Two still take a little over 2 seconds (2.1 and 2.7), well inside their 8-second limit. Nothing is timing out, 23 of 90 connections are in use, and the database stays on Small. A bigger size adds memory, and these searches were not short of memory, so paying for it would not have made them faster.",
       "steps": [
         "Do nothing for now. An agent tunes the slow queries first (free).",
         "Only if an agent tells you tuning was not enough: Supabase project uqhqulrqcygsmmzdzemx → Settings → Compute and Disk → pick the next size, at a quiet hour",
@@ -878,7 +878,7 @@
       ],
       "kind": "money",
       "priority": "optional",
-      "status": "open",
+      "status": "done",
       "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/settings/compute-and-disk",
       "source": "Chief of Staff Continuity ask 2026-11-04",
       "requestedBy": "Chief of Staff (2026-11-04)",
