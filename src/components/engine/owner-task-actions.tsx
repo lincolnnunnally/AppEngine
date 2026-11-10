@@ -97,6 +97,9 @@ export function OwnerTaskActions({
               isDecision ? "Type your decision in plain words. An agent records it and does the rest." : "What you did, or what is still needed."
             }
           />
+          {isDecision && active ? (
+            <span className="owner-task-hint">Not sure? Type &ldquo;you decide&rdquo; and the agent goes with what it recommended.</span>
+          ) : null}
         </label>
       ) : null}
       <div className="dx-app-actions">

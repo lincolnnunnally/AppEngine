@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { countTasks, mergeTask, needsCheck, normalizeTaskInput, parseTaskFile, safeLink, sortTasks, sortTasksBy, taskLinkLabel, type OwnerTask } from "./owner-tasks-core.ts";
+import {
+  countTasks,
+  DOC_TEXT_MAX,
+  mergeTask,
+  needsCheck,
+  needsGithubSignIn,
+  normalizeDoc,
+  normalizeTaskInput,
+  parseTaskFile,
+  safeLink,
+  sortTasks,
+  sortTasksBy,
+  taskLinkAddress,
+  taskLinkLabel,
+  unreadableLink,
+  type OwnerTask
+} from "./owner-tasks-core.ts";
 
 function definition(overrides: Record<string, unknown> = {}) {
   const result = normalizeTaskInput({ app: "churchconnect", title: "Create the Stripe live key", priority: "blocker", kind: "credential", ...overrides });
@@ -150,5 +167,73 @@ describe("accuracy (owner request 2026-11-06)", () => {
     assert.equal(taskLinkLabel("https://dashboard.stripe.com/apikeys"), "Open dashboard.stripe.com ↗");
     assert.equal(taskLinkLabel("https://www.bing.com/webmasters"), "Open bing.com ↗");
     assert.equal(taskLinkLabel("/integrations"), "Open it here →");
+  });
+});
+
+describe("what he reads and where the button goes", () => {
+  it("carries reading material with the task", () => {
+    const task = definition({ doc: { title: "Findings", text: "# Findings\r\n\r\nOne page.", from: "ChurchConnect docs/giving" } });
+    assert.deepEqual(task.doc, { title: "Findings", text: "# Findings\n\nOne page.", from: "ChurchConnect docs/giving" });
+  });
+
+  it("drops a document with nothing to read, and titles one that has no title", () => {
+    assert.equal(definition().doc, null);
+    assert.equal(definition({ doc: { title: "Empty", text: "   " } }).doc, null);
+    assert.equal(definition({ doc: "not an object" }).doc, null);
+    assert.equal(normalizeDoc({ text: "words" })?.title, "What to read");
+  });
+
+  it("keeps a document within the size the page can show", () => {
+    assert.equal(normalizeDoc({ title: "Long", text: "x".repeat(DOC_TEXT_MAX + 500) })?.text.length, DOC_TEXT_MAX);
+  });
+
+  it("re-posting an ask replaces its reading material, and a re-post without one removes it", () => {
+    const now = "2026-11-10T12:00:00.000Z";
+    const stored = mergeTask(null, definition({ doc: { title: "Old", text: "old words" } }), "file", now);
+    assert.equal(mergeTask(stored, definition({ doc: { title: "New", text: "new words" } }), "file", now).doc?.text, "new words");
+    assert.equal(mergeTask(stored, definition(), "file", now).doc, null);
+  });
+
+  it("knows which GitHub links he cannot open", () => {
+    assert.equal(unreadableLink("https://github.com/lincolnnunnally/operate/pull/102"), true);
+    assert.equal(unreadableLink("https://github.com/lincolnnunnally/easypeazy/blob/main/PRODUCT_SOURCE_OF_TRUTH.md"), true);
+    assert.equal(unreadableLink("https://github.com/lincolnnunnally/commons/tree/main/data/outreach"), true);
+    assert.equal(unreadableLink("https://github.com/new?owner=lincolnnunnally&name=groundwork"), false);
+    assert.equal(unreadableLink("https://github.com/settings/developers"), false);
+    assert.equal(unreadableLink("https://github.com/lincolnnunnally/easypeazy/settings/secrets/actions"), false);
+    assert.equal(unreadableLink("https://github.com/lincolnnunnally/easypeazy"), true);
+    assert.equal(unreadableLink("https://commons.unitedundergod.org/pricing"), false);
+    assert.equal(unreadableLink(null), false);
+  });
+
+  it("flags every GitHub page as needing a sign-in", () => {
+    assert.equal(needsGithubSignIn("https://github.com/settings/developers"), true);
+    assert.equal(needsGithubSignIn("https://github.com/lincolnnunnally/easypeazy/settings/secrets/actions"), true);
+    assert.equal(needsGithubSignIn("https://dashboard.stripe.com/apikeys"), false);
+    assert.equal(needsGithubSignIn("/integrations"), false);
+  });
+
+  it("writes the address out in full, so a button that fails does not leave him stuck", () => {
+    assert.equal(taskLinkAddress("/integrations"), "https://dashboard.unitedundergod.org/integrations");
+    assert.equal(taskLinkAddress("https://laser.engrave.market/admin"), "https://laser.engrave.market/admin");
+  });
+});
+
+describe("the list in the repository", () => {
+  const file = JSON.parse(readFileSync(new URL("../../../source-of-truth/owner-tasks.json", import.meta.url), "utf8"));
+  const { tasks, errors } = parseTaskFile(file);
+  const active = tasks.filter((task) => task.status === "open" || task.status === "waiting");
+
+  it("parses with no errors", () => {
+    assert.deepEqual(errors, []);
+  });
+
+  it("has no open ask whose button leads to a page he cannot open", () => {
+    assert.deepEqual(active.filter((task) => unreadableLink(task.link)).map((task) => task.id), []);
+  });
+
+  it("has no open ask whose steps send him to a GitHub file or pull request", () => {
+    const githubPage = /https?:\/\/(www\.)?github\.com\/[^\s]+/;
+    assert.deepEqual(active.filter((task) => task.steps.some((step) => githubPage.test(step) && unreadableLink(githubPage.exec(step)![0]))).map((task) => task.id), []);
   });
 });

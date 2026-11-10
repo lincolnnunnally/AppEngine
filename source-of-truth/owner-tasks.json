@@ -125,9 +125,10 @@
       "title": "Trim and submit ChurchConnect's Meta App Review for Facebook/Instagram posting",
       "why": "Until Meta approves it, only app testers can connect a Page, so churches cannot publish posts to Facebook or Instagram.",
       "steps": [
-        "developers.facebook.com → app 'Church Connect' → App Review → remove every permission not in docs/META_APP_REVIEW.md and add instagram_content_publish",
-        "Make the six Graph API test calls listed in the doc",
-        "Record the ~90-second screencast at www.churchconnect.cloud as an app tester",
+        "This needs a computer. Tap Read it here on this card first: it has the six permissions, the six test calls, the screencast script and the words to paste. Keep it open beside Meta's page.",
+        "developers.facebook.com → app 'Church Connect' → App Review → Permissions and Features: remove every permission that is not one of the six, and add instagram_content_publish",
+        "Make the six test calls listed in Read it here",
+        "Record the 90-second screencast at www.churchconnect.cloud, signed in as an app tester",
         "Paste the ready-written descriptions and submit"
       ],
       "kind": "account",
@@ -137,8 +138,14 @@
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "church-connect Meta keys set 2026-10-29; review doc unchanged (2026-11-06)"
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Read docs/META_APP_REVIEW.md on ChurchConnect main and copied it onto the card. Vercel church-connect now has FACEBOOK_APP_ID, FACEBOOK_APP_SECRET and META_LOGIN_CONFIG_ID, so the copy-the-keys step was dropped. Meta's review status itself is only visible to Lincoln.",
+      "updatedOn": "2026-11-10",
+      "doc": {
+        "title": "Meta App Review: permissions, test calls, screencast and words to paste",
+        "text": "# ChurchConnect's Meta App Review: what to ask for, and the words to paste\n\nWhat we are asking Meta for: a church writes a post once in ChurchConnect and it publishes to the church's own Facebook Page and linked Instagram Business account. Nothing else.\n\nThis needs a computer. All of it happens at developers.facebook.com in the app named **Church Connect**.\n\n## Ask for exactly these six permissions\n\n| Permission | Why the app needs it | Test call (Graph API Explorer, app = Church Connect) |\n|---|---|---|\n| `pages_show_list` | List the Pages the admin chose so we can save them as channels | `GET /me/accounts` |\n| `pages_read_engagement` | Read the Page's name and its linked Instagram account | `GET /{page-id}?fields=name,instagram_business_account` |\n| `pages_manage_posts` | Publish the church's post to its Page | `POST /{page-id}/feed` with `message=Test from ChurchConnect` (then delete it) |\n| `instagram_basic` | Read the linked Instagram Business account's id and username | `GET /{ig-user-id}?fields=id,username` |\n| `instagram_content_publish` | Publish the church's photo or video to Instagram | `POST /{ig-user-id}/media` with `image_url=…&caption=Test`, then `POST /{ig-user-id}/media_publish` with `creation_id=…` |\n| `business_management` | Pages owned through a Business Portfolio only appear with it | `GET /me/businesses` |\n\nUse a **Page** token (from `/me/accounts`) for the Page and Instagram calls. Test calls take up to 24 hours to show as \"1 of 1\".\n\n## Steps in the Meta dashboard\n\n1. **App Review → Permissions and Features:** remove every requested item that is not in the table above (ads, WhatsApp, Threads, Messenger, fundraisers, catalog, branded content, leads, `instagram_manage_comments`, `instagram_manage_messages`, `pages_manage_engagement`, and so on). Add `instagram_content_publish`; it was never requested.\n2. **Facebook Login for Business → Settings → Valid OAuth Redirect URIs:** add `https://www.churchconnect.cloud/api/social/meta/callback`\n3. **Facebook Login for Business → Configurations:** there should already be one of type \"User access token\" with the six permissions above and assets Pages + Instagram accounts. If there is not, create it and tell an agent.\n4. Nothing to copy. The App ID, App Secret and Configuration ID are already saved on ChurchConnect (checked 2026-11-10).\n5. **App roles → Testers:** until Meta approves, only people with a role on the app can finish the Facebook sign-in. Record the screencast as one of them.\n6. The church's Instagram must be a Business account linked to the Page.\n\n## The screencast (one recording, about 90 seconds, reused for every permission)\n\nRecord at `https://www.churchconnect.cloud`, in English, with the cursor visible and no cuts during the sign-in. Turn on captions, or add a text label naming each permission as it is used.\n\n1. Signed in as a church admin, open **Social Media → Channels**.\n2. Click **Connect Facebook & Instagram**.\n3. In the Facebook window: show the account, select the church **Page** and its **Instagram account**, show the permission list, click **Continue/Save**. (pages_show_list, business_management)\n4. Back in ChurchConnect: a green banner says \"Connected 1 Facebook Page and 1 Instagram account\". Open Facebook and Instagram: the Page name and @username show. (pages_read_engagement, instagram_basic)\n5. **Overview → New Post**: type an event announcement, attach a flyer image, tick the Facebook and Instagram channels, click **Publish**.\n6. The scheduler shows both posts **Published**. (pages_manage_posts, instagram_content_publish)\n7. Open the church's Facebook Page in a new tab: the post is there. Open the Instagram profile: the post is there.\n8. Back in Channels, click the trash icon on a channel: it disconnects.\n\n## Descriptions to paste\n\n**pages_show_list** — ChurchConnect is software churches use to run announcements and events. A church admin clicks \"Connect Facebook & Instagram\" and chooses their church's Page in the Facebook Login dialog. We call `GET /me/accounts` once to list the Pages they chose, and save each as a publishing channel for that church. Without it we cannot know which Page the church wants to post to. The screencast shows the dialog and the Page appearing in Channels.\n\n**pages_read_engagement** — After the admin connects, we read the Page's name and its linked Instagram Business account (`GET /{page-id}?fields=name,instagram_business_account`) so the admin can see which Page and Instagram account are connected and pick them when posting. We do not read posts, comments, or follower data.\n\n**pages_manage_posts** — The core feature: a church writes an event or announcement once in ChurchConnect and clicks Publish; we post it to the church's own Page with `POST /{page-id}/feed` (or `/photos` with the flyer). We only post content the admin wrote and explicitly published. The screencast shows a post published from ChurchConnect appearing on the Page.\n\n**instagram_basic** — We read the connected Instagram Business account's id and username so the admin can see which account is connected and select it when publishing. No other Instagram data is read.\n\n**instagram_content_publish** — The same post the admin publishes to Facebook is published to the church's Instagram with its flyer image or video, using `POST /{ig-user-id}/media` and `/media_publish`. Only content the admin wrote and chose to publish is posted. The screencast shows it appearing on the Instagram profile.\n\n**business_management** — Many churches' Pages are owned by a Business Portfolio; without this permission those Pages are missing from the Facebook Login result and the church cannot connect. We use it only to list the Pages and Instagram accounts the admin granted in the dialog.\n\n**Add this to the end of each one:** Data is used only to show the church admin which accounts are connected and to publish what they choose to publish. It is never sold, shared, or used for advertising. Page tokens are stored server-side, never shown in the browser, and deleted when the admin disconnects or removes the app from Facebook (data deletion callback: `https://www.churchconnect.cloud/api/webhooks/meta/data-deletion`).\n",
+        "from": "ChurchConnect docs/META_APP_REVIEW.md, 2026-11-10"
+      }
     },
     {
       "id": "appengine-first-audience",
@@ -204,7 +211,7 @@
       "id": "building-gods-way-workshop",
       "app": "united-under-god",
       "title": "Decide by this weekend: Building God's Way workshop, Tue Nov 10, Hampton GA",
-      "why": "A church-building workshop near Atlanta (Calvin Center, Hampton GA), 8 AM–2 PM. It is 4 days away and registration closes before then.",
+      "why": "Closed 2026-11-10: the workshop was today (Tue Nov 10, 8 AM to 2 PM), so there is nothing left to decide. A church-building workshop near Atlanta (Calvin Center, Hampton GA), 8 AM–2 PM. It is 4 days away and registration closes before then.",
       "steps": [
         "Open the listing, decide, and register if going"
       ],
@@ -214,7 +221,7 @@
       "source": "lpl-handoff-data/HANDOFF.md (last changed 2026-10-24)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open",
+      "status": "done",
       "verifiedOn": "2026-11-06",
       "verifiedHow": "Event listing: Nov 10 2026, Calvin Center, Hampton GA (2026-11-06)"
     },
@@ -699,11 +706,12 @@
     {
       "id": "wp-easypeazy-hosting-ssh",
       "title": "One key left for the WP Easy Peazy build job: SUPABASE_DB_URL",
-      "why": "You added 11 of the 12 keys correctly (verified by a test run on 2026-11-06). The build job still sees SUPABASE_DB_URL as empty, so it can't read orders yet. Usually the name is spelled a little differently, or it was saved under the Variables tab instead of Secrets.",
+      "why": "You added 11 of the 12 keys correctly. The hourly build job still sees SUPABASE_DB_URL as empty (checked in its run of 2026-11-10), so it can't read orders yet. Usually the name is spelled a little differently, or it was saved under the Variables tab instead of Secrets. An agent has no way to save a GitHub secret, so this one is yours.",
       "steps": [
-        "Vercel → project easypeazy-api → Settings → Environment Variables → SUPABASE_DB_URL → click the eye and copy the value (it starts with postgresql://)",
-        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → Secrets tab (not Variables) → New repository secret. Name it exactly SUPABASE_DB_URL and paste the value",
-        "Mark this done. An agent then runs a test build and turns paid sign-ups on"
+        "This needs a computer where you are signed in to Vercel and to GitHub. It cannot be done from your phone or from this dashboard.",
+        "Vercel → project easypeazy-api → Settings → Environment Variables → SUPABASE_DB_URL → click the eye and copy the value (it starts with postgresql://). The address: https://vercel.com/life-produces-life/easypeazy-api/settings/environment-variables",
+        "GitHub → lincolnnunnally/easypeazy → Settings → Secrets and variables → Actions → Secrets tab (not Variables) → New repository secret. Name it exactly SUPABASE_DB_URL and paste the value. The address: https://github.com/lincolnnunnally/easypeazy/settings/secrets/actions",
+        "Tap Done. An agent then runs a test build and turns paid sign-ups on."
       ],
       "kind": "credential",
       "priority": "blocker",
@@ -713,9 +721,9 @@
       "requestedBy": "Claude (EasyPeazy / WP Easy Peazy session 2026-11-03)",
       "app": "easy-peasy-website",
       "addedOn": "2026-11-04",
-      "updatedOn": "2026-11-06",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "GitHub Actions run 42215439974: CPANEL_* set; 7 keys missing; easypeazy-api vars revealable except Spaceship (2026-11-06)"
+      "updatedOn": "2026-11-10",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "The 17:52 UTC run of the WP Easy Peazy build still logs 'missing: SUPABASE_DB_URL' and shows the other 11 keys set. Vercel easypeazy-api has SUPABASE_DB_URL as a normal (not Sensitive) variable, so the eye works. No agent tool here can write a GitHub secret."
     },
     {
       "id": "wp-easypeazy-elegant-themes-key",
@@ -861,23 +869,24 @@
     },
     {
       "id": "supabase-lpl-compute-upgrade",
-      "title": "Decide whether to upgrade LPL Supabase compute from Small to Medium",
-      "why": "The database looks like it is already on Small (2 GB), not Micro. It holds 344k church rows. A bigger size costs more each month and is only needed if imports or searches start timing out. Changing it restarts every app on it for a few minutes.",
+      "title": "Nothing to do yet: an agent tries the free fix before any Supabase upgrade",
+      "why": "The shared database is on Small (2 GB) and holds 344k church rows. An agent checked it on 2026-11-10: 20 often-run queries average more than 2 seconds (the worst about 6.6 seconds). That is usually fixed for free by tuning those queries, not by paying for a bigger size. A bigger size costs more each month and restarts every app on the database for a few minutes.",
       "steps": [
-        "Ask an agent to check for slow queries and timeouts first",
-        "If needed: Supabase project uqhqulrqcygsmmzdzemx → Settings → Compute and Disk → pick the next size, at a quiet hour",
-        "Tell an agent when it's done"
+        "Do nothing for now. An agent tunes the slow queries first (free).",
+        "Only if an agent tells you tuning was not enough: Supabase project uqhqulrqcygsmmzdzemx → Settings → Compute and Disk → pick the next size, at a quiet hour",
+        "If you would rather not see this until then, tap Not doing this. An agent will ask again if it is ever needed."
       ],
       "kind": "money",
-      "priority": "recommended",
+      "priority": "optional",
       "status": "open",
       "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/settings/compute-and-disk",
       "source": "Chief of Staff Continuity ask 2026-11-04",
       "requestedBy": "Chief of Staff (2026-11-04)",
       "app": "ecosystem",
       "addedOn": "2026-11-04",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "LPL Supabase: max_connections=90 (Small); cc_churches 343,958 rows (2026-11-06)"
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Queried pg_stat_statements on project uqhqulrqcygsmmzdzemx: 20 statements with more than 20 calls average over 2 s (worst mean 6.6 s); none running over 30 s; 23 of 90 connections; database 2.0 GB.",
+      "updatedOn": "2026-11-10"
     },
     {
       "id": "nationwide-builders-talknow-wave5-go",
@@ -1296,23 +1305,30 @@
     },
     {
       "id": "commons-review-the-first-outreach-notes-toombs-neighbors-and-say-who-sends-them",
-      "title": "Review the first outreach notes (Toombs + neighbors) and say who sends them",
-      "why": "Each county or city gets a free report on its own website that opens with what's working and gives a fix for each issue. The notes go to real officials under a real name, so the send is your call. Commons is live now. Nothing has been sent.",
+      "title": "Say who sends the first Commons outreach notes, and whether the wording is right",
+      "why": "Each county or city gets a free report on its own website that opens with what's working and gives a fix for each issue. The notes go to real officials under a real name, so who sends them is your call. Nothing has been sent. The eight governments and the exact wording are in Read it here on this card.",
       "steps": [
-        "Wait: an agent first re-runs the scan against live Commons and puts the drafts in the commons repo (data/outreach/), then marks this ready",
-        "Read them there, plus README.md beside them",
-        "Say yes, no, or what to change, and whose name and phone go at the bottom"
+        "Tap Read it here on this card. It shows the eight governments, what the scan found, and the exact note each one would get.",
+        "In the answer box, give the name, phone number and organization that go at the bottom of the notes. Only you can give these.",
+        "Say 'wording is fine' or what to change. The agent recommends keeping the wording and starting with only Toombs, Jeff Davis and Appling. 'You decide' is a fine answer for the wording.",
+        "An agent then runs the scan again so every report link is fresh, and puts the finished notes on this card. You send each one by hand. To see what a report looks like, the button below opens the free review page: https://commons.unitedundergod.org/review"
       ],
       "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/commons/tree/main/data/outreach",
+      "link": "https://commons.unitedundergod.org/review",
       "source": "AllReposBackup PR #3",
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "Old PR #3 closed; Commons live; drafts not yet in the commons repo (2026-11-06)"
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Read data/outreach in the commons repository on main (README and the 8-row list; no drafts file exists yet); commons.unitedundergod.org/review opens (200) with no sign-in; nothing has been sent.",
+      "updatedOn": "2026-11-10",
+      "doc": {
+        "title": "The eight governments and the note each would get",
+        "text": "# Commons outreach: the soft sale\n\nYour idea (2026-11-04): don't tell a government its site has problems. Hand them a free report so they see it themselves, the way a resident does.\n\n## The report is the pitch\n\n- **What's working comes first.** Toombs posts its agendas on time; the report says so before anything else.\n- **No grade.** It reads \"4 things working well, 5 a resident would notice.\"\n- **Every issue has a fix anyone can do by hand.** Commons is offered last, for when keeping up is the hard part.\n- It is a link a clerk can forward to the commission without it reading like a sales sheet.\n\n## The first eight: Toombs and its neighbors\n\nResults from the first scan (2026-11-04). An agent runs it again on the day the notes go out, so the numbers and links are fresh.\n\n| Government | Result |\n|---|---|\n| Toombs County | 4 working, 5 to notice (a 7.5-year-old calendar, empty Bids and Jobs pages) |\n| City of Vidalia | 3 working, 2 to notice |\n| City of Lyons | 3 working, 5 to notice |\n| Tattnall County | 3 working, 4 to notice |\n| Emanuel County | 5 working, 1 to notice. In good shape; low priority |\n| Jeff Davis County | 2 working, 5 to notice |\n| Appling County | 2 working, 5 to notice |\n| Montgomery County | Its site turns away automated readers. Skipped; we don't work around that |\n\n## The note each one gets\n\nEvery government gets the same short note, with its own name, its own report link and its own opening line. This is the wording:\n\n**Subject:** A free report on Toombs County's website\n\nHello,\n\nI noticed your agendas page is up to date — more than a lot of counties manage. I ran a free checkup that reads the site the way a resident would — the calendar, agendas, notices, bids, and jobs pages — and lists what's working and what a resident might notice, with a simple fix for each.\n\nHere it is, no sign-up needed: (the link to that government's own report)\n\nEverything in it can be fixed by hand. If keeping the site current is the hard part, we also make a tool that does that, but the report is yours either way.\n\n(Your name)\n(Phone) · (Organization)\n\nWhere a site has nothing current to praise, the opening line is instead: \"I was looking at the City of Lyons' website and put together a short report on it.\"\n\n## The rules\n\n1. **Nothing is sent automatically.** A person sends each note by hand, under their own name.\n2. Each note goes to the address the government itself publishes for its clerk or manager. No guessed addresses.\n3. One note per government. No follow-ups. If they open the report and don't reply, that is an answer.\n4. Start with the three most out-of-date sites: Toombs, Jeff Davis and Appling. Send more only if those get replies.\n\n## How we know if it worked\n\nThe Commons admin page shows each report, how many times it was opened, and whether a government signed up from it.\n",
+        "from": "the commons repository (data/outreach/README.md and scripts/scan-prospects.mjs), 2026-11-10"
+      }
     },
     {
       "id": "commons-pick-a-domain-for-the-free-government-website-review",
@@ -1530,22 +1546,28 @@
     {
       "id": "easy-peasy-website-decide-keep-my-business-up-to-date-add-on-for-restaurants-and",
       "title": "Set the price for the 'Keep my business up to date' EasyPeazy add-on",
-      "why": "On 2026-11-07 you decided this is an EasyPeazy add-on. Competitor prices are researched and recorded in EasyPeazy PRODUCT_SOURCE_OF_TRUTH.md section 1b. Competitors charge $10–60/month for listings or posting alone, and $185–500/month for restaurant platforms. The agent recommends about $9/month with no setup fee, to fit EasyPeazy's volume pricing.",
+      "why": "On 2026-11-07 you decided this is an EasyPeazy add-on: the owner changes hours, a menu or tonight's special once and it shows on their website, Facebook, Instagram and Google. Only the price is open. Competitors charge $10 to $60 a month for listings or posting alone, and $185 to $500 a month for restaurant platforms. The full price list is in Read it here on this card.",
       "steps": [
-        "Pick a price: about $9/month (recommended), or your own number",
-        "Tell an agent. It records the price, then adds the setup tasks you'll need (a Meta developer app for Facebook/Instagram and a Google Business Profile API access request) and starts building"
+        "Optional: tap Read it here on this card to see what eleven competitors charge.",
+        "In the answer box, type a price. The agent recommends $9 a month with no setup fee, to fit EasyPeazy's many-customers, low-price plan. 'You decide' is a fine answer and means $9 a month.",
+        "Tap Send my answer. An agent records the price and starts building. Two setup tasks will then come to this list, because only you can do them: a Meta developer app (Facebook and Instagram) and a Google Business Profile access request."
       ],
-      "kind": "money",
+      "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/easypeazy/blob/main/PRODUCT_SOURCE_OF_TRUTH.md",
+      "link": null,
       "source": "chat 2026-11-07",
       "requestedBy": "Claude (EasyPeazy session 2026-11-07)",
-      "verifiedOn": "2026-11-07",
-      "verifiedHow": "Product idea, not a setting: checked source-of-truth and owner-tasks.json for an existing listings/social add-on (none; related google-business-profiles task is for our own businesses)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Read EasyPeazy PRODUCT_SOURCE_OF_TRUTH.md on main: section 1b says the price is not set and section 9 lists it as open, with the /month recommendation. Price table copied onto the card.",
       "app": "easy-peasy-website",
       "addedOn": "2026-11-07",
-      "updatedOn": "2026-11-07"
+      "updatedOn": "2026-11-10",
+      "doc": {
+        "title": "What competitors charge",
+        "text": "# \"Keep my business up to date\": price research\n\nYour idea (2026-11-07), from looking at small-town restaurant websites: the owner changes something **once** (tonight's special with a photo, today's menu, holiday hours) and it appears on their EasyPeazy website, Facebook, Instagram and Google.\n\n## Already decided (by you, 2026-11-07)\n\n- It is an **add-on to EasyPeazy**. Not part of Operate, not a separate product.\n- It is for restaurants first, then any local shop whose hours, menu or specials change.\n- No hand setup on our side. The owner connects Facebook, Instagram and Google with sign-in buttons.\n\n## The one thing still open: the price\n\nWhat others charge (researched 2026-11-07 from third-party sources; check again before quoting any of these publicly):\n\n| What | Price | Notes |\n|---|---|---|\n| GoDaddy Websites + Marketing Basic | $9.99/mo to start, about $16.99/mo on renewal | Site and social posting together |\n| GoDaddy Digital Marketing service | from $21.99/mo | Social and Google Business posting |\n| Moz Local | $20-40/mo per location | Listings only, no social posting |\n| BrightLocal Manage | about $54/mo | Listings; reviews cost more |\n| Semrush Local Pro | $60/mo per location | Listings |\n| Synup Solo | $49/mo, 1 location | Listings |\n| Yext | $199-999/yr per location | Listings, yearly only |\n| Toast Marketing | about $185/mo | Needs Toast registers |\n| Owner.com | $249-499/mo | Full restaurant platform with ordering |\n| Popmenu | about $179-500/mo | Full restaurant platform |\n| Local social-media agency | $500-3,000/mo | Someone posts for you |\n\n## What the agent recommends\n\nAbout **$9 a month, no setup fee**.\n\n- It fits EasyPeazy's plan of many customers at a low price: below GoDaddy's bundle and Moz Local, and a fraction of an agency.\n- Running it costs almost nothing. Facebook's and Google's connections are free; writing captions costs cents.\n- The pitch is easy: \"your hours are right everywhere and tonight's special posts itself, for less than you pay GoDaddy.\"\n\n## What happens after you answer\n\nAn agent records the price and starts building. Two things will then land on your list, because only you can do them: a Meta developer app (for Facebook and Instagram) and a Google Business Profile access request.\n",
+        "from": "the EasyPeazy product source of truth (section 1b), 2026-11-10"
+      }
     },
     {
       "id": "churchconnect-put-a-stripe-key-from-the-easypeazy-site-account-on-churchconnect-",
@@ -1563,7 +1585,7 @@
       "source": "ChurchConnect, Pro checkout check 2026-11-08",
       "requestedBy": "Claude (ChurchConnect outreach session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: Stripe read today. The Church Connect account (whose key ChurchConnect uses) has one price, 29 dollars a month, and its only webhook points at an old preview address. The 49 dollar price and the working webhook to www.churchconnect.cloud are in EasyPeazy.Site. So Pro checkout still fails. An agent cannot fix it another way: Stripe refused the agent's attempt to create a price (write access is off). Website payments are now confirmed on return from Checkout (ChurchConnect PR #710), so a paid 12 dollar website switches on either way.",
+      "verifiedHow": "Stripe read today. The Church Connect account (whose key ChurchConnect uses) has one price, 29 dollars a month, and its only webhook points at an old preview address. The 49 dollar price and the working webhook to www.churchconnect.cloud are in EasyPeazy.Site. So Pro checkout still fails. An agent cannot fix it another way: Stripe refused the agent's attempt to create a price (write access is off). Website payments are now confirmed on return from Checkout (ChurchConnect PR #710), so a paid 12 dollar website switches on either way.",
       "app": "churchconnect",
       "addedOn": "2026-11-08"
     },
@@ -1656,22 +1678,30 @@
     {
       "id": "churchconnect-decide-should-churchconnect-take-church-gifts-itself-through-strip",
       "title": "Decide: should ChurchConnect take church gifts itself through Stripe (to replace Tithe.ly), and may we ask Tithe.ly for partner API access?",
-      "why": "Churches like Mocks Church give through Tithe.ly. Tithe.ly's public API can't list a church's gifts, so today those gifts reach ChurchConnect only by export and import. Taking gifts through Stripe Connect would put every gift straight into reports and year-end statements, but it is a bigger build with money and Stripe terms involved.",
+      "why": "Churches like Mocks Church give through Tithe.ly. Tithe.ly gives outside software no way to read a church's gifts, so today those gifts reach ChurchConnect only when the church downloads a spreadsheet and uploads it. Taking gifts through Stripe would put every gift straight into reports and year-end statements, but it is a bigger build with money and Stripe's terms involved.",
       "steps": [
-        "Read the one-page findings: https://github.com/lincolnnunnally/ChurchConnect/blob/main/docs/giving/TITHELY_AND_STRIPE.md",
-        "Tell an agent one of: (a) build Stripe giving, (b) only make Tithe.ly import one step for now, or (c) both. Say whether ChurchConnect should charge any fee on gifts (Stripe's nonprofit rate is 2.2% + 30 cents).",
-        "Say yes or no to an agent emailing support@tithe.ly from your address to ask whether a partner can list a church's transactions."
+        "Tap Read it here on this card for the one-page findings.",
+        "In the answer box, pick one: (a) build giving through Stripe now, (b) for now only make the Tithe.ly spreadsheet upload one step, or (c) both. The agent recommends (b), and building Stripe giving when a church actually asks to leave Tithe.ly.",
+        "If you pick (a) or (c): say whether ChurchConnect should take any fee on gifts. Stripe's own nonprofit rate is 2.2% + 30 cents.",
+        "Say yes or no to an agent emailing support@tithe.ly from your address, to ask whether a partner can read a church's gifts. The agent recommends yes; it costs nothing.",
+        "'You decide' is a fine answer. It means (b), and yes to the email."
       ],
       "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/ChurchConnect/blob/main/docs/giving/TITHELY_AND_STRIPE.md",
+      "link": null,
       "source": "ChurchConnect PR #705",
       "requestedBy": "Claude (ChurchConnect session)",
-      "verifiedOn": "2026-11-09",
-      "verifiedHow": "Read Tithe.ly's published API (tithe.ly/api, tithe.ly/api/v2/docs) on 2026-11-09: only POST /transaction, no list or webhooks. Database: 0 rows in cc_platform_connections and cc_synced_donations. Code: OnlineGiving.tsx links out to giving_url; no Stripe Connect code in backend. Findings doc merged to main (PR #705), link opens.",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Read docs/giving/TITHELY_AND_STRIPE.md on ChurchConnect main and copied it onto the card in plainer words. No answer recorded yet. The old button went to a private GitHub file (404 for him); removed.",
       "app": "churchconnect",
-      "addedOn": "2026-11-09"
+      "addedOn": "2026-11-09",
+      "updatedOn": "2026-11-10",
+      "doc": {
+        "title": "Tithe.ly and Stripe: the one-page findings",
+        "text": "# Online giving: connecting Tithe.ly, or replacing it with Stripe\n\nYou asked (2026-11-09), after seeing that Mocks Church gives through Tithe.ly: \"Look into actually connecting with Tithely and look at the ways we could replace Tithely if the church wants to, like with the integration through Stripe.\"\n\nEverything below was checked on 2026-11-09 in the ChurchConnect code, its database, or on Tithe.ly's and Stripe's own pages.\n\n## The short version\n\n- Tithe.ly does not give outside software a way to read a church's gifts. So gifts cannot flow from Tithe.ly into ChurchConnect on their own. Only Tithe.ly can change that.\n- What works today: the church downloads its gifts from Tithe.ly as a spreadsheet and uploads it to ChurchConnect.\n- The only way gifts arrive with no upload is for ChurchConnect to take the gifts itself, through Stripe. That is a bigger build, and it involves money and Stripe's terms.\n\n## What ChurchConnect does today\n\n- **It takes no gifts itself.** The member \"Give\" button sends the giver to the church's own giving page.\n- **It records gifts by hand or by spreadsheet.** Finances → Record giving, and Import giving. Those gifts feed Reports, the budget and year-end statements.\n- **There is old Tithe.ly code that does not work.** It saves an account name and key but never brings in a gift. No church has ever used it (0 rows in the database).\n\n## Connecting Tithe.ly\n\nWhat Tithe.ly publishes ([tithe.ly/api](https://tithe.ly/api)):\n\n- Access is \"available by request\" for a church that uses Tithe.ly. Requests go to support@tithe.ly.\n- The published connection can **create** a gift. There is **no published way to list a church's gifts**, and no automatic notice when a gift comes in.\n\nSo an automatic \"Tithe.ly gifts flow into ChurchConnect\" connection cannot be built from what Tithe.ly publishes. Only Tithe.ly can say whether a partner gets more.\n\nWhat does work for a church on Tithe.ly:\n\n- **Export, then import.** Tithe.ly's dashboard exports gifts to a spreadsheet. ChurchConnect's Import giving takes that file today.\n- Worth building (small): remember each church's column match, skip a gift that was already imported, and match Tithe.ly's categories to the church's funds. Then a weekly or monthly import is one step.\n\nTithe.ly's fees, from its pricing page: card 2.9% + 30 cents, bank transfer 1% + 30 cents, no monthly fee for giving.\n\n## Replacing Tithe.ly with Stripe\n\nTwo levels:\n\n1. **No build.** The church makes its own Stripe payment link and uses it as its giving page. This already works. Gifts still have to be imported, the same as Tithe.ly.\n2. **ChurchConnect giving through Stripe.** Each church opens its own Stripe account from inside ChurchConnect. Gifts go straight to the church's bank. Stripe tells ChurchConnect about each gift, so it lands in Finances, Reports, the budget and the year-end statement with no import.\n\nWhat level 2 needs built: church sign-up with Stripe, a giving page per church (funds, one-time and repeating, card and bank), refunds and receipts.\n\n- Stripe offers eligible nonprofits 2.2% + 30 cents on donations. Whether that rate carries through when the gift comes through ChurchConnect is **not confirmed**; Stripe has to be asked.\n- Either Stripe bills each church directly and ChurchConnect takes nothing, or ChurchConnect adds its own small fee on each gift. That is your call.\n- Only you can: turn on Connect in the right Stripe account, accept Stripe's platform terms, and decide whether ChurchConnect takes a fee.\n\n## What the agent recommends\n\n1. Now: tell churches on Tithe.ly to keep it, and bring their giving in by export and import. True today, nothing to build.\n2. Next (small build): make importing a Tithe.ly export one step.\n3. Email Tithe.ly (support@tithe.ly) to ask whether a partner can list a church's gifts.\n4. Decide later, when a church actually asks to leave Tithe.ly, whether to build giving through Stripe.\n5. Remove the old Tithe.ly code that does not work, so no one mistakes it for a working connection. (An agent does this; no decision needed.)\n",
+        "from": "ChurchConnect docs/giving/TITHELY_AND_STRIPE.md, put in plainer words, 2026-11-10"
+      }
     },
     {
       "id": "snip-show-decide-how-to-close-the-open-snip-brain-endpoint-that-spends-your-anth",
@@ -1695,21 +1725,29 @@
     {
       "id": "snip-show-decide-whether-snip-show-becomes-multi-business-so-operate-shops-manag",
       "title": "Decide whether Snip.show becomes multi-business, so Operate shops manage their own clips there",
-      "why": "You asked for Operate to connect with snip.show so businesses can manage their content. Snip.show today is single-creator: videos.user_id and snips.user_id point at one auth.users row, snip_published_clips is keyed by creator_id, and there is no business or tenant anywhere in its schema or server. INTERCONNECT.md also says 'Do not run a second Ideas or a second clipper', so Operate must not grow its own clip library instead. Operate now plans and records the posts and links out to Snip.show, but a shop cannot yet have its own clips there. Which way this goes is product direction, not a technic",
+      "why": "You asked for Operate to connect with Snip.show so businesses can manage their video content. Snip.show today is built for one creator, you: it has nowhere to keep a business's clips. Operate now plans and records a shop's posts and links out to Snip.show, but a shop cannot keep its own clips there. Whether Snip.show becomes a tool that shops use is product direction, so it is yours.",
       "steps": [
-        "Pick one: (a) Snip.show gains businesses, so an Operate shop signs in and keeps its own clips and published-clip rows there; (b) Snip.show stays yours alone and Operate shops cut clips however they like and just paste links; (c) something else you have in mind.",
-        "If (a), also say whether the existing 20 percent share on snip_clip_earnings applies to a business's clips or only to creators."
+        "Optional: tap Read it here on this card for what is built and what each choice means.",
+        "In the answer box, pick one: (a) Snip.show gains businesses, so an Operate shop signs in and keeps its own clips there; (b) Snip.show stays yours alone, and shops cut clips however they like and paste the links into Operate; (c) something else you have in mind.",
+        "The agent recommends (b) for now: it needs nothing more built, and no shop has asked to store clips yet. 'You decide' is a fine answer and means (b).",
+        "Only if you pick (a): say whether the 20 percent share Snip.show records on clip earnings applies to a business's clips, or only to creators."
       ],
       "kind": "decision",
       "priority": "recommended",
       "status": "open",
-      "link": "https://github.com/lincolnnunnally/operate/pull/102",
+      "link": null,
       "source": "operate PR #102",
       "requestedBy": "Claude (Operate video campaigns session)",
-      "verifiedOn": "2026-11-09",
-      "verifiedHow": "Read snip-show-mobile/supabase/schema.sql (profiles, videos, topics, snips, channels, referrals, analytics_snapshots - all keyed to a single user_id, no business column) and supabase/migrations/20261023_snip_clip_earnings.sql (creator_id throughout, share_rate 0.20). Grepped server, api and supabase for business/tenant/org_id and found none. Queried the shared LPL Supabase live on 2026-11-09 and c",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Read Operate pull request #102 (still open, a draft) and wrote what it builds onto the card. No answer recorded yet. The old button went to that private pull request (404 for him); removed.",
       "app": "snip-show",
-      "addedOn": "2026-11-09"
+      "addedOn": "2026-11-09",
+      "updatedOn": "2026-11-10",
+      "doc": {
+        "title": "Operate and Snip.show: what is built and the choices",
+        "text": "# Operate and Snip.show: what is built, and the one open question\n\nYou asked (2026-11-09) for Operate to \"manage marketing campaigns that revolve around videos that are put on TikTok and YouTube and Facebook\", and for it to connect with Snip.show so businesses can manage their content.\n\n## What is built in Operate (waiting to go live)\n\n- A shop makes a **campaign**: which places to post (TikTok, YouTube, Facebook, Instagram, X, LinkedIn), the start date, how many weeks and how many posts a week.\n- Operate lays out a dated calendar. Each post has its caption, cut to that platform's length, a copy button, and a link straight to the upload page.\n- **Operate does not post for the shop.** A person posts, then pastes the link back. A post only counts as posted once it has that link.\n- **Operate does not hold the videos.** A clip is a title and a link to something that lives in Snip.show or on the shop's phone.\n\n## Why there is a question for you\n\nSnip.show today is built for **one creator: you**. Every video and every clip belongs to a single sign-in. There is no \"business\" anywhere in it.\n\nSo an Operate shop can plan and record its posts today, and link out to Snip.show, but it **cannot keep its own clips in Snip.show**.\n\nThe ecosystem rule is \"do not run a second clipper\", so Operate must not grow its own clip library instead. Which way this goes changes what Snip.show is, so it is your call.\n\n## The choices\n\n- **(a) Snip.show gains businesses.** An Operate shop signs in to Snip.show and keeps its own clips there. This is a real build in Snip.show (every video and clip needs to know which business owns it), and it changes Snip.show from \"your tool\" to \"a tool shops use\".\n- **(b) Snip.show stays yours alone.** Shops cut their clips however they like (their phone, CapCut, anything) and paste the links into Operate. Nothing more to build. This is how it works the moment the campaigns page goes live.\n- **(c) Something else you have in mind.**\n\nIf you pick (a), one more question: Snip.show already records a 20 percent share on clip earnings for creators. Would that share apply to a business's clips, or only to creators?\n\n## What the agent recommends\n\n**(b) for now.** No shop has asked to store clips yet, the campaigns page works without it, and it costs nothing. Move to (a) when a real shop asks for it. Saying \"you decide\" gets you (b).\n",
+        "from": "the Operate video campaigns pull request (#102), put in plain words, 2026-11-10"
+      }
     },
     {
       "id": "churchconnect-decide-put-chatgpt-s-operations-email-ops-platform-back-into-the-d",
@@ -1746,7 +1784,7 @@
       "source": "lincoln-nunnally-resume PR #3",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: https://lincoln-resume.we-succeed.org/marketing and /cover-letter answer 200 with a valid certificate, and both PDF downloads answer 200 (application/pdf). Lincoln reported the earlier link (a GitHub pull request) gave him a 404; the link now opens the resume page directly.",
+      "verifiedHow": "Https://lincoln-resume.we-succeed.org/marketing and /cover-letter answer 200 with a valid certificate, and both PDF downloads answer 200 (application/pdf). Lincoln reported the earlier link (a GitHub pull request) gave him a 404; the link now opens the resume page directly.",
       "app": "appengine",
       "addedOn": "2026-11-10"
     },
@@ -1767,7 +1805,7 @@
       "source": "uug-succeed PR #6",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: the preview link answers 200 without any login (checked from outside). Lincoln reported the earlier link (a GitHub pull request) gave him a 404. No price or ruling for a marketing service exists yet (LPL 17_DISCOVERABILITY_PLAYBOOK lines 194-195 make it his decision); the page is not deployed to we-succeed.org.",
+      "verifiedHow": "The preview link answers 200 without any login (checked from outside). Lincoln reported the earlier link (a GitHub pull request) gave him a 404. No price or ruling for a marketing service exists yet (LPL 17_DISCOVERABILITY_PLAYBOOK lines 194-195 make it his decision); the page is not deployed to we-succeed.org.",
       "app": "appengine",
       "addedOn": "2026-11-10"
     },
@@ -1789,7 +1827,7 @@
       "source": "ChurchConnect PR #709",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: queried cc_church_crm_activities: three outreach_site_style rows (Oct 28, Oct 29, Nov 4), each followed by outreach_site_ready, and nothing from the church after. All three sites answered 200 today. No account created by any of them (cc_users since Oct 20 are all test accounts). Phone numbers are from each church's directory record. Agents contact no one by phone.",
+      "verifiedHow": "Queried cc_church_crm_activities: three outreach_site_style rows (Oct 28, Oct 29, Nov 4), each followed by outreach_site_ready, and nothing from the church after. All three sites answered 200 today. No account created by any of them (cc_users since Oct 20 are all test accounts). Phone numbers are from each church's directory record. Agents contact no one by phone.",
       "app": "churchconnect",
       "addedOn": "2026-11-10"
     },
@@ -1808,7 +1846,7 @@
       "source": "ChurchConnect PR #709",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: the ask_giving version went live in ChurchConnect PR #709 (deployed, state READY). docs/outreach/RESPONDING_TO_INTEREST.md lists the video as giving-demo-2026-11-09.mp4 (Lincoln has it); it is not in the repo or on any public address an agent can reach.",
+      "verifiedHow": "The ask_giving version went live in ChurchConnect PR #709 (deployed, state READY). docs/outreach/RESPONDING_TO_INTEREST.md lists the video as giving-demo-2026-11-09.mp4 (Lincoln has it); it is not in the repo or on any public address an agent can reach.",
       "app": "churchconnect",
       "addedOn": "2026-11-10"
     },
@@ -1830,7 +1868,7 @@
       "source": "ChurchConnect PR #710",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: Stripe read on the Church Connect account (acct_1SD7H6DYKPvHDjdI): product prod_TSCsn31Lj01tL9 Church Connect Pro has one active price, 29 dollars a month; the only webhook points at an old preview address; no subscriptions. EasyPeazy.Site has no ChurchConnect subscriptions either, so nothing is lost by moving. Agent tried twice today to create the 49 dollar price through the Stripe co",
+      "verifiedHow": "Stripe read on the Church Connect account (acct_1SD7H6DYKPvHDjdI): product prod_TSCsn31Lj01tL9 Church Connect Pro has one active price, 29 dollars a month; the only webhook points at an old preview address; no subscriptions. EasyPeazy.Site has no ChurchConnect subscriptions either, so nothing is lost by moving. Agent tried twice today to create the 49 dollar price through the Stripe co",
       "app": "churchconnect",
       "addedOn": "2026-11-10"
     },
@@ -1849,7 +1887,7 @@
       "source": "AllReposBackup PR #5",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: this session's rules say not to call create_repository at all. AllReposBackup PR #5 is open, mergeable, 23 tests pass after the price change. No repo named groundwork is in this session's repository list. The link is GitHub's documented new-repository URL with owner, name and visibility prefilled.",
+      "verifiedHow": "This session's rules say not to call create_repository at all. AllReposBackup PR #5 is open, mergeable, 23 tests pass after the price change. No repo named groundwork is in this session's repository list. The link is GitHub's documented new-repository URL with owner, name and visibility prefilled.",
       "app": "appengine",
       "addedOn": "2026-11-10"
     },
@@ -1888,7 +1926,7 @@
       "source": "lincoln-nunnally-resume PR #3",
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
-      "verifiedHow": "2026-11-10: resume.unitedundergod.org/marketing, /cover-letter and both PDFs answer 200. Vercel project lincoln-nunnally-resume now lists lincoln-resume.we-succeed.org (verified true). DNS lookup for that name returns no record; we-succeed.org nameservers are alfred/sue.ns.cloudflare.com (the second account). This session has no Cloudflare token in its environment. The same record shape (CNAME to ",
+      "verifiedHow": "Resume.unitedundergod.org/marketing, /cover-letter and both PDFs answer 200. Vercel project lincoln-nunnally-resume now lists lincoln-resume.we-succeed.org (verified true). DNS lookup for that name returns no record; we-succeed.org nameservers are alfred/sue.ns.cloudflare.com (the second account). This session has no Cloudflare token in its environment. The same record shape (CNAME to ",
       "app": "appengine",
       "addedOn": "2026-11-10"
     }
