@@ -1459,7 +1459,7 @@
       ],
       "kind": "account",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/new",
       "source": "AllReposBackup PR #5",
       "requestedBy": "Claude Code",
@@ -1479,7 +1479,7 @@
       ],
       "kind": "money",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/lincolnnunnally/AllReposBackup/pull/5",
       "source": "AllReposBackup PR #5",
       "requestedBy": "Claude Code",
@@ -1833,6 +1833,25 @@
       "verifiedOn": "2026-11-10",
       "verifiedHow": "2026-11-10: Stripe read on the Church Connect account (acct_1SD7H6DYKPvHDjdI): product prod_TSCsn31Lj01tL9 Church Connect Pro has one active price, 29 dollars a month; the only webhook points at an old preview address; no subscriptions. EasyPeazy.Site has no ChurchConnect subscriptions either, so nothing is lost by moving. Agent tried twice today to create the 49 dollar price through the Stripe co",
       "app": "churchconnect",
+      "addedOn": "2026-11-10"
+    },
+    {
+      "id": "appengine-create-the-empty-github-repo-named-groundwork",
+      "title": "Create the empty GitHub repo named groundwork",
+      "why": "The name is settled (Groundwork, owner 2026-11-10) and the deep dive is priced at 99 dollars. The app is built and waiting in AllReposBackup PR #5. It needs its own repo to go live. This agent session is not allowed to create repositories (a rule set on the session, not a GitHub permission), so one tap from you or a session that can.",
+      "steps": [
+        "Open the link. It is GitHub's new-repository page with the name groundwork and Private already filled in. Do not tick Add a README. Click Create repository.",
+        "Tell this Claude session: groundwork repo exists. It copies the code in, creates the Vercel project and the database tables, and checks a real scan and a real request end to end."
+      ],
+      "kind": "account",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/new?owner=lincolnnunnally&name=groundwork&visibility=private",
+      "source": "AllReposBackup PR #5",
+      "requestedBy": "Claude (marketing service session)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10: this session's rules say not to call create_repository at all. AllReposBackup PR #5 is open, mergeable, 23 tests pass after the price change. No repo named groundwork is in this session's repository list. The link is GitHub's documented new-repository URL with owner, name and visibility prefilled.",
+      "app": "appengine",
       "addedOn": "2026-11-10"
     }
   ]
