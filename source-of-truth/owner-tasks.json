@@ -1352,7 +1352,7 @@
     {
       "id": "commons-give-commons-its-own-stripe-key",
       "title": "Give Commons its own Stripe key",
-      "why": "Governments pay for Commons by card, bank transfer or a net-30 invoice with a PO number. An agent can make the products, prices and webhook. Only you can create a secret key. Bank transfer is not turned on in the United Under God, Inc. Stripe account yet.",
+      "why": "Commons no longer has a free month (your ruling, 2026-11-10: free to scan, not free to use). A government can sign up and set up, but it cannot choose a plan or publish until Commons can take payment, so right now Commons cannot earn anything. Governments pay for Commons by card, bank transfer or a net-30 invoice with a PO number. An agent can make the products, prices and webhook. Only you can create a secret key. Bank transfer is not turned on in the United Under God, Inc. Stripe account yet.",
       "steps": [
         "In the United Under God, Inc. Stripe account, live mode: Settings → Payment methods → turn on ACH Direct Debit (US bank account). If you'd rather not, tell an agent to take bank transfer out of Commons checkout",
         "Developers → API keys → Create restricted key, name it commons",
@@ -1361,15 +1361,15 @@
         "The agent then creates the webhook and customer-portal settings, sets STRIPE_WEBHOOK_SECRET, and confirms /api/health shows checkout: true"
       ],
       "kind": "credential",
-      "priority": "recommended",
+      "priority": "blocker",
       "status": "open",
       "link": "https://dashboard.stripe.com/apikeys/create",
       "source": "commons live at commons.unitedundergod.org",
       "requestedBy": "Claude Code",
       "app": "commons",
       "addedOn": "2026-11-04",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "Vercel commons: STRIPE_SECRET_KEY absent; health checkout:false; UUG Stripe bank transfer unavailable (2026-11-06)"
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "Vercel commons env list 2026-11-10: no STRIPE_SECRET_KEY; billing page shows payments not switched on"
     },
     {
       "id": "commons-free-listings-for-commons-and-the-government-website-review",
@@ -1800,7 +1800,7 @@
       ],
       "kind": "decision",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://uug-succeed-git-claude-marketing-serv-1c0861-life-produces-life.vercel.app/word-out",
       "source": "uug-succeed PR #6",
       "requestedBy": "Claude (marketing service session)",
