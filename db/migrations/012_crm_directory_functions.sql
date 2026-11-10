@@ -21,6 +21,8 @@
 -- service_role is granted execute on every helper below, not only the page function.
 -- This file is a normal function migration. It is not CREATE INDEX CONCURRENTLY.
 
+-- 015_crm_church_state_code_inline.sql replaces this function without the SET clause (a SQL function
+-- with a SET clause is never inlined: 5.7 s against 0.4 s over 107k churches). Run 015 after this file.
 create or replace function public.crm_church_state_code(p text)
 returns text
 language sql
