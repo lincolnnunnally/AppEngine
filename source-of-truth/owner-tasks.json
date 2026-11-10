@@ -1558,7 +1558,7 @@
       ],
       "kind": "credential",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://dashboard.stripe.com/apikeys",
       "source": "ChurchConnect, Pro checkout check 2026-11-08",
       "requestedBy": "Claude (ChurchConnect outreach session)",
@@ -1810,6 +1810,28 @@
       "requestedBy": "Claude (marketing service session)",
       "verifiedOn": "2026-11-10",
       "verifiedHow": "2026-11-10: the ask_giving version went live in ChurchConnect PR #709 (deployed, state READY). docs/outreach/RESPONDING_TO_INTEREST.md lists the video as giving-demo-2026-11-09.mp4 (Lincoln has it); it is not in the repo or on any public address an agent can reach.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-10"
+    },
+    {
+      "id": "churchconnect-add-the-49-dollar-pro-price-and-the-payment-notice-in-the-church-c",
+      "title": "Add the 49 dollar Pro price and the payment notice in the Church Connect Stripe account",
+      "why": "Owner 2026-11-10: ChurchConnect Pro is church management, so its money belongs in the Church Connect Stripe account, not EasyPeazy.Site. That account has the right key on ChurchConnect already but only an old 29 dollar price, so Pro checkout fails with No such price. Stripe refuses these two changes from an agent (read-only access), so they need you. About five minutes.",
+      "steps": [
+        "Open the link. Check the account name at the top left says Church Connect. On the Church Connect Pro product, click Add another price: 49.00 USD, Recurring, Monthly. Save. Click the new price and copy its ID (starts with price_). It is not a secret: paste it to an agent in chat.",
+        "Same account: Developers, Webhooks, Add destination. Endpoint URL https://www.churchconnect.cloud/api/billing/webhook . Events: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted. Save, then reveal the Signing secret (starts with whsec_) and copy it.",
+        "Vercel, project church-connect, Settings, Environment Variables: edit STRIPE_WEBHOOK_SECRET (Production) and paste the signing secret. Save. Paste it only there, never in chat.",
+        "Tell an agent both are done. The agent sets the price on ChurchConnect, redeploys, opens Pro checkout to confirm it shows 49 dollars a month under Church Connect (no payment made), and archives the 29 dollar price.",
+        "After the agent confirms it works: in the EasyPeazy.Site Stripe account, Developers, Webhooks, disable the one named ChurchConnect Ministry Pro billing fulfillment. It is no longer used and would start failing."
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://dashboard.stripe.com/acct_1SD7H6DYKPvHDjdI/products/prod_TSCsn31Lj01tL9",
+      "source": "ChurchConnect PR #710",
+      "requestedBy": "Claude (marketing service session)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10: Stripe read on the Church Connect account (acct_1SD7H6DYKPvHDjdI): product prod_TSCsn31Lj01tL9 Church Connect Pro has one active price, 29 dollars a month; the only webhook points at an old preview address; no subscriptions. EasyPeazy.Site has no ChurchConnect subscriptions either, so nothing is lost by moving. Agent tried twice today to create the 49 dollar price through the Stripe co",
       "app": "churchconnect",
       "addedOn": "2026-11-10"
     }
