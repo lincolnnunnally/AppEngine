@@ -1872,6 +1872,26 @@
       "verifiedHow": "2026-11-10, live: snip-show-mobile.vercel.app/health shows auth true, untokened_daily 15, counting true. A fake capture token and a junk token both got 401. A real request with no credential returned snips. ideas.unitedundergod.org/api/capture-token/verify answers 401 without a valid token. SnipSpike main now sends the Ideas capture token (PR #2, not compiled here: no Xcode). Building an iPhone ap",
       "app": "snip-show",
       "addedOn": "2026-11-10"
+    },
+    {
+      "id": "appengine-add-one-dns-record-so-lincoln-resume-we-succeed-org-opens-your-resume",
+      "title": "Add one DNS record so lincoln-resume.we-succeed.org opens your resume",
+      "why": "Your resume and cover letter are live at resume.unitedundergod.org/marketing today. You asked for the address lincoln-resume.we-succeed.org. Vercel is ready for it; the last piece is one record in the Cloudflare account that holds we-succeed.org, which this agent session has no key for.",
+      "steps": [
+        "Easiest: tell any Claude session that has the dashboard keys: add the CNAME for lincoln-resume.we-succeed.org. It uses the saved CLOUDFLARE_API_TOKEN_2.",
+        "Or by hand: Cloudflare, the account with we-succeed.org, DNS, Add record. Type CNAME, Name lincoln-resume, Target cname.vercel-dns.com, Proxy status DNS only. Save.",
+        "Tell an agent it is done. It checks the address opens the resume with a valid certificate."
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://dash.cloudflare.com/",
+      "source": "lincoln-nunnally-resume PR #3",
+      "requestedBy": "Claude (marketing service session)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10: resume.unitedundergod.org/marketing, /cover-letter and both PDFs answer 200. Vercel project lincoln-nunnally-resume now lists lincoln-resume.we-succeed.org (verified true). DNS lookup for that name returns no record; we-succeed.org nameservers are alfred/sue.ns.cloudflare.com (the second account). This session has no Cloudflare token in its environment. The same record shape (CNAME to ",
+      "app": "appengine",
+      "addedOn": "2026-11-10"
     }
   ]
 }
