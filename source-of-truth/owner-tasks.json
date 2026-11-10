@@ -1683,7 +1683,7 @@
       ],
       "kind": "decision",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://vercel.com/life-produces-life/snip-show-mobile/settings/environment-variables",
       "source": "operate PR #102",
       "requestedBy": "Claude (Operate video campaigns session)",
@@ -1852,6 +1852,25 @@
       "verifiedOn": "2026-11-10",
       "verifiedHow": "2026-11-10: this session's rules say not to call create_repository at all. AllReposBackup PR #5 is open, mergeable, 23 tests pass after the price change. No repo named groundwork is in this session's repository list. The link is GitHub's documented new-repository URL with owner, name and visibility prefilled.",
       "app": "appengine",
+      "addedOn": "2026-11-10"
+    },
+    {
+      "id": "snip-show-next-time-you-rebuild-the-snip-iphone-app-tell-an-agent",
+      "title": "Next time you rebuild the Snip iPhone app, tell an agent",
+      "why": "The Snip brain is no longer open: it now takes at most 15 calls a day from apps that do not sign in, which keeps the app on your phone working. The updated app signs in by itself with the Ideas token you already pasted into it. Once that build is on your phone, an agent turns the 15-a-day allowance off for good.",
+      "steps": [
+        "No rush and nothing is at risk meanwhile. Whenever you next open SnipSpike.xcodeproj in Xcode and press Run on your iPhone, the new build is installed.",
+        "Tell any Claude session: the new Snip build is on my phone. It sets the allowance to 0 and checks the app still gets snips."
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://github.com/lincolnnunnally/SnipSpike",
+      "source": "snip-show-mobile PR #4",
+      "requestedBy": "Claude (marketing service session)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10, live: snip-show-mobile.vercel.app/health shows auth true, untokened_daily 15, counting true. A fake capture token and a junk token both got 401. A real request with no credential returned snips. ideas.unitedundergod.org/api/capture-token/verify answers 401 without a valid token. SnipSpike main now sends the Ideas capture token (PR #2, not compiled here: no Xcode). Building an iPhone ap",
+      "app": "snip-show",
       "addedOn": "2026-11-10"
     }
   ]
