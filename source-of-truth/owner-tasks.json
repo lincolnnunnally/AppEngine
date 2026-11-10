@@ -1826,7 +1826,7 @@
       ],
       "kind": "credential",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://dashboard.stripe.com/acct_1SD7H6DYKPvHDjdI/products/prod_TSCsn31Lj01tL9",
       "source": "ChurchConnect PR #710",
       "requestedBy": "Claude (marketing service session)",
