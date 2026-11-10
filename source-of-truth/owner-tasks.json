@@ -1562,8 +1562,8 @@
       "link": "https://dashboard.stripe.com/apikeys",
       "source": "ChurchConnect, Pro checkout check 2026-11-08",
       "requestedBy": "Claude (ChurchConnect outreach session)",
-      "verifiedOn": "2026-11-08",
-      "verifiedHow": "2026-11-08: signed up a QA church on www.churchconnect.cloud/start-free (worked, Pro trial to Dec 8); POST /api/billing/checkout as that church answered 'No such price: price_1TyKMBDBmXajoC5V6nwK8JiR'. Stripe: that price is in EasyPeazy.Site (lookup churchconnect_ministry_pro_monthly, $49/mo) along with the webhook to www.churchconnect.cloud/api/billing/webhook; Vercel STRIPE_SECRET_KEY was last c",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10: Stripe read today. The Church Connect account (whose key ChurchConnect uses) has one price, 29 dollars a month, and its only webhook points at an old preview address. The 49 dollar price and the working webhook to www.churchconnect.cloud are in EasyPeazy.Site. So Pro checkout still fails. An agent cannot fix it another way: Stripe refused the agent's attempt to create a price (write access is off). Website payments are now confirmed on return from Checkout (ChurchConnect PR #710), so a paid 12 dollar website switches on either way.",
       "app": "churchconnect",
       "addedOn": "2026-11-08"
     },
@@ -1770,6 +1770,47 @@
       "verifiedOn": "2026-11-10",
       "verifiedHow": "2026-11-10: LPL 17_DISCOVERABILITY_PLAYBOOK lines 194-195 make a paid marketing add-on Lincoln's price and product decision; no ruling or price for it exists in CURRENT_FOCUS, ecosystem-owner-rulings.md or closed tasks. MARKETING_CAMPAIGN_LIVE is false in church-offer-rule.ts. The open task we-succeed-entity-structure (who bills We Succeed services) is separate and still open. PR #6 is open as a d",
       "app": "appengine",
+      "addedOn": "2026-11-10"
+    },
+    {
+      "id": "churchconnect-call-the-three-churches-that-picked-a-website-look-and-had-a-site-",
+      "title": "Call the three churches that picked a website look and had a site built",
+      "why": "These three are the only churches in 13,000 emails that took a real step: each chose a look and we built and sent their site. None has paid or signed in since, and nobody has spoken to them. A short call from you is the closest thing to a sale we have.",
+      "steps": [
+        "Victory Baptist Church, Douglasville GA, (770) 942-5062, picked Nov 4. Their site: victory-baptist-church.churchconnect.cloud",
+        "St. Augustine of Canterbury Episcopal Church, Morrow GA, (770) 961-9353, picked Oct 29. Their site: st-augustine-of-canterbury-episcopal.churchconnect.cloud",
+        "Nazarene Baptist Church, Fairfax SC, (803) 686-8167, picked Oct 28. Their site: nazarene-baptist-church.churchconnect.cloud",
+        "Open each site first so you can talk about it. Ask what they thought, what is missing, and whether 12 dollars a year is the question or something else. Write down what they say: it tells us why people stop at this step.",
+        "Tell an agent what you heard, so it goes in the outreach learnings and the site-ready email can be fixed."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.churchconnect.cloud/super-admin#crm/followups",
+      "source": "ChurchConnect PR #709",
+      "requestedBy": "Claude (marketing service session)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10: queried cc_church_crm_activities: three outreach_site_style rows (Oct 28, Oct 29, Nov 4), each followed by outreach_site_ready, and nothing from the church after. All three sites answered 200 today. No account created by any of them (cc_users since Oct 20 are all test accounts). Phone numbers are from each church's directory record. Agents contact no one by phone.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-10"
+    },
+    {
+      "id": "churchconnect-be-ready-to-send-the-giving-video-when-a-church-replies-video-and-",
+      "title": "Be ready to send the giving video when a church replies 'video', and give an agent a link to it",
+      "why": "From today one Pro email (about 275 a day) says: reply with the word video and I'll send a one-minute video of giving records and year-end statements. You have that video; agents do not. A reply left unanswered wastes the one thing the email asked for.",
+      "steps": [
+        "Watch your inbox (and the daily summary) for replies that say video. Reply the same day with the giving video (giving-demo-2026-11-09.mp4).",
+        "To make this automatic: upload the video once somewhere it can be linked (for example YouTube as Unlisted), and tell an agent the link. The agent then puts the link in the reply draft and in the email itself."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://mail.google.com/",
+      "source": "ChurchConnect PR #709",
+      "requestedBy": "Claude (marketing service session)",
+      "verifiedOn": "2026-11-10",
+      "verifiedHow": "2026-11-10: the ask_giving version went live in ChurchConnect PR #709 (deployed, state READY). docs/outreach/RESPONDING_TO_INTEREST.md lists the video as giving-demo-2026-11-09.mp4 (Lincoln has it); it is not in the repo or on any public address an agent can reach.",
+      "app": "churchconnect",
       "addedOn": "2026-11-10"
     }
   ]
