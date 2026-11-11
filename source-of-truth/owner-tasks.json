@@ -1970,6 +1970,27 @@
       "verifiedHow": "2026-11-11: /terms, /privacy, /refunds each answer 200 on appengine.unitedundergod.org; /refunds carries the fix-at-no-charge wording",
       "app": "appengine",
       "addedOn": "2026-11-11"
+    },
+    {
+      "id": "spark-of-hope-connect-the-spark-of-hope-vercel-project-to-github",
+      "title": "Connect the Spark of Hope Vercel project to GitHub",
+      "why": "Spark of Hope does not publish on its own when code is merged. Its Vercel project is not connected to the GitHub repo, so every update has to be started by hand, and a merged fix can sit unpublished without anyone noticing. Connecting it is a setting only you can change: the agent's Vercel access can create new projects but cannot reconnect an existing one.",
+      "steps": [
+        "Open the link below (Vercel, project spark-of-hope, Settings, Git)",
+        "Under Connected Git Repository choose GitHub, then pick lincolnnunnally/life-produces-life and click Connect",
+        "Leave Production Branch as main. Do not change Root Directory or the build settings",
+        "Tell an agent it is done, so it can confirm a merge now publishes by itself"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://vercel.com/life-produces-life/spark-of-hope/settings/git",
+      "source": "lincolnnunnally/life-produces-life#8",
+      "requestedBy": "Claude (Spark of Hope session)",
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: Vercel lists no project linked to repo life-produces-life (the same query returns presence-moments for its repo); Vercel's GitHub access can see the repo; merging life-produces-life#8 to main started no build until one was started by hand; the Vercel connector has no tool to link an existing project and this session holds no Vercel token",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-11"
     }
   ]
 }
