@@ -18,8 +18,8 @@
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "Vercel app-engine env: NEON_API_KEY absent; Neon: 11 projects in your org (2026-11-06)"
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: app_user_env_vars has no NEON_* entry; Vercel app-engine env has no NEON_* variable (41 names checked) — still not set"
     },
     {
       "id": "easypeazy-rotate-stripe-key-with-connect",
@@ -95,7 +95,7 @@
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open",
+      "status": "done",
       "verifiedOn": "2026-11-06",
       "verifiedHow": "curl appengine.unitedundergod.org/terms|privacy|refund = 404; no drafts on AppEngine main (2026-11-06)"
     },
@@ -1950,6 +1950,25 @@
       "verifiedOn": "2026-11-11",
       "verifiedHow": "2026-11-11: read apps/spark-of-hope source (no video upload or video list); queried LPL database, the only video tables are ChurchConnect's and are empty; spark-of-hope.com/hope-stories returns 200",
       "app": "spark-of-hope",
+      "addedOn": "2026-11-11"
+    },
+    {
+      "id": "appengine-read-app-engine-s-terms-privacy-and-refunds-pages-and-approve-them",
+      "title": "Read App Engine's Terms, Privacy and Refunds pages and approve them",
+      "why": "They're live now (they were 404). The refund page follows your rule: price approved before paying, so no routine refunds; we fix what doesn't work; you decide refunds case by case if it still can't be made right. The pages call the business 'the operator of the service', as EasyPeazy's do — no company name.",
+      "steps": [
+        "Read appengine.unitedundergod.org/refunds, /terms and /privacy (2–3 minutes each)",
+        "Reply 'approve', or say what to change — including if App Engine should name a specific company"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://appengine.unitedundergod.org/refunds",
+      "source": "AppEngine #521",
+      "requestedBy": "Claude Code",
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: /terms, /privacy, /refunds each answer 200 on appengine.unitedundergod.org; /refunds carries the fix-at-no-charge wording",
+      "app": "appengine",
       "addedOn": "2026-11-11"
     }
   ]
