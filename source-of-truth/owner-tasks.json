@@ -125,9 +125,8 @@
       "title": "Trim and submit ChurchConnect's Meta App Review for Facebook/Instagram posting",
       "why": "Until Meta approves it, only app testers can connect a Page, so churches cannot publish posts to Facebook or Instagram.",
       "steps": [
-        "Done 2026-11-11: the redirect address is saved in Meta, and the ChurchConnect Facebook Page and @churchconnect.cloud Instagram are connected in ChurchConnect.",
+        "Done 2026-11-11: Facebook and Instagram are connected, and a post published from ChurchConnect appeared on both. That also made Meta's posting test calls.",
         "This needs a computer. Tap Read it here on this card first: it has the six permissions, the screencast script and the words to paste.",
-        "In ChurchConnect → Social Media → Overview → New Post: write a short post, add a photo, tick Facebook and Instagram, click Publish. Check it appears on the Page and on Instagram. This also makes Meta's test calls for posting.",
         "Graph API Explorer (app 'Church Connect', User token with business_management): run GET /me/businesses once. That is the one test call ChurchConnect itself does not make.",
         "developers.facebook.com → App Review → Permissions and Features: remove every permission that is not one of the six, and add instagram_content_publish. Wait up to 24 hours until each shows 1 of 1 API calls.",
         "Record the 90-second screencast at www.churchconnect.cloud (script in Read it here), paste the ready-written descriptions, and submit."
@@ -140,7 +139,7 @@
       "addedOn": "2026-11-01",
       "status": "open",
       "verifiedOn": "2026-11-11",
-      "verifiedHow": "2026-11-11: Lincoln completed Connect Facebook & Instagram on www.churchconnect.cloud; cc_social_media_connections now holds the Facebook Page 'Church Connect' (1128404130347850) and Instagram @churchconnect.cloud (17841433024543843), both connected with a stored token. Live publish and the Meta review status are not yet verified.",
+      "verifiedHow": "2026-11-11: cc_social_media_posts shows Lincoln's post published to the Church Connect Facebook Page and @churchconnect.cloud Instagram at 22:53 UTC, each with a post URL. Lincoln confirmed it on Instagram. The Meta review status is only visible to him.",
       "updatedOn": "2026-11-11",
       "doc": {
         "title": "Meta App Review: permissions, test calls, screencast and words to paste",
