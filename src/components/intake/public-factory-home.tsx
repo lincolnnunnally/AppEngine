@@ -78,6 +78,9 @@ export function PublicFactoryHome({
       <footer className="factory-foot">
         <span>A real person reads every message.</span>
         <Link href="/help">Get help</Link>
+        <Link href="/terms">Terms</Link>
+        <Link href="/privacy">Privacy</Link>
+        <Link href="/refunds">Refunds</Link>
       </footer>
     </div>
   );
