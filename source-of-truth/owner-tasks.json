@@ -1883,7 +1883,7 @@
       ],
       "kind": "account",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/new?owner=lincolnnunnally&name=groundwork&visibility=private",
       "source": "AllReposBackup PR #5",
       "requestedBy": "Claude (marketing service session)",
