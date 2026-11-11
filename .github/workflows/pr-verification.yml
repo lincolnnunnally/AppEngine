@@ -88,5 +88,12 @@ jobs:
           PGDIR="$(mktemp -d)"
           /usr/lib/postgresql/16/bin/initdb -D "$PGDIR/data" -A trust -U postgres > /dev/null
           /usr/lib/postgresql/16/bin/pg_ctl -D "$PGDIR/data" -o "-p 5546 -k $PGDIR -c max_connections=200" -w -l "$PGDIR/log" start
-          npx playwright install --with-deps chromium > /dev/null
+          # --with-deps also apt-installs extra fonts from security.ubuntu.com, which
+          # the runner can't always reach (2026-11-11: every PR failed here before
+          # any test ran). Fall back to the browser alone; if a library it needs
+          # were really missing, the browser checks below would fail loudly.
+          npx playwright install --with-deps chromium > /dev/null || {
+            echo "::warning::Playwright system packages could not be downloaded; installing Chromium only"
+            npx playwright install chromium > /dev/null
+          }
           PROVE_PG_URL=postgresql://postgres@127.0.0.1:5546/postgres npm run prove:modules -- --only=pack-church-org,all --concurrency=2

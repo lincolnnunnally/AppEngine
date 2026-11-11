@@ -6392,6 +6392,24 @@ a.dx-stat:hover {
   padding: 32px 18px 64px;
 }
 
+.legal h2 {
+  margin: 28px 0 8px;
+  font-size: 1.15rem;
+}
+
+.legal ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.legal li {
+  margin: 6px 0;
+}
+
+.legal-links {
+  margin-top: 32px;
+}
+
 .help-form {
   display: flex;
   flex-direction: column;
