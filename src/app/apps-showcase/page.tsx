@@ -71,7 +71,7 @@ export default function AppsShowcasePage() {
       <style>{CSS}</style>
 
       <header className="uug-top">
-        <span className="uug-mark" aria-hidden="true"><svg viewBox="226 4 500 500" aria-hidden="true" focusable="false"><g fill="currentColor"><circle cx="476" cy="244" r="235" fill="none" stroke="currentColor" strokeWidth="11"/><path d="M382 150L326 150L335 159L335 338C335 392 400 432 476 466C552 432 617 392 617 338L617 159L626 150L570 150L570 325Q570 375 492.5 402L459.5 402Q382 375 382 325Z"/><path d="M476 90L492.5 107L492.5 176L543 176L543 207L492.5 207L492.5 410L459.5 410L459.5 207L409 207L409 176L459.5 176L459.5 107Z"/></g></svg></span>
+        <span className="uug-mark" aria-hidden="true"><svg viewBox="310 75 332 405" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M382 150L326 150L335 159L335 338C335 392 400 432 476 466C552 432 617 392 617 338L617 159L626 150L570 150L570 325Q570 375 492.5 402L459.5 402Q382 375 382 325Z"/><path d="M476 90L492.5 107L492.5 176L543 176L543 207L492.5 207L492.5 410L459.5 410L459.5 207L409 207L409 176L459.5 176L459.5 107Z"/></g></svg></span>
         <span className="uug-wordmark">United Under God</span>
         <a className="uug-toplink" href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">
           unitedundergod.org
@@ -80,7 +80,7 @@ export default function AppsShowcasePage() {
 
       <main>
         <section className="uug-hero">
-          <div className="uug-seal" aria-hidden="true"><span className="uug-seal-cross"><svg viewBox="226 4 500 500" aria-hidden="true" focusable="false"><g fill="currentColor"><circle cx="476" cy="244" r="235" fill="none" stroke="currentColor" strokeWidth="11"/><path d="M382 150L326 150L335 159L335 338C335 392 400 432 476 466C552 432 617 392 617 338L617 159L626 150L570 150L570 325Q570 375 492.5 402L459.5 402Q382 375 382 325Z"/><path d="M476 90L492.5 107L492.5 176L543 176L543 207L492.5 207L492.5 410L459.5 410L459.5 207L409 207L409 176L459.5 176L459.5 107Z"/></g></svg></span><span className="uug-seal-name">UNITED UNDER GOD</span></div>
+          <div className="uug-seal" aria-hidden="true"><span className="uug-seal-cross"><svg viewBox="310 75 332 405" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M382 150L326 150L335 159L335 338C335 392 400 432 476 466C552 432 617 392 617 338L617 159L626 150L570 150L570 325Q570 375 492.5 402L459.5 402Q382 375 382 325Z"/><path d="M476 90L492.5 107L492.5 176L543 176L543 207L492.5 207L492.5 410L459.5 410L459.5 207L409 207L409 176L459.5 176L459.5 107Z"/></g></svg></span><span className="uug-seal-name">UNITED UNDER GOD</span></div>
           <p className="uug-eyebrow">GOD’S KINGDOM · OUR PURPOSE</p>
           <h1 className="balanced-title">
             <span>ONE FAMILY OF APPS.</span>
