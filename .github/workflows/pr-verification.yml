@@ -38,6 +38,9 @@ jobs:
           SOURCE_CHECK_OFFLINE: "true"
         run: npm run source:check
 
+      - name: Shared agent rules are in CLAUDE.md and AGENTS.md
+        run: npm run agent-rules:check
+
       - name: Confirm generated app schemas are inert
         run: npm run generated-apps:guard
 
