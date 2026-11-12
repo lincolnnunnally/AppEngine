@@ -71,7 +71,7 @@ export default function AppsShowcasePage() {
       <style>{CSS}</style>
 
       <header className="uug-top">
-        <span className="uug-mark" aria-hidden="true" />
+        <span className="uug-mark" aria-hidden="true">✦</span>
         <span className="uug-wordmark">United Under God</span>
         <a className="uug-toplink" href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">
           unitedundergod.org
@@ -80,10 +80,10 @@ export default function AppsShowcasePage() {
 
       <main>
         <section className="uug-hero">
-          <p className="uug-eyebrow">Our apps</p>
+          <p className="uug-eyebrow">The United Under God family</p>
           <h1 className="balanced-title">
-            <span>One family of apps.</span>
-            <span>Built to serve real life.</span>
+            <span>United. Loving. Active.</span>
+            <span>Tools that put it into practice.</span>
           </h1>
           <p className="uug-lead">
             Everything here exists for one reason: helping people experience the personal truth about God in
@@ -100,10 +100,10 @@ export default function AppsShowcasePage() {
         <section className="uug-section" aria-labelledby="live-heading">
           <div className="uug-section-head">
             <h2 id="live-heading">Live today</h2>
-            <span className="uug-count">{live.length} apps you can use right now</span>
+            <span className="uug-count">{live.length} app destinations to explore</span>
           </div>
           {liveGroups.map(({ group, apps }) => (
-            <div key={group} className="uug-group">
+            <div key={group} id={`group-${group.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} className="uug-group">
               <h3 className="uug-group-name">{group}</h3>
               <div className="uug-grid">
                 {apps.map((app) => (
@@ -140,115 +140,24 @@ export default function AppsShowcasePage() {
 }
 
 const CSS = `
-.uug {
-  --bg: #f6f8f7;
-  --card: #ffffff;
-  --ink: #16211b;
-  --muted: #58685f;
-  --line: #dce4df;
-  --accent: #0c7d6f;
-  --accent-ink: #ffffff;
-  --badge-bg: #eef2ef;
-  color-scheme: light dark;
-  min-height: 100dvh;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding: 0 20px 56px;
-}
-@media (prefers-color-scheme: dark) {
-  .uug {
-    --bg: #0e1512;
-    --card: #18211c;
-    --ink: #eef2ee;
-    --muted: #9aa79f;
-    --line: #28332c;
-    --accent: #34c0ad;
-    --accent-ink: #08211c;
-    --badge-bg: #1f2a24;
-  }
-}
-.uug a { color: inherit; }
-.uug h1, .uug h2, .uug h3, .uug p { margin: 0; }
-.uug main, .uug-top, .uug-foot { width: min(1060px, 100%); margin: 0 auto; }
-
-.uug-top { display: flex; align-items: center; gap: 10px; padding: 22px 0; }
-.uug-mark {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-.uug-wordmark { font-weight: 800; letter-spacing: 0.01em; }
-.uug-toplink { margin-left: auto; color: var(--muted); text-decoration: none; font-size: 0.9rem; }
-.uug-toplink:hover { color: var(--ink); text-decoration: underline; }
-
-.uug-hero { padding: 44px 0 12px; max-width: 720px; }
-.uug-eyebrow {
-  color: var(--accent); font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.14em; font-size: 0.78rem; margin-bottom: 14px;
-}
-.uug-hero h1, .uug .balanced-title {
-  display: flex; flex-direction: column; gap: 0.08em;
-  font-size: clamp(1.7rem, 4.6vw, 2.85rem); line-height: 1.08; letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.uug .balanced-title span { display: block; }
-.uug-lead { margin-top: 18px; font-size: 1.08rem; line-height: 1.65; text-wrap: pretty; }
-.uug-sub { margin-top: 12px; color: var(--muted); line-height: 1.6; text-wrap: pretty; }
-
-.uug-section { padding-top: 44px; }
-.uug-section-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-.uug-section-head h2 { font-size: 1.45rem; letter-spacing: -0.01em; }
-.uug-count { color: var(--muted); font-size: 0.9rem; }
-
-.uug-group { margin-top: 20px; }
-.uug-group-name {
-  color: var(--muted); font-size: 0.78rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px;
-}
-.uug-grid {
-  display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 14px;
-}
-
-.uug-card {
-  display: flex; flex-direction: column; gap: 8px;
-  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-  padding: 18px;
-  flex: 1 1 16rem; max-width: 22rem; min-width: min(100%, 16rem);
-}
-.uug-card h3 { font-size: 1.05rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.uug-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
-.uug-live { transition: border-color 120ms ease, transform 120ms ease; }
-.uug-live:hover { border-color: var(--accent); transform: translateY(-2px); }
-.uug-card-main { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit; flex: 1; }
-.uug-doors {
-  display: flex; flex-wrap: wrap; gap: 10px;
-  margin: 0; padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-.uug-doors a {
-  color: var(--accent); font-weight: 700; font-size: 0.82rem; text-decoration: none;
-}
-.uug-doors a:hover { text-decoration: underline; }
-.uug-visit {
-  margin-top: auto; padding-top: 6px;
-  display: inline-flex; align-items: center; gap: 6px;
-  color: var(--accent); font-weight: 700; font-size: 0.88rem;
-}
-.uug-grid-soon { margin-top: 18px; }
-.uug-soon { border-style: dashed; }
-.uug-reserved {
-  margin-top: auto; padding-top: 6px;
-  color: var(--muted); font-size: 0.82rem;
-}
-.uug-badge {
-  background: var(--badge-bg); color: var(--muted);
-  border-radius: 999px; padding: 3px 10px;
-  font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
-}
-
-.uug-foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line); }
-.uug-foot p { color: var(--muted); font-size: 0.92rem; line-height: 1.7; }
-.uug-foot a { color: var(--accent); font-weight: 700; text-decoration: none; }
-.uug-foot a:hover { text-decoration: underline; }
+.uug { --bg:#f3eee4;--cream:#ebe4d6;--ink:#1a1814;--muted:#6b645a;--forest:#2e4a3c;--line:#d4cbba;--card:#f3eee4;--accent:#2e4a3c; min-height:100dvh;background:var(--bg);color:var(--ink);font-family:"Figtree","Segoe UI",system-ui,sans-serif;padding:0 22px 60px; }
+.uug *{box-sizing:border-box}.uug a{color:inherit}.uug h1,.uug h2,.uug h3,.uug p{margin:0}.uug main,.uug-top,.uug-foot{width:min(1160px,100%);margin:0 auto}
+.uug-top{display:flex;align-items:center;gap:13px;padding:24px 0}.uug-mark{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--line);border-radius:50%;color:var(--forest);font-size:22px}.uug-wordmark{font-weight:800;letter-spacing:.02em}.uug-toplink{margin-left:auto;text-decoration:none;font-size:.87rem;color:var(--muted)}.uug-toplink:hover{text-decoration:underline}
+.uug-hero{position:relative;isolation:isolate;overflow:hidden;margin:0 calc((min(1160px,100vw - 44px) - min(1160px,100vw - 44px))/2);min-height:570px;display:flex;flex-direction:column;justify-content:flex-end;padding:100px clamp(25px,6vw,72px) 42px;color:#f3eee4;background:#1a1814}
+.uug-hero::before{content:"";position:absolute;inset:0;z-index:-2;background-image:url("https://www.unitedundergod.org/images/hero.jpg");background-size:cover;background-position:center 44%}
+.uug-hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,rgba(26,24,20,.96) 0%,rgba(26,24,20,.74) 55%,rgba(26,24,20,.36) 100%)}
+.uug-eyebrow{color:#eee6d8;font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;font-weight:700;margin-bottom:17px!important}
+.uug-hero h1{display:flex;flex-direction:column;gap:.1em;max-width:890px;font-family:"Fraunces","Iowan Old Style",Palatino,Georgia,serif;font-size:clamp(2.7rem,5.6vw,5.1rem);font-style:italic;font-weight:500;line-height:1.09;letter-spacing:-.03em;text-wrap:balance}
+.uug .balanced-title span{display:block}.uug-lead{max-width:680px;margin-top:23px!important;font-size:1.14rem;line-height:1.68;color:#f3eee4}.uug-sub{max-width:730px;margin-top:12px!important;font-size:.96rem;line-height:1.65;color:#e1d8c8}
+.uug-jump{display:flex;flex-wrap:wrap;gap:9px;margin-top:27px}.uug-jump a{padding:10px 14px;border:1px solid #f3eee48c;border-radius:6px;text-decoration:none;font-size:.82rem;font-weight:700;background:#1a181433}.uug-jump a:hover,.uug-jump a:focus-visible{background:#f3eee4;color:#1a1814}
+.uug-section{padding-top:65px}.uug-section-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:17px;margin-bottom:22px}.uug-section-head h2{font-family:"Fraunces",Palatino,Georgia,serif;font-weight:500;font-size:clamp(1.9rem,3vw,2.6rem)}.uug-count{font-size:.9rem;color:var(--muted)}
+.uug-group{margin-top:39px;scroll-margin-top:25px}.uug-group-name{font-size:.76rem;font-weight:750;text-transform:uppercase;letter-spacing:.18em;color:var(--forest);margin-bottom:15px!important}
+.uug-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:21px}.uug-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:24px 5px 24px 0;border-top:1px solid var(--line);background:transparent}.uug-card h3{font-family:"Fraunces",Palatino,Georgia,serif;font-weight:500;font-style:italic;font-size:1.55rem;line-height:1.2;display:flex;align-items:center;flex-wrap:wrap;gap:8px}.uug-card p{font-size:.94rem;line-height:1.65;color:var(--muted)}
+.uug-live{transition:border-color .15s ease,transform .15s ease}.uug-live:hover,.uug-live:focus-within{border-top-color:var(--forest);transform:translateY(-2px)}.uug-card-main{display:flex;flex:1;flex-direction:column;gap:12px;text-decoration:none}.uug-card-main:focus-visible,.uug-jump a:focus-visible{outline:3px solid #a7834c;outline-offset:3px}.uug-visit{margin-top:auto;padding-top:13px;display:inline-flex;gap:8px;align-items:center;color:var(--forest);font-size:.85rem;font-weight:750;overflow-wrap:anywhere}
+.uug-doors{display:flex;flex-wrap:wrap;gap:12px;border-top:1px solid var(--line);padding-top:11px}.uug-doors a{font-size:.83rem;color:var(--forest);font-weight:700;text-decoration:none}.uug-doors a:hover{text-decoration:underline}
+.uug-grid-soon{margin-top:18px}.uug-soon{opacity:.72}.uug-reserved{margin-top:auto;padding-top:7px;color:var(--muted);font-size:.81rem;overflow-wrap:anywhere}.uug-badge{border:1px solid var(--line);padding:4px 8px;font:700 .65rem system-ui,sans-serif;text-transform:uppercase;letter-spacing:.04em}
+.uug-foot{margin-top:70px;padding-top:25px;border-top:1px solid var(--line)}.uug-foot p{font-size:.91rem;color:var(--muted);line-height:1.8}.uug-foot a{color:var(--forest);font-weight:700;text-decoration:none}.uug-foot a:hover{text-decoration:underline}
+@media(max-width:850px){.uug-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:590px){.uug{padding:0 16px 40px}.uug-top{padding:18px 0}.uug-wordmark{font-size:.9rem}.uug-toplink{font-size:.75rem}.uug-hero{min-height:630px;padding:85px 24px 32px}.uug-hero h1{font-size:clamp(2.3rem,9vw,3.5rem)}.uug-grid{grid-template-columns:1fr}.uug-section{padding-top:46px}.uug-card{padding:21px 0}}
+@media(prefers-reduced-motion:reduce){.uug-live{transition:none}.uug-live:hover{transform:none}}
 `;
