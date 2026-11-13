@@ -2147,6 +2147,27 @@
         "text": "Wording you can send from your own email. Change anything you like.\n\nSubject: The Journey Church's page on ChurchConnect\n\nThank you for looking up The Journey Church on ChurchConnect, and for what you wrote about your pastor.\n\nThe page is meant to be looked after by the church's staff, so I have not handed it over. I would be glad to set it up for the church at no cost.\n\nWould you pass this along to the pastor or the church office, or tell me the best way to reach them?\n\nLincoln Nunnally\nChurchConnect",
         "from": "written for this task"
       }
+    },
+    {
+      "id": "churchconnect-send-claude-a-picture-of-the-database-s-memory-and-cpu-charts-it-r",
+      "title": "Send Claude a picture of the database's memory and CPU charts (it restarted itself Friday evening)",
+      "why": "The database every app shares restarted on its own on Friday Nov 13 at 5:32 PM Eastern and was down for about a minute. Church pages and other apps failed for that minute, then came back; nothing was lost. Its log does not say why. The memory and CPU charts are only on Supabase's dashboard, which needs your sign-in. They show whether the database is too small for what it now holds (the church directory grew seven times this week), which decides whether a bigger one is worth paying for.",
+      "steps": [
+        "Open the link and sign in to Supabase. It opens the database health page of the Life Produces Life project.",
+        "Find the Memory usage and CPU usage charts. If the page lets you choose a time range, pick one that includes Friday 5:30 PM Eastern.",
+        "Take a screenshot of both charts and send it to Claude in chat.",
+        "If you can see it, also tell Claude the database's compute size (it is under the project's Settings, Compute and Disk: a name like Micro, Small or Medium)."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://supabase.com/dashboard/project/uqhqulrqcygsmmzdzemx/observability/database",
+      "source": "ChurchConnect PR #765",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "2026-11-13 23:12 UTC: the database's start time is 22:32:08 UTC and its log says it was interrupted, with no shutdown or out-of-memory line before and no other restart in 24 hours. This session can read its logs and run queries but has no memory or CPU record. Link from Supabase's own troubleshooting guide; it needs Lincoln's sign-in.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-13"
     }
   ]
 }
