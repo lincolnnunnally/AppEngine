@@ -2129,7 +2129,7 @@
       "why": "On Oct 31 someone asked to claim The Journey Church's page in Columbus, Georgia, and was told we would get back to them. Nobody has. In the box for their role they wrote that they were baptized there and thanked the pastor by name, so this is a member, not staff. The church has no email, website or phone on file, so the system could not check the claim on its own, and no screen shows you claims that are waiting.",
       "steps": [
         "Tell Claude in chat: Journey Church claim. Claude will show you the person's name and email address (kept off this list for their privacy).",
-        "Recommended: do not hand over the page, because they are a member and not staff. Write to them from your own email. Wording you can use: Thank you for looking up The Journey Church on ChurchConnect, and for what you wrote about your pastor. The page is meant to be looked after by the church's staff, so I have not handed it over, but I would be glad to set it up for the church at no cost. Would you",
+        "Recommended: do not hand over the page, because they are a member and not staff. Write to them from your own email. Wording you can use is below this task.",
         "Then tell Claude 'declined', or 'approve' if you would rather give them the page (approving sends them the system's it's-yours email). Claude records it."
       ],
       "kind": "decision",
@@ -2139,9 +2139,14 @@
       "source": "ChurchConnect docs/outreach/LEARNINGS.md, 2026-11-13 end of day",
       "requestedBy": "Claude (ChurchConnect session)",
       "verifiedOn": "2026-11-13",
-      "verifiedHow": "2026-11-13 21:35 UTC, read-only query of production: cc_church_claims holds 1 row, status pending, created 2026-10-31, routing_reason no_email, review_reason 'No email on file. Review this claim by hand.' The church record has no email, website or phone. Searched the app's screens (src/) for the pending-claims list: none shows it. Read backend/routes/churches.py: approving emails the claimant and ",
+      "verifiedHow": "2026-11-13 21:35 UTC, read-only query of production: cc_church_claims has 1 row, pending since 2026-10-31, routed to review by hand because the church has no email on file. No screen in the app lists waiting claims (searched src/). In backend/routes/churches.py approving emails the claimant; rejecting emails nobody. No task for it existed.",
       "app": "churchconnect",
-      "addedOn": "2026-11-13"
+      "addedOn": "2026-11-13",
+      "doc": {
+        "title": "A reply you can send to the member",
+        "text": "Wording you can send from your own email. Change anything you like.\n\nSubject: The Journey Church's page on ChurchConnect\n\nThank you for looking up The Journey Church on ChurchConnect, and for what you wrote about your pastor.\n\nThe page is meant to be looked after by the church's staff, so I have not handed it over. I would be glad to set it up for the church at no cost.\n\nWould you pass this along to the pastor or the church office, or tell me the best way to reach them?\n\nLincoln Nunnally\nChurchConnect",
+        "from": "written for this task"
+      }
     }
   ]
 }
