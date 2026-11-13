@@ -2084,7 +2084,7 @@
     {
       "id": "churchconnect-buy-zerobounce-address-check-credits-so-churchconnect-can-email-mo",
       "title": "Buy ZeroBounce address-check credits so ChurchConnect can email more churches",
-      "why": "ChurchConnect only emails addresses ZeroBounce has checked. Its credits are down to 1,670, under the 2,000 the system keeps in reserve, so checking stopped. About 68,000 churches have an email address that has never been checked, so they cannot be emailed. On Nov 12 the Pro email ran out of churches and the day ended at 1,078 of 2,000.",
+      "why": "ChurchConnect only emails addresses ZeroBounce has checked. Its credits are down to 1,670, under the 2,000 the system keeps in reserve, so checking stopped. About 68,000 churches have an email address that has never been checked, so they cannot be emailed. On Nov 12 the Pro email ran out of churches and the day ended at 1,078 of 2,000. Added the same afternoon by another session: do the task \"Turn on Google's free sender report\" first. From Nov 6 to 12 only 5 of 747 emails delivered to Gmail addresses were opened later than two minutes after sending, so more addresses may not bring more churches until we know Gmail is showing the mail.",
       "steps": [
         "Sign in to ZeroBounce (the account whose key ChurchConnect already uses).",
         "Buy validation credits. About 70,000 would check every church we have; a smaller pack works too and gets used first on the churches the emails reach next.",
@@ -2098,6 +2098,28 @@
       "requestedBy": "Claude (ChurchConnect session)",
       "verifiedOn": "2026-11-13",
       "verifiedHow": "2026-11-13 16:01 UTC: ran the Verify region workflow on ChurchConnect main with limit 1; production answered why=credit_reserve, credits=1670 (reserve is VERIFY_RESERVE=2000 in backend/routes/church_claim_outreach.py). ZEROBOUNCE_API_KEY is set on the church-connect Vercel project and the code uses ZeroBounce when it is. 68,332 churches with an unchecked address counted in the live database on 202",
+      "app": "churchconnect",
+      "addedOn": "2026-11-13"
+    },
+    {
+      "id": "churchconnect-turn-on-google-s-free-sender-report-so-we-can-see-if-gmail-is-hidi",
+      "title": "Turn on Google's free sender report so we can see if Gmail is hiding our church emails",
+      "why": "About 4 in 10 of the churches we email use Gmail. From Nov 6 to 12, 747 of our emails reached Gmail addresses and only 5 were opened later than two minutes after sending (the earlier opens are Gmail's own machines). That usually means Gmail is putting the mail in spam or hiding its pictures. Gmail does not tell our mail service when this happens; Google's Postmaster Tools is the only place it shows. It is free. Do this before buying more address checks: more addresses do not help if Gmail is not showing the mail.",
+      "steps": [
+        "Open the link and sign in with the Google account you use for United Under God.",
+        "Tap 'Add new domain' (top right), type unitedundergod.org and tap Create.",
+        "Next to unitedundergod.org tap 'More options', then 'Verify domain'. If it says it is verified, go to the next step. If it shows a TXT record instead, copy it and send it to Claude in chat; it is not a secret. Claude will walk you through adding it, then you tap Verify.",
+        "Tap 'Add new domain' twice more and add inform.unitedundergod.org and emails.unitedundergod.org. These two need no verifying.",
+        "Two days later open the same link, tap each of those two names, and send Claude a screenshot of 'Spam rate' and 'Domain reputation'. The numbers take about a day to appear."
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://postmaster.google.com/v2/manage_domains",
+      "source": "ChurchConnect docs/outreach/LEARNINGS.md, 2026-11-13",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "2026-11-13 18:23 UTC, read-only query of production (cc_church_crm_activities, sends of Nov 6 to 12 from inform.unitedundergod.org, the sending name that records opens): 747 delivered to gmail.com, 179 opens, 176 of them within 2 minutes of the send, 5 with an open 2 minutes or later. Steps taken from Google's own help page (support.google.com/a/answer/9981691) read the same day. Link checked: it ",
       "app": "churchconnect",
       "addedOn": "2026-11-13"
     }
