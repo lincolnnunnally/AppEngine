@@ -1177,14 +1177,14 @@
       ],
       "kind": "decision",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://laser.engrave.market/s/christmas",
       "source": "LaserEngraving seasonal pages (2026-11-04)",
       "requestedBy": "Claude (SEO / seasonal laser session 2026-11-04)",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-04",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "laser /s/christmas still says 'order early'; site delivery estimates 3–5 / 5–8 days (2026-11-06)"
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "Closed without the owner: LaserEngraving PR #163 computes the dates from the checkout's own delivery days. Live on laser.engrave.market/s/christmas 2026-11-13: ship by Mon Dec 14, local by Thu Dec 17 (Thanksgiving: Fri Nov 13, Wed Nov 18). If real production time is longer, change the days in deliveryWindow.ts."
     },
     {
       "id": "laser-holiday-new-blanks",
