@@ -71,7 +71,7 @@ export default function AppsShowcasePage() {
       <style>{CSS}</style>
 
       <header className="uug-top">
-        <span className="uug-mark" aria-hidden="true" />
+        <span className="uug-mark" aria-hidden="true"><svg viewBox="310 75 332 405" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M382 150L326 150L335 159L335 338C335 392 400 432 476 466C552 432 617 392 617 338L617 159L626 150L570 150L570 325Q570 375 492.5 402L459.5 402Q382 375 382 325Z"/><path d="M476 90L492.5 107L492.5 176L543 176L543 207L492.5 207L492.5 410L459.5 410L459.5 207L409 207L409 176L459.5 176L459.5 107Z"/></g></svg></span>
         <span className="uug-wordmark">United Under God</span>
         <a className="uug-toplink" href="https://www.unitedundergod.org" target="_blank" rel="noopener noreferrer">
           unitedundergod.org
@@ -80,10 +80,11 @@ export default function AppsShowcasePage() {
 
       <main>
         <section className="uug-hero">
-          <p className="uug-eyebrow">Our apps</p>
+          <div className="uug-seal" aria-hidden="true"><span className="uug-seal-cross"><svg viewBox="310 75 332 405" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M382 150L326 150L335 159L335 338C335 392 400 432 476 466C552 432 617 392 617 338L617 159L626 150L570 150L570 325Q570 375 492.5 402L459.5 402Q382 375 382 325Z"/><path d="M476 90L492.5 107L492.5 176L543 176L543 207L492.5 207L492.5 410L459.5 410L459.5 207L409 207L409 176L459.5 176L459.5 107Z"/></g></svg></span><span className="uug-seal-name">UNITED UNDER GOD</span></div>
+          <p className="uug-eyebrow">GOD’S KINGDOM · OUR PURPOSE</p>
           <h1 className="balanced-title">
-            <span>One family of apps.</span>
-            <span>Built to serve real life.</span>
+            <span>ONE FAMILY OF APPS.</span>
+            <span>BUILT TO SERVE REAL LIFE.</span>
           </h1>
           <p className="uug-lead">
             Everything here exists for one reason: helping people experience the personal truth about God in
@@ -140,115 +141,37 @@ export default function AppsShowcasePage() {
 }
 
 const CSS = `
-.uug {
-  --bg: #f6f8f7;
-  --card: #ffffff;
-  --ink: #16211b;
-  --muted: #58685f;
-  --line: #dce4df;
-  --accent: #0c7d6f;
-  --accent-ink: #ffffff;
-  --badge-bg: #eef2ef;
-  color-scheme: light dark;
-  min-height: 100dvh;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding: 0 20px 56px;
-}
-@media (prefers-color-scheme: dark) {
-  .uug {
-    --bg: #0e1512;
-    --card: #18211c;
-    --ink: #eef2ee;
-    --muted: #9aa79f;
-    --line: #28332c;
-    --accent: #34c0ad;
-    --accent-ink: #08211c;
-    --badge-bg: #1f2a24;
-  }
-}
-.uug a { color: inherit; }
-.uug h1, .uug h2, .uug h3, .uug p { margin: 0; }
-.uug main, .uug-top, .uug-foot { width: min(1060px, 100%); margin: 0 auto; }
-
-.uug-top { display: flex; align-items: center; gap: 10px; padding: 22px 0; }
-.uug-mark {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-.uug-wordmark { font-weight: 800; letter-spacing: 0.01em; }
-.uug-toplink { margin-left: auto; color: var(--muted); text-decoration: none; font-size: 0.9rem; }
-.uug-toplink:hover { color: var(--ink); text-decoration: underline; }
-
-.uug-hero { padding: 44px 0 12px; max-width: 720px; }
-.uug-eyebrow {
-  color: var(--accent); font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.14em; font-size: 0.78rem; margin-bottom: 14px;
-}
-.uug-hero h1, .uug .balanced-title {
-  display: flex; flex-direction: column; gap: 0.08em;
-  font-size: clamp(1.7rem, 4.6vw, 2.85rem); line-height: 1.08; letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.uug .balanced-title span { display: block; }
-.uug-lead { margin-top: 18px; font-size: 1.08rem; line-height: 1.65; text-wrap: pretty; }
-.uug-sub { margin-top: 12px; color: var(--muted); line-height: 1.6; text-wrap: pretty; }
-
-.uug-section { padding-top: 44px; }
-.uug-section-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-.uug-section-head h2 { font-size: 1.45rem; letter-spacing: -0.01em; }
-.uug-count { color: var(--muted); font-size: 0.9rem; }
-
-.uug-group { margin-top: 20px; }
-.uug-group-name {
-  color: var(--muted); font-size: 0.78rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px;
-}
-.uug-grid {
-  display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 14px;
-}
-
-.uug-card {
-  display: flex; flex-direction: column; gap: 8px;
-  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-  padding: 18px;
-  flex: 1 1 16rem; max-width: 22rem; min-width: min(100%, 16rem);
-}
-.uug-card h3 { font-size: 1.05rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.uug-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.55; }
-.uug-live { transition: border-color 120ms ease, transform 120ms ease; }
-.uug-live:hover { border-color: var(--accent); transform: translateY(-2px); }
-.uug-card-main { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit; flex: 1; }
-.uug-doors {
-  display: flex; flex-wrap: wrap; gap: 10px;
-  margin: 0; padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-.uug-doors a {
-  color: var(--accent); font-weight: 700; font-size: 0.82rem; text-decoration: none;
-}
-.uug-doors a:hover { text-decoration: underline; }
-.uug-visit {
-  margin-top: auto; padding-top: 6px;
-  display: inline-flex; align-items: center; gap: 6px;
-  color: var(--accent); font-weight: 700; font-size: 0.88rem;
-}
-.uug-grid-soon { margin-top: 18px; }
-.uug-soon { border-style: dashed; }
-.uug-reserved {
-  margin-top: auto; padding-top: 6px;
-  color: var(--muted); font-size: 0.82rem;
-}
-.uug-badge {
-  background: var(--badge-bg); color: var(--muted);
-  border-radius: 999px; padding: 3px 10px;
-  font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
-}
-
-.uug-foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line); }
-.uug-foot p { color: var(--muted); font-size: 0.92rem; line-height: 1.7; }
-.uug-foot a { color: var(--accent); font-weight: 700; text-decoration: none; }
-.uug-foot a:hover { text-decoration: underline; }
+.uug{--bg:#090909;--card:#131313;--ink:#f5f2eb;--muted:#a5a19b;--line:#34302a;--accent:#C9B08C;--badge-bg:#252017;color-scheme:dark;min-height:100dvh;background:radial-gradient(ellipse at 50% 0%,#201a12 0%,#0c0b0a 38%,#090909 75%);color:var(--ink);font-family:Arial,Helvetica,sans-serif;padding:0 24px 65px}
+.uug a{color:inherit}.uug h1,.uug h2,.uug h3,.uug p{margin:0}.uug main,.uug-top,.uug-foot{width:min(1120px,100%);margin:0 auto}
+.uug-top{display:flex;align-items:center;gap:12px;padding:22px 0;border-bottom:1px solid #30291d}
+.uug-mark{display:block;width:34px;height:34px;color:var(--accent);flex:none}.uug-mark svg{display:block;width:100%;height:100%}
+.uug-wordmark{font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
+.uug-toplink{margin-left:auto;color:var(--muted);text-decoration:none;font-size:.82rem}.uug-toplink:hover{color:var(--accent)}
+.uug-hero{text-align:center;padding:65px 0 65px;max-width:900px;margin:auto}
+.uug-seal{width:min(330px,80vw);height:235px;margin:0 auto 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--accent)}
+.uug-seal-cross{display:block;width:164px;height:164px;color:var(--accent);filter:drop-shadow(0 0 22px #c9b08c30)}.uug-seal-cross svg{display:block;width:100%;height:100%}
+.uug-seal-name{font-family:Georgia,serif;font-weight:900;font-size:21px;letter-spacing:.12em;margin-top:20px;white-space:nowrap}
+.uug-eyebrow{color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.28em;font-size:.72rem;margin-bottom:25px}
+.uug-hero h1,.uug .balanced-title{display:flex;flex-direction:column;gap:.05em;font-family:Impact,"Arial Narrow",Arial,sans-serif;font-stretch:condensed;font-weight:900;font-size:clamp(2.35rem,7.5vw,5.4rem);line-height:1.07;letter-spacing:.045em;text-wrap:balance}
+.uug .balanced-title span{display:block}
+.uug-lead{margin:30px auto 0;max-width:760px;font-size:1.06rem;line-height:1.8;color:#d2cec6}
+.uug-sub{margin:17px auto 0;max-width:750px;color:var(--muted);line-height:1.75}
+.uug-section{padding-top:52px;border-top:1px solid #322a20;margin-top:12px}
+.uug-section-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.uug-section-head h2{font-family:Impact,"Arial Narrow",Arial,sans-serif;text-transform:uppercase;font-size:2rem;letter-spacing:.06em}
+.uug-count{color:var(--accent);font-size:.82rem;letter-spacing:.04em}
+.uug-group{margin-top:28px}.uug-group-name{color:var(--accent);font-size:.73rem;font-weight:800;text-transform:uppercase;letter-spacing:.2em;margin-bottom:14px}
+.uug-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:15px}
+.uug-card{display:flex;flex-direction:column;gap:10px;background:linear-gradient(155deg,#1c1a17,#111);border:1px solid var(--line);border-radius:3px;padding:23px;min-width:0}
+.uug-card h3{font-size:1.12rem;display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:#f4eee3}
+.uug-card p{color:var(--muted);font-size:.9rem;line-height:1.65}
+.uug-live{transition:border-color .2s ease,transform .2s ease}.uug-live:hover{border-color:var(--accent);transform:translateY(-3px)}
+.uug-card-main{display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit;flex:1}
+.uug-doors{display:flex;flex-wrap:wrap;gap:12px;margin:0;padding-top:12px;border-top:1px solid var(--line)}
+.uug-doors a{color:var(--accent);font-weight:700;font-size:.82rem;text-decoration:none}.uug-doors a:hover{text-decoration:underline}
+.uug-visit{margin-top:auto;padding-top:14px;display:inline-flex;align-items:center;gap:7px;color:var(--accent);font-weight:700;font-size:.83rem;overflow-wrap:anywhere}
+.uug-grid-soon{margin-top:20px}.uug-soon{border-style:dashed}.uug-reserved{margin-top:auto;padding-top:6px;color:var(--muted);font-size:.82rem}
+.uug-badge{background:var(--badge-bg);color:var(--accent);border:1px solid #493b26;border-radius:2px;padding:4px 8px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.uug-foot{margin-top:72px;padding-top:25px;border-top:1px solid var(--line)}.uug-foot p{color:var(--muted);font-size:.9rem;line-height:1.8}.uug-foot a{color:var(--accent);font-weight:700;text-decoration:none}.uug-foot a:hover{text-decoration:underline}
+@media(max-width:600px){.uug{padding:0 18px 45px}.uug-top{flex-wrap:wrap}.uug-toplink{font-size:.72rem}.uug-hero{padding:45px 0}.uug-seal{height:190px}.uug-seal-cross{width:140px;height:140px}.uug-seal-name{font-size:16px}.uug-eyebrow{letter-spacing:.16em}.uug-hero h1{font-size:clamp(2rem,8.6vw,3.25rem);letter-spacing:.035em;line-height:1.1}}
 `;

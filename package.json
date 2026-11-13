@@ -223,7 +223,9 @@
     "smoke:solution-engine": "node --import ./scripts/ts-esm-register.mjs scripts/smoke-solution-engine.js",
     "smoke:admin-door-handoff": "node --experimental-strip-types --import ./scripts/ts-esm-register.mjs scripts/smoke-admin-door-handoff.js",
     "tasks:check": "node scripts/owner-task.mjs check",
-    "tasks:add": "node scripts/owner-task.mjs add"
+    "tasks:add": "node scripts/owner-task.mjs add",
+    "agent-rules:sync": "node scripts/sync-agent-rules.mjs",
+    "agent-rules:check": "node scripts/sync-agent-rules.mjs --check"
   },
   "dependencies": {
     "@auth/pg-adapter": "1.11.2",

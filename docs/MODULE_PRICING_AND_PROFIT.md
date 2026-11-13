@@ -140,6 +140,7 @@ Response includes:
   - inside **Operate** as "Build a tool for your business",
   - **standalone** at appengine.unitedundergod.org for individuals.
   The platform entry points hand off by SSO with the church/business context prefilled. Do not fork a second builder.
+- **Refunds (Lincoln, 2026-11-11):** the price is shown and approved before purchase, so there are no routine refunds. If the app doesn't work, we fix or rebuild it at no charge. If it still can't be made to work and the customer can't be satisfied, Lincoln decides on a refund case by case. Public wording: `/refunds` (with `/terms`, `/privacy`).
 - **Busy apps are told to upgrade, never switched off.** See "Hosting & usage" below.
 
 ## Hosting & usage (what keeping an app alive costs us)

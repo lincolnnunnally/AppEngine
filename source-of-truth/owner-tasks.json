@@ -18,8 +18,8 @@
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "Vercel app-engine env: NEON_API_KEY absent; Neon: 11 projects in your org (2026-11-06)"
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: app_user_env_vars has no NEON_* entry; Vercel app-engine env has no NEON_* variable (41 names checked) — still not set"
     },
     {
       "id": "easypeazy-rotate-stripe-key-with-connect",
@@ -95,7 +95,7 @@
       "source": "AppEngine/BUILD-LEDGER.md (last changed 2026-10-30)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open",
+      "status": "done",
       "verifiedOn": "2026-11-06",
       "verifiedHow": "curl appengine.unitedundergod.org/terms|privacy|refund = 404; no drafts on AppEngine main (2026-11-06)"
     },
@@ -125,11 +125,11 @@
       "title": "Trim and submit ChurchConnect's Meta App Review for Facebook/Instagram posting",
       "why": "Until Meta approves it, only app testers can connect a Page, so churches cannot publish posts to Facebook or Instagram.",
       "steps": [
-        "This needs a computer. Tap Read it here on this card first: it has the six permissions, the six test calls, the screencast script and the words to paste. Keep it open beside Meta's page.",
-        "developers.facebook.com → app 'Church Connect' → App Review → Permissions and Features: remove every permission that is not one of the six, and add instagram_content_publish",
-        "Make the six test calls listed in Read it here",
-        "Record the 90-second screencast at www.churchconnect.cloud, signed in as an app tester",
-        "Paste the ready-written descriptions and submit"
+        "Done 2026-11-11: Facebook and Instagram are connected, and a post published from ChurchConnect appeared on both. That also made Meta's posting test calls.",
+        "This needs a computer. Tap Read it here on this card first: it has the six permissions, the screencast script and the words to paste.",
+        "Graph API Explorer (app 'Church Connect', User token with business_management): run GET /me/businesses once. That is the one test call ChurchConnect itself does not make.",
+        "developers.facebook.com → App Review → Permissions and Features: remove every permission that is not one of the six, and add instagram_content_publish. Wait up to 24 hours until each shows 1 of 1 API calls.",
+        "Record the 90-second screencast at www.churchconnect.cloud (script in Read it here), paste the ready-written descriptions, and submit."
       ],
       "kind": "account",
       "priority": "recommended",
@@ -138,9 +138,9 @@
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open",
-      "verifiedOn": "2026-11-10",
-      "verifiedHow": "Read docs/META_APP_REVIEW.md on ChurchConnect main and copied it onto the card. Vercel church-connect now has FACEBOOK_APP_ID, FACEBOOK_APP_SECRET and META_LOGIN_CONFIG_ID, so the copy-the-keys step was dropped. Meta's review status itself is only visible to Lincoln.",
-      "updatedOn": "2026-11-10",
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: cc_social_media_posts shows Lincoln's post published to the Church Connect Facebook Page and @churchconnect.cloud Instagram at 22:53 UTC, each with a post URL. Lincoln confirmed it on Instagram. The Meta review status is only visible to him.",
+      "updatedOn": "2026-11-11",
       "doc": {
         "title": "Meta App Review: permissions, test calls, screencast and words to paste",
         "text": "# ChurchConnect's Meta App Review: what to ask for, and the words to paste\n\nWhat we are asking Meta for: a church writes a post once in ChurchConnect and it publishes to the church's own Facebook Page and linked Instagram Business account. Nothing else.\n\nThis needs a computer. All of it happens at developers.facebook.com in the app named **Church Connect**.\n\n## Ask for exactly these six permissions\n\n| Permission | Why the app needs it | Test call (Graph API Explorer, app = Church Connect) |\n|---|---|---|\n| `pages_show_list` | List the Pages the admin chose so we can save them as channels | `GET /me/accounts` |\n| `pages_read_engagement` | Read the Page's name and its linked Instagram account | `GET /{page-id}?fields=name,instagram_business_account` |\n| `pages_manage_posts` | Publish the church's post to its Page | `POST /{page-id}/feed` with `message=Test from ChurchConnect` (then delete it) |\n| `instagram_basic` | Read the linked Instagram Business account's id and username | `GET /{ig-user-id}?fields=id,username` |\n| `instagram_content_publish` | Publish the church's photo or video to Instagram | `POST /{ig-user-id}/media` with `image_url=…&caption=Test`, then `POST /{ig-user-id}/media_publish` with `creation_id=…` |\n| `business_management` | Pages owned through a Business Portfolio only appear with it | `GET /me/businesses` |\n\nUse a **Page** token (from `/me/accounts`) for the Page and Instagram calls. Test calls take up to 24 hours to show as \"1 of 1\".\n\n## Steps in the Meta dashboard\n\n1. **App Review → Permissions and Features:** remove every requested item that is not in the table above (ads, WhatsApp, Threads, Messenger, fundraisers, catalog, branded content, leads, `instagram_manage_comments`, `instagram_manage_messages`, `pages_manage_engagement`, and so on). Add `instagram_content_publish`; it was never requested.\n2. **Facebook Login for Business → Settings → Valid OAuth Redirect URIs:** add `https://www.churchconnect.cloud/api/social/meta/callback`\n3. **Facebook Login for Business → Configurations:** there should already be one of type \"User access token\" with the six permissions above and assets Pages + Instagram accounts. If there is not, create it and tell an agent.\n4. Nothing to copy. The App ID, App Secret and Configuration ID are already saved on ChurchConnect (checked 2026-11-10).\n5. **App roles → Testers:** until Meta approves, only people with a role on the app can finish the Facebook sign-in. Record the screencast as one of them.\n6. The church's Instagram must be a Business account linked to the Page.\n\n## The screencast (one recording, about 90 seconds, reused for every permission)\n\nRecord at `https://www.churchconnect.cloud`, in English, with the cursor visible and no cuts during the sign-in. Turn on captions, or add a text label naming each permission as it is used.\n\n1. Signed in as a church admin, open **Social Media → Channels**.\n2. Click **Connect Facebook & Instagram**.\n3. In the Facebook window: show the account, select the church **Page** and its **Instagram account**, show the permission list, click **Continue/Save**. (pages_show_list, business_management)\n4. Back in ChurchConnect: a green banner says \"Connected 1 Facebook Page and 1 Instagram account\". Open Facebook and Instagram: the Page name and @username show. (pages_read_engagement, instagram_basic)\n5. **Overview → New Post**: type an event announcement, attach a flyer image, tick the Facebook and Instagram channels, click **Publish**.\n6. The scheduler shows both posts **Published**. (pages_manage_posts, instagram_content_publish)\n7. Open the church's Facebook Page in a new tab: the post is there. Open the Instagram profile: the post is there.\n8. Back in Channels, click the trash icon on a channel: it disconnects.\n\n## Descriptions to paste\n\n**pages_show_list** — ChurchConnect is software churches use to run announcements and events. A church admin clicks \"Connect Facebook & Instagram\" and chooses their church's Page in the Facebook Login dialog. We call `GET /me/accounts` once to list the Pages they chose, and save each as a publishing channel for that church. Without it we cannot know which Page the church wants to post to. The screencast shows the dialog and the Page appearing in Channels.\n\n**pages_read_engagement** — After the admin connects, we read the Page's name and its linked Instagram Business account (`GET /{page-id}?fields=name,instagram_business_account`) so the admin can see which Page and Instagram account are connected and pick them when posting. We do not read posts, comments, or follower data.\n\n**pages_manage_posts** — The core feature: a church writes an event or announcement once in ChurchConnect and clicks Publish; we post it to the church's own Page with `POST /{page-id}/feed` (or `/photos` with the flyer). We only post content the admin wrote and explicitly published. The screencast shows a post published from ChurchConnect appearing on the Page.\n\n**instagram_basic** — We read the connected Instagram Business account's id and username so the admin can see which account is connected and select it when publishing. No other Instagram data is read.\n\n**instagram_content_publish** — The same post the admin publishes to Facebook is published to the church's Instagram with its flyer image or video, using `POST /{ig-user-id}/media` and `/media_publish`. Only content the admin wrote and chose to publish is posted. The screencast shows it appearing on the Instagram profile.\n\n**business_management** — Many churches' Pages are owned by a Business Portfolio; without this permission those Pages are missing from the Facebook Login result and the church cannot connect. We use it only to list the Pages and Instagram accounts the admin granted in the dialog.\n\n**Add this to the end of each one:** Data is used only to show the church admin which accounts are connected and to publish what they choose to publish. It is never sold, shared, or used for advertising. Page tokens are stored server-side, never shown in the browser, and deleted when the admin disconnects or removes the app from Facebook (data deletion callback: `https://www.churchconnect.cloud/api/webhooks/meta/data-deletion`).\n",
@@ -1930,6 +1930,66 @@
       "verifiedHow": "Resume.unitedundergod.org/marketing, /cover-letter and both PDFs answer 200. Vercel project lincoln-nunnally-resume now lists lincoln-resume.we-succeed.org (verified true). DNS lookup for that name returns no record; we-succeed.org nameservers are alfred/sue.ns.cloudflare.com (the second account). This session has no Cloudflare token in its environment. The same record shape (CNAME to ",
       "app": "appengine",
       "addedOn": "2026-11-10"
+    },
+    {
+      "id": "spark-of-hope-choose-how-people-send-in-hope-testimony-videos",
+      "title": "Choose how people send in hope testimony videos",
+      "why": "You want people to share a short video of how they found hope, shown on Spark of Hope and stored on YouTube. Nothing for this exists yet. YouTube only lets a channel's owner upload, so strangers cannot post to a channel directly. The agent recommends: a person records on their phone and sends the video through a form on Spark of Hope, you or staff watch it, and approved videos are published to one Spark of Hope YouTube channel and shown on the site. Nothing appears anywhere until a person approves it.",
+      "steps": [
+        "Say yes to the recommended way, or describe a different one",
+        "Say whether a Spark of Hope YouTube channel already exists, and if so which Google account owns it",
+        "If none exists, say whether you want to create one (free) or use an existing channel of yours"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://spark-of-hope.com/hope-stories",
+      "source": "lincolnnunnally/life-produces-life#8",
+      "requestedBy": "Claude (Spark of Hope session)",
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: read apps/spark-of-hope source (no video upload or video list); queried LPL database, the only video tables are ChurchConnect's and are empty; spark-of-hope.com/hope-stories returns 200",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-11"
+    },
+    {
+      "id": "appengine-read-app-engine-s-terms-privacy-and-refunds-pages-and-approve-them",
+      "title": "Read App Engine's Terms, Privacy and Refunds pages and approve them",
+      "why": "They're live now (they were 404). The refund page follows your rule: price approved before paying, so no routine refunds; we fix what doesn't work; you decide refunds case by case if it still can't be made right. The pages call the business 'the operator of the service', as EasyPeazy's do — no company name.",
+      "steps": [
+        "Read appengine.unitedundergod.org/refunds, /terms and /privacy (2–3 minutes each)",
+        "Reply 'approve', or say what to change — including if App Engine should name a specific company"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://appengine.unitedundergod.org/refunds",
+      "source": "AppEngine #521",
+      "requestedBy": "Claude Code",
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: /terms, /privacy, /refunds each answer 200 on appengine.unitedundergod.org; /refunds carries the fix-at-no-charge wording",
+      "app": "appengine",
+      "addedOn": "2026-11-11"
+    },
+    {
+      "id": "spark-of-hope-connect-the-spark-of-hope-vercel-project-to-github",
+      "title": "Connect the Spark of Hope Vercel project to GitHub",
+      "why": "Spark of Hope does not publish on its own when code is merged. Its Vercel project is not connected to the GitHub repo, so every update has to be started by hand, and a merged fix can sit unpublished without anyone noticing. Connecting it is a setting only you can change: the agent's Vercel access can create new projects but cannot reconnect an existing one.",
+      "steps": [
+        "Open the link below (Vercel, project spark-of-hope, Settings, Git)",
+        "Under Connected Git Repository choose GitHub, then pick lincolnnunnally/life-produces-life and click Connect",
+        "Leave Production Branch as main. Do not change Root Directory or the build settings",
+        "Tell an agent it is done, so it can confirm a merge now publishes by itself"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://vercel.com/life-produces-life/spark-of-hope/settings/git",
+      "source": "lincolnnunnally/life-produces-life#8",
+      "requestedBy": "Claude (Spark of Hope session)",
+      "verifiedOn": "2026-11-11",
+      "verifiedHow": "2026-11-11: Vercel lists no project linked to repo life-produces-life (the same query returns presence-moments for its repo); Vercel's GitHub access can see the repo; merging life-produces-life#8 to main started no build until one was started by hand; the Vercel connector has no tool to link an existing project and this session holds no Vercel token",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-11"
     }
   ]
 }

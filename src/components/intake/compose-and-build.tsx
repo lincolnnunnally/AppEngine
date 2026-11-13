@@ -462,6 +462,11 @@ export function ComposeAndBuild({
                   : "Create an account to save this pack, publish the live starter, and use it. You don't pay until that starter is actually up."
             )}
           </p>
+          {payFirst ? (
+            <p className="note">
+              By paying you agree to our <a href="/terms">Terms</a> and <a href="/refunds">refund policy</a>.
+            </p>
+          ) : null}
         </>
       ) : null}
 
