@@ -2047,7 +2047,7 @@
       ],
       "kind": "other",
       "priority": "blocker",
-      "status": "open",
+      "status": "dismissed",
       "link": "https://www.we-succeed.org/word-out",
       "doc": {
         "title": "Your first marketing client: the message to send",
@@ -2057,8 +2057,28 @@
       "source": "uug-succeed PR #8",
       "requestedBy": "Claude (marketing session 2026-11-13)",
       "verifiedOn": "2026-11-13",
-      "verifiedHow": "we-succeed.org/word-out is live with the $150 a month starting price (checked 2026-11-13); no task for this conversation existed; pilot terms are in uug-succeed docs/CLIENT_CAMPAIGN_RUNBOOK.md; not checked: whether Lincoln has already talked price with the student",
+      "verifiedHow": "Withdrawn the same day. Lincoln, 2026-11-13: the marketing service has not brought a customer; make it work on our own product first, then sell it. The Word Out Pack is off we-succeed.org (uug-succeed PR #9), so there is no offer to send.",
       "app": "we-succeed",
+      "addedOn": "2026-11-13"
+    },
+    {
+      "id": "laser-engrave-market-tell-me-about-the-engraving-orders-you-got-in-person",
+      "title": "Tell me about the engraving orders you got in person",
+      "why": "Those orders are the only proof we have of what makes someone buy. None of them is written down anywhere: the shop's records hold only test orders, and every place on your drop board still says not visited. A marketing service that works has to be built from them.",
+      "steps": [
+        "Talk it into your phone and send it in chat. It does not need to be neat.",
+        "For each one: who it was, what they bought and about how much, and how it happened (did you walk in with a sample, did they already know you, what did they say).",
+        "I put it on your drop board, and from then on every order is marked as one you went and got or one that came to us."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://laser.engrave.market/admin",
+      "source": "uug-succeed PR #9",
+      "requestedBy": "Claude (marketing session 2026-11-13)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "Laser shop database 2026-11-13: every row in orders is a test order; drop_orders has 0 rows; the 15 places on the drop board besides one test are all marked to_go. Lincoln said in chat the same day that his engraving orders came from visiting in person.",
+      "app": "laser-engrave-market",
       "addedOn": "2026-11-13"
     }
   ]
