@@ -170,23 +170,22 @@
     {
       "id": "google-business-profiles",
       "app": "ecosystem",
-      "title": "Create Google Business Profiles for United Under God, We Succeed, Church AV, Operate and the laser shop",
-      "why": "Google Business Profiles are the biggest lever for showing up in Maps and 'near me' searches, and only you can do the postcard or video check. Make one profile per truly separate business. Overlapping profiles at one address can get suspended.",
+      "title": "Put the engraving shop on Google Maps (Google Business Profile), then the others",
+      "why": "Searched from Vidalia on 2026-11-13, Google Maps shows one result for laser engraving: another shop, unclaimed, with no reviews. Engrave Market is not there at all. \"Laser engraving near me\" is searched about 12,000 times a month across the country and about 18,000 in December. Only you can do Google’s postcard or video check. Google Business Profiles are the biggest lever for showing up in Maps and 'near me' searches, and only you can do the postcard or video check. Make one profile per truly separate business. Overlapping profiles at one address can get suspended.",
       "steps": [
-        "business.google.com → add United Under God (nonprofit, 703 Green Street, Vidalia). Add church sound, livestream and lighting as services on this profile, not as a separate Church AV profile, unless Church AV is its own business",
-        "Add Engrave Market (laser engraving) as a service-area business around Vidalia, category 'Engraver', website https://laser.engrave.market",
-        "Pick ONE of We Succeed or Vidalia Pro (Operate's local name) for the business-services profile, and use the name shown on its website",
-        "Complete the postcard or video check for each, then tell an agent to fill in services, photos and posts"
+        "business.google.com → add Engrave Market first: a service-area business around Vidalia, category ‘Engraver’, website https://laser.engrave.market, phone (770) 317-7402",
+        "Do Google’s postcard or video check for it, then tell an agent. The agent fills in services, photos and posts",
+        "Later, when you have time: United Under God (nonprofit, 703 Green Street; add church sound, livestream and lighting as services on that profile) and ONE of We Succeed or Vidalia Pro. Overlapping profiles at one address can get suspended"
       ],
       "kind": "account",
-      "priority": "recommended",
+      "priority": "blocker",
       "link": "https://business.google.com/",
       "source": "HANDOFF_SEO_GROWTH.md; SEO session 2026-11-04 added the laser shop",
       "requestedBy": "Claude (SEO / discoverability session 2026-11-04)",
       "addedOn": "2026-11-01",
       "status": "open",
-      "verifiedOn": "2026-11-06",
-      "verifiedHow": "curl site titles + operate LOCAL_BRAND='Vidalia Pro'; no Google profiles per SEO handoff (2026-11-06)"
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "Google Maps results for ‘laser engraving’ from Vidalia, 2026-11-13: one unclaimed listing, Engrave Market absent"
     },
     {
       "id": "spark-canonical-home",
@@ -1240,7 +1239,7 @@
       ],
       "kind": "decision",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://laser.engrave.market/admin",
       "source": "LaserEngraving PR #139",
       "requestedBy": "Claude (seasonal laser session 2026-11-04)",
@@ -1822,13 +1821,13 @@
         "Tell an agent what you heard, so it goes in the outreach learnings and the site-ready email can be fixed."
       ],
       "kind": "other",
-      "priority": "recommended",
+      "priority": "blocker",
       "status": "open",
       "link": "https://www.churchconnect.cloud/super-admin#crm/followups",
       "source": "ChurchConnect PR #709",
       "requestedBy": "Claude (marketing service session)",
-      "verifiedOn": "2026-11-10",
-      "verifiedHow": "Queried cc_church_crm_activities: three outreach_site_style rows (Oct 28, Oct 29, Nov 4), each followed by outreach_site_ready, and nothing from the church after. All three sites answered 200 today. No account created by any of them (cc_users since Oct 20 are all test accounts). Phone numbers are from each church's directory record. Agents contact no one by phone.",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "2026-11-13: these remain the only three churches that asked for anything; no later activity from them is recorded",
       "app": "churchconnect",
       "addedOn": "2026-11-10"
     },
@@ -1990,6 +1989,52 @@
       "verifiedHow": "2026-11-11: Vercel lists no project linked to repo life-produces-life (the same query returns presence-moments for its repo); Vercel's GitHub access can see the repo; merging life-produces-life#8 to main started no build until one was started by hand; the Vercel connector has no tool to link an existing project and this session holds no Vercel token",
       "app": "spark-of-hope",
       "addedOn": "2026-11-11"
+    },
+    {
+      "id": "laser-engrave-market-post-your-christmas-boards-in-two-local-facebook-groups-wor",
+      "title": "Post your Christmas boards in two local Facebook groups (wording is ready)",
+      "why": "The Christmas pieces went on sale today and nobody in town knows. Our website alone has brought no orders, and the one engraving shop owner whose account we could read says local Facebook posts and Google bring her local customers. Only your own Facebook account can post in local groups.",
+      "steps": [
+        "Open the task's reading below: it has two short posts ready to copy",
+        "Post the first one, with a photo of the walnut board, in a Vidalia-area buy/sell or community group you already belong to",
+        "Post the second one (gifts for businesses) in a second group or on your own page",
+        "Answer anyone who comments the same day, then tell an agent how many asked and how many ordered"
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://laser.engrave.market/s/merry-christmas-walnut-board",
+      "doc": {
+        "title": "Wording for your Facebook posts",
+        "text": "# Wording for your Facebook posts\n\nUse your own photo of the board if you have one handy. If not, open the board's page, press and hold the photo, and save it.\n\n## Post 1: for a Vidalia-area buy/sell or community group\n\nMade here in Vidalia: a walnut board engraved \"Merry Christmas\", $42. I can put your family's name and the year on the back. Free delivery around town, or I can ship it. Order by December 15.\n\nhttps://laser.engrave.market/s/merry-christmas-walnut-board\n\n## Post 2: for a second group, or your own page\n\nNeed Christmas gifts for your staff or your customers? I engrave boards, coasters and ornaments with your business name, here in Vidalia. Ornaments start at $3 each. Message me, or look here:\n\nhttps://laser.engrave.market/business\n\n## When someone answers\n\nReply the same day. Then tell an agent two numbers: how many people asked, and how many ordered. That is how we learn whether to do more of this.",
+        "from": "written 2026-11-13 from the live product pages"
+      },
+      "source": "customer plan, 2026-11-13",
+      "requestedBy": "Claude (marketing session)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "2026-11-13: the walnut board page is live at $42 and opens on a phone; Stripe shows no engraving sales in 2026; Engrave Market is not on Google Maps for 'laser engraving' near Vidalia",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-13"
+    },
+    {
+      "id": "churchconnect-call-milstead-baptist-s-office-and-ask-three-questions",
+      "title": "Call Milstead Baptist's office and ask three questions",
+      "why": "Milstead is the one church with a ChurchConnect Pro account, and nobody there has signed in since September 24. The two church software companies whose history we could check, Planning Center and ChurchTrac, each started with one church the founder knew, got it working there, and grew from that church's word. A church that opens it every week is the proof every other church will ask for.",
+      "steps": [
+        "Call whoever runs the office at Milstead",
+        "Ask: What do you use today for members, giving and announcements? Which weekly job takes the most time? If ChurchConnect did that one job for you, would you open it every week?",
+        "Tell an agent what they said, in two or three lines. The agent builds or fixes that one job first"
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://www.churchconnect.cloud/",
+      "source": "customer plan, 2026-11-13",
+      "requestedBy": "Claude (marketing session)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "2026-11-13: ChurchConnect account for Milstead Baptist Church is on the Pro plan with last sign-in 2026-09-24; the Church Connect Stripe account shows no payments",
+      "app": "churchconnect",
+      "addedOn": "2026-11-13"
     }
   ]
 }
