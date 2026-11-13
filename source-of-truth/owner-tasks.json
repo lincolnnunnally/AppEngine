@@ -2122,6 +2122,31 @@
       "verifiedHow": "2026-11-13 18:23 UTC, read-only query of production (cc_church_crm_activities, sends of Nov 6 to 12 from inform.unitedundergod.org, the sending name that records opens): 747 delivered to gmail.com, 179 opens, 176 of them within 2 minutes of the send, 5 with an open 2 minutes or later. Steps taken from Google's own help page (support.google.com/a/answer/9981691) read the same day. Link checked: it ",
       "app": "churchconnect",
       "addedOn": "2026-11-13"
+    },
+    {
+      "id": "churchconnect-answer-the-member-who-asked-for-the-journey-church-s-page-two-week",
+      "title": "Answer the member who asked for The Journey Church's page two weeks ago",
+      "why": "On Oct 31 someone asked to claim The Journey Church's page in Columbus, Georgia, and was told we would get back to them. Nobody has. In the box for their role they wrote that they were baptized there and thanked the pastor by name, so this is a member, not staff. The church has no email, website or phone on file, so the system could not check the claim on its own, and no screen shows you claims that are waiting.",
+      "steps": [
+        "Tell Claude in chat: Journey Church claim. Claude will show you the person's name and email address (kept off this list for their privacy).",
+        "Recommended: do not hand over the page, because they are a member and not staff. Write to them from your own email. Wording you can use is below this task.",
+        "Then tell Claude 'declined', or 'approve' if you would rather give them the page (approving sends them the system's it's-yours email). Claude records it."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": null,
+      "source": "ChurchConnect docs/outreach/LEARNINGS.md, 2026-11-13 end of day",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "2026-11-13 21:35 UTC, read-only query of production: cc_church_claims has 1 row, pending since 2026-10-31, routed to review by hand because the church has no email on file. No screen in the app lists waiting claims (searched src/). In backend/routes/churches.py approving emails the claimant; rejecting emails nobody. No task for it existed.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-13",
+      "doc": {
+        "title": "A reply you can send to the member",
+        "text": "Wording you can send from your own email. Change anything you like.\n\nSubject: The Journey Church's page on ChurchConnect\n\nThank you for looking up The Journey Church on ChurchConnect, and for what you wrote about your pastor.\n\nThe page is meant to be looked after by the church's staff, so I have not handed it over. I would be glad to set it up for the church at no cost.\n\nWould you pass this along to the pastor or the church office, or tell me the best way to reach them?\n\nLincoln Nunnally\nChurchConnect",
+        "from": "written for this task"
+      }
     }
   ]
 }
