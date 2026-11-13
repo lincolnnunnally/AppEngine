@@ -2035,6 +2035,31 @@
       "verifiedHow": "2026-11-13: ChurchConnect account for Milstead Baptist Church is on the Pro plan with last sign-in 2026-09-24; the Church Connect Stripe account shows no payments",
       "app": "churchconnect",
       "addedOn": "2026-11-13"
+    },
+    {
+      "id": "we-succeed-text-your-tennis-student-the-offer-the-message-is-written",
+      "title": "Text your tennis student the offer (the message is written)",
+      "why": "They already asked you for a website and help getting the word out. That is the only person on any list who asked first. One client done well is how a marketing service starts.",
+      "steps": [
+        "Open the reading below and copy the message.",
+        "Text it to your student. Change any words you like.",
+        "When they answer, tell me in chat what they said. If it is yes, I build the page and the first month's plan the same day."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://www.we-succeed.org/word-out",
+      "doc": {
+        "title": "Your first marketing client: the message to send",
+        "text": "# Your first marketing client: the message to send\n\nYour tennis student already asked you for a website and help getting the word out. That makes them the warmest lead you have: they know you, and they asked. Nobody else on any of our lists has done that.\n\n## The message (copy, change any words you like, and text it)\n\nHey, I've been thinking about what you asked me, the website and getting the word out.\n\nHere's what I can do. I build your page, then plan and post for you every week (pictures and short videos), and each month I send you a plain report of what came in.\n\nOne post a week is $150 a month. Three a week is $350. The page is a one-time $150. You'd be my first client for this, so the first month is half price if you'll let me show the results to others. You can stop at the end of any month.\n\nWant to sit down this week so I can show you a plan?\n\n## If they say yes, ask for these (a text back is fine)\n\n1. The name of the business and what they sell or do\n2. Who they want to reach (the town, the kind of customer)\n3. Their Facebook or Instagram page, if they have one\n4. Five to ten photos from their phone\n5. The phone number or email customers should use\n6. Anything coming up: an event, a sale, a new season\n\n## Then tell me\n\nSay \"the tennis student said yes\" in chat and paste what they sent. I build the page and the first month's plan the same day, and you approve the posts before anything goes out.\n\n## What it is, in one line\n\nThe Word Out Pack: https://www.we-succeed.org/word-out",
+        "from": "uug-succeed docs/CLIENT_CAMPAIGN_RUNBOOK.md"
+      },
+      "source": "uug-succeed PR #8",
+      "requestedBy": "Claude (marketing session 2026-11-13)",
+      "verifiedOn": "2026-11-13",
+      "verifiedHow": "we-succeed.org/word-out is live with the $150 a month starting price (checked 2026-11-13); no task for this conversation existed; pilot terms are in uug-succeed docs/CLIENT_CAMPAIGN_RUNBOOK.md; not checked: whether Lincoln has already talked price with the student",
+      "app": "we-succeed",
+      "addedOn": "2026-11-13"
     }
   ]
 }
