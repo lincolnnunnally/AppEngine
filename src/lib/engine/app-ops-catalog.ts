@@ -282,6 +282,13 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     purpose: "Capture thinking, turn it into finished content.",
     adminPath: "/admin"
   },
+  commons: {
+    slug: "commons",
+    family: "commerce",
+    purpose: "City and county websites that keep themselves up to date.",
+    adminPath: "/admin",
+    adminNote: "Platform-owner admin in lincolnnunnally/commons (src/routes/admin.tsx, route /admin). Unsigned visitors are told to sign in."
+  },
   dreamstand: {
     slug: "dreamstand",
     family: "commerce",
