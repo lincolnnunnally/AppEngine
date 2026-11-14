@@ -2168,6 +2168,25 @@
       "verifiedHow": "2026-11-13 23:12 UTC: the database's start time is 22:32:08 UTC and its log says it was interrupted, with no shutdown or out-of-memory line before and no other restart in 24 hours. This session can read its logs and run queries but has no memory or CPU record. Link from Supabase's own troubleshooting guide; it needs Lincoln's sign-in.",
       "app": "churchconnect",
       "addedOn": "2026-11-13"
+    },
+    {
+      "id": "laser-engrave-market-should-a-walnut-logo-cut-out-coaster-cost-more-than-birch",
+      "title": "Should a walnut logo cut-out coaster cost more than birch?",
+      "why": "Customers can now pick birch or walnut 1/8 inch plywood for the logo cut-out coaster. Both are charged $2 each today. Walnut plywood usually costs more to buy, and only you know your cost.",
+      "steps": [
+        "Open the logo cut-out coaster page and look at the wood choice",
+        "Tell an agent the walnut price you want, or say $2 is fine for both"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://laser.engrave.market/products?sku=PLY-LOGO-COASTER",
+      "source": "LaserEngraving PR #180",
+      "requestedBy": "Claude (laser session)",
+      "verifiedOn": "2026-11-14",
+      "verifiedHow": "2026-11-14: PR #180 is live; the page shows Birch and Walnut buttons and the product is $1 base + $1 engraving for either wood; checked in a browser on laser.engrave.market",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-14"
     }
   ]
 }
