@@ -6,6 +6,8 @@ import { buildWeeklyGoal, type WeeklyGoalReport } from "@/lib/engine/weekly-reve
 import { BusinessExplorer, type DeckRevenue } from "@/components/engine/business-explorer";
 import { WeeklyGoalGlance } from "@/components/engine/weekly-goal-panel";
 import { crmFollowUpCount } from "@/lib/engine/lpl-crm";
+import { readSparkGlance } from "@/lib/engine/lpl-ops-stats";
+import { liveAppsNotReporting } from "@/lib/engine/reporting-gaps";
 import { listOwnerTasks } from "@/lib/engine/owner-tasks";
 import { countTasks, isActiveStatus, PRIORITY_LABEL, type OwnerTask, taskLinkLabel } from "@/lib/engine/owner-tasks-core";
 
@@ -134,6 +136,94 @@ function isViewKey(value: string): value is ViewKey {
   return (VIEW_KEYS as readonly string[]).includes(value);
 }
 
+function SparkDeskCard({
+  glance,
+  missing,
+  liveCount
+}: {
+  glance: {
+    scans7d: number | null;
+    storiesWaiting: number | null;
+    notesHeld: number | null;
+    shares: number | null;
+    reach: number | null;
+    checkIns7d: number | null;
+  } | null;
+  missing: { slug: string; name: string }[];
+  liveCount: number;
+}) {
+  const waiting = glance ? (glance.storiesWaiting ?? 0) + (glance.notesHeld ?? 0) : null;
+  const figure = (value: number | null | undefined) => (typeof value === "number" ? value : "—");
+  return (
+    <section className="panel" id="spark-of-hope">
+      <p className="dx-label">Spark of Hope</p>
+      <h2 className="dx-display">The hope door.</h2>
+      <p className="dx-lede">
+        Scans, shares, check-ins, and stories waiting. The same numbers the Spark owner home uses. Journal words stay on Spark and are not copied here.
+      </p>
+      {glance ? (
+        <div className="dx-stat-grid">
+          <div className="dx-stat dx-stat--cyan">
+            <strong>{figure(glance.scans7d)}</strong>
+            <span>scans, 7 days</span>
+            <p>from the shared coin trail</p>
+          </div>
+          <div className="dx-stat">
+            <strong>{figure(glance.shares)}</strong>
+            <span>shares</span>
+            <p>{figure(glance.reach)} people opened one</p>
+          </div>
+          <div className="dx-stat">
+            <strong>{figure(glance.checkIns7d)}</strong>
+            <span>check-ins, 7 days</span>
+            <p>private journal, count only</p>
+          </div>
+          <a className={`dx-stat ${waiting ? "dx-stat--pink" : ""}`} href="https://spark-of-hope.com/admin#hope-stories">
+            <strong>{figure(waiting)}</strong>
+            <span>waiting for review</span>
+            <p>stories and held notes →</p>
+          </a>
+        </div>
+      ) : (
+        <p className="dx-note">Spark counts are dark until the shared database can be read from this desk. That is not a zero.</p>
+      )}
+      <p className="dx-app-actions dx-inset">
+        <a className="dx-btn dx-btn--primary" href="https://spark-of-hope.com/admin">
+          Spark admin ↗
+        </a>
+        <a className="dx-btn" href="/apps/spark-of-hope">
+          This app&apos;s page
+        </a>
+      </p>
+      <div className="dx-note">
+        <p>
+          Every live app is in the table below. A number shows when the app shares <code>/api/admin/stats</code> or has a known table on the shared database.
+        </p>
+        {missing.length === 0 ? (
+          <p>Every live app is reporting a number.</p>
+        ) : (
+          <>
+            <p>
+              {missing.length === liveCount
+                ? `This desk has no usage reading yet, so all ${missing.length} live apps are listed. An app leaves this list once it shares a number.`
+                : `Still missing a number (${missing.length}):`}
+            </p>
+            <ul>
+              {missing.map((app) => (
+                <li key={app.slug}>
+                  <a className="account-link" href={`/apps/${app.slug}`}>
+                    {app.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function MoneyStrip({ stripe, weekly }: { stripe: StripeSummary; weekly: WeeklyGoalReport }) {
   if (stripe.state === "ok") {
     return (
@@ -191,14 +281,15 @@ function MoneyStrip({ stripe, weekly }: { stripe: StripeSummary; weekly: WeeklyG
 }
 
 export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: string | null; appsFilter?: string }) {
-  const [deck, stripe, detail, followUps, recurring, traffic, ownerTasks] = await Promise.all([
+  const [deck, stripe, detail, followUps, recurring, traffic, ownerTasks, spark] = await Promise.all([
     loadOwnerDeck(),
     loadStripeSummary(userKey),
     loadRevenueDetail(userKey),
     crmFollowUpCount(),
     loadRecurringSummary(userKey),
     loadSiteTraffic(),
-    listOwnerTasks().catch(() => [] as OwnerTask[])
+    listOwnerTasks().catch(() => [] as OwnerTask[]),
+    readSparkGlance().catch(() => null)
   ]);
   const appNames = new Map(deck.apps.map((app) => [app.slug, app.name]));
   const nameFor = (slug: string) => appNames.get(slug) || slug;
@@ -261,6 +352,11 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
             : " · ops snapshot unavailable"}
         </p>
         <MoneyStrip stripe={stripe} weekly={weekly} />
+        <SparkDeskCard
+          glance={spark}
+          liveCount={deck.apps.filter((app) => app.status === "live").length}
+          missing={liveAppsNotReporting(deck.apps)}
+        />
         {stripe.state === "ok" ? (
           <div className="dx-table-wrap dx-inset">
             <table className="dx-table">
