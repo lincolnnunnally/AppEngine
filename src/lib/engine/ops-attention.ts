@@ -206,9 +206,7 @@ export async function collectAttentionForApp(subject: AttentionSubject, previous
         "not_reporting",
         "watch",
         "Live, but not sharing ops stats yet.",
-        subject.generatedApp
-          ? `Redeploy ${subject.appName} through the engine so it picks up the stats endpoint + token.`
-          : `Add the /api/admin/stats endpoint to ${subject.appName} and register its token in APP_ENGINE_OPS_TARGETS.`,
+        "Usage numbers are not connected yet.",
         subject.url
       )
     );

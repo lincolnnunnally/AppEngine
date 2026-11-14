@@ -192,11 +192,8 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
   "spark-of-hope": {
     slug: "spark-of-hope",
     family: "transformation",
-    purpose:
-      "Being heard and Hope Stories — curated encouragement. Reviewed testimony share/read lives on Live On Mission /testimonies. ChurchConnect public /testimonies is not a TestimonyHub door.",
-    adminUrl: "https://spark-of-hope.com/admin",
-    adminNote:
-      "One owner home on Spark: overview, the coin trail, stories waiting, and people. Journal words stay private. The AppEngine intake preview does not publish to this admin."
+    purpose: "Coins, hope stories, and a place to be heard.",
+    adminUrl: "https://spark-of-hope.com/admin"
   },
   opportunity: {
     slug: "opportunity",
@@ -414,8 +411,8 @@ export type AdminDoor = {
 
 export const ADMIN_DOOR_REASON: Record<AdminDoorState, string> = {
   open: "",
-  no_address: "Its admin exists, but this app has no address yet — the door opens once it is serving.",
-  none: "No admin door recorded. We never guess an /admin that would 404."
+  no_address: "No public address yet, so the admin link is not ready.",
+  none: "No admin yet."
 };
 
 // Resolve a real admin door. Relative paths attach to the app's serving URL.

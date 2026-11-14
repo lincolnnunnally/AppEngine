@@ -41,7 +41,7 @@ Verified 2026-09-20.
 - `https://spark.unitedundergod.org/testimonies` — 404
 - `https://spark.unitedundergod.org/share` — 404
 - `https://spark.unitedundergod.org/stories` — 404
-- `https://spark.unitedundergod.org/admin` — 404
+- `https://spark.unitedundergod.org/admin` — 404. The live owner admin is `https://spark-of-hope.com/admin`.
 - `https://churchconnect.unitedundergod.org/testimonies` — generic ChurchConnect homepage, not TestimonyHub
 - `https://churchconnect.unitedundergod.org/testimony-hub` — same generic homepage
 
