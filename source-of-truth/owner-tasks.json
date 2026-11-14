@@ -2187,6 +2187,26 @@
       "verifiedHow": "2026-11-14: PR #180 is live; the page shows Birch and Walnut buttons and the product is $1 base + $1 engraving for either wood; checked in a browser on laser.engrave.market",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-14"
+    },
+    {
+      "id": "spark-of-hope-add-the-resend-email-key-on-spark-of-hope",
+      "title": "Add the Resend email key on Spark of Hope",
+      "why": "Coin finders can ask to be emailed when someone scans their coin. The Spark Vercel project has no RESEND_API_KEY, so those emails cannot send.",
+      "steps": [
+        "Open Spark of Hope environment variables",
+        "Add RESEND_API_KEY for Production and Preview. Use the same Resend key the other apps already use. Do not create a second Resend account.",
+        "Add RESEND_FROM as United Under God <no-reply@emails.unitedundergod.org> if it is not already there."
+      ],
+      "kind": "credential",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://vercel.com/life-produces-life/spark-of-hope/settings/environment-variables",
+      "source": "https://github.com/lincolnnunnally/life-produces-life/pull/15",
+      "requestedBy": "Cursor",
+      "verifiedOn": "2026-11-14",
+      "verifiedHow": "Vercel filter_project_envs for project prj_wlWPHmI2hhKb13VE4fQIBM8KeRTA on 2026-11-14 listed SUPABASE keys only. RESEND_API_KEY was not among them. Sensitive values cannot be copied from another project.",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-14"
     }
   ]
 }
