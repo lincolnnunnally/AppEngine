@@ -2168,6 +2168,26 @@
       "verifiedHow": "2026-11-13 23:12 UTC: the database's start time is 22:32:08 UTC and its log says it was interrupted, with no shutdown or out-of-memory line before and no other restart in 24 hours. This session can read its logs and run queries but has no memory or CPU record. Link from Supabase's own troubleshooting guide; it needs Lincoln's sign-in.",
       "app": "churchconnect",
       "addedOn": "2026-11-13"
+    },
+    {
+      "id": "spark-of-hope-add-the-spark-of-hope-database-service-key-on-vercel",
+      "title": "Add the Spark of Hope database service key on Vercel",
+      "why": "The coin trail tables are on the Life Produces Life database, but Spark of Hope can only write them with the service key. Without it, finds, notes, and share counts reset every time the server restarts.",
+      "steps": [
+        "Open the Spark of Hope environment variables on Vercel (the link).",
+        "Add SUPABASE_SERVICE_ROLE_KEY for Production and Preview. The value is the service_role key in the Life Produces Life Supabase project, Settings, API. Do not paste it into chat or a pull request.",
+        "Redeploy Spark of Hope after the coin trail pull request is merged."
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "done",
+      "link": "https://vercel.com/life-produces-life/spark-of-hope/settings/environment-variables",
+      "source": "life-produces-life coin trail PR",
+      "requestedBy": "Cursor (Spark coin trail)",
+      "verifiedOn": "2026-11-14",
+      "verifiedHow": "2026-11-14: listed spark-of-hope Vercel env vars; only NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY exist. Applied spark_trail tables on the Life Produces Life Supabase project. APP_ENGINE_TASKS_TOKEN is unset.",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-14"
     }
   ]
 }
