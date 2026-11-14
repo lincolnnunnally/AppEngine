@@ -8208,6 +8208,44 @@ button.compose-arch:hover {
   padding-left: 1.2rem;
 }
 
+.owner-app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.owner-app-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line, #666) 70%, transparent);
+  border-radius: 14px;
+}
+
+.owner-app-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.owner-app-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.owner-app-numbers strong {
+  display: block;
+  color: inherit;
+  font-size: 1.15rem;
+}
+
 .dx-domain {
   font-family: var(--mono);
   font-size: 0.75rem;
