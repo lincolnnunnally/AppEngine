@@ -2180,7 +2180,7 @@
       ],
       "kind": "credential",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://vercel.com/life-produces-life/spark-of-hope/settings/environment-variables",
       "source": "life-produces-life coin trail PR",
       "requestedBy": "Cursor (Spark coin trail)",
