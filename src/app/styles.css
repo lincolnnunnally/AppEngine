@@ -8203,6 +8203,11 @@ button.compose-arch:hover {
   line-height: 1.55;
 }
 
+.dx-note ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
 .dx-domain {
   font-family: var(--mono);
   font-size: 0.75rem;

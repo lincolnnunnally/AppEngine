@@ -128,6 +128,9 @@ const SOURCES: Record<string, Source> = {
     users: { table: "cc_people" },
     newUsers: { table: "cc_people", created: "created_at" }
   },
+  "spark-of-hope": {
+    tickets: { table: "spark_trail_testimonies", openQuery: "select=id&status=eq.pending" }
+  },
   "easy-peasy-website": {
     users: { table: "ep_users" },
     newUsers: { table: "ep_users", created: "created_at" },
@@ -188,4 +191,28 @@ export async function readLplOpsStats(slug: string): Promise<{ reporting: boolea
 
 export function lplKnownSlugs(): string[] {
   return Object.keys(SOURCES);
+}
+
+export type SparkGlance = {
+  scans7d: number | null;
+  storiesWaiting: number | null;
+  notesHeld: number | null;
+  shares: number | null;
+  reach: number | null;
+  checkIns7d: number | null;
+};
+
+/** Spark-specific counts for the owner desk. Null means that table could not be read. */
+export async function readSparkGlance(): Promise<SparkGlance | null> {
+  if (!lplOpsConfigured()) return null;
+  const since = isoDaysAgo(7);
+  const [scans7d, storiesWaiting, notesHeld, shares, reach, checkIns7d] = await Promise.all([
+    countRows("spark_trail_events", `select=id&kind=eq.scan&created_at=gte.${since}`),
+    countRows("spark_trail_testimonies", "select=id&status=eq.pending"),
+    countRows("spark_trail_notes", "select=id&status=eq.held"),
+    countRows("spark_trail_shares", "select=id"),
+    countRows("spark_trail_share_opens", "select=id"),
+    countRows("lpl_growth_journals", `select=id&source_app=eq.spark_of_hope&entry_type=eq.check_in&created_at=gte.${since}`)
+  ]);
+  return { scans7d, storiesWaiting, notesHeld, shares, reach, checkIns7d };
 }
