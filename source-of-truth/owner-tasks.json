@@ -2190,12 +2190,13 @@
     },
     {
       "id": "churchconnect-add-emails-unitedundergod-org-to-google-postmaster-tools-too-2-min",
-      "title": "Add emails.unitedundergod.org to Google Postmaster Tools too (2 minutes)",
-      "why": "You added inform.unitedundergod.org this morning. Three quarters of church emails to Gmail go from a second address, emails.unitedundergod.org (Friday: 925 of 1,242), so without it Postmaster sees only a quarter of our Gmail mail.",
+      "title": "Add the two sending addresses to Google Postmaster Tools (1 minute, no DNS)",
+      "why": "You verified unitedundergod.org in Postmaster this morning. Gmail reports on the exact address mail is sent from, and church emails go from two sub-addresses: emails.unitedundergod.org (three quarters of our Gmail mail, 925 of 1,242 on Friday) and inform.unitedundergod.org. With the main domain verified, Google adds sub-addresses without another DNS record.",
       "steps": [
-        "Open postmaster.google.com signed in as lincoln.nunnally@gmail.com, as you did for inform.unitedundergod.org",
+        "Open postmaster.google.com signed in as lincoln.nunnally@gmail.com",
         "Add domain: emails.unitedundergod.org",
-        "If it asks for a TXT record, add it in Cloudflare for unitedundergod.org with name 'emails', then press Verify"
+        "Add domain: inform.unitedundergod.org",
+        "If either asks for a DNS record after all, add it in Cloudflare for unitedundergod.org the same way you did this morning"
       ],
       "kind": "account",
       "priority": "recommended",
@@ -2204,9 +2205,10 @@
       "source": "ChurchConnect outreach, 2026-11-16 morning check",
       "requestedBy": "Claude (ChurchConnect outreach session)",
       "verifiedOn": "2026-11-16",
-      "verifiedHow": "2026-11-16 08:50 ET: cc_church_crm_activities for 2026-11-13 sends to @gmail.com addresses: 925 from lincoln@emails.unitedundergod.org, 317 from lincoln@inform.unitedundergod.org (backend/utils/claim_outreach.py FROM_EMAIL / OUTREACH_FROM_EMAIL, inform_share). Lincoln confirmed inform.unitedundergod.org was accepted in Postmaster this morning; the same steps apply to the second subdomain.",
+      "verifiedHow": "2026-11-16 08:50 ET: cc_church_crm_activities for 2026-11-13 sends to @gmail.com addresses: 925 from lincoln@emails.unitedundergod.org, 317 from lincoln@inform.unitedundergod.org (backend/utils/claim_outreach.py FROM_EMAIL / OUTREACH_FROM_EMAIL, inform_share). Lincoln confirmed inform.unitedundergod.org was accepted in Postmaster this morning; the same steps apply to the second subdomain. Updated 2026-11-16 09:00 ET: Lincoln said what he verified was unitedundergod.org itself, by a Cloudflare DNS record; the sub-addresses still need adding.",
       "app": "churchconnect",
-      "addedOn": "2026-11-16"
+      "addedOn": "2026-11-16",
+      "updatedOn": "2026-11-16"
     }
   ]
 }
