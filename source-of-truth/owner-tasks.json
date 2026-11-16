@@ -2187,6 +2187,26 @@
       "verifiedHow": "2026-11-14: PR #180 is live; the page shows Birch and Walnut buttons and the product is $1 base + $1 engraving for either wood; checked in a browser on laser.engrave.market",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-14"
+    },
+    {
+      "id": "churchconnect-add-emails-unitedundergod-org-to-google-postmaster-tools-too-2-min",
+      "title": "Add emails.unitedundergod.org to Google Postmaster Tools too (2 minutes)",
+      "why": "You added inform.unitedundergod.org this morning. Three quarters of church emails to Gmail go from a second address, emails.unitedundergod.org (Friday: 925 of 1,242), so without it Postmaster sees only a quarter of our Gmail mail.",
+      "steps": [
+        "Open postmaster.google.com signed in as lincoln.nunnally@gmail.com, as you did for inform.unitedundergod.org",
+        "Add domain: emails.unitedundergod.org",
+        "If it asks for a TXT record, add it in Cloudflare for unitedundergod.org with name 'emails', then press Verify"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://postmaster.google.com/v2/manage_domains",
+      "source": "ChurchConnect outreach, 2026-11-16 morning check",
+      "requestedBy": "Claude (ChurchConnect outreach session)",
+      "verifiedOn": "2026-11-16",
+      "verifiedHow": "2026-11-16 08:50 ET: cc_church_crm_activities for 2026-11-13 sends to @gmail.com addresses: 925 from lincoln@emails.unitedundergod.org, 317 from lincoln@inform.unitedundergod.org (backend/utils/claim_outreach.py FROM_EMAIL / OUTREACH_FROM_EMAIL, inform_share). Lincoln confirmed inform.unitedundergod.org was accepted in Postmaster this morning; the same steps apply to the second subdomain.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-16"
     }
   ]
 }
