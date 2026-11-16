@@ -2114,7 +2114,7 @@
       ],
       "kind": "account",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://postmaster.google.com/v2/manage_domains",
       "source": "ChurchConnect docs/outreach/LEARNINGS.md, 2026-11-13",
       "requestedBy": "Claude (ChurchConnect session)",
