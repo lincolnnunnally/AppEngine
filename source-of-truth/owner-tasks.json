@@ -2209,6 +2209,25 @@
       "app": "churchconnect",
       "addedOn": "2026-11-16",
       "updatedOn": "2026-11-16"
+    },
+    {
+      "id": "churchconnect-buy-churchofficeguides-com-for-church-emails-about-12-a-year",
+      "title": "Buy churchofficeguides.com for church emails (about $12 a year)",
+      "why": "Gmail now files mail from unitedundergod.org addresses in spam, even your own. A separate name used only for church outreach keeps your own mail and ChurchConnect's account emails safe, and matches our free Church Office Guides. Checked available on 2026-11-17.",
+      "steps": [
+        "Buy churchofficeguides.com at Cloudflare (Domain Registration, Register Domains), where unitedundergod.org already lives. If you prefer, smallchurchguides.com is also free and the same price.",
+        "Reply 'bought' in chat. An agent sets up sending (Resend), the DNS records and a slow warm-up: about 20 emails a day at first, growing only while people open them."
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://dash.cloudflare.com/?to=/:account/domains/register",
+      "source": "ChurchConnect outreach, 2026-11-17",
+      "requestedBy": "Claude (ChurchConnect outreach session)",
+      "verifiedOn": "2026-11-17",
+      "verifiedHow": "2026-11-17: Vercel registry lookup shows churchofficeguides.com and smallchurchguides.com available, 12.03 USD a year each; churchresources.org, churchresource.org, smallchurchhelp.com and helpingchurches.org taken. Test emails from emails. and inform.unitedundergod.org all went to the owner's Gmail spam on 2026-11-16.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-17"
     }
   ]
 }
