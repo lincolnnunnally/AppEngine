@@ -2228,6 +2228,26 @@
       "verifiedHow": "2026-11-17: Vercel registry lookup shows churchofficeguides.com and smallchurchguides.com available, 12.03 USD a year each; churchresources.org, churchresource.org, smallchurchhelp.com and helpingchurches.org taken. Test emails from emails. and inform.unitedundergod.org all went to the owner's Gmail spam on 2026-11-16.",
       "app": "churchconnect",
       "addedOn": "2026-11-17"
+    },
+    {
+      "id": "ecosystem-ask-google-to-index-10-app-pages-request-indexing-about-10-minutes",
+      "title": "Ask Google to index 10 app pages (Request indexing, about 10 minutes)",
+      "why": "On the 2026-11-17 check, 22 app subdomains were still 'unknown to Google' two weeks after we added sitemaps and links. Google hasn't followed them yet. Request indexing in Search Console is the fastest push, and only a signed-in owner can click it (no API exists for normal pages). Google allows about 10 a day.",
+      "steps": [
+        "Open Search Console with the unitedundergod.org property selected",
+        "Paste each URL in the top search bar, wait for the check, then click Request indexing: partnerly, remembered, dreamstand, ideas, sandlot, porchlight, neighborly, barefoot, opportunity, groundwork (each as https://NAME.unitedundergod.org/)",
+        "Optional, the next day: wp.easypeazy.site (under the easypeazy.site property), commons, furfriend, selah, singtrue, resume, jeepfix, racketpro, iconium, honestly"
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://search.google.com/search-console?resource_id=sc-domain%3Aunitedundergod.org",
+      "source": "scheduled check trig_019FiaQjHeUMCGE1hXNNcjni",
+      "requestedBy": "Claude (Google indexing check 2026-11-17)",
+      "verifiedOn": "2026-11-17",
+      "verifiedHow": "OpenSEO inspect_urls 2026-11-17: 22 hosts 'URL is unknown to Google' though /apps (indexed, crawled 11-06) links them and robots.txt names their sitemaps; OpenSEO has no request-indexing or sitemap-submit tool; gcloud has no credentials",
+      "app": "ecosystem",
+      "addedOn": "2026-11-17"
     }
   ]
 }
