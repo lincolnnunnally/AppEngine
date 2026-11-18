@@ -2248,6 +2248,46 @@
       "verifiedHow": "OpenSEO inspect_urls 2026-11-17: 22 hosts 'URL is unknown to Google' though /apps (indexed, crawled 11-06) links them and robots.txt names their sitemaps; OpenSEO has no request-indexing or sitemap-submit tool; gcloud has no credentials",
       "app": "ecosystem",
       "addedOn": "2026-11-17"
+    },
+    {
+      "id": "laser-engrave-market-confirm-the-pet-id-tag-price-12-9-from-10-7-from-50",
+      "title": "Confirm the pet ID tag price ($12, $9 from 10, $7 from 50)",
+      "why": "FurFriend pet tags are on sale now at laser.engrave.market and on furfriend.pet/tags/business at a starting price an agent picked: $12 each, $9 each from 10, $7 each from 50 (so a groomer or daycare can resell at the counter). Price is your call.",
+      "steps": [
+        "Open furfriend.pet/tags/business and look at the Order tags section (it shows the live price).",
+        "If the price is right, mark this done. If not, reply in any agent session with the prices you want for 1, 10+ and 50+; the volume tiers live in the products table (FF-TAG-PUP, FF-TAG-HEART) and an agent changes them in a minute."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://furfriend.pet/tags/business#order",
+      "source": "LaserEngraving PR #187, furfriend PR #15",
+      "requestedBy": "Claude (FurFriend pet tags session)",
+      "verifiedOn": "2026-11-18",
+      "verifiedHow": "2026-11-18: GET laser.engrave.market/api/products/FF-TAG-PUP and FF-TAG-HEART return active with tiers 12/9/7; furfriend.pet/tags/business renders the order form at $90 for 10; a test order reached Stripe checkout at $9 each and was deleted unpaid.",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-18"
+    },
+    {
+      "id": "laser-engrave-market-test-burn-one-furfriend-pet-tag-and-photograph-it",
+      "title": "Test-burn one FurFriend pet tag and photograph it",
+      "why": "Ordering is live, but no tag has been made yet. One test burn proves the QR on the back scans on maple, the name fits the front, and gives the shop real photos (the current ones are crops of the concept art). There is no cut file for the two tag outlines yet: the shapes exist only in the concept image.",
+      "steps": [
+        "Make the two tag outlines (floppy-ear pup with bow, heart with bow) in xTool, about 2 inches, from 1/8 inch maple. Ask an agent if you want them traced from the concept art.",
+        "Open furfriend.pet/admin, tab ID tags, make a batch of 2 and download the engrave pack. Burn one QR on the back of each tag (22 mm, file per tag), with the furfriend.pet/t/CODE line under it.",
+        "Engrave a pet's name on the front, seal it, and scan the back with your phone: it should open 'This tag isn't set up yet'. Set it up on one of your pets to see the whole flow.",
+        "Photograph both tags straight on and upload them in Laser Engrave Admin, Items, for FF-TAG-PUP and FF-TAG-HEART. Your photo replaces the concept art everywhere."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://furfriend.pet/admin",
+      "source": "LaserEngraving PR #187/#189, furfriend PR #15",
+      "requestedBy": "Claude (FurFriend pet tags session)",
+      "verifiedOn": "2026-11-18",
+      "verifiedHow": "2026-11-18: furfriend.pet/admin ID tags tab makes batches and downloads a pack (tested on preview; QR SVGs decode to furfriend.pet/t/CODE); no cut file for the tag outlines exists in LaserEngraving or furfriend; product photos at laser.engrave.market/catalog/pet/ are concept-art crops.",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-18"
     }
   ]
 }
