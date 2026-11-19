@@ -2311,6 +2311,26 @@
       "verifiedHow": "2026-11-19: beef.unitedundergod.org returns 200 on every page; a live test reservation saved, emailed and showed on the desk, then was deleted; catalog.ts still has confirmed:false on Semiema Farms and McLemore's and price notes say targets; no agent can phone them.",
       "app": "local-beef-club",
       "addedOn": "2026-11-19"
+    },
+    {
+      "id": "churchconnect-churchconnect-is-down-put-churchconnect-cloud-s-nameservers-back-t",
+      "title": "ChurchConnect is down: put churchconnect.cloud's nameservers back to Cloudflare",
+      "why": "At 12:46 UTC on Nov 19 the domain's nameservers at Spaceship were changed from Cloudflare (aida / donald) to Spaceship's own (launch1 / launch2). Spaceship's DNS holds only two mail records, so www.churchconnect.cloud, api.churchconnect.cloud and every church subdomain stopped resolving and nobody can sign in. The app and database are fine. Agents have no Spaceship or Cloudflare login that can change this.",
+      "steps": [
+        "Sign in at spaceship.com, open Domains, then churchconnect.cloud, then Nameservers & DNS.",
+        "Choose Custom nameservers. Enter aida.ns.cloudflare.com and donald.ns.cloudflare.com, then Save.",
+        "If you set up a Spacemail mailbox on churchconnect.cloud this morning, say so and an agent will tell you which mail records to add in Cloudflare. If you didn't, there is nothing else to do."
+      ],
+      "kind": "account",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://www.spaceship.com/application/domain-list-application/",
+      "source": "ChurchConnect sign-in outage 2026-11-19",
+      "requestedBy": "Claude Code (ChurchConnect session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19 14:10 UTC. RDAP for churchconnect.cloud shows nameservers launch1/launch2.spaceship.net and last changed 12:46:28 UTC today; the zone's SOA serial is the same second. Google DNS returns NXDOMAIN for www.churchconnect.cloud and only spacemail MX for the apex. Vercel's domain record for churchconnect.cloud last saw aida/donald.ns.cloudflare.com and marks it misconfigured now. The www requ",
+      "app": "churchconnect",
+      "addedOn": "2026-11-19"
     }
   ]
 }
