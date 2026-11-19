@@ -2331,6 +2331,46 @@
       "verifiedHow": "2026-11-19 14:10 UTC. RDAP for churchconnect.cloud shows nameservers launch1/launch2.spaceship.net and last changed 12:46:28 UTC today; the zone's SOA serial is the same second. Google DNS returns NXDOMAIN for www.churchconnect.cloud and only spacemail MX for the apex. Vercel's domain record for churchconnect.cloud last saw aida/donald.ns.cloudflare.com and marks it misconfigured now. The www requ",
       "app": "churchconnect",
       "addedOn": "2026-11-19"
+    },
+    {
+      "id": "furfriend-send-blank-photos-for-4-more-pet-tags-and-say-where-the-name-goes-on-t",
+      "title": "Send blank photos for 4 more pet tags, and say where the name goes on the golden retriever",
+      "why": "Five of your pet tag designs are now for sale at furfriend.pet/tags/business. The Christmas tree, paw print, fluffy puppy face and cat face came only as finished MILO examples, and the design screen needs the blank tag so a customer's own name is not drawn over MILO. The golden retriever face is engraved edge to edge, so there is no open spot for the name yet.",
+      "steps": [
+        "Make each of the 4 tags again with no name or phone on it, straight on, like the blank bow you sent",
+        "For the golden retriever: say whether the name goes on the back with the QR, or send a version with room for it",
+        "Send them in this chat; an agent adds them the same way"
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://furfriend.pet/tags/business",
+      "source": "LaserEngraving #197, #198; furfriend #17",
+      "requestedBy": "Claude (laser session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: FF-TAG-BOW, -BOWTIE, -ROUND, -SITDOG, -BONE are live at $12 on laser.engrave.market/api/products; each order link opened checkout with the name on the tag face; the 4 designs have only MILO photos in the owner's screenshot",
+      "app": "furfriend",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "furfriend-test-burn-a-qr-code-on-walnut-before-the-first-walnut-pet-tag-order",
+      "title": "Test-burn a QR code on walnut before the first walnut pet tag order",
+      "why": "The sitting dog and bone pet tags are walnut. Their back carries the FurFriend QR code, and a QR has less contrast on dark wood than on maple, which is why the first tags were maple only. A phone has to read it.",
+      "steps": [
+        "Burn one FurFriend tag QR on a walnut scrap at your usual pet tag settings",
+        "Scan it with a phone in normal light",
+        "If it will not scan, tell an agent: we switch those two shapes to maple or hide them"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://furfriend.pet/tags/business",
+      "source": "LaserEngraving #197",
+      "requestedBy": "Claude (laser session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: FF-TAG-SITDOG and FF-TAG-BONE are active with material 1/8 inch walnut plywood; the 2026-11-18 migration notes walnut QR contrast as the reason the first tags were maple",
+      "app": "furfriend",
+      "addedOn": "2026-11-19"
     }
   ]
 }
