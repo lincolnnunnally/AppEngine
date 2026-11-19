@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import { Pool, type PoolClient } from "pg";
+import { Pool } from "pg";
 
 // App Engine's own data (the owner dashboard, its sign-in, tasks, inbox, billing)
 // lives in the shared LPL Supabase, schema `appengine`, like every other app of
@@ -40,11 +40,9 @@ export function getPgPool(databaseUrl: string): Pool {
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 10_000
     });
-    // The login role's default search_path is `appengine, public`; setting it on
-    // each new connection as well keeps that true if the role default is ever lost.
-    pool.on("connect", (client: PoolClient) => {
-      void client.query("set search_path to appengine, public").catch(() => undefined);
-    });
+    // Tables resolve through the login's own default search_path
+    // (`alter role appengine_app set search_path = appengine, public`). No
+    // per-connection SET: it races the first query (pg deprecation warning).
     pool.on("error", () => undefined);
     pools.set(databaseUrl, pool);
   }
