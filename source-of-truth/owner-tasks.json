@@ -2289,6 +2289,27 @@
       "verifiedHow": "2026-11-18: furfriend.pet/admin ID tags tab makes batches and downloads a pack (tested on preview; QR SVGs decode to furfriend.pet/t/CODE); no cut file for the tag outlines exists in LaserEngraving or furfriend; product photos at laser.engrave.market/catalog/pet/ are concept-art crops.",
       "app": "laser-engrave-market",
       "addedOn": "2026-11-18"
+    },
+    {
+      "id": "local-beef-club-call-semiema-farms-and-mclemore-s-to-set-the-first-beef-drop",
+      "title": "Call Semiema Farms and McLemore's to set the first beef drop",
+      "why": "Local Beef Club is live at beef.unitedundergod.org and taking reservations (no charge). The first drop can't get a real price or harvest date until the farm and the processor confirm their numbers, and the site still labels both as unconfirmed. Agents can't make these calls.",
+      "steps": [
+        "Call McLemore's Abattoir in Vidalia. Ask: state or USDA inspected; price to kill, cut, wrap and freeze one steer; how many days it hangs; weekly fee to hold frozen boxes; pickup hours; earliest kill date once we have enough reserved.",
+        "Call Semiema Farms near Swainsboro. Ask: price for one finished steer (live or hanging weight); grass-fed, grass-finished, antibiotics, hormones, in their words; when the next steer is ready.",
+        "Send the answers to any agent (a screenshot of your notes is fine). It will put the confirmed practices on the site, set the per-box prices, and set the real drop date.",
+        "Optional, same calls: ask if they know a nearby hog, poultry or sheep farmer. The pork, chicken and lamb lists open as drops once one signs on (they can use beef.unitedundergod.org/sell)."
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://beef.unitedundergod.org/desk",
+      "source": "local-beef-club PR #2",
+      "requestedBy": "Claude (Local Beef Club launch session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: beef.unitedundergod.org returns 200 on every page; a live test reservation saved, emailed and showed on the desk, then was deleted; catalog.ts still has confirmed:false on Semiema Farms and McLemore's and price notes say targets; no agent can phone them.",
+      "app": "local-beef-club",
+      "addedOn": "2026-11-19"
     }
   ]
 }
