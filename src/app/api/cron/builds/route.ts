@@ -6,8 +6,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Vercel Cron, every 5 minutes (vercel.json): finish builds nobody is watching
-// and redo failed paid builds. Vercel sends `Authorization: Bearer $CRON_SECRET`;
+// Vercel Cron, hourly at :07 (vercel.json): finish builds nobody is watching
+// and redo failed paid builds. It was every 5 minutes until 2026-11-19: Neon
+// only lets a database sleep after 5 idle minutes, so a 5-minute job kept the
+// dashboard database awake around the clock, used up the free plan's 100
+// compute-hours by Nov 18, and locked the owner out of the dashboard. Hourly
+// still finishes a stranded build the same hour. Vercel sends `Authorization: Bearer $CRON_SECRET`;
 // without the secret configured, nothing runs.
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
