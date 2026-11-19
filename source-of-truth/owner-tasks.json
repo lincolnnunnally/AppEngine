@@ -2375,7 +2375,7 @@
     {
       "id": "dashboard-neon-quota-upgrade",
       "title": "Get your dashboard back: switch the Neon account to pay-as-you-go",
-      "why": "The dashboard's database (Neon project 'Apps') used up the free plan's 100 compute-hours on Nov 18, so Neon blocks it and sign-in fails with a server error until Dec 1. A scheduled job that ran every 5 minutes kept it awake around the clock; it now runs hourly so this won't repeat. Pay-as-you-go has no monthly minimum and charges $0.106 per compute-hour. Expect a few dollars a month; even this month's worst case (all 110 hours so far, if Neon counted them) is under $15. Your other 10 Neon databases barely run.",
+      "why": "WITHDRAWN 2026-11-19 — this ask was wrong. Your dashboard is a United Under God app and belongs on the shared LPL Supabase, not Neon, so there is nothing to pay for. An agent moved the dashboard's database to Supabase (schema appengine) instead. The dashboard's database (Neon project 'Apps') used up the free plan's 100 compute-hours on Nov 18, so Neon blocks it and sign-in fails with a server error until Dec 1. A scheduled job that ran every 5 minutes kept it awake around the clock; it now runs hourly so this won't repeat. Pay-as-you-go has no monthly minimum and charges $0.106 per compute-hour. Expect a few dollars a month; even this month's worst case (all 110 hours so far, if Neon counted them) is under $15. Your other 10 Neon databases barely run.",
       "steps": [
         "console.neon.tech → organization 'United Under God' → Billing → choose Launch (pay-as-you-go), add a card",
         "Reload dashboard.unitedundergod.org and sign in. It should work within a minute",
@@ -2383,12 +2383,12 @@
       ],
       "kind": "money",
       "priority": "blocker",
-      "status": "open",
+      "status": "dismissed",
       "link": "https://console.neon.tech/app/org-little-rain-06040323/billing",
       "source": "Vercel runtime errors: NeonDbError 402 quota exceeded since 2026-11-18 23:05",
       "requestedBy": "Claude (dashboard outage 2026-11-19)",
       "verifiedOn": "2026-11-19",
-      "verifiedHow": "Neon 'Apps': 110 of 100 free CU-hours used, period resets Dec 1; Vercel errors 402 on /signin match error 3899933261",
+      "verifiedHow": "Owner ruling 2026-11-19 ('all my apps live on supabase'); dashboard moved to LPL Supabase schema appengine, no Neon upgrade needed",
       "app": "appengine",
       "addedOn": "2026-11-19"
     }

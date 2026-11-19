@@ -103,9 +103,19 @@ npm run smoke:life-core
 .app-engine/dev-projects.json
 ```
 
-This keeps the production cockpit usable before real Neon credentials are connected. Once a Postgres URL points to a real Neon database, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds.
+This keeps the production cockpit usable before a real database is connected. Once a Postgres URL is set, set `APP_ENGINE_LOCAL_MODE=false` and apply the migrations/seeds (`npm run db:setup` or `node scripts/setup-database.mjs`).
 
-On Vercel, `APP_ENGINE_LOCAL_MODE` must be `false`. Vercel cannot persist `.app-engine/dev-projects.json`, so project save requires Neon persistence. The deployed app will still use Neon when Vercel has a valid Postgres URL, even if an old local-mode value is present.
+On Vercel, `APP_ENGINE_LOCAL_MODE` must be `false`. Vercel cannot persist `.app-engine/dev-projects.json`, so project save requires the database. The deployed app uses the database whenever Vercel has a valid Postgres URL, even if an old local-mode value is present.
+
+## Where App Engine's own data lives
+
+App Engine's own data (the dashboard at dashboard.unitedundergod.org, its sign-in, owner tasks, inbox, billing) lives in the **shared LPL Supabase** (`uqhqulrqcygsmmzdzemx`), schema `appengine`, like every other app of Lincoln's (owner ruling 2026-11-19: "all my apps live on supabase").
+
+- `DATABASE_URL` (Vercel, sensitive) = session pooler `aws-1-us-east-2.pooler.supabase.com:5432`, login `appengine_app.uqhqulrqcygsmmzdzemx`. It is first in the key order, so it wins over the older `POSTGRES_URL`.
+- `appengine_app` owns schema `appengine`; its default `search_path` is `appengine, public`. The schema is closed to the Supabase API roles.
+- `src/lib/db/postgres.ts` gives a Supabase URL a `pg` pool behind the same `sql\`...\`` / `sql.query()` surface; a Neon URL still gets `neon()`.
+- **Neon is only for apps AppEngine customers create** (`NEON_API_KEY`, `database-setup.ts`). Do not move the dashboard back to Neon and do not ask Lincoln to pay for Neon for it.
+- Moved off Neon (project "Apps") on 2026-11-19 after its free quota locked sign-in. That Neon data is unreadable until its quota resets on 2026-12-01; then copy it into `appengine` (vault keys, inbox, credits ledger, build jobs, owner-task clicks).
 
 ## Vercel Environment
 
