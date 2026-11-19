@@ -2391,6 +2391,26 @@
       "verifiedHow": "Neon 'Apps': 110 of 100 free CU-hours used, period resets Dec 1; Vercel errors 402 on /signin match error 3899933261",
       "app": "appengine",
       "addedOn": "2026-11-19"
+    },
+    {
+      "id": "furfriend-pet-tags-check-the-tag-sizes-send-layouts-for-the-heart-and-bow-tie-ph",
+      "title": "Pet tags: check the tag sizes, send layouts for the heart and bow tie, photograph the cat and tree",
+      "why": "Every pet tag order now carries your own black-and-white file (cut the outline, engrave inside) with the customer's name and phone. An agent had to pick each tag's printed size, two shapes have no layout yet, and the new cat and tree tags show your drawing instead of a photo.",
+      "steps": [
+        "Open the sizes list at laser.engrave.market/api/pet-tags (bow 1.5 in wide, sitting dog 1.5, round 1.25, pup 1.5, cat 1.5, tree 1.25, bone 2.0). If any is wrong, reply in an agent session with the right width; the file is redrawn at that size.",
+        "Send black-and-white layouts for the heart-with-bow and bow-tie tags like the other seven (with a sample name and phone). Until then those two get the old name-only file.",
+        "When you cut the first cat face and Christmas tree tags, photograph them like the others and send the photos."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://laser.engrave.market/api/pet-tags",
+      "source": "LaserEngraving #203, furfriend #20",
+      "requestedBy": "Claude (pet tags session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: GET laser.engrave.market/api/pet-tags lists the 7 shapes and sizes; a QA order for FF-TAG-CAT carried engrave_spec.files.maker_png (900x858 px at 600 dpi) and was deleted unpaid; FF-TAG-HEART and FF-TAG-BOWTIE proof.png return 404 (no layout); FF-TAG-CAT and FF-TAG-TREE image_url is the owner's drawing.",
+      "app": "furfriend",
+      "addedOn": "2026-11-19"
     }
   ]
 }
