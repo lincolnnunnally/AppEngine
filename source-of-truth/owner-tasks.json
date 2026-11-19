@@ -2411,6 +2411,25 @@
       "verifiedHow": "2026-11-19: GET laser.engrave.market/api/pet-tags lists the 7 shapes and sizes; a QA order for FF-TAG-CAT carried engrave_spec.files.maker_png (900x858 px at 600 dpi) and was deleted unpaid; FF-TAG-HEART and FF-TAG-BOWTIE proof.png return 404 (no layout); FF-TAG-CAT and FF-TAG-TREE image_url is the owner's drawing.",
       "app": "furfriend",
       "addedOn": "2026-11-19"
+    },
+    {
+      "id": "spark-of-hope-choose-one-place-to-make-coins-spark-admin-or-laser-tokens",
+      "title": "Choose one place to make coins: Spark admin or Laser Tokens",
+      "why": "Coins can be made in two places today. Laser Engraving > Tokens makes a 'wave' with one QR code shared by every coin, for Presence pages, restaurant tables and places. Spark of Hope's admin makes coins with their own QR each, and has what you have been asking for: per-coin tracking, your images, a second line, page messages you edit per coin, batch, phrase or ticked coins, and xTool files. Two makers will drift apart. The agent recommends: make Spark of Hope coins in spark-of-hope.com/admin from now on; keep Laser > Tokens for Presence tables and places until you decide whether Presence coins ",
+      "steps": [
+        "Pick: (a) Spark admin for all Spark coins, Laser Tokens for Presence only (recommended), (b) move everything into Laser admin, or (c) something else",
+        "Tell an agent your choice; it will label or link the other maker so you are not sent there by mistake"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://spark-of-hope.com/admin",
+      "source": "lincolnnunnally/life-produces-life#22",
+      "requestedBy": "Claude (Spark of Hope session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: read LaserEngraving tokens_router.py (one presence_coins code per wave) and Spark TrailAdmin (unique code per coin, art, second line, page messages, xTool); both live; spark_trail_tokens has 17 Spark coins, presence_coins has waves LOOKUP, YOU-ARE-LOVED, THANKFUL",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-19"
     }
   ]
 }
