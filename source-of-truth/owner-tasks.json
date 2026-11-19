@@ -2394,11 +2394,11 @@
     },
     {
       "id": "furfriend-pet-tags-check-the-tag-sizes-send-layouts-for-the-heart-and-bow-tie-ph",
-      "title": "Pet tags: check the tag sizes, send layouts for the heart and bow tie, photograph the cat and tree",
-      "why": "Every pet tag order now carries your own black-and-white file (cut the outline, engrave inside) with the customer's name and phone. An agent had to pick each tag's printed size, two shapes have no layout yet, and the new cat and tree tags show your drawing instead of a photo.",
+      "title": "Pet tags: check the tag sizes, send the heart layout, photograph the cat and tree",
+      "why": "Every pet tag order now carries your own black-and-white file (cut the outline, engrave inside) with the customer's name and phone. An agent had to pick each tag's printed size, the heart-with-bow shape has no layout yet (the bow tie arrived 2026-11-19 and is live), and the new cat and tree tags show your drawing instead of a photo.",
       "steps": [
-        "Open the sizes list at laser.engrave.market/api/pet-tags (bow 1.5 in wide, sitting dog 1.5, round 1.25, pup 1.5, cat 1.5, tree 1.25, bone 2.0). If any is wrong, reply in an agent session with the right width; the file is redrawn at that size.",
-        "Send black-and-white layouts for the heart-with-bow and bow-tie tags like the other seven (with a sample name and phone). Until then those two get the old name-only file.",
+        "Open the sizes list at laser.engrave.market/api/pet-tags (bow 1.5 in wide, sitting dog 1.5, round 1.25, pup 1.5, cat 1.5, tree 1.25, bone 2.0, bow tie 1.6). If any is wrong, reply in an agent session with the right width; the file is redrawn at that size.",
+        "Send a black-and-white layout for the heart-with-bow tag like the others (with a sample name and phone). Until then it gets the old name-only file.",
         "When you cut the first cat face and Christmas tree tags, photograph them like the others and send the photos."
       ],
       "kind": "other",
