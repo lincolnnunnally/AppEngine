@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/lib/auth/*.test.ts src/lib/engine/*.test.ts src/lib/group-buy/*.test.ts scripts/import-tech-directors.cli.test.ts scripts/import-nationwide-verified.cli.test.ts scripts/import-avl-referrals.cli.test.ts",
+    "test": "node --test src/lib/auth/*.test.ts src/lib/db/*.test.ts src/lib/engine/*.test.ts src/lib/group-buy/*.test.ts scripts/import-tech-directors.cli.test.ts scripts/import-nationwide-verified.cli.test.ts scripts/import-avl-referrals.cli.test.ts",
     "db:setup": "node scripts/setup-database.mjs",
     "env:compose": "node scripts/compose-app-env.mjs",
     "prompt:make": "node scripts/make-codex-prompt.js",
@@ -239,6 +239,7 @@
   },
   "devDependencies": {
     "@types/node": "25.9.1",
+    "@types/pg": "8.11.11",
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
     "pg": "8.21.0",

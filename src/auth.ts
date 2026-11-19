@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import PostgresAdapter from "@auth/pg-adapter";
-import { Pool } from "@neondatabase/serverless";
+import { Pool as NeonPool } from "@neondatabase/serverless";
+import type { Pool as PgPool } from "pg";
+import { getPgPool, isNeonUrl } from "@/lib/db/postgres";
 import { headers } from "next/headers";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -110,7 +112,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   const sessionCookie = await sessionCookies();
 
   return {
-    adapter: databaseUrl ? PostgresAdapter(new Pool({ connectionString: databaseUrl })) : undefined,
+    // Supabase (where the dashboard lives) goes through `pg`; Neon keeps its own driver.
+    adapter: databaseUrl ? PostgresAdapter(isNeonUrl(databaseUrl) ? (new NeonPool({ connectionString: databaseUrl }) as unknown as PgPool) : getPgPool(databaseUrl)) : undefined,
     secret: getAuthSecret(),
     trustHost: true,
     providers: buildProviders(databaseUrl),

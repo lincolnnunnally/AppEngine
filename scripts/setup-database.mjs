@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
+import pg from "pg";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -11,11 +12,13 @@ await loadEnvFile(".env");
 const databaseUrl = getConfiguredDatabaseUrl();
 
 if (!databaseUrl) {
-  console.error("DATABASE_URL or POSTGRES_URL must point to your Neon database before running setup.");
+  console.error("DATABASE_URL or POSTGRES_URL must point to App Engine's database (LPL Supabase, schema appengine) before running setup.");
   process.exit(1);
 }
 
-const sql = neon(databaseUrl);
+// App Engine's own data lives in the LPL Supabase (schema `appengine`, login
+// `appengine_app`); a Neon URL is still accepted for older deployments.
+const sql = /\.neon\.tech[:/]/i.test(databaseUrl) ? neon(databaseUrl) : await pgRunner(databaseUrl);
 const files = [
   "db/migrations/001_initial.sql",
   "db/seeds/001_core_templates.sql",
@@ -34,7 +37,19 @@ for (const file of files) {
   }
 }
 
+await sql.end?.();
 console.log("Database setup complete.");
+
+async function pgRunner(url) {
+  const parsed = new URL(url);
+  parsed.searchParams.delete("sslmode");
+  parsed.searchParams.delete("ssl");
+  const local = ["localhost", "127.0.0.1"].includes(parsed.hostname) || parsed.searchParams.has("host");
+  const client = new pg.Client({ connectionString: parsed.toString(), ssl: local ? false : { rejectUnauthorized: false } });
+  await client.connect();
+  await client.query("set search_path to appengine, public");
+  return { query: (text, params) => client.query(text, params), end: () => client.end() };
+}
 
 function splitSqlStatements(contents) {
   const statements = [];
