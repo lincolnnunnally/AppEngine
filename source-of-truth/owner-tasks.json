@@ -2214,19 +2214,19 @@
     {
       "id": "churchconnect-buy-churchofficeguides-com-for-church-emails-about-12-a-year",
       "title": "Buy churchofficeguides.com for email churches ask for (about $12 a year)",
-      "why": "You stopped cold email on 2026-11-18 after Gmail began filing unitedundergod.org mail as spam. Your next step is a separate clean name used only for mail people want: replies, checkup results, follow-ups they asked for, visitor notes. Never cold mail. churchofficeguides.com matches our free Church Office Guides; smallchurchguides.com is also free and the same price.",
+      "why": "Closed 2026-11-19. No longer applies: you are moving selling to another service and email campaigns here are stopped. You stopped cold email on 2026-11-18 after Gmail began filing unitedundergod.org mail as spam. Your next step is a separate clean name used only for mail people want: replies, checkup results, follow-ups they asked for, visitor notes. Never cold mail. churchofficeguides.com matches our free Church Office Guides; smallchurchguides.com is also free and the same price.",
       "steps": [
         "Buy churchofficeguides.com at Cloudflare (Domain Registration, Register Domains), where unitedundergod.org already lives.",
         "Reply 'bought' in chat. An agent sets up sending (Resend) and the DNS records, and uses it only for email people asked for."
       ],
       "kind": "money",
       "priority": "recommended",
-      "status": "open",
+      "status": "dismissed",
       "link": "https://dash.cloudflare.com/?to=/:account/domains/register",
       "source": "ChurchConnect outreach, 2026-11-17",
       "requestedBy": "Claude (ChurchConnect outreach session)",
-      "verifiedOn": "2026-11-17",
-      "verifiedHow": "2026-11-17: Vercel registry lookup shows churchofficeguides.com and smallchurchguides.com available, 12.03 USD a year each; churchresources.org, churchresource.org, smallchurchhelp.com and helpingchurches.org taken. Test emails from emails. and inform.unitedundergod.org all went to the owner's Gmail spam on 2026-11-16. Updated 2026-11-18: owner stopped cold email (outreach_paused true in claim-email-settings, checked); the domain is now for wanted mail only.",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-17: Vercel registry lookup shows churchofficeguides.com and smallchurchguides.com available, 12.03 USD a year each; churchresources.org, churchresource.org, smallchurchhelp.com and helpingchurches.org taken. Test emails from emails. and inform.unitedundergod.org all went to the owner's Gmail spam on 2026-11-16. Updated 2026-11-18: owner stopped cold email (outreach_paused true in claim-email-settings, checked); the domain is now for wanted mail only. Dismissed 2026-11-19: owner said he will use another service to sell and email campaigns here are no longer needed.",
       "app": "churchconnect",
       "addedOn": "2026-11-17",
       "updatedOn": "2026-11-18"
