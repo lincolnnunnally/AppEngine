@@ -111,7 +111,7 @@ On Vercel, `APP_ENGINE_LOCAL_MODE` must be `false`. Vercel cannot persist `.app-
 
 App Engine's own data (the dashboard at dashboard.unitedundergod.org, its sign-in, owner tasks, inbox, billing) lives in the **shared LPL Supabase** (`uqhqulrqcygsmmzdzemx`), schema `appengine`, like every other app of Lincoln's (owner ruling 2026-11-19: "all my apps live on supabase").
 
-- `DATABASE_URL` (Vercel, sensitive) = session pooler `aws-1-us-east-2.pooler.supabase.com:5432`, login `appengine_app.uqhqulrqcygsmmzdzemx`. It is first in the key order, so it wins over the older `POSTGRES_URL`.
+- `APP_ENGINE_DATABASE_URL` (Vercel, sensitive, production + preview) = session pooler `aws-1-us-east-2.pooler.supabase.com:5432`, login `appengine_app.uqhqulrqcygsmmzdzemx`. It is first in the key order (`src/lib/engine/local-mode.ts`), ahead of `DATABASE_URL` and `POSTGRES_URL`: production carries an integration-managed `DATABASE_URL` that the Vercel API will not show or change.
 - `appengine_app` owns schema `appengine`; its default `search_path` is `appengine, public`. The schema is closed to the Supabase API roles.
 - `src/lib/db/postgres.ts` gives a Supabase URL a `pg` pool behind the same `sql\`...\`` / `sql.query()` surface; a Neon URL still gets `neon()`.
 - **Neon is only for apps AppEngine customers create** (`NEON_API_KEY`, `database-setup.ts`). Do not move the dashboard back to Neon and do not ask Lincoln to pay for Neon for it.

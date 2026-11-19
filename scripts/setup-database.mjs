@@ -115,7 +115,7 @@ async function loadEnvFile(fileName) {
 }
 
 function getConfiguredDatabaseUrl() {
-  const keys = ["DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"];
+  const keys = ["APP_ENGINE_DATABASE_URL", "DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"];
 
   for (const key of keys) {
     const value = process.env[key]?.trim();

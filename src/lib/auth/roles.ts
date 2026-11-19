@@ -29,7 +29,7 @@ type RoleResolverOptions = {
   sql?: ReturnType<typeof neon>;
 };
 
-const databaseUrlEnvKeys = ["DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"] as const;
+const databaseUrlEnvKeys = ["APP_ENGINE_DATABASE_URL", "DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"] as const;
 
 export function canAccessAdmin(role?: string | null) {
   return role === "owner" || role === "admin";
