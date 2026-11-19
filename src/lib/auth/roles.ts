@@ -1,4 +1,4 @@
-import { sqlForUrl, type Sql } from "../db/postgres.ts";
+import { neon } from "@neondatabase/serverless";
 
 export const roles = ["owner", "admin", "customer", "vendor"] as const;
 
@@ -26,7 +26,7 @@ type SessionRoleUser = {
 
 type RoleResolverOptions = {
   env?: RuntimeEnv;
-  sql?: Sql;
+  sql?: ReturnType<typeof neon>;
 };
 
 const databaseUrlEnvKeys = ["DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"] as const;
@@ -232,7 +232,7 @@ async function readDatabaseProfileRole(
 function getProfileRoleSql(env: RuntimeEnv) {
   const databaseUrl = getConfiguredRoleDatabaseUrl(env);
 
-  return databaseUrl ? sqlForUrl(databaseUrl) : undefined;
+  return databaseUrl ? neon(databaseUrl) : undefined;
 }
 
 function getConfiguredRoleDatabaseUrl(env: RuntimeEnv) {
