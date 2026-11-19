@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { sqlForUrl } from "../db/postgres.ts";
 import { randomUUID } from "node:crypto";
 
 export type IntakePayload = {
@@ -225,7 +226,7 @@ async function persistControlledPreviewSubmission({
   sql?: ReturnType<typeof neon>;
   now: Date;
 }) {
-  const sql = injectedSql || neon(databaseUrl);
+  const sql = injectedSql || sqlForUrl(databaseUrl);
   const hasContact = Boolean(intake.preferredName || intake.email);
   const safeMetadata = buildSafeAuditMetadata({
     reference,
