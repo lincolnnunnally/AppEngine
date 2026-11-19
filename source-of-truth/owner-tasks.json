@@ -2323,7 +2323,7 @@
       ],
       "kind": "account",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://www.spaceship.com/application/domain-list-application/",
       "source": "ChurchConnect sign-in outage 2026-11-19",
       "requestedBy": "Claude Code (ChurchConnect session)",
