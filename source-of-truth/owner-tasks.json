@@ -2534,6 +2534,24 @@
       "verifiedHow": "PR #784 merged; GET https://www.churchconnect.cloud/api/admin/social/connections answers 401 without sign-in (the route is live). 111 posting tests pass. Facebook Login needs the owner's own Facebook account, which no agent has.",
       "app": "churchconnect",
       "addedOn": "2026-11-20"
+    },
+    {
+      "id": "furfriend-furfriend-decide-refunds-sales-tax-and-partner-terms-before-real-order",
+      "title": "FurFriend: decide refunds, sales tax and partner terms before real orders",
+      "why": "The tag shop and partner program are built, but FurFriend's terms (last updated July 2026) and privacy policy don't cover tag orders, finder location, or partners. Three business calls are yours: what happens if a tag is wrong or damaged, whether to collect sales tax at checkout, and the partner payout terms.",
+      "steps": [
+        "Reply in a FurFriend session with your choices, or just 'use your defaults'. Proposed defaults: (1) we remake or refund any tag that's wrong or arrives damaged; personalized tags can't be returned otherwise. (2) Sales tax: collect it at checkout with Stripe Tax (about 0.5% per sale), or keep prices tax-included; ask your accountant which applies. (3) Partners: $1 a tag paid monthly once $10 is owe"
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://furfriend.pet/terms",
+      "source": "furfriend readiness review 2026-11-20",
+      "requestedBy": "Claude (FurFriend session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Read src/app/terms/page.tsx and src/app/privacy/page.tsx on furfriend main: no section on tag orders, refunds for engraved goods, finder location, partners, or Stripe; checkout (lib/tagorders.ts) sets no automatic tax. Live /terms and /privacy load (200).",
+      "app": "furfriend",
+      "addedOn": "2026-11-20"
     }
   ]
 }
