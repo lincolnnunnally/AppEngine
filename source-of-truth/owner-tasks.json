@@ -2513,6 +2513,27 @@
       "verifiedHow": "Contacts are from the Georgia Baptist Mission Board list dated 11/16/2026 (downloaded today); prices match churchconnect.cloud/pricing read today; the for-associations page answers 200 today; agents may not send email to contacts, so only Lincoln can send",
       "app": "churchconnect",
       "addedOn": "2026-11-20"
+    },
+    {
+      "id": "churchconnect-connect-our-facebook-and-instagram-in-super-admin",
+      "title": "Connect our Facebook and Instagram in Super Admin",
+      "why": "Super Admin → Social Media now really posts to ChurchConnect's own Facebook Page and Instagram, but it needs you to approve our pages once. Only you can sign in to Facebook as the page owner.",
+      "steps": [
+        "Sign in to www.churchconnect.cloud as super admin and open Social Media",
+        "Click Connect Facebook & Instagram and approve our company Pages (Instagram must be a Business account linked to the Page)",
+        "Compose: pick the channels, write the post, add a photo link for Instagram, then Publish Now or Schedule",
+        "Tell me what it showed; I will fix anything that failed"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.churchconnect.cloud/admin",
+      "source": "ChurchConnect PR #784 (merged 2026-11-20)",
+      "requestedBy": "Claude (session 01JiHrgCy36LAHqS2niEnY4a)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "PR #784 merged; GET https://www.churchconnect.cloud/api/admin/social/connections answers 401 without sign-in (the route is live). 111 posting tests pass. Facebook Login needs the owner's own Facebook account, which no agent has.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-20"
     }
   ]
 }
