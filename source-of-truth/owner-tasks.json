@@ -241,7 +241,7 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/CURRENT_FOCUS.md (last changed 2026-10-18)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open",
+      "status": "done",
       "verifiedOn": "2026-11-06",
       "verifiedHow": "ChurchConnect pages.config.json live since Oct 22; /church-av 200 (2026-11-06)"
     },
@@ -2430,6 +2430,26 @@
       "verifiedHow": "2026-11-19: read LaserEngraving tokens_router.py (one presence_coins code per wave) and Spark TrailAdmin (unique code per coin, art, second line, page messages, xTool); both live; spark_trail_tokens has 17 Spark coins, presence_coins has waves LOOKUP, YOU-ARE-LOVED, THANKFUL",
       "app": "spark-of-hope",
       "addedOn": "2026-11-19"
+    },
+    {
+      "id": "united-under-god-get-messenger-avl-s-ok-on-10-and-the-sanctuary-avl-ballpark-pri",
+      "title": "Get Messenger AVL's OK on 10% and the Sanctuary AVL ballpark prices",
+      "why": "Sanctuary AVL (sanctuaryavl.unitedundergod.org) sends church leads to Messenger AVL as the primary installer at 10%, and shows ballpark price ranges by room size. The ranges are an agent's estimate; Jim's team should confirm them so a church never sees a number they would not stand behind.",
+      "steps": [
+        "Ask Jim to agree to 10% of each installed job, in writing (an email reply is enough to start)",
+        "Ask Jim's team to look over the price table at https://sanctuaryavl.unitedundergod.org/guides/church-av-cost and send back any ranges they would change",
+        "Forward their answer to an agent; the ranges live in one file and change in minutes"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://sanctuaryavl.unitedundergod.org/guides/church-av-cost",
+      "source": "united-under-god PR #64",
+      "requestedBy": "Claude (Sanctuary AVL session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Owner chose Messenger AVL as primary at 10% in chat 2026-11-20; ranges in src/lib/sanctuary-avl.ts are unreviewed estimates; no signed terms on the existing messenger-avl-partner-terms task (open)",
+      "app": "united-under-god",
+      "addedOn": "2026-11-20"
     },
     {
       "id": "we-succeed-before-your-lyons-interview-read-the-lyons-page-and-fix-anything-wron",
