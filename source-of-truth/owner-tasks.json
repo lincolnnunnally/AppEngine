@@ -2492,6 +2492,27 @@
       "verifiedHow": "2026-11-20: Vercel furfriend env list has no FURFRIEND_STRIPE_SECRET_KEY or STRIPE_SECRET_KEY; the PR #25 preview shows 'opening soon' without a key and, with its preview-only test checkout, completed two orders end to end (paid, QR codes minted, receipt and admin emails delivered, engrave files, shipped email).",
       "app": "furfriend",
       "addedOn": "2026-11-20"
+    },
+    {
+      "id": "churchconnect-send-the-first-10-association-emails-from-your-own-email",
+      "title": "Send the first 10 association emails from your own email",
+      "why": "Cold email from our sending address lands in junk. A personal note from you to each association's leader reaches the inbox, and each association can bring many churches.",
+      "steps": [
+        "Open the file 'association-emails.md' I sent you in our chat (Nov 20)",
+        "Start with Daniell Association (Ailey, next to Lyons): copy the subject and body, fill in your phone number, send from your own email",
+        "Send the rest one at a time, up to 10 a day",
+        "Tell me who replies and I will draft the answer"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.churchconnect.cloud/for-associations",
+      "source": "Chat, 2026-11-20: owner asked to start association emails",
+      "requestedBy": "Claude (session 01JiHrgCy36LAHqS2niEnY4a)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Contacts are from the Georgia Baptist Mission Board list dated 11/16/2026 (downloaded today); prices match churchconnect.cloud/pricing read today; the for-associations page answers 200 today; agents may not send email to contacts, so only Lincoln can send",
+      "app": "churchconnect",
+      "addedOn": "2026-11-20"
     }
   ]
 }
