@@ -125,9 +125,10 @@
       "title": "Trim and submit ChurchConnect's Meta App Review for Facebook/Instagram posting",
       "why": "Until Meta approves it, only app testers can connect a Page, so churches cannot publish posts to Facebook or Instagram.",
       "steps": [
-        "Done 2026-11-11: Facebook and Instagram are connected, and a post published from ChurchConnect appeared on both. That also made Meta's posting test calls.",
+        "Done 2026-11-11: Facebook and Instagram connected, and a post published from ChurchConnect appeared on both.",
+        "Done 2026-11-19: the redesigned menu and Announcements screen are live, so the video will match what churches see.",
         "This needs a computer. Tap Read it here on this card first: it has the six permissions, the screencast script and the words to paste.",
-        "Graph API Explorer (app 'Church Connect', User token with business_management): run GET /me/businesses once. That is the one test call ChurchConnect itself does not make.",
+        "Graph API Explorer (app 'Church Connect', User token with business_management): run GET /me/businesses once.",
         "developers.facebook.com → App Review → Permissions and Features: remove every permission that is not one of the six, and add instagram_content_publish. Wait up to 24 hours until each shows 1 of 1 API calls.",
         "Record the 90-second screencast at www.churchconnect.cloud (script in Read it here), paste the ready-written descriptions, and submit."
       ],
@@ -138,12 +139,12 @@
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
       "status": "open",
-      "verifiedOn": "2026-11-11",
-      "verifiedHow": "2026-11-11: cc_social_media_posts shows Lincoln's post published to the Church Connect Facebook Page and @churchconnect.cloud Instagram at 22:53 UTC, each with a post URL. Lincoln confirmed it on Instagram. The Meta review status is only visible to him.",
-      "updatedOn": "2026-11-11",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: ChurchConnect PR #729 is live on www.churchconnect.cloud (production deployment READY at that commit; the live bundles contain the new Home, menu, Announcements and Events text). The screencast script was rewritten to the new menu path. Meta's review status is only visible to Lincoln.",
+      "updatedOn": "2026-11-19",
       "doc": {
         "title": "Meta App Review: permissions, test calls, screencast and words to paste",
-        "text": "# ChurchConnect's Meta App Review: what to ask for, and the words to paste\n\nWhat we are asking Meta for: a church writes a post once in ChurchConnect and it publishes to the church's own Facebook Page and linked Instagram Business account. Nothing else.\n\nThis needs a computer. All of it happens at developers.facebook.com in the app named **Church Connect**.\n\n## Ask for exactly these six permissions\n\n| Permission | Why the app needs it | Test call (Graph API Explorer, app = Church Connect) |\n|---|---|---|\n| `pages_show_list` | List the Pages the admin chose so we can save them as channels | `GET /me/accounts` |\n| `pages_read_engagement` | Read the Page's name and its linked Instagram account | `GET /{page-id}?fields=name,instagram_business_account` |\n| `pages_manage_posts` | Publish the church's post to its Page | `POST /{page-id}/feed` with `message=Test from ChurchConnect` (then delete it) |\n| `instagram_basic` | Read the linked Instagram Business account's id and username | `GET /{ig-user-id}?fields=id,username` |\n| `instagram_content_publish` | Publish the church's photo or video to Instagram | `POST /{ig-user-id}/media` with `image_url=…&caption=Test`, then `POST /{ig-user-id}/media_publish` with `creation_id=…` |\n| `business_management` | Pages owned through a Business Portfolio only appear with it | `GET /me/businesses` |\n\nUse a **Page** token (from `/me/accounts`) for the Page and Instagram calls. Test calls take up to 24 hours to show as \"1 of 1\".\n\n## Steps in the Meta dashboard\n\n1. **App Review → Permissions and Features:** remove every requested item that is not in the table above (ads, WhatsApp, Threads, Messenger, fundraisers, catalog, branded content, leads, `instagram_manage_comments`, `instagram_manage_messages`, `pages_manage_engagement`, and so on). Add `instagram_content_publish`; it was never requested.\n2. **Facebook Login for Business → Settings → Valid OAuth Redirect URIs:** add `https://www.churchconnect.cloud/api/social/meta/callback`\n3. **Facebook Login for Business → Configurations:** there should already be one of type \"User access token\" with the six permissions above and assets Pages + Instagram accounts. If there is not, create it and tell an agent.\n4. Nothing to copy. The App ID, App Secret and Configuration ID are already saved on ChurchConnect (checked 2026-11-10).\n5. **App roles → Testers:** until Meta approves, only people with a role on the app can finish the Facebook sign-in. Record the screencast as one of them.\n6. The church's Instagram must be a Business account linked to the Page.\n\n## The screencast (one recording, about 90 seconds, reused for every permission)\n\nRecord at `https://www.churchconnect.cloud`, in English, with the cursor visible and no cuts during the sign-in. Turn on captions, or add a text label naming each permission as it is used.\n\n1. Signed in as a church admin, open **Social Media → Channels**.\n2. Click **Connect Facebook & Instagram**.\n3. In the Facebook window: show the account, select the church **Page** and its **Instagram account**, show the permission list, click **Continue/Save**. (pages_show_list, business_management)\n4. Back in ChurchConnect: a green banner says \"Connected 1 Facebook Page and 1 Instagram account\". Open Facebook and Instagram: the Page name and @username show. (pages_read_engagement, instagram_basic)\n5. **Overview → New Post**: type an event announcement, attach a flyer image, tick the Facebook and Instagram channels, click **Publish**.\n6. The scheduler shows both posts **Published**. (pages_manage_posts, instagram_content_publish)\n7. Open the church's Facebook Page in a new tab: the post is there. Open the Instagram profile: the post is there.\n8. Back in Channels, click the trash icon on a channel: it disconnects.\n\n## Descriptions to paste\n\n**pages_show_list** — ChurchConnect is software churches use to run announcements and events. A church admin clicks \"Connect Facebook & Instagram\" and chooses their church's Page in the Facebook Login dialog. We call `GET /me/accounts` once to list the Pages they chose, and save each as a publishing channel for that church. Without it we cannot know which Page the church wants to post to. The screencast shows the dialog and the Page appearing in Channels.\n\n**pages_read_engagement** — After the admin connects, we read the Page's name and its linked Instagram Business account (`GET /{page-id}?fields=name,instagram_business_account`) so the admin can see which Page and Instagram account are connected and pick them when posting. We do not read posts, comments, or follower data.\n\n**pages_manage_posts** — The core feature: a church writes an event or announcement once in ChurchConnect and clicks Publish; we post it to the church's own Page with `POST /{page-id}/feed` (or `/photos` with the flyer). We only post content the admin wrote and explicitly published. The screencast shows a post published from ChurchConnect appearing on the Page.\n\n**instagram_basic** — We read the connected Instagram Business account's id and username so the admin can see which account is connected and select it when publishing. No other Instagram data is read.\n\n**instagram_content_publish** — The same post the admin publishes to Facebook is published to the church's Instagram with its flyer image or video, using `POST /{ig-user-id}/media` and `/media_publish`. Only content the admin wrote and chose to publish is posted. The screencast shows it appearing on the Instagram profile.\n\n**business_management** — Many churches' Pages are owned by a Business Portfolio; without this permission those Pages are missing from the Facebook Login result and the church cannot connect. We use it only to list the Pages and Instagram accounts the admin granted in the dialog.\n\n**Add this to the end of each one:** Data is used only to show the church admin which accounts are connected and to publish what they choose to publish. It is never sold, shared, or used for advertising. Page tokens are stored server-side, never shown in the browser, and deleted when the admin disconnects or removes the app from Facebook (data deletion callback: `https://www.churchconnect.cloud/api/webhooks/meta/data-deletion`).\n",
+        "text": "# ChurchConnect's Meta App Review: what to ask for, and the words to paste\n\nWhat we are asking Meta for: a church writes a post once in ChurchConnect and it publishes to the church's own Facebook Page and linked Instagram Business account. Nothing else.\n\nThis needs a computer. All of it happens at developers.facebook.com in the app named **Church Connect**.\n\n## Ask for exactly these six permissions\n\n| Permission | Why the app needs it | Test call (Graph API Explorer, app = Church Connect) |\n|---|---|---|\n| `pages_show_list` | List the Pages the admin chose so we can save them as channels | `GET /me/accounts` |\n| `pages_read_engagement` | Read the Page's name and its linked Instagram account | `GET /{page-id}?fields=name,instagram_business_account` |\n| `pages_manage_posts` | Publish the church's post to its Page | `POST /{page-id}/feed` with `message=Test from ChurchConnect` (then delete it) |\n| `instagram_basic` | Read the linked Instagram Business account's id and username | `GET /{ig-user-id}?fields=id,username` |\n| `instagram_content_publish` | Publish the church's photo or video to Instagram | `POST /{ig-user-id}/media` with `image_url=…&caption=Test`, then `POST /{ig-user-id}/media_publish` with `creation_id=…` |\n| `business_management` | Pages owned through a Business Portfolio only appear with it | `GET /me/businesses` |\n\nUse a **Page** token (from `/me/accounts`) for the Page and Instagram calls. Test calls take up to 24 hours to show as \"1 of 1\".\n\n## Steps in the Meta dashboard\n\n1. **App Review → Permissions and Features:** remove every requested item that is not in the table above (ads, WhatsApp, Threads, Messenger, fundraisers, catalog, branded content, leads, `instagram_manage_comments`, `instagram_manage_messages`, `pages_manage_engagement`, and so on). Add `instagram_content_publish`; it was never requested.\n2. **Facebook Login for Business → Settings → Valid OAuth Redirect URIs:** add `https://www.churchconnect.cloud/api/social/meta/callback`\n3. **Facebook Login for Business → Configurations:** there should already be one of type \"User access token\" with the six permissions above and assets Pages + Instagram accounts. If there is not, create it and tell an agent.\n4. Nothing to copy. The App ID, App Secret and Configuration ID are already saved on ChurchConnect (checked 2026-11-10).\n5. **App roles → Testers:** until Meta approves, only people with a role on the app can finish the Facebook sign-in. Record the screencast as one of them.\n6. The church's Instagram must be a Business account linked to the Page.\n\n## The screencast (one recording, about 90 seconds, reused for every permission)\n\nRecord at `https://www.churchconnect.cloud`, in English, with the cursor visible and no cuts during the sign-in. Turn on captions, or add a text label naming each permission as it is used.\n\n1. Signed in as a church admin, open the menu and choose **Announcements**. On that screen click the **Social Media** tab, then **Channels**.\n2. Click **Connect Facebook & Instagram**.\n3. In the Facebook window: show the account, select the church **Page** and its **Instagram account**, show the permission list, click **Continue/Save**. (pages_show_list, business_management)\n4. Back in ChurchConnect, on the Social Media screen: a green banner says \"Connected 1 Facebook Page and 1 Instagram account\". Open Facebook and Instagram: the Page name and @username show. (pages_read_engagement, instagram_basic)\n5. **Overview → New Post**: type an event announcement, attach a flyer image, tick the Facebook and Instagram channels, click **Post Now**.\n6. A banner says \"Posted to Facebook and Instagram\". Open the **Posts** tab: both show published. (pages_manage_posts, instagram_content_publish)\n7. Click **View on Facebook**, then **View on Instagram**: the posts are there.\n8. Back in **Channels**, click the trash icon on a channel: it disconnects.\n\nBefore you record, start clean so Facebook shows its full permission screen: delete the two connected channels in ChurchConnect, then in Facebook go to Settings → Business integrations and remove Church Connect.\n\n## Descriptions to paste\n\n**pages_show_list** — ChurchConnect is software churches use to run announcements and events. A church admin clicks \"Connect Facebook & Instagram\" and chooses their church's Page in the Facebook Login dialog. We call `GET /me/accounts` once to list the Pages they chose, and save each as a publishing channel for that church. Without it we cannot know which Page the church wants to post to. The screencast shows the dialog and the Page appearing in Channels.\n\n**pages_read_engagement** — After the admin connects, we read the Page's name and its linked Instagram Business account (`GET /{page-id}?fields=name,instagram_business_account`) so the admin can see which Page and Instagram account are connected and pick them when posting. We do not read posts, comments, or follower data.\n\n**pages_manage_posts** — The core feature: a church writes an event or announcement once in ChurchConnect and clicks Publish; we post it to the church's own Page with `POST /{page-id}/feed` (or `/photos` with the flyer). We only post content the admin wrote and explicitly published. The screencast shows a post published from ChurchConnect appearing on the Page.\n\n**instagram_basic** — We read the connected Instagram Business account's id and username so the admin can see which account is connected and select it when publishing. No other Instagram data is read.\n\n**instagram_content_publish** — The same post the admin publishes to Facebook is published to the church's Instagram with its flyer image or video, using `POST /{ig-user-id}/media` and `/media_publish`. Only content the admin wrote and chose to publish is posted. The screencast shows it appearing on the Instagram profile.\n\n**business_management** — Many churches' Pages are owned by a Business Portfolio; without this permission those Pages are missing from the Facebook Login result and the church cannot connect. We use it only to list the Pages and Instagram accounts the admin granted in the dialog.\n\n**Add this to the end of each one:** Data is used only to show the church admin which accounts are connected and to publish what they choose to publish. It is never sold, shared, or used for advertising. Page tokens are stored server-side, never shown in the browser, and deleted when the admin disconnects or removes the app from Facebook (data deletion callback: `https://www.churchconnect.cloud/api/webhooks/meta/data-deletion`).\n",
         "from": "ChurchConnect docs/META_APP_REVIEW.md, 2026-11-10"
       }
     },
@@ -240,7 +241,7 @@
       "source": "life-produces-life-source-of-truth/_SOURCE_OF_TRUTH/CURRENT_FOCUS.md (last changed 2026-10-18)",
       "requestedBy": "Claude (owner-task sweep of all repos)",
       "addedOn": "2026-11-01",
-      "status": "open",
+      "status": "done",
       "verifiedOn": "2026-11-06",
       "verifiedHow": "ChurchConnect pages.config.json live since Oct 22; /church-av 200 (2026-11-06)"
     },
@@ -1779,7 +1780,7 @@
       ],
       "kind": "other",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://lincoln-resume.we-succeed.org/",
       "source": "lincoln-nunnally-resume PR #3",
       "requestedBy": "Claude (marketing service session)",
@@ -2114,7 +2115,7 @@
       ],
       "kind": "account",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://postmaster.google.com/v2/manage_domains",
       "source": "ChurchConnect docs/outreach/LEARNINGS.md, 2026-11-13",
       "requestedBy": "Claude (ChurchConnect session)",
@@ -2168,6 +2169,329 @@
       "verifiedHow": "2026-11-13 23:12 UTC: the database's start time is 22:32:08 UTC and its log says it was interrupted, with no shutdown or out-of-memory line before and no other restart in 24 hours. This session can read its logs and run queries but has no memory or CPU record. Link from Supabase's own troubleshooting guide; it needs Lincoln's sign-in.",
       "app": "churchconnect",
       "addedOn": "2026-11-13"
+    },
+    {
+      "id": "laser-engrave-market-should-a-walnut-logo-cut-out-coaster-cost-more-than-birch",
+      "title": "Should a walnut logo cut-out coaster cost more than birch?",
+      "why": "Customers can now pick birch or walnut 1/8 inch plywood for the logo cut-out coaster. Both are charged $2 each today. Walnut plywood usually costs more to buy, and only you know your cost.",
+      "steps": [
+        "Open the logo cut-out coaster page and look at the wood choice",
+        "Tell an agent the walnut price you want, or say $2 is fine for both"
+      ],
+      "kind": "decision",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://laser.engrave.market/products?sku=PLY-LOGO-COASTER",
+      "source": "LaserEngraving PR #180",
+      "requestedBy": "Claude (laser session)",
+      "verifiedOn": "2026-11-14",
+      "verifiedHow": "2026-11-14: PR #180 is live; the page shows Birch and Walnut buttons and the product is $1 base + $1 engraving for either wood; checked in a browser on laser.engrave.market",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-14"
+    },
+    {
+      "id": "churchconnect-add-emails-unitedundergod-org-to-google-postmaster-tools-too-2-min",
+      "title": "Add the two sending addresses to Google Postmaster Tools (1 minute, no DNS)",
+      "why": "You verified unitedundergod.org in Postmaster this morning. Gmail reports on the exact address mail is sent from, and church emails go from two sub-addresses: emails.unitedundergod.org (three quarters of our Gmail mail, 925 of 1,242 on Friday) and inform.unitedundergod.org. With the main domain verified, Google adds sub-addresses without another DNS record.",
+      "steps": [
+        "Open postmaster.google.com signed in as lincoln.nunnally@gmail.com",
+        "Add domain: emails.unitedundergod.org",
+        "Add domain: inform.unitedundergod.org",
+        "If either asks for a DNS record after all, add it in Cloudflare for unitedundergod.org the same way you did this morning"
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "done",
+      "link": "https://postmaster.google.com/v2/manage_domains",
+      "source": "ChurchConnect outreach, 2026-11-16 morning check",
+      "requestedBy": "Claude (ChurchConnect outreach session)",
+      "verifiedOn": "2026-11-16",
+      "verifiedHow": "2026-11-16 08:50 ET: cc_church_crm_activities for 2026-11-13 sends to @gmail.com addresses: 925 from lincoln@emails.unitedundergod.org, 317 from lincoln@inform.unitedundergod.org (backend/utils/claim_outreach.py FROM_EMAIL / OUTREACH_FROM_EMAIL, inform_share). Lincoln confirmed inform.unitedundergod.org was accepted in Postmaster this morning; the same steps apply to the second subdomain. Updated 2026-11-16 09:00 ET: Lincoln said what he verified was unitedundergod.org itself, by a Cloudflare DNS record; the sub-addresses still need adding.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-16",
+      "updatedOn": "2026-11-16"
+    },
+    {
+      "id": "churchconnect-buy-churchofficeguides-com-for-church-emails-about-12-a-year",
+      "title": "Buy churchofficeguides.com for email churches ask for (about $12 a year)",
+      "why": "Closed 2026-11-19. No longer applies: you are moving selling to another service and email campaigns here are stopped. You stopped cold email on 2026-11-18 after Gmail began filing unitedundergod.org mail as spam. Your next step is a separate clean name used only for mail people want: replies, checkup results, follow-ups they asked for, visitor notes. Never cold mail. churchofficeguides.com matches our free Church Office Guides; smallchurchguides.com is also free and the same price.",
+      "steps": [
+        "Buy churchofficeguides.com at Cloudflare (Domain Registration, Register Domains), where unitedundergod.org already lives.",
+        "Reply 'bought' in chat. An agent sets up sending (Resend) and the DNS records, and uses it only for email people asked for."
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "dismissed",
+      "link": "https://dash.cloudflare.com/?to=/:account/domains/register",
+      "source": "ChurchConnect outreach, 2026-11-17",
+      "requestedBy": "Claude (ChurchConnect outreach session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-17: Vercel registry lookup shows churchofficeguides.com and smallchurchguides.com available, 12.03 USD a year each; churchresources.org, churchresource.org, smallchurchhelp.com and helpingchurches.org taken. Test emails from emails. and inform.unitedundergod.org all went to the owner's Gmail spam on 2026-11-16. Updated 2026-11-18: owner stopped cold email (outreach_paused true in claim-email-settings, checked); the domain is now for wanted mail only. Dismissed 2026-11-19: owner said he will use another service to sell and email campaigns here are no longer needed.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-17",
+      "updatedOn": "2026-11-18"
+    },
+    {
+      "id": "ecosystem-ask-google-to-index-10-app-pages-request-indexing-about-10-minutes",
+      "title": "Ask Google to index 10 app pages (Request indexing, about 10 minutes)",
+      "why": "On the 2026-11-17 check, 22 app subdomains were still 'unknown to Google' two weeks after we added sitemaps and links. Google hasn't followed them yet. Request indexing in Search Console is the fastest push, and only a signed-in owner can click it (no API exists for normal pages). Google allows about 10 a day.",
+      "steps": [
+        "Open Search Console with the unitedundergod.org property selected",
+        "Paste each URL in the top search bar, wait for the check, then click Request indexing: partnerly, remembered, dreamstand, ideas, sandlot, porchlight, neighborly, barefoot, opportunity, groundwork (each as https://NAME.unitedundergod.org/)",
+        "Optional, the next day: wp.easypeazy.site (under the easypeazy.site property), commons, furfriend, selah, singtrue, resume, jeepfix, racketpro, iconium, honestly"
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://search.google.com/search-console?resource_id=sc-domain%3Aunitedundergod.org",
+      "source": "scheduled check trig_019FiaQjHeUMCGE1hXNNcjni",
+      "requestedBy": "Claude (Google indexing check 2026-11-17)",
+      "verifiedOn": "2026-11-17",
+      "verifiedHow": "OpenSEO inspect_urls 2026-11-17: 22 hosts 'URL is unknown to Google' though /apps (indexed, crawled 11-06) links them and robots.txt names their sitemaps; OpenSEO has no request-indexing or sitemap-submit tool; gcloud has no credentials",
+      "app": "ecosystem",
+      "addedOn": "2026-11-17"
+    },
+    {
+      "id": "laser-engrave-market-confirm-the-pet-id-tag-price-12-9-from-10-7-from-50",
+      "title": "Confirm the pet ID tag price ($12, $9 from 10, $7 from 50)",
+      "why": "FurFriend pet tags are on sale now at laser.engrave.market and on furfriend.pet/tags/business at a starting price an agent picked: $12 each, $9 each from 10, $7 each from 50 (so a groomer or daycare can resell at the counter). Price is your call.",
+      "steps": [
+        "Open furfriend.pet/tags/business and look at the Order tags section (it shows the live price).",
+        "If the price is right, mark this done. If not, reply in any agent session with the prices you want for 1, 10+ and 50+; the volume tiers live in the products table (FF-TAG-PUP, FF-TAG-HEART) and an agent changes them in a minute."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://furfriend.pet/tags/business#order",
+      "source": "LaserEngraving PR #187, furfriend PR #15",
+      "requestedBy": "Claude (FurFriend pet tags session)",
+      "verifiedOn": "2026-11-18",
+      "verifiedHow": "2026-11-18: GET laser.engrave.market/api/products/FF-TAG-PUP and FF-TAG-HEART return active with tiers 12/9/7; furfriend.pet/tags/business renders the order form at $90 for 10; a test order reached Stripe checkout at $9 each and was deleted unpaid.",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-18"
+    },
+    {
+      "id": "laser-engrave-market-test-burn-one-furfriend-pet-tag-and-photograph-it",
+      "title": "Test-burn one FurFriend pet tag and photograph it",
+      "why": "Ordering is live, but no tag has been made yet. One test burn proves the QR on the back scans on maple, the name fits the front, and gives the shop real photos (the current ones are crops of the concept art). There is no cut file for the two tag outlines yet: the shapes exist only in the concept image.",
+      "steps": [
+        "Make the two tag outlines (floppy-ear pup with bow, heart with bow) in xTool, about 2 inches, from 1/8 inch maple. Ask an agent if you want them traced from the concept art.",
+        "Open furfriend.pet/admin, tab ID tags, make a batch of 2 and download the engrave pack. Burn one QR on the back of each tag (22 mm, file per tag), with the furfriend.pet/t/CODE line under it.",
+        "Engrave a pet's name on the front, seal it, and scan the back with your phone: it should open 'This tag isn't set up yet'. Set it up on one of your pets to see the whole flow.",
+        "Photograph both tags straight on and upload them in Laser Engrave Admin, Items, for FF-TAG-PUP and FF-TAG-HEART. Your photo replaces the concept art everywhere."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://furfriend.pet/admin",
+      "source": "LaserEngraving PR #187/#189, furfriend PR #15",
+      "requestedBy": "Claude (FurFriend pet tags session)",
+      "verifiedOn": "2026-11-18",
+      "verifiedHow": "2026-11-18: furfriend.pet/admin ID tags tab makes batches and downloads a pack (tested on preview; QR SVGs decode to furfriend.pet/t/CODE); no cut file for the tag outlines exists in LaserEngraving or furfriend; product photos at laser.engrave.market/catalog/pet/ are concept-art crops.",
+      "app": "laser-engrave-market",
+      "addedOn": "2026-11-18"
+    },
+    {
+      "id": "local-beef-club-call-semiema-farms-and-mclemore-s-to-set-the-first-beef-drop",
+      "title": "Call Semiema Farms and McLemore's to set the first beef drop",
+      "why": "Local Beef Club is live at beef.unitedundergod.org and taking reservations (no charge). The first drop can't get a real price or harvest date until the farm and the processor confirm their numbers, and the site still labels both as unconfirmed. Agents can't make these calls.",
+      "steps": [
+        "Call McLemore's Abattoir in Vidalia. Ask: state or USDA inspected; price to kill, cut, wrap and freeze one steer; how many days it hangs; weekly fee to hold frozen boxes; pickup hours; earliest kill date once we have enough reserved.",
+        "Call Semiema Farms near Swainsboro. Ask: price for one finished steer (live or hanging weight); grass-fed, grass-finished, antibiotics, hormones, in their words; when the next steer is ready.",
+        "Send the answers to any agent (a screenshot of your notes is fine). It will put the confirmed practices on the site, set the per-box prices, and set the real drop date.",
+        "Optional, same calls: ask if they know a nearby hog, poultry or sheep farmer. The pork, chicken and lamb lists open as drops once one signs on (they can use beef.unitedundergod.org/sell)."
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://beef.unitedundergod.org/desk",
+      "source": "local-beef-club PR #2",
+      "requestedBy": "Claude (Local Beef Club launch session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: beef.unitedundergod.org returns 200 on every page; a live test reservation saved, emailed and showed on the desk, then was deleted; catalog.ts still has confirmed:false on Semiema Farms and McLemore's and price notes say targets; no agent can phone them.",
+      "app": "local-beef-club",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "churchconnect-churchconnect-is-down-put-churchconnect-cloud-s-nameservers-back-t",
+      "title": "ChurchConnect is down: put churchconnect.cloud's nameservers back to Cloudflare",
+      "why": "At 12:46 UTC on Nov 19 the domain's nameservers at Spaceship were changed from Cloudflare (aida / donald) to Spaceship's own (launch1 / launch2). Spaceship's DNS holds only two mail records, so www.churchconnect.cloud, api.churchconnect.cloud and every church subdomain stopped resolving and nobody can sign in. The app and database are fine. Agents have no Spaceship or Cloudflare login that can change this.",
+      "steps": [
+        "Sign in at spaceship.com, open Domains, then churchconnect.cloud, then Nameservers & DNS.",
+        "Choose Custom nameservers. Enter aida.ns.cloudflare.com and donald.ns.cloudflare.com, then Save.",
+        "If you set up a Spacemail mailbox on churchconnect.cloud this morning, say so and an agent will tell you which mail records to add in Cloudflare. If you didn't, there is nothing else to do."
+      ],
+      "kind": "account",
+      "priority": "blocker",
+      "status": "done",
+      "link": "https://www.spaceship.com/application/domain-list-application/",
+      "source": "ChurchConnect sign-in outage 2026-11-19",
+      "requestedBy": "Claude Code (ChurchConnect session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19 14:10 UTC. RDAP for churchconnect.cloud shows nameservers launch1/launch2.spaceship.net and last changed 12:46:28 UTC today; the zone's SOA serial is the same second. Google DNS returns NXDOMAIN for www.churchconnect.cloud and only spacemail MX for the apex. Vercel's domain record for churchconnect.cloud last saw aida/donald.ns.cloudflare.com and marks it misconfigured now. The www requ",
+      "app": "churchconnect",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "furfriend-send-blank-photos-for-4-more-pet-tags-and-say-where-the-name-goes-on-t",
+      "title": "Send blank photos for 4 more pet tags, and say where the name goes on the golden retriever",
+      "why": "Five of your pet tag designs are now for sale at furfriend.pet/tags/business. The Christmas tree, paw print, fluffy puppy face and cat face came only as finished MILO examples, and the design screen needs the blank tag so a customer's own name is not drawn over MILO. The golden retriever face is engraved edge to edge, so there is no open spot for the name yet.",
+      "steps": [
+        "Make each of the 4 tags again with no name or phone on it, straight on, like the blank bow you sent",
+        "For the golden retriever: say whether the name goes on the back with the QR, or send a version with room for it",
+        "Send them in this chat; an agent adds them the same way"
+      ],
+      "kind": "other",
+      "priority": "optional",
+      "status": "open",
+      "link": "https://furfriend.pet/tags/business",
+      "source": "LaserEngraving #197, #198; furfriend #17",
+      "requestedBy": "Claude (laser session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: FF-TAG-BOW, -BOWTIE, -ROUND, -SITDOG, -BONE are live at $12 on laser.engrave.market/api/products; each order link opened checkout with the name on the tag face; the 4 designs have only MILO photos in the owner's screenshot",
+      "app": "furfriend",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "furfriend-test-burn-a-qr-code-on-walnut-before-the-first-walnut-pet-tag-order",
+      "title": "Test-burn a QR code on walnut before the first walnut pet tag order",
+      "why": "The sitting dog and bone pet tags are walnut. Their back carries the FurFriend QR code, and a QR has less contrast on dark wood than on maple, which is why the first tags were maple only. A phone has to read it.",
+      "steps": [
+        "Burn one FurFriend tag QR on a walnut scrap at your usual pet tag settings",
+        "Scan it with a phone in normal light",
+        "If it will not scan, tell an agent: we switch those two shapes to maple or hide them"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://furfriend.pet/tags/business",
+      "source": "LaserEngraving #197",
+      "requestedBy": "Claude (laser session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: FF-TAG-SITDOG and FF-TAG-BONE are active with material 1/8 inch walnut plywood; the 2026-11-18 migration notes walnut QR contrast as the reason the first tags were maple",
+      "app": "furfriend",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "dashboard-neon-quota-upgrade",
+      "title": "Get your dashboard back: switch the Neon account to pay-as-you-go",
+      "why": "WITHDRAWN 2026-11-19 — this ask was wrong. Your dashboard is a United Under God app and belongs on the shared LPL Supabase, not Neon, so there is nothing to pay for. An agent moved the dashboard's database to Supabase (schema appengine) instead. The dashboard's database (Neon project 'Apps') used up the free plan's 100 compute-hours on Nov 18, so Neon blocks it and sign-in fails with a server error until Dec 1. A scheduled job that ran every 5 minutes kept it awake around the clock; it now runs hourly so this won't repeat. Pay-as-you-go has no monthly minimum and charges $0.106 per compute-hour. Expect a few dollars a month; even this month's worst case (all 110 hours so far, if Neon counted them) is under $15. Your other 10 Neon databases barely run.",
+      "steps": [
+        "console.neon.tech → organization 'United Under God' → Billing → choose Launch (pay-as-you-go), add a card",
+        "Reload dashboard.unitedundergod.org and sign in. It should work within a minute",
+        "Optional later: an agent moves the dashboard onto your shared Supabase (your 'all apps on Supabase' rule), then you can switch Neon back to free"
+      ],
+      "kind": "money",
+      "priority": "blocker",
+      "status": "dismissed",
+      "link": "https://console.neon.tech/app/org-little-rain-06040323/billing",
+      "source": "Vercel runtime errors: NeonDbError 402 quota exceeded since 2026-11-18 23:05",
+      "requestedBy": "Claude (dashboard outage 2026-11-19)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "Owner ruling 2026-11-19 ('all my apps live on supabase'); dashboard moved to LPL Supabase schema appengine, no Neon upgrade needed",
+      "app": "appengine",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "furfriend-pet-tags-check-the-tag-sizes-send-layouts-for-the-heart-and-bow-tie-ph",
+      "title": "Pet tags: check the tag sizes, send the heart layout, photograph the cat and tree",
+      "why": "Every pet tag order now carries your own black-and-white file (cut the outline, engrave inside) with the customer's name and phone. An agent had to pick each tag's printed size, the heart-with-bow shape has no layout yet (the bow tie arrived 2026-11-19 and is live), and the new cat and tree tags show your drawing instead of a photo.",
+      "steps": [
+        "Open the sizes list at laser.engrave.market/api/pet-tags (bow 1.5 in wide, sitting dog 1.5, round 1.25, pup 1.5, cat 1.5, tree 1.25, bone 2.0, bow tie 1.6). If any is wrong, reply in an agent session with the right width; the file is redrawn at that size.",
+        "Send a black-and-white layout for the heart-with-bow tag like the others (with a sample name and phone). Until then it gets the old name-only file.",
+        "When you cut the first cat face and Christmas tree tags, photograph them like the others and send the photos."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://laser.engrave.market/api/pet-tags",
+      "source": "LaserEngraving #203, furfriend #20",
+      "requestedBy": "Claude (pet tags session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: GET laser.engrave.market/api/pet-tags lists the 7 shapes and sizes; a QA order for FF-TAG-CAT carried engrave_spec.files.maker_png (900x858 px at 600 dpi) and was deleted unpaid; FF-TAG-HEART and FF-TAG-BOWTIE proof.png return 404 (no layout); FF-TAG-CAT and FF-TAG-TREE image_url is the owner's drawing.",
+      "app": "furfriend",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "spark-of-hope-choose-one-place-to-make-coins-spark-admin-or-laser-tokens",
+      "title": "Choose one place to make coins: Spark admin or Laser Tokens",
+      "why": "Coins can be made in two places today. Laser Engraving > Tokens makes a 'wave' with one QR code shared by every coin, for Presence pages, restaurant tables and places. Spark of Hope's admin makes coins with their own QR each, and has what you have been asking for: per-coin tracking, your images, a second line, page messages you edit per coin, batch, phrase or ticked coins, and xTool files. Two makers will drift apart. The agent recommends: make Spark of Hope coins in spark-of-hope.com/admin from now on; keep Laser > Tokens for Presence tables and places until you decide whether Presence coins ",
+      "steps": [
+        "Pick: (a) Spark admin for all Spark coins, Laser Tokens for Presence only (recommended), (b) move everything into Laser admin, or (c) something else",
+        "Tell an agent your choice; it will label or link the other maker so you are not sent there by mistake"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "done",
+      "link": "https://spark-of-hope.com/admin",
+      "source": "lincolnnunnally/life-produces-life#22",
+      "requestedBy": "Claude (Spark of Hope session)",
+      "verifiedOn": "2026-11-19",
+      "verifiedHow": "2026-11-19: read LaserEngraving tokens_router.py (one presence_coins code per wave) and Spark TrailAdmin (unique code per coin, art, second line, page messages, xTool); both live; spark_trail_tokens has 17 Spark coins, presence_coins has waves LOOKUP, YOU-ARE-LOVED, THANKFUL",
+      "app": "spark-of-hope",
+      "addedOn": "2026-11-19"
+    },
+    {
+      "id": "united-under-god-get-messenger-avl-s-ok-on-10-and-the-sanctuary-avl-ballpark-pri",
+      "title": "Get Messenger AVL's OK on 10% and the Sanctuary AVL ballpark prices",
+      "why": "Sanctuary AVL (sanctuaryavl.unitedundergod.org) sends church leads to Messenger AVL as the primary installer at 10%, and shows ballpark price ranges by room size. The ranges are an agent's estimate; Jim's team should confirm them so a church never sees a number they would not stand behind.",
+      "steps": [
+        "Ask Jim to agree to 10% of each installed job, in writing (an email reply is enough to start)",
+        "Ask Jim's team to look over the price table at https://sanctuaryavl.unitedundergod.org/guides/church-av-cost and send back any ranges they would change",
+        "Forward their answer to an agent; the ranges live in one file and change in minutes"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://sanctuaryavl.unitedundergod.org/guides/church-av-cost",
+      "source": "united-under-god PR #64",
+      "requestedBy": "Claude (Sanctuary AVL session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Owner chose Messenger AVL as primary at 10% in chat 2026-11-20; ranges in src/lib/sanctuary-avl.ts are unreviewed estimates; no signed terms on the existing messenger-avl-partner-terms task (open)",
+      "app": "united-under-god",
+      "addedOn": "2026-11-20"
+    },
+    {
+      "id": "we-succeed-before-your-lyons-interview-read-the-lyons-page-and-fix-anything-wron",
+      "title": "Before your Lyons interview: read the Lyons page and fix anything wrong",
+      "why": "We Succeed has a page about downtown Lyons: what already works, a SWOT, how many people search for its events, what was tried before and what it taught. It carries no byline or personal notes. It's hidden from search and linked from nowhere, so you decide whether to hand it over.",
+      "steps": [
+        "Open www.we-succeed.org/lyons on your phone and read it. Tell any agent what to change, or say 'it's right'",
+        "Read your private prep notes in the uug-succeed repo: docs/LYONS_INTERVIEW_PREP.md. They cover who is connected to Elements and Prime Cut, and the numbers to know",
+        "If you can, go to the public hearing on the downtown and US 1 tax allocation districts: Mon Nov 23, 5:30 PM, Lyons City Hall, 161 NE Broad St. Also Live in Lyons, Sat Nov 21",
+        "Tell an agent your job years (We Succeed, Millstead, Consolidated Copier) and one true sentence about fundraising. The posting asked for both"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.we-succeed.org/lyons",
+      "source": "uug-succeed PR #10",
+      "requestedBy": "Claude (Lyons marketing session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Opened www.we-succeed.org/lyons live on 2026-11-20 after uug-succeed #11: 200, noindex, SWOT present, no byline or interview text; the Nov 23 hearing is on the city's own notice (lyonsga.gov TAD notice PDF)",
+      "app": "we-succeed",
+      "addedOn": "2026-11-20"
+    },
+    {
+      "id": "furfriend-create-furfriend-s-own-stripe-account-and-add-its-key",
+      "title": "Create FurFriend's own Stripe account and add its key",
+      "why": "furfriend.pet now sells its pet tags itself (front-only $12, QR back +$10, $4.95 shipping), but buyers see 'online checkout is opening soon' until FurFriend has a Stripe key. You chose a new FurFriend Stripe account, so only you can open it and create its key.",
+      "steps": [
+        "In Stripe, click your account name at the top left, choose + New account, and name it FurFriend. Finish activation (business details and the bank account payouts go to).",
+        "In the FurFriend account, live mode: Developers → API keys → Create restricted key, name it furfriend-tags. Give it Write on Checkout Sessions, Products and Prices. Leave everything else None.",
+        "In Vercel, project furfriend → Settings → Environment Variables: add FURFRIEND_STRIPE_SECRET_KEY with that key, Production only, marked Sensitive. Use this exact name, not STRIPE_SECRET_KEY: paid sitting reads that one for the shared account.",
+        "Tell any agent 'FurFriend Stripe key added'. The agent redeploys production and confirms furfriend.pet/tags shows the Check out button, without making a payment."
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://dashboard.stripe.com/",
+      "source": "furfriend PR #25",
+      "requestedBy": "Claude (FurFriend pet tags session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "2026-11-20: Vercel furfriend env list has no FURFRIEND_STRIPE_SECRET_KEY or STRIPE_SECRET_KEY; the PR #25 preview shows 'opening soon' without a key and, with its preview-only test checkout, completed two orders end to end (paid, QR codes minted, receipt and admin emails delivered, engrave files, shipped email).",
+      "app": "furfriend",
+      "addedOn": "2026-11-20"
     }
   ]
 }

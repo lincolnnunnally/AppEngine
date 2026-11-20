@@ -8,26 +8,12 @@ export const maxDuration = 60;
 
 // One-shot allowlist mint: add-only CNAME to Vercel, then make sure a cert exists.
 // Add-only: existing DNS records are never updated or deleted.
-// Vidalia Pro (2026-11-05): every vidalia.pro subdomain below is already attached to
-// the Vercel project `operate`; none had a DNS record. handyman. and signs. are the
-// one-business lead sites (operate PR #101); the rest are the trade pages.
+// Sanctuary AVL (2026-11-20): church audio, video and lighting under its own name.
+// Already attached to the Vercel project united-under-god (its /avl routes); no DNS record yet.
 const HOSTS = [
-  { label: "handyman", zone: "vidalia.pro", project: "operate" },
-  { label: "signs", zone: "vidalia.pro", project: "operate" },
-  { label: "pressure-washing", zone: "vidalia.pro", project: "operate" },
-  { label: "painting", zone: "vidalia.pro", project: "operate" },
-  { label: "flooring", zone: "vidalia.pro", project: "operate" },
-  { label: "plumbing", zone: "vidalia.pro", project: "operate" },
-  { label: "appliance-install", zone: "vidalia.pro", project: "operate" },
-  { label: "tv-mounting", zone: "vidalia.pro", project: "operate" },
-  { label: "finish-carpentry", zone: "vidalia.pro", project: "operate" },
-  { label: "roofing", zone: "vidalia.pro", project: "operate" },
-  { label: "remodeling", zone: "vidalia.pro", project: "operate" },
-  { label: "junk-removal", zone: "vidalia.pro", project: "operate" },
-  { label: "lawn-care", zone: "vidalia.pro", project: "operate" },
-  { label: "tennis", zone: "vidalia.pro", project: "operate" }
+  { label: "sanctuaryavl", zone: "unitedundergod.org", project: "united-under-god" }
 ] as const;
-const NONCE = "uug-mint-2026-11-05-vidalia-pro-q8m2";
+const NONCE = "uug-mint-2026-11-20-sanctuaryavl-r8q3";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;

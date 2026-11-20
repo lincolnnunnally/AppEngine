@@ -194,7 +194,9 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     family: "transformation",
     purpose:
       "Being heard and Hope Stories — curated encouragement. Reviewed testimony share/read lives on Live On Mission /testimonies. ChurchConnect public /testimonies is not a TestimonyHub door.",
-    adminNote: "Spark /admin is not a live door (404 as of 2026-09-20). Do not invent a parallel AppEngine admin."
+    adminUrl: "https://spark-of-hope.com/admin",
+    adminNote:
+      "One owner home on Spark: overview, the coin trail, stories waiting, and people. Journal words stay private. The AppEngine intake preview does not publish to this admin."
   },
   opportunity: {
     slug: "opportunity",

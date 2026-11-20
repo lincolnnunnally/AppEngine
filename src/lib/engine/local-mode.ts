@@ -1,4 +1,7 @@
-const databaseUrlEnvKeys = ["DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"] as const;
+// APP_ENGINE_DATABASE_URL (first) is the dashboard's own database: the LPL Supabase,
+// schema appengine. It exists because an integration-managed DATABASE_URL on
+// Vercel production cannot be changed. The rest are older fallbacks.
+const databaseUrlEnvKeys = ["APP_ENGINE_DATABASE_URL", "DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING", "NEON_DATABASE_URL"] as const;
 
 type RuntimeEnv = Record<string, string | undefined>;
 

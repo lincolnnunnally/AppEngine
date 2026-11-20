@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import PostgresAdapter from "@auth/pg-adapter";
-import { Pool } from "@neondatabase/serverless";
+import { Pool as NeonPool } from "@neondatabase/serverless";
+import type { Pool as PgPool } from "pg";
+import { getPgPool, isNeonUrl, sqlForUrl } from "@/lib/db/postgres";
 import { headers } from "next/headers";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -10,6 +12,8 @@ import { normalizeSignInEmail, resolveAuthEmailFrom } from "@/lib/auth/email";
 import { githubProfile } from "@/lib/auth/github-profile";
 import { hostFromHeader, isAllowedAuthOrigin, sessionCookieDomainForHost } from "@/lib/auth/hosts";
 import { resolveRoleForSessionUser } from "@/lib/auth/roles";
+
+type RoleSql = NonNullable<NonNullable<Parameters<typeof resolveRoleForSessionUser>[1]>["sql"]>;
 import { toClientSession } from "@/lib/auth/session";
 import { getConfiguredDatabaseUrl } from "@/lib/engine/local-mode";
 
@@ -110,7 +114,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
   const sessionCookie = await sessionCookies();
 
   return {
-    adapter: databaseUrl ? PostgresAdapter(new Pool({ connectionString: databaseUrl })) : undefined,
+    // Supabase (where the dashboard lives) goes through `pg`; Neon keeps its own driver.
+    adapter: databaseUrl ? PostgresAdapter(isNeonUrl(databaseUrl) ? (new NeonPool({ connectionString: databaseUrl }) as unknown as PgPool) : getPgPool(databaseUrl)) : undefined,
     secret: getAuthSecret(),
     trustHost: true,
     providers: buildProviders(databaseUrl),
@@ -130,11 +135,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async () => {
       },
       async session({ session, user }) {
         if (session.user) {
-          session.user.role = await resolveRoleForSessionUser({
-            id: user?.id,
-            email: session.user.email || user?.email,
-            role: user?.role
-          });
+          // The database handle is passed in from here (server only): roles.ts is
+          // also bundled into browser code, where `pg` cannot load.
+          session.user.role = await resolveRoleForSessionUser(
+            {
+              id: user?.id,
+              email: session.user.email || user?.email,
+              role: user?.role
+            },
+            { sql: databaseUrl ? (sqlForUrl(databaseUrl) as unknown as RoleSql) : undefined }
+          );
         }
         // Return a whitelisted shape, never the raw `session` object. With the
         // database-session strategy that object is the AdapterSession row and
