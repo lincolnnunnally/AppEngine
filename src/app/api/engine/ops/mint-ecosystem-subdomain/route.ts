@@ -8,12 +8,12 @@ export const maxDuration = 60;
 
 // One-shot allowlist mint: add-only CNAME to Vercel, then make sure a cert exists.
 // Add-only: existing DNS records are never updated or deleted.
-// Post Once (2026-11-17): the communications hub landing page. Already attached
-// to the Vercel project easypeazy-web (served from public/postonce/); no DNS record yet.
+// Sanctuary AVL (2026-11-20): church audio, video and lighting under its own name.
+// Already attached to the Vercel project united-under-god (its /avl routes); no DNS record yet.
 const HOSTS = [
-  { label: "postonce", zone: "unitedundergod.org", project: "easypeazy-web" }
+  { label: "sanctuaryavl", zone: "unitedundergod.org", project: "united-under-god" }
 ] as const;
-const NONCE = "uug-mint-2026-11-17-postonce-k4v7";
+const NONCE = "uug-mint-2026-11-20-sanctuaryavl-r8q3";
 
 function authorized(request: Request) {
   return (request.headers.get("x-uug-mint") || "") === NONCE;
