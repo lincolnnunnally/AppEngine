@@ -2430,6 +2430,27 @@
       "verifiedHow": "2026-11-19: read LaserEngraving tokens_router.py (one presence_coins code per wave) and Spark TrailAdmin (unique code per coin, art, second line, page messages, xTool); both live; spark_trail_tokens has 17 Spark coins, presence_coins has waves LOOKUP, YOU-ARE-LOVED, THANKFUL",
       "app": "spark-of-hope",
       "addedOn": "2026-11-19"
+    },
+    {
+      "id": "we-succeed-before-your-lyons-interview-read-the-lyons-page-and-fix-anything-wron",
+      "title": "Before your Lyons interview: read the Lyons page and fix anything wrong",
+      "why": "We Succeed now has a page you can hand the City of Lyons: what downtown already does well, what a person looking for the Christmas parade would miss, and the questions only they can answer. It speaks in your voice, so only you can say it's right. It's hidden from search and linked from nowhere.",
+      "steps": [
+        "Open www.we-succeed.org/lyons on your phone and read it. Tell any agent what to change, or say 'it's right'",
+        "It says in your voice that you would not sell the city anything while working for it, and that anything paid would be disclosed in writing. Keep that line or tell an agent to take it out",
+        "Read your private prep notes: uug-succeed repo, docs/LYONS_INTERVIEW_PREP.md. Go to Live in Lyons on Sat Nov 21 if you can",
+        "Tell an agent your job years (We Succeed, Millstead, Consolidated Copier) and one true sentence about fundraising. The posting asked for both"
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.we-succeed.org/lyons",
+      "source": "uug-succeed PR #10",
+      "requestedBy": "Claude (Lyons marketing session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Opened www.we-succeed.org/lyons live on 2026-11-20: 200, X-Robots-Tag noindex, robots.txt disallows /lyons; docs/ returns 404 on the live site; checked at 1280px and iPhone width",
+      "app": "we-succeed",
+      "addedOn": "2026-11-20"
     }
   ]
 }
