@@ -2471,6 +2471,27 @@
       "verifiedHow": "Opened www.we-succeed.org/lyons live on 2026-11-20: 200, X-Robots-Tag noindex, robots.txt disallows /lyons; docs/ returns 404 on the live site; checked at 1280px and iPhone width",
       "app": "we-succeed",
       "addedOn": "2026-11-20"
+    },
+    {
+      "id": "furfriend-create-furfriend-s-own-stripe-account-and-add-its-key",
+      "title": "Create FurFriend's own Stripe account and add its key",
+      "why": "furfriend.pet now sells its pet tags itself (front-only $12, QR back +$10, $4.95 shipping), but buyers see 'online checkout is opening soon' until FurFriend has a Stripe key. You chose a new FurFriend Stripe account, so only you can open it and create its key.",
+      "steps": [
+        "In Stripe, click your account name at the top left, choose + New account, and name it FurFriend. Finish activation (business details and the bank account payouts go to).",
+        "In the FurFriend account, live mode: Developers → API keys → Create restricted key, name it furfriend-tags. Give it Write on Checkout Sessions, Products and Prices. Leave everything else None.",
+        "In Vercel, project furfriend → Settings → Environment Variables: add FURFRIEND_STRIPE_SECRET_KEY with that key, Production only, marked Sensitive. Use this exact name, not STRIPE_SECRET_KEY: paid sitting reads that one for the shared account.",
+        "Tell any agent 'FurFriend Stripe key added'. The agent redeploys production and confirms furfriend.pet/tags shows the Check out button, without making a payment."
+      ],
+      "kind": "credential",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://dashboard.stripe.com/",
+      "source": "furfriend PR #25",
+      "requestedBy": "Claude (FurFriend pet tags session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "2026-11-20: Vercel furfriend env list has no FURFRIEND_STRIPE_SECRET_KEY or STRIPE_SECRET_KEY; the PR #25 preview shows 'opening soon' without a key and, with its preview-only test checkout, completed two orders end to end (paid, QR codes minted, receipt and admin emails delivered, engrave files, shipped email).",
+      "app": "furfriend",
+      "addedOn": "2026-11-20"
     }
   ]
 }
