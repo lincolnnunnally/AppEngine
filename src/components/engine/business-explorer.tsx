@@ -340,13 +340,13 @@ export function BusinessExplorer({
                           href={app.adminUrl}
                           target={app.adminUrl.startsWith("/") ? undefined : "_blank"}
                           rel="noreferrer"
-                          title={app.adminNote || `${app.name}'s own admin`}
+                          title="Open admin"
                         >
-                          {app.family === "toner" ? "Toner admin ↗" : "Admin ↗"}
+                          Open admin
                         </a>
                       ) : (
-                        <span className="dx-note" title={app.adminReason}>
-                          {app.adminState === "no_address" ? "admin, no address" : "no admin door"}
+                        <span className="dx-note">
+                          {app.adminState === "no_address" ? "No public address yet" : "No admin yet"}
                         </span>
                       )}
                     </td>

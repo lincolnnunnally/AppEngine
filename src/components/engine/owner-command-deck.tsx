@@ -6,8 +6,8 @@ import { buildWeeklyGoal, type WeeklyGoalReport } from "@/lib/engine/weekly-reve
 import { BusinessExplorer, type DeckRevenue } from "@/components/engine/business-explorer";
 import { WeeklyGoalGlance } from "@/components/engine/weekly-goal-panel";
 import { crmFollowUpCount } from "@/lib/engine/lpl-crm";
-import { readSparkGlance } from "@/lib/engine/lpl-ops-stats";
-import { liveAppsNotReporting } from "@/lib/engine/reporting-gaps";
+import { readSparkGlance, type SparkGlance } from "@/lib/engine/lpl-ops-stats";
+import type { DeckApp } from "@/lib/engine/owner-deck";
 import { listOwnerTasks } from "@/lib/engine/owner-tasks";
 import { countTasks, isActiveStatus, PRIORITY_LABEL, type OwnerTask, taskLinkLabel } from "@/lib/engine/owner-tasks-core";
 
@@ -136,89 +136,71 @@ function isViewKey(value: string): value is ViewKey {
   return (VIEW_KEYS as readonly string[]).includes(value);
 }
 
-function SparkDeskCard({
-  glance,
-  missing,
-  liveCount
-}: {
-  glance: {
-    scans7d: number | null;
-    storiesWaiting: number | null;
-    notesHeld: number | null;
-    shares: number | null;
-    reach: number | null;
-    checkIns7d: number | null;
-  } | null;
-  missing: { slug: string; name: string }[];
-  liveCount: number;
-}) {
-  const waiting = glance ? (glance.storiesWaiting ?? 0) + (glance.notesHeld ?? 0) : null;
-  const figure = (value: number | null | undefined) => (typeof value === "number" ? value : "—");
+function figure(value: number | null | undefined) {
+  return typeof value === "number" ? String(value) : "—";
+}
+
+function cardNumbers(app: DeckApp, spark: SparkGlance | null): { label: string; value: string }[] {
+  if (app.slug === "spark-of-hope") {
+    if (!spark || [spark.scans, spark.visits, spark.shares, spark.notes, spark.storiesWaiting].every((value) => value == null)) {
+      return [];
+    }
+    return [
+      { label: "scans", value: figure(spark.scans) },
+      { label: "visits", value: figure(spark.visits) },
+      { label: "shares", value: figure(spark.shares) },
+      { label: "notes", value: figure(spark.notes) },
+      { label: "stories waiting", value: figure(spark.storiesWaiting) }
+    ];
+  }
+  const numbers: { label: string; value: string }[] = [];
+  if (typeof app.users === "number") numbers.push({ label: "people", value: String(app.users) });
+  if (typeof app.newUsers7d === "number") numbers.push({ label: "new, 7 days", value: String(app.newUsers7d) });
+  if (typeof app.ticketsOpen === "number") numbers.push({ label: "open", value: String(app.ticketsOpen) });
+  if (typeof app.ordersRecent === "number") numbers.push({ label: "orders, 30 days", value: String(app.ordersRecent) });
+  return numbers.slice(0, 4);
+}
+
+function YourAppsGrid({ apps, spark }: { apps: DeckApp[]; spark: SparkGlance | null }) {
+  const live = apps.filter((app) => app.status === "live");
   return (
-    <section className="panel" id="spark-of-hope">
-      <p className="dx-label">Spark of Hope</p>
-      <h2 className="dx-display">The hope door.</h2>
-      <p className="dx-lede">
-        Scans, shares, check-ins, and stories waiting. The same numbers the Spark owner home uses. Journal words stay on Spark and are not copied here.
-      </p>
-      {glance ? (
-        <div className="dx-stat-grid">
-          <div className="dx-stat dx-stat--cyan">
-            <strong>{figure(glance.scans7d)}</strong>
-            <span>scans, 7 days</span>
-            <p>from the shared coin trail</p>
-          </div>
-          <div className="dx-stat">
-            <strong>{figure(glance.shares)}</strong>
-            <span>shares</span>
-            <p>{figure(glance.reach)} people opened one</p>
-          </div>
-          <div className="dx-stat">
-            <strong>{figure(glance.checkIns7d)}</strong>
-            <span>check-ins, 7 days</span>
-            <p>private journal, count only</p>
-          </div>
-          <a className={`dx-stat ${waiting ? "dx-stat--pink" : ""}`} href="https://spark-of-hope.com/admin#hope-stories">
-            <strong>{figure(waiting)}</strong>
-            <span>waiting for review</span>
-            <p>stories and held notes →</p>
-          </a>
-        </div>
-      ) : (
-        <p className="dx-note">Spark counts are dark until the shared database can be read from this desk. That is not a zero.</p>
-      )}
-      <p className="dx-app-actions dx-inset">
-        <a className="dx-btn dx-btn--primary" href="https://spark-of-hope.com/admin">
-          Spark admin ↗
-        </a>
-        <a className="dx-btn" href="/apps/spark-of-hope">
-          This app&apos;s page
-        </a>
-      </p>
-      <div className="dx-note">
-        <p>
-          Every live app is in the table below. A number shows when the app shares <code>/api/admin/stats</code> or has a known table on the shared database.
-        </p>
-        {missing.length === 0 ? (
-          <p>Every live app is reporting a number.</p>
-        ) : (
-          <>
-            <p>
-              {missing.length === liveCount
-                ? `This desk has no usage reading yet, so all ${missing.length} live apps are listed. An app leaves this list once it shares a number.`
-                : `Still missing a number (${missing.length}):`}
-            </p>
-            <ul>
-              {missing.map((app) => (
-                <li key={app.slug}>
-                  <a className="account-link" href={`/apps/${app.slug}`}>
-                    {app.name}
+    <section className="panel" id="your-apps">
+      <p className="dx-label">Your apps</p>
+      <h2 className="dx-display">Open any admin.</h2>
+      <div className="owner-app-grid">
+        {live.map((app) => {
+          const numbers = cardNumbers(app, spark);
+          return (
+            <article className="owner-app-card" id={app.slug} key={app.slug}>
+              <h3>{app.name}</h3>
+              {numbers.length ? (
+                <ul className="owner-app-numbers">
+                  {numbers.map((item) => (
+                    <li key={item.label}>
+                      <strong>{item.value}</strong> {item.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="dx-note">no numbers yet</p>
+              )}
+              <p className="dx-app-actions">
+                {app.adminUrl ? (
+                  <a className="dx-btn dx-btn--primary" href={app.adminUrl}>
+                    Open admin
                   </a>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
+                ) : (
+                  <span className="dx-note">No admin yet</span>
+                )}
+                {app.url ? (
+                  <a className="dx-btn" href={app.url}>
+                    Public site
+                  </a>
+                ) : null}
+              </p>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -334,6 +316,7 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
 
   return (
     <main className="shell wide-shell">
+      <YourAppsGrid apps={deck.apps} spark={spark} />
       <OwnerToDoPanel tasks={ownerTasks} nameFor={nameFor} />
       <section className="panel biz-hero">
         <p className="dx-label">United Under God — the businesses</p>
@@ -352,11 +335,6 @@ export async function OwnerCommandDeck({ userKey, appsFilter }: { userKey: strin
             : " · ops snapshot unavailable"}
         </p>
         <MoneyStrip stripe={stripe} weekly={weekly} />
-        <SparkDeskCard
-          glance={spark}
-          liveCount={deck.apps.filter((app) => app.status === "live").length}
-          missing={liveAppsNotReporting(deck.apps)}
-        />
         {stripe.state === "ok" ? (
           <div className="dx-table-wrap dx-inset">
             <table className="dx-table">

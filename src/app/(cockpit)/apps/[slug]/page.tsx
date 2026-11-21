@@ -38,14 +38,16 @@ export default async function AppDossierPage({
           </div>
         </div>
         <div className="dx-app-actions dx-inset">
-          {app.url ? (
-            <a className="dx-btn dx-btn--primary" href={app.url} target="_blank" rel="noreferrer">
-              Open app ↗
-            </a>
-          ) : null}
           {app.adminUrl ? (
-            <a className="dx-btn" href={app.adminUrl} target={app.adminUrl.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
-              {dossier.family === "toner" ? "Toner Central admin ↗" : "This app's admin ↗"}
+            <a className="dx-btn dx-btn--primary" href={app.adminUrl} target={app.adminUrl.startsWith("/") ? undefined : "_blank"} rel="noreferrer">
+              Open admin
+            </a>
+          ) : (
+            <span className="dx-note">No admin yet</span>
+          )}
+          {app.url ? (
+            <a className="dx-btn" href={app.url} target="_blank" rel="noreferrer">
+              Public site
             </a>
           ) : null}
           <a className="dx-btn" href={`/tasks?app=${encodeURIComponent(app.slug)}`}>
@@ -63,8 +65,6 @@ export default async function AppDossierPage({
             Public help form ↗
           </a>
         </div>
-        {dossier.adminNote ? <p className="dx-note">{dossier.adminNote}</p> : null}
-        {!app.adminUrl && dossier.adminReason ? <p className="dx-note">{dossier.adminReason}</p> : null}
         {!dossier.revenueStreamSlug ? (
           <p className="dx-note">
             Revenue is not wired for this app: no classifier tells its charges apart, so we show nothing rather than a
@@ -153,8 +153,7 @@ export default async function AppDossierPage({
         </div>
         {!app.reporting && app.status === "live" ? (
           <p className="dx-note" style={{ marginTop: 12 }}>
-            This app is live and not sharing usage yet. The engine wires that as apps are finished — we will never invent a
-            number to fill the gap.
+            This app is live. It is not sharing usage numbers yet.
           </p>
         ) : null}
       </section>

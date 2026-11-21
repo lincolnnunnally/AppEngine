@@ -194,25 +194,22 @@ export function lplKnownSlugs(): string[] {
 }
 
 export type SparkGlance = {
-  scans7d: number | null;
-  storiesWaiting: number | null;
-  notesHeld: number | null;
+  scans: number | null;
+  visits: number | null;
   shares: number | null;
-  reach: number | null;
-  checkIns7d: number | null;
+  notes: number | null;
+  storiesWaiting: number | null;
 };
 
 /** Spark-specific counts for the owner desk. Null means that table could not be read. */
 export async function readSparkGlance(): Promise<SparkGlance | null> {
   if (!lplOpsConfigured()) return null;
-  const since = isoDaysAgo(7);
-  const [scans7d, storiesWaiting, notesHeld, shares, reach, checkIns7d] = await Promise.all([
-    countRows("spark_trail_events", `select=id&kind=eq.scan&created_at=gte.${since}`),
-    countRows("spark_trail_testimonies", "select=id&status=eq.pending"),
-    countRows("spark_trail_notes", "select=id&status=eq.held"),
+  const [scans, visits, shares, notes, storiesWaiting] = await Promise.all([
+    countRows("spark_trail_events", "select=id&kind=eq.scan"),
+    countRows("spark_trail_events", "select=id&kind=eq.visit"),
     countRows("spark_trail_shares", "select=id"),
-    countRows("spark_trail_share_opens", "select=id"),
-    countRows("lpl_growth_journals", `select=id&source_app=eq.spark_of_hope&entry_type=eq.check_in&created_at=gte.${since}`)
+    countRows("spark_trail_notes", "select=id"),
+    countRows("spark_trail_testimonies", "select=id&status=eq.pending")
   ]);
-  return { scans7d, storiesWaiting, notesHeld, shares, reach, checkIns7d };
+  return { scans, visits, shares, notes, storiesWaiting };
 }

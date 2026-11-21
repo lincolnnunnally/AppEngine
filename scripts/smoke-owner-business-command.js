@@ -211,7 +211,7 @@ runStep("the deck itself renders each app's own admin door", () => {
   assertFileIncludes("src/components/engine/business-explorer.tsx", [
     "app.adminUrl",
     "dx-doorlink--admin",
-    "app.adminReason"
+    "Open admin"
   ]);
   assertFileIncludes("src/lib/engine/owner-deck.ts", ["adminState", "adminReason"]);
   // Operate is a live business with its own owner surface; it must be on the
@@ -296,7 +296,7 @@ runStep("home is an internal business desk, not an app builder", () => {
 runStep("per-app dossier and central inbox exist", () => {
   assertFileIncludes("src/app/(cockpit)/apps/[slug]/page.tsx", [
     "loadAppDossier",
-    "This app's admin",
+    "Open admin",
     "Opportunities and challenges",
     "Help requests for this app"
   ]);
