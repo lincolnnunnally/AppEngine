@@ -2609,6 +2609,27 @@
       "verifiedHow": "2026-11-21: kidsafe.unitedundergod.org title and emails say 'Kid Safe'; Lincoln's shared mockup logo reads 'Kids Safe'",
       "app": "kidsafe",
       "addedOn": "2026-11-21"
+    },
+    {
+      "id": "kidsafe-set-kid-safe-prices-blank-tags-for-partners-a-family-s-own-tag-and-what-",
+      "title": "Set Kid Safe prices: blank tags for partners, a family's own tag, and what a partner earns",
+      "why": "The Kid Safe partner program is live (furfriend PR #44). Daycares, doctors' offices, kids' stores, parks, cruises and hotels can apply or activate a display, and parents register blank tags on the spot. Nothing is charged or paid yet because no prices are set. FurFriend's terms, for comparison: blank stock tags $10 each ($8 from 50, at least 10), a partner earns $1 per tag their customers order, and a family's own tag is from $12.",
+      "steps": [
+        "Price of blank tags a partner keeps to hand out (each, and any bulk price)",
+        "Price of a family's own engraved tag ordered online",
+        "What a partner earns: a share per tag their families order, a flat amount per family who joins, or nothing (setup is free to families either way)",
+        "Whether displays are free to partners or charged"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsafe.unitedundergod.org/partners",
+      "source": "furfriend PR #44",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: Kid Safe partner apply, display activation, blank tag registration and dashboard verified on a preview with test accounts (since deleted); no price or payout exists in ks_ tables or code",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
     }
   ]
 }
