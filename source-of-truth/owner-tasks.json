@@ -2591,6 +2591,24 @@
       "verifiedHow": "2026-11-21: furfriend Vercel env list has no TWILIO_* vars; ChurchConnect docs/maps/church-texting-number-map.md says its sends have no 10DLC or toll-free registration; Kid Safe live code calls lib/sms.ts only when those vars are set",
       "app": "furfriend",
       "addedOn": "2026-11-21"
+    },
+    {
+      "id": "furfriend-pick-the-name-kid-safe-or-kids-safe",
+      "title": "Pick the name: Kid Safe or Kids Safe",
+      "why": "The live site, emails and tag address say 'Kid Safe' (kidsafe.unitedundergod.org). The new logo mockup says 'Kids Safe'. Engraved tags and printed cards should use one name, so this needs settling before any tags are made. The web address can stay kidsafe either way.",
+      "steps": [
+        "Reply 'Kid Safe' or 'Kids Safe' in the Claude chat"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsafe.unitedundergod.org/",
+      "source": "Kid Safe design review, 2026-11-21",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: kidsafe.unitedundergod.org title and emails say 'Kid Safe'; Lincoln's shared mockup logo reads 'Kids Safe'",
+      "app": "furfriend",
+      "addedOn": "2026-11-21"
     }
   ]
 }
