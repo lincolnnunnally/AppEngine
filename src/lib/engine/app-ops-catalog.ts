@@ -314,6 +314,12 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     purpose: "Pet sitting and care between neighbors.",
     adminPath: "/admin"
   },
+  kidsafe: {
+    slug: "kidsafe",
+    family: "family",
+    purpose: "QR safety tags for kids: a helper scans, the parent is reached in one tap.",
+    adminNote: "No staff admin yet. Parents use kidsafe.unitedundergod.org/family. Code lives in the furfriend repo under /kids."
+  },
   "ai-website-design": {
     slug: "ai-website-design",
     family: "commerce",
