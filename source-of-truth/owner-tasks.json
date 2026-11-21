@@ -2552,6 +2552,26 @@
       "verifiedHow": "Read src/app/terms/page.tsx and src/app/privacy/page.tsx on furfriend main: no section on tag orders, refunds for engraved goods, finder location, partners, or Stripe; checkout (lib/tagorders.ts) sets no automatic tax. Live /terms and /privacy load (200).",
       "app": "furfriend",
       "addedOn": "2026-11-20"
+    },
+    {
+      "id": "furfriend-decide-on-kid-id-tags-yes-or-no-which-site-sells-them-and-the-child-sa",
+      "title": "Decide on kid ID tags: yes or no, which site sells them, and the child-safety rules",
+      "why": "You asked about turning the pet QR tag into a tag for kids (dinosaurs, unicorns, fire trucks) for theme parks, bowling alleys and festivals. The FurFriend tag system already does nearly all of it. Three things are yours: whether to make it, where it lives (a page on furfriend.pet that says 'Found a pet?' would be wrong for a child), and whether to pay for child-product safety testing. In the US, anything made mainly for kids 12 and under falls under CPSIA (lead limits, a Children's Product Certificate, tracking labels). Bare wood with no finish makes this much easier.",
+      "steps": [
+        "Reply yes or no to kid tags in the Claude chat",
+        "Pick where they sell: a new kid name and site on the same tag system (recommended), a page on Laser Engrave, or FurFriend",
+        "Decide whether the tags go out bare wood (easiest under CPSIA) or with a finish or paint, which needs lab testing (money)"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://furfriend.pet/tags",
+      "source": "AppEngine owner-tasks PR (kid tag idea)",
+      "requestedBy": "Claude (kid tag idea session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "Read furfriend src/lib/tags.ts, api/tags/[code], t/[code] page and LaserEngraving pet_tags.py on 2026-11-21; no kid tag exists; furfriend.pet/tags returned 200",
+      "app": "furfriend",
+      "addedOn": "2026-11-21"
     }
   ]
 }
