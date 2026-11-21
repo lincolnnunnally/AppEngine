@@ -2630,6 +2630,25 @@
       "verifiedHow": "2026-11-21: Kid Safe partner apply, display activation, blank tag registration and dashboard verified on a preview with test accounts (since deleted); no price or payout exists in ks_ tables or code",
       "app": "kidsafe",
       "addedOn": "2026-11-21"
+    },
+    {
+      "id": "kidsafe-pick-and-buy-kid-safe-s-own-domain-before-tags-are-printed-in-volume",
+      "title": "Pick and buy Kid Safe's own domain (before tags are printed in volume)",
+      "why": "Every printed tag carries the web address forever (the QR, and 'No scan? Go to ...' for typing). Today that is kidsafe.unitedundergod.org: long to type off a small tag. Checked available on 2026-11-21: kidsafetag.com ($12/yr), kidsafetags.com ($12/yr), kidssafetag.com ($12/yr, if the name becomes Kids Safe), findmygrownup.com ($12/yr), kidsafe.kids ($10 first year, then $30/yr), ksafe.me ($14, then $20/yr). Taken: kidsafe.com, .app, .org, .co, .me. Whatever goes on tags must keep working for good; kidsafe.unitedundergod.org will keep answering either way.",
+      "steps": [
+        "Settle the name first (kidsafe-pick-the-name-kid-safe-or-kids-safe)",
+        "Reply in the Claude chat with the domain to buy (recommended: kidsafetag.com, plus kidsafetags.com so nobody else takes it). An agent buys it on the Vercel account and points it at Kid Safe"
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsafe.unitedundergod.org/",
+      "source": "Kid Safe launch check, 2026-11-21",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: Vercel domain availability and price lookup for 38 names; kidsafe.unitedundergod.org is the address printed on cards in furfriend main",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
     }
   ]
 }
