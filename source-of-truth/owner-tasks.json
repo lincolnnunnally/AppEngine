@@ -2554,7 +2554,7 @@
       "addedOn": "2026-11-20"
     },
     {
-      "id": "furfriend-decide-on-kid-id-tags-yes-or-no-which-site-sells-them-and-the-child-sa",
+      "id": "kidsafe-decide-on-kid-id-tags-yes-or-no-which-site-sells-them-and-the-child-sa",
       "title": "Decide on kid ID tags: yes or no, which site sells them, and the child-safety rules",
       "why": "You asked about turning the pet QR tag into a tag for kids (dinosaurs, unicorns, fire trucks) for theme parks, bowling alleys and festivals. The FurFriend tag system already does nearly all of it. Three things are yours: whether to make it, where it lives (a page on furfriend.pet that says 'Found a pet?' would be wrong for a child), and whether to pay for child-product safety testing. In the US, anything made mainly for kids 12 and under falls under CPSIA (lead limits, a Children's Product Certificate, tracking labels). Bare wood with no finish makes this much easier.",
       "steps": [
@@ -2570,11 +2570,11 @@
       "requestedBy": "Claude (kid tag idea session)",
       "verifiedOn": "2026-11-21",
       "verifiedHow": "Read furfriend src/lib/tags.ts, api/tags/[code], t/[code] page and LaserEngraving pet_tags.py on 2026-11-21; no kid tag exists; furfriend.pet/tags returned 200",
-      "app": "furfriend",
+      "app": "kidsafe",
       "addedOn": "2026-11-21"
     },
     {
-      "id": "furfriend-get-a-texting-number-so-kid-safe-and-furfriend-can-text-a-parent-the-m",
+      "id": "kidsafe-get-a-texting-number-so-kid-safe-and-furfriend-can-text-a-parent-the-m",
       "title": "Get a texting number so Kid Safe and FurFriend can text a parent the moment a tag is scanned",
       "why": "You asked for a text ping the moment someone scans a child's or pet's tag. The code is built and live at kidsafe.unitedundergod.org (furfriend PR #39). It sends the text as soon as a number exists. Until then parents get email only. The furfriend project has no Twilio keys. ChurchConnect's Twilio number is for churches and isn't registered for this kind of alert. US carriers block texts from numbers that aren't registered, so a number needs registering (toll-free verification is simplest) before texts arrive. A number costs about $2 a month plus a cent or so per text.",
       "steps": [
@@ -2589,11 +2589,11 @@
       "requestedBy": "Claude (Kid Safe session)",
       "verifiedOn": "2026-11-21",
       "verifiedHow": "2026-11-21: furfriend Vercel env list has no TWILIO_* vars; ChurchConnect docs/maps/church-texting-number-map.md says its sends have no 10DLC or toll-free registration; Kid Safe live code calls lib/sms.ts only when those vars are set",
-      "app": "furfriend",
+      "app": "kidsafe",
       "addedOn": "2026-11-21"
     },
     {
-      "id": "furfriend-pick-the-name-kid-safe-or-kids-safe",
+      "id": "kidsafe-pick-the-name-kid-safe-or-kids-safe",
       "title": "Pick the name: Kid Safe or Kids Safe",
       "why": "The live site, emails and tag address say 'Kid Safe' (kidsafe.unitedundergod.org). The new logo mockup says 'Kids Safe'. Engraved tags and printed cards should use one name, so this needs settling before any tags are made. The web address can stay kidsafe either way.",
       "steps": [
@@ -2607,7 +2607,7 @@
       "requestedBy": "Claude (Kid Safe session)",
       "verifiedOn": "2026-11-21",
       "verifiedHow": "2026-11-21: kidsafe.unitedundergod.org title and emails say 'Kid Safe'; Lincoln's shared mockup logo reads 'Kids Safe'",
-      "app": "furfriend",
+      "app": "kidsafe",
       "addedOn": "2026-11-21"
     }
   ]
