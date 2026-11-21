@@ -2572,6 +2572,25 @@
       "verifiedHow": "Read furfriend src/lib/tags.ts, api/tags/[code], t/[code] page and LaserEngraving pet_tags.py on 2026-11-21; no kid tag exists; furfriend.pet/tags returned 200",
       "app": "furfriend",
       "addedOn": "2026-11-21"
+    },
+    {
+      "id": "furfriend-get-a-texting-number-so-kid-safe-and-furfriend-can-text-a-parent-the-m",
+      "title": "Get a texting number so Kid Safe and FurFriend can text a parent the moment a tag is scanned",
+      "why": "You asked for a text ping the moment someone scans a child's or pet's tag. The code is built and live at kidsafe.unitedundergod.org (furfriend PR #39). It sends the text as soon as a number exists. Until then parents get email only. The furfriend project has no Twilio keys. ChurchConnect's Twilio number is for churches and isn't registered for this kind of alert. US carriers block texts from numbers that aren't registered, so a number needs registering (toll-free verification is simplest) before texts arrive. A number costs about $2 a month plus a cent or so per text.",
+      "steps": [
+        "In Twilio (the account ChurchConnect uses), buy a toll-free number and submit toll-free verification for 'Kid Safe and FurFriend tag scan alerts' (use case: account notifications; parents opt in on kidsafe.unitedundergod.org/family)",
+        "Tell an agent when the number is bought. It adds TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER to the furfriend Vercel project, sends a test text, and turns on texts for pet tags too"
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://console.twilio.com/us1/develop/phone-numbers/manage/search",
+      "source": "furfriend PR #39",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: furfriend Vercel env list has no TWILIO_* vars; ChurchConnect docs/maps/church-texting-number-map.md says its sends have no 10DLC or toll-free registration; Kid Safe live code calls lib/sms.ts only when those vars are set",
+      "app": "furfriend",
+      "addedOn": "2026-11-21"
     }
   ]
 }
