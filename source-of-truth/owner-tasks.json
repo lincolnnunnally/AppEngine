@@ -2692,6 +2692,26 @@
       "verifiedHow": "2026-11-22: life.churchconnect.cloud and my.best-life.us have no DNS records (free); my.churchconnect.cloud is in use by the church website builder; churchconnect.cloud and best-life.us zones are active in Cloudflare and editable by agents; ChurchConnect stores sign-in per site address (localStorage), so a separate address would need a second sign-in",
       "app": "churchconnect",
       "addedOn": "2026-11-22"
+    },
+    {
+      "id": "kidsafe-create-an-empty-github-repo-named-kidsafe-so-kid-safe-can-move-out-of-fu",
+      "title": "Create an empty GitHub repo named kidsafe, so Kid Safe can move out of FurFriend",
+      "why": "You asked for Kid Safe to be its own app with its own repo and Vercel project. It is built inside the furfriend repo today, which is why FurFriend's Vercel card shows kidsafe.unitedundergod.org. Agents can't create GitHub repos; once this one exists, an agent moves Kid Safe into it, gives it its own Vercel project and proves it works.",
+      "steps": [
+        "Open github.com/new. Owner: lincolnnunnally. Name: kidsafe. Private. Leave README, .gitignore and license unticked (empty repo). Create.",
+        "If the Claude GitHub app is set to 'Only select repositories', add kidsafe at github.com/settings/installations (Claude > Configure). If it is set to 'All repositories', nothing to do.",
+        "Tell the agent it's there."
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://github.com/new",
+      "source": "lincolnnunnally/furfriend #52 follow-up",
+      "requestedBy": "Claude (furfriend session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "2026-11-22: add_repo for lincolnnunnally/kidsafe answered not found; list_repos for 'kid' returned none; Vercel project prj_UIn9xitp02g4hcFCpePyLNamDvjn (furfriend) lists kidsafe.unitedundergod.org as its newest domain; this session's tools can't create repos.",
+      "app": "kidsafe",
+      "addedOn": "2026-11-22"
     }
   ]
 }
