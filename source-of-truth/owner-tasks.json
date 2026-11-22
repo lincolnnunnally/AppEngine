@@ -2704,12 +2704,32 @@
       ],
       "kind": "account",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://github.com/new",
       "source": "lincolnnunnally/furfriend #52 follow-up",
       "requestedBy": "Claude (furfriend session)",
       "verifiedOn": "2026-11-22",
       "verifiedHow": "2026-11-22: add_repo for lincolnnunnally/kidsafe answered not found; list_repos for 'kid' returned none; Vercel project prj_UIn9xitp02g4hcFCpePyLNamDvjn (furfriend) lists kidsafe.unitedundergod.org as its newest domain; this session's tools can't create repos.",
+      "app": "kidsafe",
+      "addedOn": "2026-11-22"
+    },
+    {
+      "id": "kidsafe-remove-kidsafe-unitedundergod-org-from-the-furfriend-vercel-project-one-",
+      "title": "Remove kidsafe.unitedundergod.org from the furfriend Vercel project (one click)",
+      "why": "Kid Safe is its own app now (repo kidsafe, Vercel project kidsafe). Its address is still attached to the furfriend project, which is why FurFriend's Vercel card shows it. The agent tools can add an address to a project but not remove one. Until you click, FurFriend's project passes that address through to the Kid Safe project, so nothing is broken.",
+      "steps": [
+        "Open vercel.com > life-produces-life > furfriend > Settings > Domains.",
+        "Next to kidsafe.unitedundergod.org, open the ... menu and choose Remove. Confirm. (Only that one; leave furfriend.pet and the others.)",
+        "Tell the agent. It adds the address to the kidsafe project right away, so it is down for about a minute at most, and checks it."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://vercel.com/life-produces-life/furfriend/settings/domains",
+      "source": "lincolnnunnally/furfriend #53",
+      "requestedBy": "Claude (furfriend session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "2026-11-22: Vercel add_project_domain on project kidsafe returned 409 domain_already_in_use (attached to furfriend prj_UIn9xitp02g4hcFCpePyLNamDvjn); the Vercel MCP has no remove or move domain tool; no Vercel token in this session. The page link opens the furfriend project's Domains settings.",
       "app": "kidsafe",
       "addedOn": "2026-11-22"
     }
