@@ -2649,6 +2649,30 @@
       "verifiedHow": "2026-11-21: Vercel domain availability and price lookup for 38 names; kidsafe.unitedundergod.org is the address printed on cards in furfriend main",
       "app": "kidsafe",
       "addedOn": "2026-11-21"
+    },
+    {
+      "id": "singtrue-decide-speech-coach-as-its-own-app-or-inside-singtrue",
+      "title": "Decide: Speech Coach as its own app, or inside SingTrue",
+      "why": "You asked for a speech coach that reviews a recording five ways (transcript only, video only, audio only, structure, effect). Recommendation: its own app, because SingTrue is real-time and keeps audio on the phone, while a speech coach uploads a recording and needs AI review. What app it is is your call.",
+      "steps": [
+        "Read the findings attached here",
+        "Reply in the Claude session: 'own app' or 'inside SingTrue' (and a name if you have one)"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://singtrue.unitedundergod.org/",
+      "doc": {
+        "title": "SingTrue check-up and Speech Coach recommendation",
+        "text": "# SingTrue check-up and the Speech Coach question\n\n## SingTrue today (tested live 2026-11-22, singtrue.unitedundergod.org)\n- Loads, no errors, smooth on a phone-sized screen. The live site is exactly the repo's single index.html.\n- Free Practice works: fed test notes C4, E4 and A2 through a simulated mic, it named each one within 3 cents.\n- Match Note is broken: target set to C4, sang E4, it showed green \"in tune, 100%\". It only checks you are on *some* note, never the one you picked.\n- Scale Drill never moves: the \"next note\" code exists but nothing calls it. You change notes by hand.\n- Smaller: if you play the reference tone and then start listening, the two collide; the pitch graph cuts off voices below about G2.\n\n## Speech Coach: recommendation is a separate app\nSingTrue's promise is \"real-time, nothing leaves your phone.\" A speech coach is the opposite job: upload a recording, review it afterward, and it needs a server for transcripts and AI review. Putting it inside SingTrue would break that promise and make both muddier.\n\nIt would reuse what we already have:\n- Video/audio recording: honestly's VideoRecorder (Module Catalog \"media-recording\")\n- Transcripts, including long recordings: ideas' transcribe code (Whisper)\n- AI review: the same server pattern ideas uses\n\nThe five views you described:\n1. Transcript only: read what you said\n2. Video only, muted, no captions: see what you look like\n3. Audio only, no picture, no words: hear how you sound\n4. Structure: was it organized, did it make sense, where to tighten\n5. Effect: what result it seemed aimed at, did it land, what would make it work\n\nViews 1-3 are just playback and need no AI beyond the transcript. 4 and 5 are AI reads of the transcript (and later, still frames from the video for body language).\n\n## Your decision\nApprove Speech Coach as its own app (recommended), or tell us to put it inside SingTrue.",
+        "from": "Claude session findings, 2026-11-22"
+      },
+      "source": "AppEngine owner-tasks PR (SingTrue check-up)",
+      "requestedBy": "Claude (SingTrue check-up session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "Opened singtrue.unitedundergod.org 2026-11-22 and drove it with test notes through a simulated mic; searched every ecosystem repo for an existing speech coach (none); confirmed honestly VideoRecorder and ideas transcribe code exist to reuse",
+      "app": "singtrue",
+      "addedOn": "2026-11-22"
     }
   ]
 }
