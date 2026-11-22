@@ -1376,8 +1376,8 @@
         "urlStatus": "live",
         "servingUrl": "https://kidsafe.unitedundergod.org",
         "nextStep": "None. Live. Name (Kid Safe or Kids Safe), tag material and a texting number are owner decisions.",
-        "note": "QR safety tags for kids (owner, 2026-11-21). Its own site and brand; code lives in lincolnnunnally/furfriend under /kids, served on this host by middleware.",
-        "factsFrom": "furfriend PRs #39-#41, 2026-11-21"
+        "note": "QR safety tags for kids (owner, 2026-11-21). Its own app (owner, 2026-11-22: two separate apps): repo lincolnnunnally/kidsafe, Vercel project kidsafe. Partner desk at /admin.",
+        "factsFrom": "kidsafe repo main, furfriend PR #53, 2026-11-22"
       },
       "sourceOfTruthFiles": [],
       "linkedIssues": [],
