@@ -2673,6 +2673,25 @@
       "verifiedHow": "Opened singtrue.unitedundergod.org 2026-11-22 and drove it with test notes through a simulated mic; searched every ecosystem repo for an existing speech coach (none); confirmed honestly VideoRecorder and ideas transcribe code exist to reuse",
       "app": "singtrue",
       "addedOn": "2026-11-22"
+    },
+    {
+      "id": "churchconnect-choose-a-home-and-name-for-churchconnect-s-member-growth-space",
+      "title": "Choose a home and name for ChurchConnect's member growth space",
+      "why": "Best Life (best-life.us) is your life-coaching app. ChurchConnect's own member growth space (My Notes, journal, Scripture, devotionals, purpose) needs its own name and address. Recommended: 'ChurchConnect Life' at life.churchconnect.cloud, as a front door into the same ChurchConnect app so members keep one sign-in, with Best Life coaching as the go-deeper step.",
+      "steps": [
+        "Reply in the ChurchConnect chat: life.churchconnect.cloud (recommended), my.best-life.us, or another name/address",
+        "Agent then sets up the address and the wording; nothing to do in any account"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.churchconnect.cloud/individual/welcome",
+      "source": "ChurchConnect PR #787",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "2026-11-22: life.churchconnect.cloud and my.best-life.us have no DNS records (free); my.churchconnect.cloud is in use by the church website builder; churchconnect.cloud and best-life.us zones are active in Cloudflare and editable by agents; ChurchConnect stores sign-in per site address (localStorage), so a separate address would need a second sign-in",
+      "app": "churchconnect",
+      "addedOn": "2026-11-22"
     }
   ]
 }
