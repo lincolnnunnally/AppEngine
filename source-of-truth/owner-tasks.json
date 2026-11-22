@@ -2684,7 +2684,7 @@
       ],
       "kind": "decision",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://www.churchconnect.cloud/individual/welcome",
       "source": "ChurchConnect PR #787",
       "requestedBy": "Claude (ChurchConnect session)",
