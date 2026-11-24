@@ -51,4 +51,18 @@ test("tagged links, visit boundaries and blocked storage", async () => {
     T.funnel.paymentCompleted({});
     T.trackPageView();
   }, "blocked storage never throws into a sign-up or payment handler");
+
+  // With storage blocked, one page's events still belong to one visitor, one visit and one campaign.
+  sent.length = 0;
+  search = "?utm_source=guide&utm_campaign=lost-dog";
+  T.track("page_view");
+  search = "";
+  T.track("signup_completed");
+  await settle();
+  const view = sent.find((e) => (e as { name?: string }).name === "page_view" && e.utm.utm_campaign === "lost-dog")!;
+  const signup = sent[sent.length - 1] as typeof view & { anon_id: string };
+  assert.ok(view, "the guide view was sent");
+  assert.equal(signup.session_id, view.session_id, "same visit with storage blocked");
+  assert.equal(signup.anon_id, (view as typeof signup).anon_id, "same visitor with storage blocked");
+  assert.equal(signup.utm.utm_campaign, "lost-dog", "the sign-up keeps the guide's campaign with storage blocked");
 });

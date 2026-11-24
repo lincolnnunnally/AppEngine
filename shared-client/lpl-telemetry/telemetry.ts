@@ -58,11 +58,13 @@ function uuid(): string {
   });
 }
 
+type StoreKind = 'localStorage' | 'sessionStorage';
+
 /**
  * Storage can throw in private mode or when cookies are blocked, and in some browsers merely reading
  * `window.localStorage` throws a SecurityError. Resolve the store inside a try so that can't escape.
  */
-function storage(kind: 'localStorage' | 'sessionStorage'): Storage | undefined {
+function storage(kind: StoreKind): Storage | undefined {
   try {
     return window[kind];
   } catch {
@@ -70,52 +72,62 @@ function storage(kind: 'localStorage' | 'sessionStorage'): Storage | undefined {
   }
 }
 
+/**
+ * Every value is also kept in memory for the life of the page. When the browser blocks storage, the
+ * visitor, the visit and its campaign still stay the same from one event to the next, so a guide view
+ * and the sign-up after it are not counted as two strangers.
+ */
+const memory = new Map<string, string>();
+
 /** Storage can throw in private mode or when cookies are blocked. Never let that break the app. */
-function safeGet(store: Storage | undefined, key: string): string | null {
+function safeGet(kind: StoreKind, key: string): string | null {
   try {
-    return store?.getItem(key) ?? null;
+    const value = storage(kind)?.getItem(key);
+    if (value != null) return value;
   } catch {
-    return null;
+    /* fall back to memory */
   }
+  return memory.get(`${kind}:${key}`) ?? null;
 }
 
-function safeSet(store: Storage | undefined, key: string, value: string): void {
+function safeSet(kind: StoreKind, key: string, value: string): void {
+  memory.set(`${kind}:${key}`, value);
   try {
-    store?.setItem(key, value);
+    storage(kind)?.setItem(key, value);
   } catch {
     /* ignore */
   }
 }
 
-function safeRemove(store: Storage | undefined, key: string): void {
+function safeRemove(kind: StoreKind, key: string): void {
+  memory.delete(`${kind}:${key}`);
   try {
-    store?.removeItem(key);
+    storage(kind)?.removeItem(key);
   } catch {
     /* ignore */
   }
 }
 
 function anonId(): string {
-  const existing = safeGet(storage('localStorage'), ANON_KEY);
+  const existing = safeGet('localStorage', ANON_KEY);
   if (existing) return existing;
   const id = uuid();
-  safeSet(storage('localStorage'), ANON_KEY, id);
+  safeSet('localStorage', ANON_KEY, id);
   return id;
 }
 
 function sessionId(): string {
   const now = Date.now();
-  const session = storage('sessionStorage');
-  const lastSeen = Number(safeGet(session, SESSION_TS_KEY) ?? 0);
-  let id = safeGet(session, SESSION_KEY);
+  const lastSeen = Number(safeGet('sessionStorage', SESSION_TS_KEY) ?? 0);
+  let id = safeGet('sessionStorage', SESSION_KEY);
 
   if (!id || !lastSeen || now - lastSeen > SESSION_IDLE_MS) {
     id = uuid();
-    safeSet(session, SESSION_KEY, id);
+    safeSet('sessionStorage', SESSION_KEY, id);
     // A new visit starts with no campaign: the old one's tags must not follow it.
-    safeRemove(session, UTM_KEY);
+    safeRemove('sessionStorage', UTM_KEY);
   }
-  safeSet(session, SESSION_TS_KEY, String(now));
+  safeSet('sessionStorage', SESSION_TS_KEY, String(now));
   return id;
 }
 
@@ -126,7 +138,6 @@ function sessionId(): string {
  * after a social post) is the one the rest of the visit is credited to.
  */
 function sessionUtm(): Record<string, string> {
-  const session = storage('sessionStorage');
   const params = new URLSearchParams(window.location.search);
   const utm: Record<string, string> = {};
   for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref']) {
@@ -134,11 +145,11 @@ function sessionUtm(): Record<string, string> {
     if (value) utm[key] = value.slice(0, 120);
   }
   if (Object.keys(utm).length > 0) {
-    safeSet(session, UTM_KEY, JSON.stringify(utm));
+    safeSet('sessionStorage', UTM_KEY, JSON.stringify(utm));
     return utm;
   }
 
-  const stored = safeGet(session, UTM_KEY);
+  const stored = safeGet('sessionStorage', UTM_KEY);
   if (stored) {
     try {
       return JSON.parse(stored) as Record<string, string>;
