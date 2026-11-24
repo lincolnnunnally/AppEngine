@@ -142,3 +142,52 @@ export function sumUsage(rows: UsageRow[]): { guides: number; inputTokens: numbe
     { guides: 0, inputTokens: 0, outputTokens: 0 }
   );
 }
+
+// ---- Guide results (owner, 2026-11-24: "track the traffic ... learn from what gets the most attention ...
+// actually get customers"). Rows come from public.marketing_guide_results (db/migrations/016). ----
+
+export type GuideResultRow = {
+  site: string;
+  slug: string;
+  title: string | null;
+  published_at: string | null;
+  views: number;
+  visitors: number;
+  clicks: number;
+  signups: number;
+  payments: number;
+};
+
+export type SiteResults = { site: string; label: string; guides: number; views: number; clicks: number; signups: number; payments: number };
+
+export type GuideResult = GuideResultRow & { label: string; url: string };
+
+const num = (v: unknown) => Number(v) || 0;
+
+export function summarizeResults(rows: GuideResultRow[], sites: MarketingSite[] = MARKETING_SITES): { bySite: SiteResults[]; top: GuideResult[] } {
+  const byApp = new Map(sites.map((s) => [s.app, s]));
+  const clean = rows
+    .filter((r) => r && r.site && r.slug && byApp.has(r.site))
+    .map((r) => {
+      const site = byApp.get(r.site)!;
+      return {
+        ...r,
+        views: num(r.views), visitors: num(r.visitors), clicks: num(r.clicks), signups: num(r.signups), payments: num(r.payments),
+        label: site.label,
+        url: `${site.guides}/${r.slug}`
+      };
+    });
+  const bySite = sites
+    .map((s) => {
+      const mine = clean.filter((r) => r.site === s.app);
+      const sum = (k: "views" | "clicks" | "signups" | "payments") => mine.reduce((n, r) => n + r[k], 0);
+      return { site: s.app, label: s.label, guides: mine.length, views: sum("views"), clicks: sum("clicks"), signups: sum("signups"), payments: sum("payments") };
+    })
+    .filter((s) => s.guides > 0);
+  // What's working: customers first, then clicks, then views. A guide with no views is not "working" yet.
+  const top = clean
+    .filter((r) => r.views + r.clicks + r.signups + r.payments > 0)
+    .sort((a, b) => b.payments - a.payments || b.signups - a.signups || b.clicks - a.clicks || b.views - a.views)
+    .slice(0, 10);
+  return { bySite, top };
+}
