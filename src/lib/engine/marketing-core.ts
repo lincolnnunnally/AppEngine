@@ -14,13 +14,13 @@ export type MarketingSite = {
 
 // Mirrors ideas-app src/lib/lanes.ts (LANES: app, url, live). Keep in step when a lane changes.
 export const MARKETING_SITES: MarketingSite[] = [
-  { app: "furfriend", label: "FurFriend", group: "business", guides: "https://furfriend.pet/guides", live: false },
-  { app: "kidsafe", label: "Kid Safe", group: "business", guides: "https://kidsafe.unitedundergod.org/guides", live: false },
-  { app: "laser", label: "Laser Engrave Market", group: "business", guides: "https://laser.engrave.market/guides", live: false },
-  { app: "easypeazy", label: "EasyPeazy", group: "business", guides: "https://easypeazy.site/guides", live: false },
-  { app: "sanctuary-avl", label: "Sanctuary AVL", group: "business", guides: "https://sanctuaryavl.unitedundergod.org/guides", live: false },
-  { app: "commons", label: "Commons", group: "business", guides: "https://commons.unitedundergod.org/guides", live: false },
-  { app: "ai-website-design", label: "AI Website Design", group: "business", guides: "https://ai-website.design/guides", live: false },
+  { app: "furfriend", label: "FurFriend", group: "business", guides: "https://furfriend.pet/guides", live: true },
+  { app: "kidsafe", label: "Kid Safe", group: "business", guides: "https://kidsafe.unitedundergod.org/guides", live: true },
+  { app: "laser", label: "Laser Engrave Market", group: "business", guides: "https://laser.engrave.market/guides", live: true },
+  { app: "easypeazy", label: "EasyPeazy", group: "business", guides: "https://easypeazy.site/guides", live: true },
+  { app: "sanctuary-avl", label: "Sanctuary AVL", group: "business", guides: "https://sanctuaryavl.unitedundergod.org/guides", live: true },
+  { app: "commons", label: "Commons", group: "business", guides: "https://commons.unitedundergod.org/guides", live: true },
+  { app: "ai-website-design", label: "AI Website Design", group: "business", guides: "https://ai-website.design/guides", live: true },
   { app: "churchconnect", label: "ChurchConnect", group: "ministry", guides: "https://www.churchconnect.cloud/guides", live: true },
   { app: "uug", label: "United Under God", group: "ministry", guides: "https://www.unitedundergod.org/articles", live: true },
   { app: "kids-need-dads", label: "Kids Need Dads", group: "ministry", guides: "https://kidsneeddad.com/articles", live: true },
