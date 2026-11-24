@@ -68,8 +68,14 @@ test("tagged links, visit boundaries and blocked storage", async () => {
   pathname = "/account/confirm/tok_987/next";
   referrer = "not a url";
   T.track("page_view");
+  pathname = "/claim/abc123claimtoken456789xyz";
+  T.track("page_view");
+  pathname = "/family-pass/fp_secret_42";
+  T.track("page_view");
   await settle();
   const recorded = sent as unknown as Array<{ path: string; referrer: string | null }>;
+  assert.equal(recorded[2].path, "/claim/:token", "a church-claim link is a credential");
+  assert.equal(recorded[3].path, "/family-pass/:token", "a family pass link is the login");
   assert.equal(recorded[0].path, "/invite/:token");
   assert.equal(recorded[0].referrer, "https://example.org");
   assert.equal(recorded[1].path, "/account/confirm/:token/next");

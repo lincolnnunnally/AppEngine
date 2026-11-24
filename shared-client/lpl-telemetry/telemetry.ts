@@ -172,7 +172,7 @@ function sessionUtm(): Record<string, string> {
  * Addresses that carry a secret in the path (an invite, a password reset, an unsubscribe or
  * confirm link) are recorded with the secret replaced, so a usable token never reaches analytics.
  */
-const SECRET_AFTER = /(\/(?:invite|invites|invitation|confirm|unsubscribe|reset|reset-password|verify|accept|magic|magic-link|token)\/)[^/]+/gi;
+const SECRET_AFTER = /(\/(?:invite|invites|invitation|confirm|unsubscribe|reset|reset-password|verify|accept|magic|magic-link|token|claim|family-pass)\/)[^/]+/gi;
 
 function safePath(pathname: string): string {
   return pathname.replace(SECRET_AFTER, '$1:token');
