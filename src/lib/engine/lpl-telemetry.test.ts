@@ -76,11 +76,30 @@ test("tagged links, visit boundaries and blocked storage", async () => {
   const recorded = sent as unknown as Array<{ path: string; referrer: string | null }>;
   assert.equal(recorded[2].path, "/claim/:token", "a church-claim link is a credential");
   assert.equal(recorded[3].path, "/family-pass/:token", "a family pass link is the login");
+
   assert.equal(recorded[0].path, "/invite/:token");
   assert.equal(recorded[0].referrer, "https://example.org");
   assert.equal(recorded[1].path, "/account/confirm/:token/next");
   assert.equal(recorded[1].referrer, null);
   assert.ok(!JSON.stringify(sent).includes("secret123") && !JSON.stringify(sent).includes("abcDEF123456789xyz"));
+  sent.length = 0;
+  pathname = "/tags/order/3f1c2b9a-7d4e-4c1a-9b2f-0a1b2c3d4e5f";
+  T.track("payment_completed");
+  pathname = "/ticket/tkt_abc123";
+  T.track("page_view");
+  pathname = "/tax-exempt/cert_987";
+  T.track("page_view");
+  pathname = "/checkup/0a1b2c3d-1111-4222-8333-444455556666/report";
+  T.track("page_view");
+  pathname = "/guides/church-av-cost-2026";
+  T.track("page_view");
+  await settle();
+  const more = sent as unknown as Array<{ path: string }>;
+  assert.equal(more[0].path, "/tags/order/:token", "an order link is the only key to its page");
+  assert.equal(more[1].path, "/ticket/:token");
+  assert.equal(more[2].path, "/tax-exempt/:token");
+  assert.equal(more[3].path, "/checkup/:id/report", "a UUID anywhere in the path is replaced");
+  assert.equal(more[4].path, "/guides/church-av-cost-2026", "guide slugs are kept as they are");
   pathname = "/guides/x";
   referrer = "";
 

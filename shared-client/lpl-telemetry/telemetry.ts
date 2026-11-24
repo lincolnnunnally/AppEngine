@@ -40,6 +40,7 @@ type Config = {
   endpoint: string;
   debug: boolean;
   respectDoNotTrack: boolean;
+  maskAfter: RegExp | null;
 };
 
 let config: Config | null = null;
@@ -170,12 +171,28 @@ function sessionUtm(): Record<string, string> {
 
 /**
  * Addresses that carry a secret in the path (an invite, a password reset, an unsubscribe or
- * confirm link) are recorded with the secret replaced, so a usable token never reaches analytics.
+ * confirm link, a church claim, a family pass, an order, a ticket) are recorded with the secret
+ * replaced, so a usable token never reaches analytics. Any UUID in the path is replaced too:
+ * it is almost always a record id, and some (order links) are the only key to a private page.
  */
-const SECRET_AFTER = /(\/(?:invite|invites|invitation|confirm|unsubscribe|reset|reset-password|verify|accept|magic|magic-link|token|claim|family-pass)\/)[^/]+/gi;
+const SECRET_WORDS = [
+  'invite', 'invites', 'invitation', 'confirm', 'unsubscribe', 'reset', 'reset-password', 'verify',
+  'accept', 'magic', 'magic-link', 'token', 'claim', 'family-pass', 'order', 'orders', 'ticket',
+  'tickets', 'tax-exempt',
+];
+const UUID_SEGMENT = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi;
+
+function wordsAfter(words: string[]): RegExp | null {
+  const clean = words.map((w) => w.trim().toLowerCase()).filter((w) => /^[a-z0-9-]+$/.test(w));
+  return clean.length ? new RegExp(`(\\/(?:${clean.join('|')})\\/)[^/]+`, 'gi') : null;
+}
+
+const SECRET_AFTER = wordsAfter(SECRET_WORDS) as RegExp;
 
 function safePath(pathname: string): string {
-  return pathname.replace(SECRET_AFTER, '$1:token');
+  let path = pathname.replace(SECRET_AFTER, '$1:token');
+  if (config?.maskAfter) path = path.replace(config.maskAfter, '$1:token');
+  return path.replace(UUID_SEGMENT, '/:id');
 }
 
 /** Only the referring site is kept: a full referrer address can carry a token in its path or query. */
@@ -242,6 +259,8 @@ export function initTelemetry(options: {
   endpoint?: string;
   debug?: boolean;
   respectDoNotTrack?: boolean;
+  /** More path words whose next segment is a secret in this app (Kid Safe's share links: ['s']). */
+  maskAfter?: string[];
 }): void {
   if (!isBrowser() || config) return;
 
@@ -250,6 +269,7 @@ export function initTelemetry(options: {
     endpoint: options.endpoint ?? ENDPOINT,
     debug: options.debug ?? false,
     respectDoNotTrack: options.respectDoNotTrack ?? true,
+    maskAfter: wordsAfter(options.maskAfter ?? []),
   };
 
   if (config.respectDoNotTrack && doNotTrackEnabled()) {
