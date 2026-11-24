@@ -19,6 +19,9 @@ test("summarizeSites counts last 7 days, queue, next and last per site, and dema
   assert.deepEqual(fur.next, { title: "D", at: ago(-5) });
   assert.deepEqual(fur.last, { title: "A", at: ago(2), url: "https://furfriend.pet/guides/a" });
   assert.equal(fur.demandThisMonth, 1, "only demand guides written since the 1st");
+  const old = summarizeSites([{ app: "laser", slug: "z", title: "Z", status: "published", published_at: ago(24 * 90) }], NOW).find((s) => s.app === "laser")!;
+  assert.equal(old.published7d, 0);
+  assert.equal(old.last?.title, "Z", "a piece older than the reporting window is still the latest");
   const empty = summarizeSites([], NOW).find((s) => s.app === "laser")!;
   assert.equal(empty.next, null);
   assert.equal(empty.last, null);
@@ -36,6 +39,7 @@ test("summarizeSocial groups by Page with counts, the latest link and the last e
       { connection_id: "c1", status: "published", source: "library", content: "Title one\n\nblurb", post_url: "https://fb/1", created_at: ago(3) },
       { connection_id: "c1", status: "failed", error_message: "Facebook: token expired", created_at: ago(1) },
       { connection_id: "u1", status: "scheduled", created_at: ago(0.5) },
+      { connection_id: "c1", status: "failed", source: "library", error_message: "Facebook: token expired", created_at: ago(0.2) },
       { connection_id: "zz", status: "published", created_at: ago(2) }
     ],
     { c1: "Church Connect", u1: "United Under God" }
@@ -43,8 +47,8 @@ test("summarizeSocial groups by Page with counts, the latest link and the last e
   assert.deepEqual(pages.map((p) => p.page), ["Church Connect", "United Under God", "Unknown channel"]);
   const cc = pages[0];
   assert.equal(cc.published, 1);
-  assert.equal(cc.failed, 1);
-  assert.equal(cc.automatic, 1);
+  assert.equal(cc.failed, 2);
+  assert.equal(cc.automatic, 1, "a library post that failed was not shared");
   assert.deepEqual(cc.latest, { text: "Title one", url: "https://fb/1", at: ago(3) });
   assert.equal(cc.lastError, "Facebook: token expired");
   assert.equal(pages[1].scheduled, 1);

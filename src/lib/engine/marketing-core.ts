@@ -99,7 +99,7 @@ export type PageSummary = {
   published: number;
   scheduled: number;
   failed: number;
-  automatic: number; // shared by the library job (source 'library')
+  automatic: number; // shared by the library job (source 'library') and actually posted
   latest: { text: string; url: string | null; at: string } | null;
   lastError: string | null;
 };
@@ -120,7 +120,7 @@ export function summarizeSocial(posts: SocialPost[], pageNames: Record<string, s
         published: list.filter((p) => p.status === "published").length,
         scheduled: list.filter((p) => p.status === "scheduled" || p.status === "publishing").length,
         failed: list.filter((p) => p.status === "failed").length,
-        automatic: list.filter((p) => p.source === "library").length,
+        automatic: list.filter((p) => p.source === "library" && p.status === "published").length,
         latest: latest
           ? { text: String(latest.content || "").split("\n")[0].slice(0, 120), url: latest.post_url || null, at: String(latest.created_at || "") }
           : null,

@@ -60,6 +60,21 @@ export async function loadMarketing(now = new Date()): Promise<MarketingReport> 
     rest<UsageRow>("marketing_ai_usage", `select=app,input_tokens,output_tokens&created_at=gte.${monthStartUtc(now)}&limit=5000`)
   ]);
   if (!pieces) return { state: "not_connected", reason: "The shared library could not be read." };
+  // The window above keeps counts small; a site whose last piece is older than 30 days still shows it.
+  const nowIso = now.toISOString();
+  const latest = await Promise.all(
+    MARKETING_SITES.map((s) =>
+      rest<PieceRow>(
+        "lpl_articles",
+        `select=app,slug,title,status,source,publish_at,published_at,created_at&app=eq.${s.app}&status=eq.published` +
+          `&or=(published_at.lte.${nowIso},and(published_at.is.null,publish_at.lte.${nowIso}))&order=published_at.desc.nullslast,publish_at.desc&limit=1`
+      )
+    )
+  );
+  const seen = new Set(pieces.map((r) => `${r.app}/${r.slug}`));
+  for (const row of latest.flat()) {
+    if (row && !seen.has(`${row.app}/${row.slug}`)) pieces.push(row);
+  }
   const names: Record<string, string> = {};
   for (const c of connections || []) {
     if (c.doc?.id) names[c.doc.id] = `${c.doc.account_name || "Channel"} (${c.doc.platform || "?"})`;
