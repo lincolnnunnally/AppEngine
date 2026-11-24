@@ -164,7 +164,15 @@ export type GuideResult = GuideResultRow & { label: string; url: string };
 
 const num = (v: unknown) => Number(v) || 0;
 
-export function summarizeResults(rows: GuideResultRow[], sites: MarketingSite[] = MARKETING_SITES): { bySite: SiteResults[]; top: GuideResult[] } {
+export type SiteResultRow = { site: string; guides: number; views: number; clicks: number; signups: number; payments: number };
+
+/** Per-guide rows rank the guides; site totals come from public.marketing_site_results, which counts each
+ * visitor once per site (one reader of two guides who buys once is one sale, not two). */
+export function summarizeResults(
+  rows: GuideResultRow[],
+  siteRows: SiteResultRow[] = [],
+  sites: MarketingSite[] = MARKETING_SITES
+): { bySite: SiteResults[]; top: GuideResult[] } {
   const byApp = new Map(sites.map((s) => [s.app, s]));
   const clean = rows
     .filter((r) => r && r.site && r.slug && byApp.has(r.site))
@@ -177,13 +185,16 @@ export function summarizeResults(rows: GuideResultRow[], sites: MarketingSite[] 
         url: `${site.guides}/${r.slug}`
       };
     });
+  const totals = new Map(siteRows.filter((r) => r && r.site).map((r) => [r.site, r]));
   const bySite = sites
     .map((s) => {
-      const mine = clean.filter((r) => r.site === s.app);
-      const sum = (k: "views" | "clicks" | "signups" | "payments") => mine.reduce((n, r) => n + r[k], 0);
-      return { site: s.app, label: s.label, guides: mine.length, views: sum("views"), clicks: sum("clicks"), signups: sum("signups"), payments: sum("payments") };
+      const t = totals.get(s.app);
+      return {
+        site: s.app, label: s.label,
+        guides: num(t?.guides), views: num(t?.views), clicks: num(t?.clicks), signups: num(t?.signups), payments: num(t?.payments)
+      };
     })
-    .filter((s) => s.guides > 0);
+    .filter((s) => s.guides + s.views + s.clicks + s.signups + s.payments > 0);
   // What's working: customers first, then clicks, then views. A guide with no views is not "working" yet.
   const top = clean
     .filter((r) => r.views + r.clicks + r.signups + r.payments > 0)

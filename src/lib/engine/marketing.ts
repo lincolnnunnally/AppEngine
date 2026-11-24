@@ -11,6 +11,7 @@ import {
   summarizeSocial,
   type GuideResult,
   type GuideResultRow,
+  type SiteResultRow,
   type SiteResults,
   sumUsage,
   type PageSummary,
@@ -46,11 +47,11 @@ async function rest<T>(table: string, query: string): Promise<T[] | null> {
   }
 }
 
-async function guideResults(days: number): Promise<GuideResultRow[] | null> {
+async function rpc<T>(fn: "marketing_guide_results" | "marketing_site_results", days: number): Promise<T[] | null> {
   const config = getLplConfig();
   if (!config) return null;
   try {
-    const response = await fetch(`${config.url}/rest/v1/rpc/marketing_guide_results`, {
+    const response = await fetch(`${config.url}/rest/v1/rpc/${fn}`, {
       method: "POST",
       headers: {
         apikey: config.serviceKey,
@@ -64,7 +65,7 @@ async function guideResults(days: number): Promise<GuideResultRow[] | null> {
     });
     if (!response.ok) return null;
     const data = (await response.json()) as unknown;
-    return Array.isArray(data) ? (data as GuideResultRow[]) : null;
+    return Array.isArray(data) ? (data as T[]) : null;
   } catch {
     return null;
   }
@@ -75,7 +76,7 @@ export async function loadMarketing(now = new Date()): Promise<MarketingReport> 
   const since30 = new Date(now.getTime() - 30 * 86_400_000).toISOString();
   const since7 = new Date(now.getTime() - 7 * 86_400_000).toISOString();
   const apps = MARKETING_SITES.map((s) => s.app).join(",");
-  const [pieces, posts, connections, usage, results] = await Promise.all([
+  const [pieces, posts, connections, usage, results, siteResults] = await Promise.all([
     rest<PieceRow>(
       "lpl_articles",
       `select=app,slug,title,status,source,publish_at,published_at,created_at&app=in.(${apps})` +
@@ -87,7 +88,8 @@ export async function loadMarketing(now = new Date()): Promise<MarketingReport> 
       "select=doc&doc->>church_id=eq.platform:churchconnect&limit=50"
     ),
     rest<UsageRow>("marketing_ai_usage", `select=app,input_tokens,output_tokens&created_at=gte.${monthStartUtc(now)}&limit=5000`),
-    guideResults(30)
+    rpc<GuideResultRow>("marketing_guide_results", 30),
+    rpc<SiteResultRow>("marketing_site_results", 30)
   ]);
   if (!pieces) return { state: "not_connected", reason: "The shared library could not be read." };
   // The window above keeps counts small; a site whose last piece is older than 30 days still shows it.
@@ -115,6 +117,6 @@ export async function loadMarketing(now = new Date()): Promise<MarketingReport> 
     sites: summarizeSites(pieces, now),
     pages: posts ? summarizeSocial(posts.map((p) => p.doc || {}), names) : null,
     usage: total ? { ...total, estimatedUsd: estimateLlmCostUsd(total.inputTokens, total.outputTokens) } : null,
-    results: results ? summarizeResults(results) : null
+    results: results && siteResults ? summarizeResults(results, siteResults) : null
   };
 }

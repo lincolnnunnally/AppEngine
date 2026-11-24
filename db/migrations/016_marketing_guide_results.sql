@@ -12,6 +12,8 @@
 --   payments   the same, for payment_completed
 -- Hand-written guides (not in lpl_articles) still get a row from their page views; their title is null.
 -- Titles and counts only: no visitor ids leave the function. Service role only.
+-- One visitor can be credited to every guide they read, so per-guide sign-ups and sales can overlap; site
+-- totals come from marketing_site_results below, which counts each visitor once per site and has no limit.
 
 create or replace function public.marketing_guide_results(p_days integer default 30)
 returns table (
@@ -35,9 +37,10 @@ as $$
     where e.created_at > now() - make_interval(days => greatest(1, least(coalesce(p_days, 30), 365)))
   ),
   guide_views as (
-    select site, substring(path from '/guides/([^/?#]+)') as slug, anon_id, created_at
+    -- /guides/<slug> on the business sites, /articles/<slug> where a site publishes there (uug)
+    select site, substring(path from '/(?:guides|articles)/([^/?#]+)') as slug, anon_id, created_at
     from ev
-    where event_name = 'page_view' and path ~ '/guides/[^/?#]+'
+    where event_name = 'page_view' and path ~ '/(guides|articles)/[^/?#]+'
   ),
   views as (
     select site, slug, count(*)::bigint as views, count(distinct anon_id)::bigint as visitors
@@ -99,3 +102,57 @@ $$;
 
 revoke all on function public.marketing_guide_results(integer) from public, anon, authenticated;
 grant execute on function public.marketing_guide_results(integer) to service_role;
+
+-- Per site, over the last p_days: guide/article views, clicks through tagged guide links, and distinct
+-- visitors who signed up or paid after coming through a guide link or reading a guide first.
+create or replace function public.marketing_site_results(p_days integer default 30)
+returns table (site text, guides bigint, views bigint, clicks bigint, signups bigint, payments bigint)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  with map(site, app_slug) as (
+    values ('furfriend', 'furfriend'), ('kidsafe', 'kidsafe'), ('laser', 'laser'), ('easypeazy', 'easypeazy'),
+           ('ai-website-design', 'aiwebsite'), ('churchconnect', 'churchconnect'), ('uug', 'uug'),
+           ('sanctuary-avl', 'sanctuary-avl'), ('commons', 'commons')
+  ),
+  ev as (
+    select m.site, e.event_name, e.anon_id, e.session_id, e.path, e.utm, e.created_at
+    from public.lpl_events e
+    join map m on m.app_slug = e.app_slug
+    where e.created_at > now() - make_interval(days => greatest(1, least(coalesce(p_days, 30), 365)))
+  ),
+  guide_views as (
+    select site, substring(path from '/(?:guides|articles)/([^/?#]+)') as slug, anon_id, created_at
+    from ev
+    where event_name = 'page_view' and path ~ '/(guides|articles)/[^/?#]+'
+  ),
+  readers as (
+    select site, anon_id, min(created_at) as first_at
+    from guide_views where anon_id is not null group by 1, 2
+  ),
+  converted as (
+    select site, anon_id, event_name
+    from ev
+    where event_name in ('signup_completed', 'payment_completed')
+      and utm->>'utm_source' = 'guide' and coalesce(utm->>'utm_campaign', '') <> ''
+    union
+    select r.site, c.anon_id, c.event_name
+    from readers r
+    join ev c on c.site = r.site and c.anon_id = r.anon_id and c.created_at >= r.first_at
+    where c.event_name in ('signup_completed', 'payment_completed')
+  )
+  select m.site,
+         (select count(distinct slug) from guide_views g where g.site = m.site)::bigint,
+         (select count(*) from guide_views g where g.site = m.site)::bigint,
+         (select count(distinct coalesce(session_id, anon_id)) from ev e
+           where e.site = m.site and e.event_name = 'page_view' and e.utm->>'utm_source' = 'guide'
+             and coalesce(e.utm->>'utm_campaign', '') <> '')::bigint,
+         (select count(distinct anon_id) from converted c where c.site = m.site and c.event_name = 'signup_completed')::bigint,
+         (select count(distinct anon_id) from converted c where c.site = m.site and c.event_name = 'payment_completed')::bigint
+  from (select distinct site from map) m;
+$$;
+
+revoke all on function public.marketing_site_results(integer) from public, anon, authenticated;
+grant execute on function public.marketing_site_results(integer) to service_role;
