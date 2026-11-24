@@ -2732,6 +2732,27 @@
       "verifiedHow": "2026-11-22: Vercel add_project_domain on project kidsafe returned 409 domain_already_in_use (attached to furfriend prj_UIn9xitp02g4hcFCpePyLNamDvjn); the Vercel MCP has no remove or move domain tool; no Vercel token in this session. The page link opens the furfriend project's Domains settings.",
       "app": "kidsafe",
       "addedOn": "2026-11-22"
+    },
+    {
+      "id": "ecosystem-github-actions-stopped-running-on-every-private-repo-billing",
+      "title": "GitHub Actions stopped running on every private repo (billing)",
+      "why": "Since about 18:11 UTC on 2026-11-23, every GitHub Actions job in your private repos (ChurchConnect, EasyPeazy and the rest) ends in about 3 seconds without ever getting a runner, while public repos (AppEngine) still run. ChurchConnect's hourly ops, website checks, event and worship scans and the website outreach email have not run since, and no pull request can get its checks. That pattern means GitHub will not start private-repo jobs: the month's included Actions minutes are used up with no budget left, or a payment failed.",
+      "steps": [
+        "Open github.com/settings/billing and look at Actions usage and any payment warning",
+        "If a payment failed, update the card",
+        "If included minutes are used up, add a monthly Actions budget (for example $10) under Budgets and alerts, or wait for the minutes to reset on your billing date",
+        "Tell any agent when done; it re-runs one ChurchConnect job to confirm"
+      ],
+      "kind": "money",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/settings/billing",
+      "source": "ChurchConnect PR #789",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-24",
+      "verifiedHow": "2026-11-24 11:50 UTC: ChurchConnect runs on main and PR #789 all fail in 2-3 s with runner_id 0 and no logs (HTTP 404); first failure 2026-11-23 18:11 (Worship scan), last success 2026-11-23 17:20 (hourly ops); EasyPeazy (private) scheduled runs fail the same way; AppEngine (public) Fleet Health passes every 30 min. Billing page itself not visible to agents, so the exact cause (minutes vs payment)",
+      "app": "ecosystem",
+      "addedOn": "2026-11-24"
     }
   ]
 }
