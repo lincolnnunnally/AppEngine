@@ -144,20 +144,48 @@ function sessionUtm(): Record<string, string> {
     const value = params.get(key);
     if (value) utm[key] = value.slice(0, 120);
   }
-  if (Object.keys(utm).length > 0) {
+  if (Object.keys(utm).some((key) => key.startsWith('utm_'))) {
     safeSet('sessionStorage', UTM_KEY, JSON.stringify(utm));
     return utm;
   }
 
-  const stored = safeGet('sessionStorage', UTM_KEY);
-  if (stored) {
+  let stored: Record<string, string> = {};
+  const raw = safeGet('sessionStorage', UTM_KEY);
+  if (raw) {
     try {
-      return JSON.parse(stored) as Record<string, string>;
+      stored = JSON.parse(raw) as Record<string, string>;
     } catch {
       /* ignore a damaged value */
     }
   }
-  return {};
+  // A bare ref= is often a site's own link (a report id, a referral code), not a new campaign:
+  // add it to the visit's tags instead of wiping the guide or post that brought the visitor.
+  if (utm.ref) {
+    const merged = { ...stored, ref: utm.ref };
+    safeSet('sessionStorage', UTM_KEY, JSON.stringify(merged));
+    return merged;
+  }
+  return stored;
+}
+
+/**
+ * Addresses that carry a secret in the path (an invite, a password reset, an unsubscribe or
+ * confirm link) are recorded with the secret replaced, so a usable token never reaches analytics.
+ */
+const SECRET_AFTER = /(\/(?:invite|invites|invitation|confirm|unsubscribe|reset|reset-password|verify|accept|magic|magic-link|token)\/)[^/]+/gi;
+
+function safePath(pathname: string): string {
+  return pathname.replace(SECRET_AFTER, '$1:token');
+}
+
+/** Only the referring site is kept: a full referrer address can carry a token in its path or query. */
+function referrerOrigin(): string | null {
+  if (!document.referrer) return null;
+  try {
+    return new URL(document.referrer).origin;
+  } catch {
+    return null;
+  }
 }
 
 function doNotTrackEnabled(): boolean {
@@ -249,8 +277,8 @@ export function track(name: string, props: Record<string, unknown> = {}): void {
       anon_id: anonId(),
       session_id: sessionId(),
       user_id: currentUserId,
-      path: window.location.pathname,
-      referrer: document.referrer || null,
+      path: safePath(window.location.pathname),
+      referrer: referrerOrigin(),
       utm: sessionUtm(),
       props,
     };

@@ -13,13 +13,15 @@ const mem = (): Store => {
 test("tagged links, visit boundaries and blocked storage", async () => {
   const sent: Array<{ session_id: string; utm: Record<string, string> }> = [];
   let search = "";
+  let pathname = "/guides/x";
+  let referrer = "";
   let throwing = false;
   const ls = mem();
   const ss = mem();
-  const win: Record<string, unknown> = { location: { get search() { return search; }, pathname: "/guides/x" }, navigator: {}, addEventListener() {} };
+  const win: Record<string, unknown> = { location: { get search() { return search; }, get pathname() { return pathname; } }, navigator: {}, addEventListener() {} };
   Object.defineProperty(win, "localStorage", { get() { if (throwing) throw new Error("SecurityError"); return ls; } });
   Object.defineProperty(win, "sessionStorage", { get() { if (throwing) throw new Error("SecurityError"); return ss; } });
-  Object.assign(globalThis, { window: win, document: { referrer: "", addEventListener() {}, visibilityState: "visible" } });
+  Object.assign(globalThis, { window: win, document: { get referrer() { return referrer; }, addEventListener() {}, visibilityState: "visible" } });
   Object.defineProperty(globalThis, "navigator", {
     configurable: true,
     value: { sendBeacon: (_u: string, b: Blob) => { void b.text().then((t) => sent.push(...JSON.parse(t).events)); return true; } }
@@ -44,6 +46,37 @@ test("tagged links, visit boundaries and blocked storage", async () => {
   await settle();
   assert.deepEqual(sent[3].utm, {}, "a new visit does not inherit the old campaign");
   assert.notEqual(sent[3].session_id, sent[2].session_id);
+
+  // A site's own ref= (a report id) joins the visit's tags instead of wiping the guide's campaign.
+  sent.length = 0;
+  search = "?utm_source=guide&utm_campaign=city-website";
+  T.track("page_view");
+  search = "?ref=report-123";
+  T.track("page_view");
+  search = "";
+  T.track("signup_completed");
+  await settle();
+  assert.equal(sent[1].utm.utm_campaign, "city-website", "a bare ref keeps the guide's campaign");
+  assert.equal(sent[1].utm.ref, "report-123");
+  assert.equal(sent[2].utm.utm_campaign, "city-website", "the sign-up after it is still the guide's");
+
+  // Secrets in an address never reach analytics: tokens in the path, and anything past a referrer's site.
+  sent.length = 0;
+  pathname = "/invite/abcDEF123456789xyz";
+  referrer = "https://example.org/reset-password?token=secret123&app=x";
+  T.track("page_view");
+  pathname = "/account/confirm/tok_987/next";
+  referrer = "not a url";
+  T.track("page_view");
+  await settle();
+  const recorded = sent as unknown as Array<{ path: string; referrer: string | null }>;
+  assert.equal(recorded[0].path, "/invite/:token");
+  assert.equal(recorded[0].referrer, "https://example.org");
+  assert.equal(recorded[1].path, "/account/confirm/:token/next");
+  assert.equal(recorded[1].referrer, null);
+  assert.ok(!JSON.stringify(sent).includes("secret123") && !JSON.stringify(sent).includes("abcDEF123456789xyz"));
+  pathname = "/guides/x";
+  referrer = "";
 
   throwing = true;
   assert.doesNotThrow(() => {
