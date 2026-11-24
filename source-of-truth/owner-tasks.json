@@ -2526,7 +2526,7 @@
       ],
       "kind": "account",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://www.churchconnect.cloud/admin",
       "source": "ChurchConnect PR #784 (merged 2026-11-20)",
       "requestedBy": "Claude (session 01JiHrgCy36LAHqS2niEnY4a)",
@@ -2752,6 +2752,27 @@
       "verifiedOn": "2026-11-24",
       "verifiedHow": "2026-11-24 11:50 UTC: ChurchConnect runs on main and PR #789 all fail in 2-3 s with runner_id 0 and no logs (HTTP 404); first failure 2026-11-23 18:11 (Worship scan), last success 2026-11-23 17:20 (hourly ops); EasyPeazy (private) scheduled runs fail the same way; AppEngine (public) Fleet Health passes every 30 min. Billing page itself not visible to agents, so the exact cause (minutes vs payment)",
       "app": "ecosystem",
+      "addedOn": "2026-11-24"
+    },
+    {
+      "id": "marketing-add-your-business-facebook-pages-furfriend-kid-safe-laser-easypeazy-co",
+      "title": "Add your business Facebook Pages (FurFriend, Kid Safe, Laser, EasyPeazy, Commons, AI Website Design) to Super Admin",
+      "why": "New guides for these six businesses now publish on their own sites automatically, but they are only shared to Facebook when the business has its own Page connected. Today only Church Connect and United Under God are connected, so these six get no social posts. Once a Page is connected, its new guides are shared there once a day automatically.",
+      "steps": [
+        "If a business has no Facebook Page yet, create one at facebook.com/pages/create (name it exactly like the site, for example FurFriend).",
+        "Open churchconnect.cloud, sign in, go to Admin, then Social Media, and tap Connect Facebook & Instagram.",
+        "When Facebook asks which Pages to allow, tick every business Page (keep Church Connect and United Under God ticked), then finish.",
+        "That is all: tell Claude, and their guides start sharing the next day."
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://www.churchconnect.cloud/admin",
+      "source": "ChurchConnect PR #792",
+      "requestedBy": "Claude (marketing system session)",
+      "verifiedOn": "2026-11-24",
+      "verifiedHow": "2026-11-24: cc_social_media_connections for platform:churchconnect holds only Church Connect (Facebook), United Under God (Facebook) and @churchconnect.cloud (Instagram); each answered the Graph API with its token. Super Admin's Connect button saves every Page Facebook grants (meta_connect.save_pages).",
+      "app": "marketing",
       "addedOn": "2026-11-24"
     }
   ]
