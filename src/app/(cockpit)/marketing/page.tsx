@@ -72,6 +72,39 @@ export default async function MarketingPage() {
           ))}
 
           <section className="panel">
+            <p className="dx-label">What the guides brought in, last 30 days</p>
+            {report.results === null ? (
+              <p className="dx-note">The guide results could not be read.</p>
+            ) : report.results.bySite.length === 0 ? (
+              <p className="dx-note">No guide visits counted yet.</p>
+            ) : (
+              <>
+                {report.results.bySite.map((s) => (
+                  <p className="dx-row" key={s.site}>
+                    <b>{s.label}</b>
+                    <span className="dx-note">
+                      {s.views} views · {s.clicks} clicks to sign up or buy · {s.signups} sign-ups · {s.payments} sales
+                    </span>
+                  </p>
+                ))}
+                <p className="dx-label" style={{ marginTop: 16 }}>
+                  What&apos;s working (customers first, then clicks, then views)
+                </p>
+                {report.results.top.map((g) => (
+                  <p className="dx-row" key={`${g.site}/${g.slug}`}>
+                    <a className="account-link" href={g.url} target="_blank" rel="noreferrer">
+                      <b>{(g.title || g.slug).slice(0, 70)}</b>
+                    </a>
+                    <span className="dx-note">
+                      {g.label} · {g.views} views · {g.clicks} clicks · {g.signups} sign-ups · {g.payments} sales
+                    </span>
+                  </p>
+                ))}
+              </>
+            )}
+          </section>
+
+          <section className="panel">
             <p className="dx-label">Facebook &amp; Instagram, last 7 days</p>
             {report.pages === null ? (
               <p className="dx-note">The company posts could not be read.</p>
@@ -104,7 +137,7 @@ export default async function MarketingPage() {
                 <b>{report.usage.guides} guides written from searches</b>
                 <span className="dx-note">
                   {report.usage.inputTokens.toLocaleString()} tokens in · {report.usage.outputTokens.toLocaleString()} tokens out · about $
-                  {report.usage.estimatedUsd.toFixed(2)} (estimate; Anthropic&apos;s bill is the real number). Capped at 60 guides a month.
+                  {report.usage.estimatedUsd.toFixed(2)} (estimate; Anthropic&apos;s bill is the real number). Capped at 220 guides a month.
                 </span>
               </p>
             )}

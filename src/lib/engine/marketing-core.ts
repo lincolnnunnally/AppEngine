@@ -142,3 +142,63 @@ export function sumUsage(rows: UsageRow[]): { guides: number; inputTokens: numbe
     { guides: 0, inputTokens: 0, outputTokens: 0 }
   );
 }
+
+// ---- Guide results (owner, 2026-11-24: "track the traffic ... learn from what gets the most attention ...
+// actually get customers"). Rows come from public.marketing_guide_results (db/migrations/016). ----
+
+export type GuideResultRow = {
+  site: string;
+  slug: string;
+  title: string | null;
+  published_at: string | null;
+  views: number;
+  visitors: number;
+  clicks: number;
+  signups: number;
+  payments: number;
+};
+
+export type SiteResults = { site: string; label: string; guides: number; views: number; clicks: number; signups: number; payments: number };
+
+export type GuideResult = GuideResultRow & { label: string; url: string };
+
+const num = (v: unknown) => Number(v) || 0;
+
+export type SiteResultRow = { site: string; guides: number; views: number; clicks: number; signups: number; payments: number };
+
+/** Per-guide rows rank the guides; site totals come from public.marketing_site_results, which counts each
+ * visitor once per site (one reader of two guides who buys once is one sale, not two). */
+export function summarizeResults(
+  rows: GuideResultRow[],
+  siteRows: SiteResultRow[] = [],
+  sites: MarketingSite[] = MARKETING_SITES
+): { bySite: SiteResults[]; top: GuideResult[] } {
+  const byApp = new Map(sites.map((s) => [s.app, s]));
+  const clean = rows
+    .filter((r) => r && r.site && r.slug && byApp.has(r.site))
+    .map((r) => {
+      const site = byApp.get(r.site)!;
+      return {
+        ...r,
+        views: num(r.views), visitors: num(r.visitors), clicks: num(r.clicks), signups: num(r.signups), payments: num(r.payments),
+        label: site.label,
+        url: `${site.guides}/${r.slug}`
+      };
+    });
+  const totals = new Map(siteRows.filter((r) => r && r.site).map((r) => [r.site, r]));
+  const bySite = sites
+    .map((s) => {
+      const t = totals.get(s.app);
+      return {
+        site: s.app, label: s.label,
+        guides: num(t?.guides), views: num(t?.views), clicks: num(t?.clicks), signups: num(t?.signups), payments: num(t?.payments)
+      };
+    })
+    .filter((s) => s.guides + s.views + s.clicks + s.signups + s.payments > 0);
+  // What's working: customers first, then clicks, then views. A guide with no views is not "working" yet.
+  const top = clean
+    .filter((r) => r.views + r.clicks + r.signups + r.payments > 0)
+    .sort((a, b) => b.payments - a.payments || b.signups - a.signups || b.clicks - a.clicks || b.views - a.views)
+    .slice(0, 10);
+  return { bySite, top };
+}

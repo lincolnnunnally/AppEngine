@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MARKETING_SITES, monthStartUtc, summarizeSites, summarizeSocial, sumUsage, type PieceRow } from "./marketing-core.ts";
+import { MARKETING_SITES, monthStartUtc, summarizeResults, summarizeSites, summarizeSocial, sumUsage, type PieceRow } from "./marketing-core.ts";
 
 const NOW = new Date("2026-11-24T18:00:00Z");
 const ago = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
@@ -60,4 +60,30 @@ test("sumUsage adds tokens and counts guides", () => {
     inputTokens: 101,
     outputTokens: 52
   });
+});
+
+test("summarizeResults totals each site and ranks guides by customers, then clicks, then views", () => {
+  const row = (site: string, slug: string, views: number, clicks = 0, signups = 0, payments = 0) =>
+    ({ site, slug, title: null, published_at: null, views, visitors: views, clicks, signups, payments });
+  const { bySite, top } = summarizeResults(
+    [
+      row("furfriend", "a", 50, 2, 0, 1),
+      row("furfriend", "b", 5, 1, 0, 1),
+      row("laser", "c", 9),
+      row("laser", "quiet", 0),
+      row("not-a-site", "x", 99)
+    ],
+    [
+      // one reader of both FurFriend guides bought once: the site total says 1, not 2
+      { site: "furfriend", guides: 2, views: 55, clicks: 3, signups: 0, payments: 1 },
+      { site: "laser", guides: 1, views: 9, clicks: 0, signups: 0, payments: 0 },
+      { site: "kidsafe", guides: 0, views: 0, clicks: 0, signups: 0, payments: 0 }
+    ]
+  );
+  assert.deepEqual(bySite.map((s) => [s.site, s.guides, s.views, s.clicks, s.payments]), [
+    ["furfriend", 2, 55, 3, 1],
+    ["laser", 1, 9, 0, 0]
+  ], "site totals come from the de-duplicated site rows; empty sites are left out");
+  assert.deepEqual(top.map((g) => g.slug), ["a", "b", "c"], "sales, then clicks, then views; unseen guides are left out");
+  assert.equal(top[0].url, "https://furfriend.pet/guides/a");
 });
