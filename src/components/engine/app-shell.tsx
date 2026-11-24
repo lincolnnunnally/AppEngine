@@ -18,6 +18,7 @@ const OPERATOR_GROUPS: RailGroup[] = [
       { label: "To do", href: "/tasks" },
       { label: "Inbox", href: "/inbox" },
       { label: "Campaigns", href: "/campaigns" },
+      { label: "Marketing", href: "/marketing" },
       { label: "People & places", href: "/crm" },
       { label: "Money", href: "/reports/money" },
       { label: "Domains", href: "/domains" },
