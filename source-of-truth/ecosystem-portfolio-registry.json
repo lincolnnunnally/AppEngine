@@ -4,28 +4,28 @@
   "generatedAt": "2026-11-04T18:40:00.000Z",
   "owner": "Lincoln",
   "summary": {
-    "totalApps": 45,
+    "totalApps": 46,
     "reviewReadyApps": 0,
-    "productionLiveApps": 34,
+    "productionLiveApps": 35,
     "blockedApps": 11,
     "byDeploymentState": {
-      "production_live": 34,
+      "production_live": 35,
       "production_blocked": 11
     },
     "byBuildState": {
-      "ready_for_vnext": 31,
+      "ready_for_vnext": 32,
       "review_blocked": 1,
       "ready_for_build": 1,
       "planned": 12
     },
     "nextSafeActions": {
-      "create_vnext_packet": 31,
+      "create_vnext_packet": 32,
       "stop_for_owner_approval": 2,
       "create_implementation_issue": 1,
       "create_planning_issue": 11
     },
     "byUrlStatus": {
-      "live": 34,
+      "live": 35,
       "awaiting_url": 8,
       "deployed_awaiting_domain": 1,
       "domain_owned_not_serving": 2
@@ -1361,6 +1361,30 @@
       "blockers": [],
       "evidenceLinks": ["https://furfriend.pet"],
       "lastUpdated": "2026-08-15T16:00:00.000Z"
+    },
+    {
+      "name": "Kid Safe",
+      "slug": "kidsafe",
+      "reviewUrl": "https://kidsafe.unitedundergod.org",
+      "productionUrl": "https://kidsafe.unitedundergod.org",
+      "currentVersion": "production",
+      "deploymentState": "production_live",
+      "buildState": "ready_for_vnext",
+      "nextSafeAction": "create_vnext_packet",
+      "domain": {
+        "intendedDomain": "kidsafe.unitedundergod.org",
+        "urlStatus": "live",
+        "servingUrl": "https://kidsafe.unitedundergod.org",
+        "nextStep": "None. Live. Name (Kid Safe or Kids Safe), tag material and a texting number are owner decisions.",
+        "note": "QR safety tags for kids (owner, 2026-11-21). Its own app (owner, 2026-11-22: two separate apps): repo lincolnnunnally/kidsafe, Vercel project kidsafe. Partner desk at /admin.",
+        "factsFrom": "kidsafe repo main, furfriend PR #53, 2026-11-22"
+      },
+      "sourceOfTruthFiles": [],
+      "linkedIssues": [],
+      "linkedPRs": [],
+      "blockers": [],
+      "evidenceLinks": ["https://kidsafe.unitedundergod.org"],
+      "lastUpdated": "2026-11-21T14:00:00.000Z"
     },
     {
       "name": "AI Website Design",

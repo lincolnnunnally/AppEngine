@@ -2484,7 +2484,7 @@
       ],
       "kind": "credential",
       "priority": "blocker",
-      "status": "open",
+      "status": "done",
       "link": "https://dashboard.stripe.com/",
       "source": "furfriend PR #25",
       "requestedBy": "Claude (FurFriend pet tags session)",
@@ -2534,6 +2534,225 @@
       "verifiedHow": "PR #784 merged; GET https://www.churchconnect.cloud/api/admin/social/connections answers 401 without sign-in (the route is live). 111 posting tests pass. Facebook Login needs the owner's own Facebook account, which no agent has.",
       "app": "churchconnect",
       "addedOn": "2026-11-20"
+    },
+    {
+      "id": "furfriend-furfriend-decide-refunds-sales-tax-and-partner-terms-before-real-order",
+      "title": "FurFriend: decide refunds, sales tax and partner terms before real orders",
+      "why": "The tag shop and partner program are built, but FurFriend's terms (last updated July 2026) and privacy policy don't cover tag orders, finder location, or partners. Three business calls are yours: what happens if a tag is wrong or damaged, whether to collect sales tax at checkout, and the partner payout terms.",
+      "steps": [
+        "Reply in a FurFriend session with your choices, or just 'use your defaults'. Proposed defaults: (1) we remake or refund any tag that's wrong or arrives damaged; personalized tags can't be returned otherwise. (2) Sales tax: collect it at checkout with Stripe Tax (about 0.5% per sale), or keep prices tax-included; ask your accountant which applies. (3) Partners: $1 a tag paid monthly once $10 is owe"
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://furfriend.pet/terms",
+      "source": "furfriend readiness review 2026-11-20",
+      "requestedBy": "Claude (FurFriend session)",
+      "verifiedOn": "2026-11-20",
+      "verifiedHow": "Read src/app/terms/page.tsx and src/app/privacy/page.tsx on furfriend main: no section on tag orders, refunds for engraved goods, finder location, partners, or Stripe; checkout (lib/tagorders.ts) sets no automatic tax. Live /terms and /privacy load (200).",
+      "app": "furfriend",
+      "addedOn": "2026-11-20"
+    },
+    {
+      "id": "kidsafe-decide-on-kid-id-tags-yes-or-no-which-site-sells-them-and-the-child-sa",
+      "title": "Decide on kid ID tags: yes or no, which site sells them, and the child-safety rules",
+      "why": "You asked about turning the pet QR tag into a tag for kids (dinosaurs, unicorns, fire trucks) for theme parks, bowling alleys and festivals. The FurFriend tag system already does nearly all of it. Three things are yours: whether to make it, where it lives (a page on furfriend.pet that says 'Found a pet?' would be wrong for a child), and whether to pay for child-product safety testing. In the US, anything made mainly for kids 12 and under falls under CPSIA (lead limits, a Children's Product Certificate, tracking labels). Bare wood with no finish makes this much easier.",
+      "steps": [
+        "Reply yes or no to kid tags in the Claude chat",
+        "Pick where they sell: a new kid name and site on the same tag system (recommended), a page on Laser Engrave, or FurFriend",
+        "Decide whether the tags go out bare wood (easiest under CPSIA) or with a finish or paint, which needs lab testing (money)"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://furfriend.pet/tags",
+      "source": "AppEngine owner-tasks PR (kid tag idea)",
+      "requestedBy": "Claude (kid tag idea session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "Read furfriend src/lib/tags.ts, api/tags/[code], t/[code] page and LaserEngraving pet_tags.py on 2026-11-21; no kid tag exists; furfriend.pet/tags returned 200",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
+    },
+    {
+      "id": "kidsafe-get-a-texting-number-so-kid-safe-and-furfriend-can-text-a-parent-the-m",
+      "title": "Get a texting number so Kid Safe and FurFriend can text a parent the moment a tag is scanned",
+      "why": "You asked for a text ping the moment someone scans a child's or pet's tag. The code is built and live at kidsafe.unitedundergod.org (furfriend PR #39). It sends the text as soon as a number exists. Until then parents get email only. The furfriend project has no Twilio keys. ChurchConnect's Twilio number is for churches and isn't registered for this kind of alert. US carriers block texts from numbers that aren't registered, so a number needs registering (toll-free verification is simplest) before texts arrive. A number costs about $2 a month plus a cent or so per text.",
+      "steps": [
+        "In Twilio (the account ChurchConnect uses), buy a toll-free number and submit toll-free verification for 'Kid Safe and FurFriend tag scan alerts' (use case: account notifications; parents opt in on kidsafe.unitedundergod.org/family)",
+        "Tell an agent when the number is bought. It adds TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER to the furfriend Vercel project, sends a test text, and turns on texts for pet tags too"
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://console.twilio.com/us1/develop/phone-numbers/manage/search",
+      "source": "furfriend PR #39",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: furfriend Vercel env list has no TWILIO_* vars; ChurchConnect docs/maps/church-texting-number-map.md says its sends have no 10DLC or toll-free registration; Kid Safe live code calls lib/sms.ts only when those vars are set",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
+    },
+    {
+      "id": "kidsafe-pick-the-name-kid-safe-or-kids-safe",
+      "title": "Pick the name: Kid Safe or Kids Safe",
+      "why": "The live site, emails and tag address say 'Kid Safe' (kidsafe.unitedundergod.org). The new logo mockup says 'Kids Safe'. Engraved tags and printed cards should use one name, so this needs settling before any tags are made. The web address can stay kidsafe either way.",
+      "steps": [
+        "Reply 'Kid Safe' or 'Kids Safe' in the Claude chat"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsafe.unitedundergod.org/",
+      "source": "Kid Safe design review, 2026-11-21",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: kidsafe.unitedundergod.org title and emails say 'Kid Safe'; Lincoln's shared mockup logo reads 'Kids Safe'",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
+    },
+    {
+      "id": "kidsafe-set-kid-safe-prices-blank-tags-for-partners-a-family-s-own-tag-and-what-",
+      "title": "Set Kid Safe prices: blank tags for partners, a family's own tag, and what a partner earns",
+      "why": "The Kid Safe partner program is live (furfriend PR #44). Daycares, doctors' offices, kids' stores, parks, cruises and hotels can apply or activate a display, and parents register blank tags on the spot. Nothing is charged or paid yet because no prices are set. FurFriend's terms, for comparison: blank stock tags $10 each ($8 from 50, at least 10), a partner earns $1 per tag their customers order, and a family's own tag is from $12.",
+      "steps": [
+        "Price of blank tags a partner keeps to hand out (each, and any bulk price)",
+        "Price of a family's own engraved tag ordered online",
+        "What a partner earns: a share per tag their families order, a flat amount per family who joins, or nothing (setup is free to families either way)",
+        "Whether displays are free to partners or charged"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsafe.unitedundergod.org/partners",
+      "source": "furfriend PR #44",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: Kid Safe partner apply, display activation, blank tag registration and dashboard verified on a preview with test accounts (since deleted); no price or payout exists in ks_ tables or code",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
+    },
+    {
+      "id": "kidsafe-pick-and-buy-kid-safe-s-own-domain-before-tags-are-printed-in-volume",
+      "title": "Pick and buy Kid Safe's own domain (before tags are printed in volume)",
+      "why": "Every printed tag carries the web address forever (the QR, and 'No scan? Go to ...' for typing). Today that is kidsafe.unitedundergod.org: long to type off a small tag. Checked available on 2026-11-21: kidsafetag.com ($12/yr), kidsafetags.com ($12/yr), kidssafetag.com ($12/yr, if the name becomes Kids Safe), findmygrownup.com ($12/yr), kidsafe.kids ($10 first year, then $30/yr), ksafe.me ($14, then $20/yr). Taken: kidsafe.com, .app, .org, .co, .me. Whatever goes on tags must keep working for good; kidsafe.unitedundergod.org will keep answering either way.",
+      "steps": [
+        "Settle the name first (kidsafe-pick-the-name-kid-safe-or-kids-safe)",
+        "Reply in the Claude chat with the domain to buy (recommended: kidsafetag.com, plus kidsafetags.com so nobody else takes it). An agent buys it on the Vercel account and points it at Kid Safe"
+      ],
+      "kind": "money",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://kidsafe.unitedundergod.org/",
+      "source": "Kid Safe launch check, 2026-11-21",
+      "requestedBy": "Claude (Kid Safe session)",
+      "verifiedOn": "2026-11-21",
+      "verifiedHow": "2026-11-21: Vercel domain availability and price lookup for 38 names; kidsafe.unitedundergod.org is the address printed on cards in furfriend main",
+      "app": "kidsafe",
+      "addedOn": "2026-11-21"
+    },
+    {
+      "id": "singtrue-decide-speech-coach-as-its-own-app-or-inside-singtrue",
+      "title": "Decide: Speech Coach as its own app, or inside SingTrue",
+      "why": "You asked for a speech coach that reviews a recording five ways (transcript only, video only, audio only, structure, effect). Recommendation: its own app, because SingTrue is real-time and keeps audio on the phone, while a speech coach uploads a recording and needs AI review. What app it is is your call.",
+      "steps": [
+        "Read the findings attached here",
+        "Reply in the Claude session: 'own app' or 'inside SingTrue' (and a name if you have one)"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://singtrue.unitedundergod.org/",
+      "doc": {
+        "title": "SingTrue check-up and Speech Coach recommendation",
+        "text": "# SingTrue check-up and the Speech Coach question\n\n## SingTrue today (tested live 2026-11-22, singtrue.unitedundergod.org)\n- Loads, no errors, smooth on a phone-sized screen. The live site is exactly the repo's single index.html.\n- Free Practice works: fed test notes C4, E4 and A2 through a simulated mic, it named each one within 3 cents.\n- Match Note is broken: target set to C4, sang E4, it showed green \"in tune, 100%\". It only checks you are on *some* note, never the one you picked.\n- Scale Drill never moves: the \"next note\" code exists but nothing calls it. You change notes by hand.\n- Smaller: if you play the reference tone and then start listening, the two collide; the pitch graph cuts off voices below about G2.\n\n## Speech Coach: recommendation is a separate app\nSingTrue's promise is \"real-time, nothing leaves your phone.\" A speech coach is the opposite job: upload a recording, review it afterward, and it needs a server for transcripts and AI review. Putting it inside SingTrue would break that promise and make both muddier.\n\nIt would reuse what we already have:\n- Video/audio recording: honestly's VideoRecorder (Module Catalog \"media-recording\")\n- Transcripts, including long recordings: ideas' transcribe code (Whisper)\n- AI review: the same server pattern ideas uses\n\nThe five views you described:\n1. Transcript only: read what you said\n2. Video only, muted, no captions: see what you look like\n3. Audio only, no picture, no words: hear how you sound\n4. Structure: was it organized, did it make sense, where to tighten\n5. Effect: what result it seemed aimed at, did it land, what would make it work\n\nViews 1-3 are just playback and need no AI beyond the transcript. 4 and 5 are AI reads of the transcript (and later, still frames from the video for body language).\n\n## Your decision\nApprove Speech Coach as its own app (recommended), or tell us to put it inside SingTrue.",
+        "from": "Claude session findings, 2026-11-22"
+      },
+      "source": "AppEngine owner-tasks PR (SingTrue check-up)",
+      "requestedBy": "Claude (SingTrue check-up session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "Opened singtrue.unitedundergod.org 2026-11-22 and drove it with test notes through a simulated mic; searched every ecosystem repo for an existing speech coach (none); confirmed honestly VideoRecorder and ideas transcribe code exist to reuse",
+      "app": "singtrue",
+      "addedOn": "2026-11-22"
+    },
+    {
+      "id": "churchconnect-choose-a-home-and-name-for-churchconnect-s-member-growth-space",
+      "title": "Choose a home and name for ChurchConnect's member growth space",
+      "why": "Best Life (best-life.us) is your life-coaching app. ChurchConnect's own member growth space (My Notes, journal, Scripture, devotionals, purpose) needs its own name and address. Recommended: 'ChurchConnect Life' at life.churchconnect.cloud, as a front door into the same ChurchConnect app so members keep one sign-in, with Best Life coaching as the go-deeper step.",
+      "steps": [
+        "Reply in the ChurchConnect chat: life.churchconnect.cloud (recommended), my.best-life.us, or another name/address",
+        "Agent then sets up the address and the wording; nothing to do in any account"
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "done",
+      "link": "https://www.churchconnect.cloud/individual/welcome",
+      "source": "ChurchConnect PR #787",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "2026-11-22: life.churchconnect.cloud and my.best-life.us have no DNS records (free); my.churchconnect.cloud is in use by the church website builder; churchconnect.cloud and best-life.us zones are active in Cloudflare and editable by agents; ChurchConnect stores sign-in per site address (localStorage), so a separate address would need a second sign-in",
+      "app": "churchconnect",
+      "addedOn": "2026-11-22"
+    },
+    {
+      "id": "kidsafe-create-an-empty-github-repo-named-kidsafe-so-kid-safe-can-move-out-of-fu",
+      "title": "Create an empty GitHub repo named kidsafe, so Kid Safe can move out of FurFriend",
+      "why": "You asked for Kid Safe to be its own app with its own repo and Vercel project. It is built inside the furfriend repo today, which is why FurFriend's Vercel card shows kidsafe.unitedundergod.org. Agents can't create GitHub repos; once this one exists, an agent moves Kid Safe into it, gives it its own Vercel project and proves it works.",
+      "steps": [
+        "Open github.com/new. Owner: lincolnnunnally. Name: kidsafe. Private. Leave README, .gitignore and license unticked (empty repo). Create.",
+        "If the Claude GitHub app is set to 'Only select repositories', add kidsafe at github.com/settings/installations (Claude > Configure). If it is set to 'All repositories', nothing to do.",
+        "Tell the agent it's there."
+      ],
+      "kind": "account",
+      "priority": "recommended",
+      "status": "done",
+      "link": "https://github.com/new",
+      "source": "lincolnnunnally/furfriend #52 follow-up",
+      "requestedBy": "Claude (furfriend session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "2026-11-22: add_repo for lincolnnunnally/kidsafe answered not found; list_repos for 'kid' returned none; Vercel project prj_UIn9xitp02g4hcFCpePyLNamDvjn (furfriend) lists kidsafe.unitedundergod.org as its newest domain; this session's tools can't create repos.",
+      "app": "kidsafe",
+      "addedOn": "2026-11-22"
+    },
+    {
+      "id": "kidsafe-remove-kidsafe-unitedundergod-org-from-the-furfriend-vercel-project-one-",
+      "title": "Remove kidsafe.unitedundergod.org from the furfriend Vercel project (one click)",
+      "why": "Kid Safe is its own app now (repo kidsafe, Vercel project kidsafe). Its address is still attached to the furfriend project, which is why FurFriend's Vercel card shows it. The agent tools can add an address to a project but not remove one. Until you click, FurFriend's project passes that address through to the Kid Safe project, so nothing is broken.",
+      "steps": [
+        "Open vercel.com > life-produces-life > furfriend > Settings > Domains.",
+        "Next to kidsafe.unitedundergod.org, open the ... menu and choose Remove. Confirm. (Only that one; leave furfriend.pet and the others.)",
+        "Tell the agent. It adds the address to the kidsafe project right away, so it is down for about a minute at most, and checks it."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "done",
+      "link": "https://vercel.com/life-produces-life/furfriend/settings/domains",
+      "source": "lincolnnunnally/furfriend #53",
+      "requestedBy": "Claude (furfriend session)",
+      "verifiedOn": "2026-11-22",
+      "verifiedHow": "2026-11-22: Vercel add_project_domain on project kidsafe returned 409 domain_already_in_use (attached to furfriend prj_UIn9xitp02g4hcFCpePyLNamDvjn); the Vercel MCP has no remove or move domain tool; no Vercel token in this session. The page link opens the furfriend project's Domains settings.",
+      "app": "kidsafe",
+      "addedOn": "2026-11-22"
+    },
+    {
+      "id": "ecosystem-github-actions-stopped-running-on-every-private-repo-billing",
+      "title": "GitHub Actions stopped running on every private repo (billing)",
+      "why": "Since about 18:11 UTC on 2026-11-23, every GitHub Actions job in your private repos (ChurchConnect, EasyPeazy and the rest) ends in about 3 seconds without ever getting a runner, while public repos (AppEngine) still run. ChurchConnect's hourly ops, website checks, event and worship scans and the website outreach email have not run since, and no pull request can get its checks. That pattern means GitHub will not start private-repo jobs: the month's included Actions minutes are used up with no budget left, or a payment failed.",
+      "steps": [
+        "Open github.com/settings/billing and look at Actions usage and any payment warning",
+        "If a payment failed, update the card",
+        "If included minutes are used up, add a monthly Actions budget (for example $10) under Budgets and alerts, or wait for the minutes to reset on your billing date",
+        "Tell any agent when done; it re-runs one ChurchConnect job to confirm"
+      ],
+      "kind": "money",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://github.com/settings/billing",
+      "source": "ChurchConnect PR #789",
+      "requestedBy": "Claude (ChurchConnect session)",
+      "verifiedOn": "2026-11-24",
+      "verifiedHow": "2026-11-24 11:50 UTC: ChurchConnect runs on main and PR #789 all fail in 2-3 s with runner_id 0 and no logs (HTTP 404); first failure 2026-11-23 18:11 (Worship scan), last success 2026-11-23 17:20 (hourly ops); EasyPeazy (private) scheduled runs fail the same way; AppEngine (public) Fleet Health passes every 30 min. Billing page itself not visible to agents, so the exact cause (minutes vs payment)",
+      "app": "ecosystem",
+      "addedOn": "2026-11-24"
     }
   ]
 }

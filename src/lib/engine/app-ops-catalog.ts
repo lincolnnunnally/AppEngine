@@ -314,6 +314,13 @@ const CATALOG: Record<string, AppOpsCatalogEntry> = {
     purpose: "Pet sitting and care between neighbors.",
     adminPath: "/admin"
   },
+  kidsafe: {
+    slug: "kidsafe",
+    family: "family",
+    purpose: "QR safety tags for kids: a helper scans, the parent is reached in one tap.",
+    adminPath: "/admin",
+    adminNote: "Partner desk (daycares, stores, parks, hotels) for ecosystem admins. Parents use /family. Own repo lincolnnunnally/kidsafe and Vercel project kidsafe."
+  },
   "ai-website-design": {
     slug: "ai-website-design",
     family: "commerce",
