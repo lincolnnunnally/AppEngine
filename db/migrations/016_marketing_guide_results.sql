@@ -1,7 +1,8 @@
 -- Guide results for /marketing (owner, 2026-11-24): "make sure we can track the traffic we get from these
 -- posts and we can learn from what gets the most attention ... and actually get customers."
 --
--- One row per guide per site, from the shared first-party tracker (public.lpl_events) and the shared
+-- Site keys are lpl_articles.app; tracker slugs from scripts/lib/ecosystem-apps.mjs (rally and spark-of-hope
+-- have no tracker yet). One row per guide per site, from the shared first-party tracker (public.lpl_events) and the shared
 -- library (public.lpl_articles), over the last p_days:
 --   views      page_view rows on /guides/<slug> (any prefix, any trailing slash)
 --   visitors   distinct anon_ids among those views
@@ -28,7 +29,8 @@ as $$
   with map(site, app_slug) as (
     values ('furfriend', 'furfriend'), ('kidsafe', 'kidsafe'), ('laser', 'laser'), ('easypeazy', 'easypeazy'),
            ('ai-website-design', 'aiwebsite'), ('churchconnect', 'churchconnect'), ('uug', 'uug'),
-           ('sanctuary-avl', 'sanctuary-avl'), ('commons', 'commons')
+           ('sanctuary-avl', 'sanctuary-avl'), ('commons', 'commons'),
+           ('kids-need-dads', 'knd'), ('best-life', 'bestlife')
   ),
   ev as (
     select m.site, e.event_name, e.anon_id, e.session_id, e.path, e.utm, e.created_at
@@ -115,7 +117,8 @@ as $$
   with map(site, app_slug) as (
     values ('furfriend', 'furfriend'), ('kidsafe', 'kidsafe'), ('laser', 'laser'), ('easypeazy', 'easypeazy'),
            ('ai-website-design', 'aiwebsite'), ('churchconnect', 'churchconnect'), ('uug', 'uug'),
-           ('sanctuary-avl', 'sanctuary-avl'), ('commons', 'commons')
+           ('sanctuary-avl', 'sanctuary-avl'), ('commons', 'commons'),
+           ('kids-need-dads', 'knd'), ('best-life', 'bestlife')
   ),
   ev as (
     select m.site, e.event_name, e.anon_id, e.session_id, e.path, e.utm, e.created_at
