@@ -2736,12 +2736,12 @@
     {
       "id": "ecosystem-github-actions-stopped-running-on-every-private-repo-billing",
       "title": "GitHub Actions stopped running on every private repo (billing)",
-      "why": "Since about 18:11 UTC on 2026-11-23, every GitHub Actions job in your private repos (ChurchConnect, EasyPeazy and the rest) ends in about 3 seconds without ever getting a runner, while public repos (AppEngine) still run. ChurchConnect's hourly ops, website checks, event and worship scans and the website outreach email have not run since, and no pull request can get its checks. That pattern means GitHub will not start private-repo jobs: the month's included Actions minutes are used up with no budget left, or a payment failed.",
+      "why": "Since about 18:11 UTC on 2026-11-23, every GitHub Actions job in your private repos (ChurchConnect, EasyPeazy and the rest) ends in about 3 seconds without ever getting a runner, while public repos (AppEngine) still run. ChurchConnect's hourly ops, website checks, event and worship scans and the website outreach email have not run since, and no pull request can get its checks. That pattern means GitHub will not start private-repo jobs: the month's included Actions minutes are used up with no budget left, or a payment failed. On 2026-11-25 the owner asked to stop the failure emails, so the scheduled triggers in those four repos are paused until this is fixed.",
       "steps": [
         "Open github.com/settings/billing and look at Actions usage and any payment warning",
         "If a payment failed, update the card",
         "If included minutes are used up, add a monthly Actions budget (for example $10) under Budgets and alerts, or wait for the minutes to reset on your billing date",
-        "Tell any agent when done; it re-runs one ChurchConnect job to confirm"
+        "Tell any agent when done; it turns the paused schedules back on (ChurchConnect #794, operate #106, easypeazy #167, ideas-app #35: uncomment the schedule blocks) and re-runs one ChurchConnect job to confirm"
       ],
       "kind": "money",
       "priority": "blocker",
