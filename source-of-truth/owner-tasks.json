@@ -2784,7 +2784,7 @@
       ],
       "kind": "decision",
       "priority": "recommended",
-      "status": "open",
+      "status": "done",
       "link": "https://dashboard.unitedundergod.org/tasks",
       "source": "Scheduled task trig_018jfyQoTAbn6xTSj8ZEfRKf",
       "requestedBy": "Claude (marketing session)",
