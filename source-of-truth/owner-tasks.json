@@ -2774,6 +2774,24 @@
       "verifiedHow": "2026-11-24: cc_social_media_connections for platform:churchconnect holds only Church Connect (Facebook), United Under God (Facebook) and @churchconnect.cloud (Instagram); each answered the Graph API with its token. Super Admin's Connect button saves every Page Facebook grants (meta_connect.save_pages).",
       "app": "marketing",
       "addedOn": "2026-11-24"
+    },
+    {
+      "id": "churchconnect-decide-keep-shorten-or-turn-off-the-daily-customer-report",
+      "title": "Decide: keep, shorten or turn off the daily customer report",
+      "why": "A scheduled report runs every afternoon (about 4:20 PM Eastern): orders you got, orders that came to us, dollars, Google visits, church replies, and an end-of-day note in the outreach log. It is paused until you choose, and each run uses paid AI credits. The new marketing page already shows which guides bring visits, sign-ups and sales.",
+      "steps": [
+        "Reply with one word: keep (the full report every afternoon), shorten (only the scoreboard: orders and dollars, a few lines), or off (stop it)."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://dashboard.unitedundergod.org/tasks",
+      "source": "Scheduled task trig_018jfyQoTAbn6xTSj8ZEfRKf",
+      "requestedBy": "Claude (marketing session)",
+      "verifiedOn": "2026-11-25",
+      "verifiedHow": "Checked 2026-11-25: the scheduled task fired 2026-11-24 21:20 UTC and was skipped on hold; no open owner task covers it; the step is a one-word reply with nothing live to break.",
+      "app": "churchconnect",
+      "addedOn": "2026-11-25"
     }
   ]
 }
