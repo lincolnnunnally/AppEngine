@@ -2842,6 +2842,26 @@
       "verifiedHow": "2026-11-25: kindred_events has only the 4 public Vidalia listings, no Kindred night; 4 real onboarded members; 94 emailable unfinished signups; /activities loads 200.",
       "app": "kindred-connections",
       "addedOn": "2026-11-25"
+    },
+    {
+      "id": "kindred-monday-report-add-supabase",
+      "title": "Give the Kindred Monday report access to the database",
+      "why": "The weekly Kindred numbers report (first run Monday Nov 30, 7:13 AM Eastern) was saved without the Supabase connector, so it can't read Kindred's numbers. Agents can't attach connectors to a scheduled task; only your account can.",
+      "steps": [
+        "In the Claude app (claude.ai/code), open your scheduled tasks and choose 'Kindred Monday numbers'.",
+        "Add the Supabase connector to it and save. Nothing else changes; it only reads.",
+        "If you'd rather not, mark this 'Not doing this' and we'll send the numbers by hand on Mondays."
+      ],
+      "kind": "other",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://claude.ai/code",
+      "source": "Scheduled task trig_01GoSvqP4sSJoCCbyTRENJfR",
+      "requestedBy": "Claude (Kindred session)",
+      "verifiedOn": "2026-11-25",
+      "verifiedHow": "2026-11-25: create_trigger returned the task with mcp_connections [] and warned its sessions run without connector tools; the session holds Supabase but could not pass it through.",
+      "app": "kindred-connections",
+      "addedOn": "2026-11-25"
     }
   ]
 }
