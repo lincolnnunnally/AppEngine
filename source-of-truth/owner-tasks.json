@@ -2792,6 +2792,56 @@
       "verifiedHow": "Checked 2026-11-25: the scheduled task fired 2026-11-24 21:20 UTC and was skipped on hold; no open owner task covers it; the step is a one-word reply with nothing live to break.",
       "app": "churchconnect",
       "addedOn": "2026-11-25"
+    },
+    {
+      "id": "ecosystem-approve-readability-standard",
+      "title": "Approve the 'pages are easy to read' standard",
+      "why": "You asked on 2026-11-02 that every page be easy to read and never monotone. The standard is written but doesn't apply to other agents until you approve its wording.",
+      "steps": [
+        "Read the standard attached below (about 4 minutes).",
+        "Reply 'approved', or tell us what to change. Once approved, agents merge it and every app follows it."
+      ],
+      "kind": "decision",
+      "priority": "recommended",
+      "status": "open",
+      "link": "https://dashboard.unitedundergod.org/tasks",
+      "doc": {
+        "title": "Pages are easy to read (standard 19)",
+        "text": "# Pages Are Easy to Read — Clear Focus, Never Monotone\n\nOwner lock: Lincoln, 2026-11-02. Applies to **every page in every ecosystem app**: public landing\npages, signup and onboarding, in-app screens, dashboards, emails rendered as pages, and admin tools.\n\n## In Lincoln's words\n\n> \"That screenshot you just showed me is very plain. Can you make it look better… Try to make it read\n> better since everything is kind of monotone on that screen, makes it hard to read. It makes it\n> difficult to see where I need to focus my attention, which makes it a little more difficult to\n> understand what you're asking of the user.\"\n>\n> \"We had this conversation very often. Can you make this some sort of default in the source of truth\n> so that we know we don't want just plain, hard to read, hard to focus on — [we want] an enjoyable\n> experience with our landing pages or pages of any kind.\"\n\n## The problem that keeps repeating\n\nAgents ship screens where everything is the same weight, the same grey, the same size, on the same\nbackground. Nothing is wrong on paper. Every label is there and every button works. But the person\ncan't tell where to look, what's being asked of them, or what to do next, so they stall or leave.\nA page like that is **not done**, even when it is wired and working (see `13_GATCA` and DC-13).\n\nOur people are often tired, hurting, or on a phone in a parking lot. If they have to work to read the\npage, we've lost them.\n\n## The rule\n\nEvery screen must answer three questions **in about three seconds, on a phone**:\n\n1. **Where do I look?** One clear focal point: the question, the headline, or the main content.\n2. **What is being asked of me?** Said plainly, in words, not left to be inferred.\n3. **What do I do next?** One primary action that visibly stands out from everything else.\n\nAnd it should feel **enjoyable**: warm, alive, and cared-for, not like a form or a spec.\n\n## What that means in practice (checkable)\n\n**Hierarchy — not monotone**\n- Use three or more clearly different levels: a headline, supporting text, and small helper text.\n  Make them different in **size and weight**, not just in color.\n- Each screen has **one** visually dominant element. If everything is bold, nothing is.\n- Put the main content on its own surface: a card, a panel, or a contrasting band. Don't float\n  everything on one flat background.\n\n**Say the ask**\n- Every form step or decision screen has a short, bold instruction line, such as \"Choose one\",\n  \"Pick 3 to 6 · 1 picked\", or \"Optional · skip if you like\". Show live counts where there's a minimum.\n- Mark optional fields with a visible \"Optional\" tag; don't hide it in parentheses.\n- **A disabled button must say why** it's disabled, right next to it (\"Pick 2 more to continue\").\n  A dead button with no explanation is a GATCA trap door.\n\n**Contrast and size**\n- Body and helper text meet **WCAG AA, at least 4.5:1**. No light-grey-on-cream for anything a person\n  needs to read. Placeholder text must never look like a filled-in answer; prefix examples with \"e.g.\".\n- Body text is at least **16px on phones**, and form inputs are 16px so iOS doesn't zoom.\n- Tap targets are at least **44px** tall.\n\n**Choices and state**\n- A selected option looks unmistakably selected: a filled color plus a check, not just a thin border change.\n- Show progress on multi-step flows (\"Step 2 of 8\", a progress bar, time left).\n- On phones, keep the primary action reachable (a sticky action bar) on long screens.\n\n**Fit the phone**\n- Nothing scrolls sideways at 320–390px wide. Check `scrollWidth === innerWidth`.\n\n**Enjoyable, within each app's brand**\n- Use the app's own palette and fonts with intent: an accent color for the action, a warm or\n  contrasting surface for focus, and real whitespace. Don't invent a new brand per screen; build on the\n  app's existing design system.\n- Warmth comes from the words (see `16_PUBLIC_PAGE_VOICE.md`) **and** from how the page looks.\n  Both matter.\n\n## How to check before calling a page done\n\n1. Screenshot it at **390px wide** (and 320px if it's a form). Look at it the way a stranger would.\n2. Squint test: blur your eyes. You should still see one focal point and one primary button.\n3. Read only the bold text. Do you know what's being asked and what to do next? If not, fix it.\n4. Check the contrast of the lightest text you expect someone to read.\n5. Include the before/after screenshots in the PR.\n\n## Worked example\n\n**Kindred onboarding, 2026-11-02**\n([Kindred-Connection#11](https://github.com/lincolnnunnally/Kindred-Connection/pull/11)).\n\nBefore: a cream page with thin serif headings, light-grey helper text, see-through inputs, and an\neight-dash progress bar that overflowed the phone. There was no instruction line, and a greyed-out\nContinue button gave no reason.\n\nAfter:\n- a white card per step on a warm-sand page\n- a bold \"what to do\" pill\n- darker helper text and solid 48px inputs\n- radio circles and chips that fill with a check\n- one progress bar with time left\n- a sticky Back/Continue bar that says why it's disabled\n\nThe words, the data, and the saving behavior stayed the same; only how readable and focused it is changed.\n\n## Relationship to other standards\n\n- `16_PUBLIC_PAGES_ARE_SALES_PAGES.md` / `16_PUBLIC_PAGE_VOICE.md`: what a page **says**.\n  This doc covers how a page **reads**. A public page must pass both.\n- `DEFINITION_OF_DONE.md` **DC-13**: the enforceable rule that points here.\n- `13_GATCA__WIRED_IS_NOT_WORKING.md`: a page nobody can follow is wired but not working.",
+        "from": "life-produces-life-source-of-truth _SOURCE_OF_TRUTH/19_PAGES_ARE_EASY_TO_READ.md (PR #67)"
+      },
+      "source": "life-produces-life-source-of-truth PR #67",
+      "requestedBy": "Claude (Kindred session)",
+      "verifiedOn": "2026-11-25",
+      "verifiedHow": "2026-11-25: PR #67 is open and unmerged (mergeable, clean); 19_PAGES_ARE_EASY_TO_READ.md is not on main.",
+      "app": "ecosystem",
+      "addedOn": "2026-11-25"
+    },
+    {
+      "id": "kindred-plan-first-kindred-night",
+      "title": "Pick a date and place for the first Kindred night in Vidalia",
+      "why": "Kindred has 4 real members. A friendship app only works with people nearby; the first circle has to start in person. The welcome email to 94 unfinished signups waits on this date.",
+      "steps": [
+        "Send us a date, time and place in Vidalia for one in-person evening (café, church hall, or after pickleball).",
+        "Name 3–5 people who gather others and would mention it once (pastor, Celebrate Recovery leader, pickleball organizer).",
+        "Invite about 10 people yourself and ask each to bring one friend.",
+        "We then add the event in Kindred, make a QR card, and show you the welcome email to approve before it sends."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://kindred.unitedundergod.org/activities",
+      "doc": {
+        "title": "The first Kindred night in Vidalia",
+        "text": "# The first Kindred night in Vidalia\n\n## Why this matters\nKindred has 4 real members who finished setup. A friendship app only works when there are people near\nyou, so the first circle has to start in person, in one town, through people you already know.\nThe app side is ready (shipped 2026-11-25): setup saves as you go, new members land in a Vidalia\ngroup, and right after setup they are asked to bring one person and shown the next event near them.\n\n## What we need from you\n1. **A date, a time and a place** for one in-person evening in Vidalia: a café, a church hall, or\n   right after pickleball. About 90 minutes, nothing formal.\n2. **3 to 5 people who gather others** you'd ask to mention it once: for example a pastor (through\n   ChurchConnect), the Celebrate Recovery leader, the pickleball organizer.\n3. **About 10 people you'll invite yourself**, each asked to bring one friend.\n\n## What happens as soon as you send the date and place\n- We add it as an event in Kindred, so RSVPing is how people sign up.\n- We make a small card with a QR code for the leaders to hand out.\n- We show you the email for the 94 people who started setup but never finished. It goes out only\n  after you approve it.\n\n## Goal for the first 30 days\n30 people in Vidalia finish setup, 3 small groups meet once, and members send their first messages.\nWe'll send you those numbers every Monday.\n\n## What we recommend\nA weeknight evening at a café or church fellowship hall within the next 2–3 weeks, before the holidays\nfill up. \"You decide\" is a fine answer for the place; we can suggest a few if you'd rather.",
+        "from": "Kindred-Connection docs/outreach/WINBACK_EMAIL_DRAFT.md + session plan"
+      },
+      "source": "Kindred-Connection PRs #11, #13, #14, #15",
+      "requestedBy": "Claude (Kindred session)",
+      "verifiedOn": "2026-11-25",
+      "verifiedHow": "2026-11-25: kindred_events has only the 4 public Vidalia listings, no Kindred night; 4 real onboarded members; 94 emailable unfinished signups; /activities loads 200.",
+      "app": "kindred-connections",
+      "addedOn": "2026-11-25"
     }
   ]
 }
