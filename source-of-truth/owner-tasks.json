@@ -2862,6 +2862,46 @@
       "verifiedHow": "2026-11-25: create_trigger returned the task with mcp_connections [] and warned its sessions run without connector tools; the session holds Supabase but could not pass it through.",
       "app": "kindred-connections",
       "addedOn": "2026-11-25"
+    },
+    {
+      "id": "toner-management-send-the-ordering-details-for-clover-katun-and-arlington",
+      "title": "Send the ordering details for Clover, Katun and Arlington",
+      "why": "Automatic toner orders are emailed to the supplier. Clover is the only supplier on file and has no order email, so every order routed to it goes nowhere (the one real attempt on 2026-08-28 was skipped: no address on file). Katun and Arlington are not set up at all, and Clover's 1,155 prices date from 2026-07-10.",
+      "steps": [
+        "For each of Clover, Katun and Arlington, reply in a Claude session with: the email address that accepts purchase orders, a contact name, your account or dealer number, and how many days an order usually takes to arrive.",
+        "Attach each supplier's current price sheet (the spreadsheet they send dealers). Clover's sheet in the system is from July.",
+        "If any of them only takes orders through their own website or EDI instead of email, say so; that changes what gets built."
+      ],
+      "kind": "account",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://toner.management/admin",
+      "source": "Toner evaluation 2026-11-27 (TotalTonerManagement)",
+      "requestedBy": "Claude (toner evaluation session)",
+      "verifiedOn": "2026-11-27",
+      "verifiedHow": "Live Neon TonerManagement DB 2026-11-27: suppliers table has Clover (contact_email null, 1155 price items, last updated 2026-07-10) plus test rows only; no Katun or Arlington row; email_deliveries shows the only supplier_order email skipped with 'no valid recipient address'. Admin has an invite-supplier action but no field to edit Clover's email, so an agent sets it once given.",
+      "app": "toner-management",
+      "addedOn": "2026-11-27"
+    },
+    {
+      "id": "toner-management-install-printer-protector-on-one-computer-next-to-a-real-printe",
+      "title": "Install Printer Protector on one computer next to a real printer",
+      "why": "No real printer has ever reported. All 80 readings in the database are test data, and nothing has reported since 2026-11-13. A forecast needs a few days of real readings, so this is how we prove the days-left number and order timing on a real machine.",
+      "steps": [
+        "On a computer that stays on and is on the same network as a printer, open toner.management, sign in (or create a free account) and download Printer Protector from the Printer watcher section.",
+        "Run it. Windows will warn that the publisher is unknown: click More info, then Run anyway. On a Mac, right-click the app and choose Open.",
+        "Leave it running for a week, then tell Claude. Claude checks the readings and the predicted empty date."
+      ],
+      "kind": "other",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://toner.management/",
+      "source": "Toner evaluation 2026-11-27 (TotalTonerManagement)",
+      "requestedBy": "Claude (toner evaluation session)",
+      "verifiedOn": "2026-11-27",
+      "verifiedHow": "Live 2026-11-27: Windows, macOS and Linux installers on toner.management/downloads return 200 with the published sizes; 159 agent tests and 271 server tests pass; DB shows 0 agents seen in the last 2 days and every org with readings is a test org.",
+      "app": "toner-management",
+      "addedOn": "2026-11-27"
     }
   ]
 }
