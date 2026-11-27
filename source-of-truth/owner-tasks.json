@@ -2902,6 +2902,25 @@
       "verifiedHow": "Live 2026-11-27: Windows, macOS and Linux installers on toner.management/downloads return 200 with the published sizes; 159 agent tests and 271 server tests pass; DB shows 0 agents seen in the last 2 days and every org with readings is a test org.",
       "app": "toner-management",
       "addedOn": "2026-11-27"
+    },
+    {
+      "id": "appengine-product-outreach-pick-how-we-find-owners-email-addresses",
+      "title": "Product outreach: pick how we find owners' email addresses",
+      "why": "Small shops (gift shops, pet stores, salons) rarely list a person's email on their site. On Nov 27 we checked five Savannah gift shops from Google listings, and none showed a personal address. Without a finder service, outreach for Laser Engrave, FurFriend, AI Website Design and EasyPeazy falls back to info@ addresses or contact forms, which is what put the November church emails in junk.",
+      "steps": [
+        "Choose one: (a) Hunter.io Starter, about $49 a month, finds and verifies a named person's work email; (b) Apollo.io, which has a free plan with a monthly allowance and paid plans above that; (c) no service: email only places that list a real person, and reach the rest by phone or social media.",
+        "Reply in the chat with a, b or c. If a or b, create the account and an agent will ask for its API key through the secure form."
+      ],
+      "kind": "decision",
+      "priority": "blocker",
+      "status": "open",
+      "link": "https://hunter.io/pricing",
+      "source": "Product outreach plan 2026-11-27",
+      "requestedBy": "Claude Code (product outreach session)",
+      "verifiedOn": "2026-11-27",
+      "verifiedHow": "2026-11-27: pulled 20 Savannah gift shops and visitor centers from Google listings via OpenSEO, then fetched the home, about, contact and our-story pages of the five independent shops with websites. None listed a personal email; the only address found belonged to their web designer. Resend has three sending domains, all on unitedundergod.org and churchconnect.cloud, none on the product domains.",
+      "app": "appengine",
+      "addedOn": "2026-11-27"
     }
   ]
 }
